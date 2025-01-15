@@ -1,0 +1,42 @@
+{
+    "Name": "lexi.discordchatlogging",
+    "Description": "Logs chat messages to a discord channel.",
+    "Version": "1.0.0",
+    "LoadPriority": 1,
+    "RequiredOnClient": false,
+    "ConVars": [
+        {
+            "Name": "discordlogginghttpServer",
+            "DefaultValue": "http://discordlog:3451"
+        }, //discordlog http://host.docker.internal
+        {
+            "Name": "discordloggingallowreturnmessages", //for discord -> northstar chat
+            "DefaultValue": "1"
+        },
+        {
+            "Name": "discordloggingserverid", //IMPORTANT to set in server convars
+            "DefaultValue": "0"
+        },
+        {
+            "Name": "discordloggingservername", //ALSO IMPORTANT to set in server convars
+            "DefaultValue": "useactualservername"
+        },
+        {
+            "Name": "discordloggingRCONenabled", // enable rcon from discord
+            "DefaultValue": "1"
+        },
+        {
+            "Name": "discordloggingenabled", //0 completly disables the mod
+            "DefaultValue": "1"
+        }
+    ],
+    "Scripts": [
+        {
+            "Path": "logger.nut",
+            "RunOn": "SERVER",
+            "ServerCallback": {
+                "After": "discordloggerinit"
+            }
+        }
+    ]
+}

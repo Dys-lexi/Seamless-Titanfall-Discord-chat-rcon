@@ -1,0 +1,24 @@
+# Base image
+FROM python:3.10-slim
+
+# Set working directory
+WORKDIR /app
+
+# Copy bot code
+COPY . .
+
+# Install dependencies
+RUN python -m venv /venv && \
+    /venv/bin/pip install --no-cache-dir -r requirements.txt
+
+# Set environment variable for virtual environment
+ENV PATH="/venv/bin:$PATH"
+
+ENV PYTHONUNBUFFERED=1
+
+
+# Expose Flask port
+EXPOSE 3451
+
+# Command to run the bot
+CMD ["python3", "output.py"]
