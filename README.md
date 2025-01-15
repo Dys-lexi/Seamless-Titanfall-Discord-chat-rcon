@@ -15,3 +15,6 @@ discordlog:
       - ./discord/data:/app/data:rw
     restart: always
 ```
+
+Check the mod.json file for configuration, and you'll most likely need 
+```-allowlocalhttp``` in your server settings
