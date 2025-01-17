@@ -196,8 +196,14 @@ void function Onmapchange(){
 	Postmessages(newmessage)
 }
 
+struct {
+	array<string> textcheck
+} check
+
+
 void function DiscordClientMessageinloop()
 {
+	check.textcheck = []
 	
 	while (true) {
 		if (shouldsend == 0){
@@ -222,6 +228,12 @@ void function DiscordClientMessageinloop()
 	table params = {}
 
 	params["serverid"] <- serverdetails.serverid
+	foreach (text in check.textcheck) {
+		print(text)
+    	params[text] <- text
+	}
+
+
 
     HttpRequest request
     request.method = HttpRequestMethod.POST
@@ -244,10 +256,13 @@ void function DiscordClientMessageinloop()
 			eCount++;
 			return
 		}
+		
+		check.textcheck = []
 		table messagess = DecodeJSON(messages.body)
 		string commands = expect string(messagess["commands"])
 		string texts = expect string(messagess["texts"])
-		
+		string textvalidation = expect string(messagess["textvalidation"])
+		array<string> splittextvalidation = split(textvalidation,"%&%&")
 		array<string> splittexts = split(texts,"%&%&")
 		array<string> splitcommands = split(commands,"%&%&")
 		if (serverdetails.rconenabled){
@@ -267,6 +282,8 @@ void function DiscordClientMessageinloop()
 
 			print(splittexts[i])
 			Chat_ServerBroadcast("\x1b[38;5;105m"+splittexts[i],false)
+			check.textcheck.append(splittextvalidation[i])
+			// check.append(splittexts[i])
     }
 	}
     

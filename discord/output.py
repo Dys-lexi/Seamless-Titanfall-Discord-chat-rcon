@@ -29,6 +29,7 @@ if TOKEN == 0:
     print("NO TOKEN FOUND")
 messagestosend = {}
 commands = {}
+discordtotitanfall = {}
 # Load channel ID from file
 context = {
     "logging_cat_id": 0,
@@ -99,7 +100,7 @@ async def rcon_command(
 ):
     print("rcon command from", ctx.author.id, cmd, "to", servername if servername != None else "Auto")
     
-    global context, commands
+    global context, discordtotitanfall, commands
     if ctx.author.id not in context["RCONallowedusers"]:
         await ctx.respond("You are not allowed to use RCON commands.", ephemeral=True)
         return
@@ -113,16 +114,16 @@ async def rcon_command(
         else:
             await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=True)
             return
-        if serverid not in commands.keys():
-            commands[serverid] = []
-        commands[serverid].append(cmd)
-        await ctx.respond(f"Command added to queue for server: **{context['serveridnamelinks'][serverid]}**.", ephemeral=True)
+        initdiscordtotitanfall(serverid)
+        
+        message = await ctx.respond(f"Command added to queue for server: **{context['serveridnamelinks'][serverid]}**.")
+        discordtotitanfall[serverid]["commands"].append({"command":cmd,"id":message.id})
+
     elif servername == "*":
         for serverid in context["serverchannelidlinks"].keys():
-            if serverid not in commands.keys():
-                commands[serverid] = []
-            commands[serverid].append(cmd)
-        await ctx.respond(f"Command added to queue for all servers.", ephemeral=True)
+            initdiscordtotitanfall(serverid)
+            discordtotitanfall[serverid]["commands"].append({"command":cmd,"id":0})
+        message =  await ctx.respond(f"Command added to queue for all servers.", ephemeral=True)
     elif servername in context["serveridnamelinks"].values():
         for serverid, name in context["serveridnamelinks"].items():
             if name == servername:
@@ -130,10 +131,10 @@ async def rcon_command(
         else:
             await ctx.respond("Server not found.", ephemeral=True)
             return
-        if serverid not in commands.keys():
-            commands[serverid] = []
-        commands[serverid].append(cmd)
-        await ctx.respond(f"Command added to queue for server: **{servername}**.", ephemeral=True)
+        initdiscordtotitanfall(serverid)
+        
+        message = await ctx.respond(f"Command added to queue for server: **{servername}**.", ephemeral=True)
+        discordtotitanfall[serverid]["commands"].append({"command":cmd,"id":message.id})
     else:
         await ctx.respond("Server not found.", ephemeral=True)
     
@@ -163,16 +164,18 @@ async def rcon_add_user(
 
 @bot.event
 async def on_message(message):
-    global messagestosend, context
+    global messagestosend, context,discordtotitanfall
     if message.author == bot.user:
         return
     if message.channel.id in context["serverchannelidlinks"].values():
         serverid = [key for key, value in context["serverchannelidlinks"].items() if value == message.channel.id][0]
         if serverid not in messagestosend.keys():
             messagestosend[serverid] = []
-        if len(f"{message.author.nick if message.author.nick != None else message.author.display_name}: [38;5;254m{message.content}") > 240:
+        initdiscordtotitanfall(serverid)
+        if len(f"{message.author.nick if message.author.nick != None else message.author.display_name}: [38;5;254m{message.content}") > 240 or message.content == "":
             await message.channel.send("Message too long, cannot send.")
             return
+        discordtotitanfall[serverid]["messages"].append({"id":message.id,"content":f"{message.author.nick if message.author.nick != None else message.author.display_name}: [38;5;254m{message.content}"})
         messagestosend[serverid].append(f"{message.author.nick if message.author.nick != None else message.author.display_name}: [38;5;254m{message.content}")
 
 
@@ -192,34 +195,37 @@ def recieveflaskprintrequests():
 
     @app.route('/askformessage', methods=['POST'])
     def askformessage():
-        global context, messagestosend
+        global context, messagestosend,commands,discordtotitanfall
         # print("uwu")
         data = request.get_json()
         serverid = data["serverid"]
+        ids = list(data.keys())
+        # print(ids)
+        asyncio.run_coroutine_threadsafe(reactomessages(list(ids),serverid), bot.loop)
+                
         timer = 0
         while timer < 60:
             timer += 1
-            if  serverid in messagestosend.keys() and len(messagestosend[serverid]) > 0 or serverid in commands.keys() and len(commands[serverid]) > 0:
-                if serverid in commands.keys() and len(commands[serverid]) > 0:
-                    sendingcommands = commands[serverid]
-                    commands[serverid] = []
-                else:
-                    sendingcommands = []
-                if serverid in messagestosend.keys() and len(messagestosend[serverid]) > 0:
-                    texts = messagestosend[serverid]
-                    messagestosend[serverid] = []
-                else:
-                    texts = []
-                return  {"texts":"%&%&".join(texts),"commands":"%&%&".join(sendingcommands)}
+            if  serverid in discordtotitanfall.keys() and (discordtotitanfall[serverid]["messages"] != [] or discordtotitanfall[serverid]["commands"] != []):
+                texts = [message["content"] for message in discordtotitanfall[serverid]["messages"]]
+                textvalidation = [str(message["id"]) for message in discordtotitanfall[serverid]["messages"]]
+                sendingcommands = [command["command"] for command in discordtotitanfall[serverid]["commands"]]
+
+                discordtotitanfall[serverid]["messages"] = []
+                discordtotitanfall[serverid]["commands"] = []
+               
+                print("sending messages and commands to titanfall",texts,sendingcommands)
+                return  {"texts":"%&%&".join(texts),"commands":"%&%&".join(sendingcommands),"textvalidation":"%&%&".join(textvalidation)}
             time.sleep(0.2)
 
-        return {"texts":"","commands":""}
+        return {"texts":"","commands":"","textvalidation":""}
             
 
     @app.route('/servermessagein', methods=['POST'])
     def printmessage():
         global messageflush, lastmessage, messagecounter, context
         data = request.get_json()
+        
         if context["logging_cat_id"] == 0:
             return jsonify({"message": "no category bound"})
         if "servername" in data.keys():
@@ -227,12 +233,14 @@ def recieveflaskprintrequests():
         if "player" in data.keys():
             playername = data["player"]
         if "serverid" not in data.keys() or "type" not in data.keys() or "timestamp" not in data.keys() or "messagecontent" not in data.keys():
+            print("invalid message request recieved (not all params supplied)")
             return jsonify({"message": "missing paramaters (type, timestamp, messagecontent, serverid)"})
+
         serverid = data["serverid"]
         typeofmessage = data["type"]
         timestamp = data["timestamp"]
         messagecontent = data["messagecontent"]
-
+        print("message request from",serverid)
         messageflush.append({
             "servername": servername,
             "player": playername,
@@ -248,8 +256,6 @@ def recieveflaskprintrequests():
         if serverid not in context["serveridnamelinks"]:
             context["serveridnamelinks"][serverid] = servername
             savecontext()
-
-        print(context["serverchannelidlinks"])
 
         if serverid not in context["serverchannelidlinks"].keys():
             # Get guild and category
@@ -275,6 +281,18 @@ async def createchannel(guild, category, servername, serverid):
     context["serverchannelidlinks"][serverid] = channel.id
     savecontext()
 
+async def reactomessages(messages,serverid):
+    # print("bap")
+    # print(messages,"wqdqw")
+    for message in messages:
+        # print("run")
+        if message == "serverid":
+            continue
+        # print("run2")
+        message = await bot.get_channel(context["serverchannelidlinks"][serverid]).fetch_message(int(message))
+        # print("reacting to message")
+        await message.add_reaction("✅")
+
 async def changechannelname(guild, servername, serverid):
     global context
     print("Changing channel name...")
@@ -292,14 +310,12 @@ def messageloop():
         # check if any uncreated channels exist
             if (time.time() - lastmessage > 0.5 and len(messageflush) > 0) or len(str(messageflush)) > 1500:
                 for message in messageflush:
-                    print(addflag)
                     if message["serverid"] not in context["serverchannelidlinks"].keys() and addflag == False:
                         addflag = True
                         guild = bot.get_guild(context["activeguild"])
                         category = guild.get_channel(context["logging_cat_id"])
                         asyncio.run_coroutine_threadsafe(createchannel(guild, category, message["servername"], message["serverid"]), bot.loop)
                         time.sleep(10)
-                    print(addflag)
                 addflag = False
                 for message in messageflush:   
                     if message["serverid"] in context["serverchannelidlinks"].keys() and message["servername"] not in context["serveridnamelinks"].values() and addflag == False:
@@ -307,23 +323,30 @@ def messageloop():
                         guild = bot.get_guild(context["activeguild"])
                         asyncio.run_coroutine_threadsafe(changechannelname(guild, message["servername"], message["serverid"]), bot.loop)
                 addflag = False    
-                print("boop",messageflush)
                 channel = bot.get_channel(context["serverchannelidlinks"][messageflush[0]["serverid"]])
                 output = []
                 messageflush = sorted(messageflush, key=lambda x: x["timestamp"])
                 for message in messageflush:
-                    print("sending")
+                    if ("\033[") in message["messagecontent"]:
+                        print("colour codes found in message")
+                        while "\033["  in message["messagecontent"]:
+                            startpos = message["messagecontent"].index("\033[")
+                            endpos = message["messagecontent"][startpos:].index("m") + startpos
+                            message["messagecontent"] = message["messagecontent"][:startpos]+ message["messagecontent"][endpos+1:]
                     if message["type"] == 1:
                         output.append(f"**{message['player']}**:  {message['messagecontent']}")
+                        print(f"**{message['player']}**:  {message['messagecontent']}")
                     elif message["type"] == 2:
                         # print("2")
                         # output.append(f"meow")
                         output.append(f"""```{message['player']} {message['messagecontent']}```""")
+                        print((f"""```{message['player']} {message['messagecontent']}```"""))
                     elif message["type"] == 3:
                         output.append(f"{message['messagecontent']}")
+                        print(f"{message['messagecontent']}")
 
-                    else:print("sob")
-                    
+                    else:print("type of message unkown")
+                    print("\033[0m",end = "")
                 asyncio.run_coroutine_threadsafe(channel.send("\n".join(output)), bot.loop)
                 messageflush = []
                 lastmessage = time.time()
@@ -338,6 +361,15 @@ def savecontext():
     with open("./data/"+channel_file, "w") as f:
         json.dump(context, f, indent=4)
 
+def initdiscordtotitanfall(serverid):
+    global discordtotitanfall
+    if serverid not in discordtotitanfall.keys():
+        discordtotitanfall[serverid] = {"messages":[],"commands":[]}
+    if "messages" not in discordtotitanfall[serverid].keys():
+        discordtotitanfall[serverid]["messages"] = []
+    if "commands" not in discordtotitanfall[serverid].keys():
+        discordtotitanfall[serverid]["commands"] = []
+    
 
 threading.Thread(target=messageloop).start()
 threading.Thread(target=recieveflaskprintrequests).start()
