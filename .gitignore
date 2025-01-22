@@ -1,2 +1,13 @@
+*
+!.gitignore
+!mods/
+mods/*
+!mods/lexi.discordchatlogging/
+!mods/lexi.discordchatlogging/**
+!discord/
+!discord/**
+discord/discordtitanfall/*
+discord/discordtitanfall/**
+discord/data/channels.json
 .venv
 .env
