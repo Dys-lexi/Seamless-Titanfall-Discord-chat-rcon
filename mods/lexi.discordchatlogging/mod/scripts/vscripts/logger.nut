@@ -67,7 +67,7 @@ void function discordloggerinit() {
 	print(currentTime)
 	serverdetails.Requestpath = GetConVarString("discordlogginghttpServer")
 	if (GetConVarString("discordloggingservername") == "useactualservername"){
-	serverdetails.Servername = GetConVarString("NS_SERVER_NAME")}
+		serverdetails.Servername = GetConVarString("NS_SERVER_NAME")}
 	else {
 		serverdetails.Servername = GetConVarString("discordloggingservername")
 	}
@@ -76,15 +76,15 @@ void function discordloggerinit() {
 		print("[DiscordLogger]Server ID not set, please set it in the console")
 	} else {
 		AddCallback_OnReceivedSayTextMessage( LogMSG )
-	AddCallback_OnClientConnected( LogConnect )
-	AddCallback_OnClientDisconnected( LogDC)
-	// AddCallback_GameStateEnter(eGameState.PickLoadout, Onmapchange);
-    AddCallback_GameStateEnter(eGameState.Prematch, Onmapchange);
+		AddCallback_OnClientConnected( LogConnect )
+		AddCallback_OnClientDisconnected( LogDC)
+		// AddCallback_GameStateEnter(eGameState.PickLoadout, Onmapchange);
+		AddCallback_GameStateEnter(eGameState.Prematch, Onmapchange);
 
-	if (GetConVarInt("discordloggingallowreturnmessages")) {
-		thread DiscordClientMessageinloop()
-	}
-	serverdetails.rconenabled = GetConVarInt("discordloggingrconenabled")
+		if (GetConVarInt("discordloggingallowreturnmessages")) {
+			thread DiscordClientMessageinloop()
+		}
+		serverdetails.rconenabled = GetConVarInt("discordloggingrconenabled")
 	}
 	// print(serverdetails.Servername)
 }   
@@ -106,9 +106,7 @@ void function LogConnect( entity player )
 void function LogDC( entity player )
 {
 	if(!IsValid(player))
-	{
 		return
-	}
 	outgoingmessage newmessage 
 	newmessage.playername = player.GetPlayerName()
 	newmessage.message = "has left the server ("+(GetPlayerArray().len()-1).tostring()+" Connected)"
@@ -219,93 +217,90 @@ void function DiscordClientMessageinloop()
 				// print("breaking")
 			}
 		}
-	// wait 1	
-	breakercounter = 0
-	// print(GetPlayerArray().len())
-	if(eCount==3 || GetPlayerArray().len() == 12313) //set to 0 to not relay if no people are on
-	{
-		wait 15
-		eCount = 0
-		
-	}
-
-	table params = {}
-
-	params["serverid"] <- serverdetails.serverid
-	foreach (text in check.textcheck) {
-		// print(text)
-    	params[text] <- text
-	}
-
-
-
-    HttpRequest request
-    request.method = HttpRequestMethod.POST
-    request.url = serverdetails.Requestpath + "/askformessage"
-	request.body = EncodeJSON(params)
-	int timeout = 60
-	request.timeout = timeout
-	
-	// print("[DiscordLogger] Sending req:")
-    void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse messages )
-    {
-		eCount = 0;
-		shouldsend = 1
-		// print("[DiscordLogger] MSG RECIEVED")
-		if (messages.statusCode
-		!= 200)
+		// wait 1	
+		breakercounter = 0
+		// print(GetPlayerArray().len())
+		if(eCount==3 || GetPlayerArray().len() == 12313) //set to 0 to not relay if no people are on
 		{
-			print("[DiscordLogger] Error: "+messages.statusCode)
-			// print("[DiscordLogger] "+serverdetails.Requestpath + "/askformessage")
-			eCount++;
-			return
+			wait 15
+			eCount = 0
 		}
-		
-		check.textcheck = []
-		table messagess = DecodeJSON(messages.body)
-		string commands = expect string(messagess["commands"])
-		string texts = expect string(messagess["texts"])
-		string textvalidation = expect string(messagess["textvalidation"])
-		array<string> splittextvalidation = split(textvalidation,"%&%&")
-		array<string> splittexts = split(texts,"%&%&")
-		array<string> splitcommands = split(commands,"%&%&")
-		if (serverdetails.rconenabled){
-		for (int i = 0; i < splitcommands.len(); i++)
-		{
-			print(splitcommands[i])
-			ServerCommand(splitcommands[i])
-		}}
-		else if (splitcommands.len() > 0){
-			print("[DiscordLogger] RCON is not enabled, but commands were sent")
+
+		table params = {}
+
+		params["serverid"] <- serverdetails.serverid
+		foreach (text in check.textcheck) {
+			// print(text)
+			params[text] <- text
 		}
-		// array<string> splitsenders = split(senders,"%&%#[")
-		for (int i = 0; i < splittexts.len(); i++)
-		// \u001b[38;2;232;234;3m
+
+
+
+		HttpRequest request
+		request.method = HttpRequestMethod.POST
+		request.url = serverdetails.Requestpath + "/askformessage"
+		request.body = EncodeJSON(params)
+		int timeout = 60
+		request.timeout = timeout
+		
+		// print("[DiscordLogger] Sending req:")
+		void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse messages )
 		{
+			eCount = 0;
+			shouldsend = 1
+			// print("[DiscordLogger] MSG RECIEVED")
+			if (messages.statusCode
+			!= 200)
+			{
+				print("[DiscordLogger] Error: "+messages.statusCode)
+				// print("[DiscordLogger] "+serverdetails.Requestpath + "/askformessage")
+				eCount++;
+				return
+			}
 			
+			check.textcheck = []
+			table messagess = DecodeJSON(messages.body)
+			string commands = expect string(messagess["commands"])
+			string texts = expect string(messagess["texts"])
+			string textvalidation = expect string(messagess["textvalidation"])
+			array<string> splittextvalidation = split(textvalidation,"%&%&")
+			array<string> splittexts = split(texts,"%&%&")
+			array<string> splitcommands = split(commands,"%&%&")
+			if (serverdetails.rconenabled) {
+				for (int i = 0; i < splitcommands.len(); i++)
+				{
+					print(splitcommands[i])
+					ServerCommand(splitcommands[i])
+				}
+			}
+			else if (splitcommands.len() > 0) {
+				print("[DiscordLogger] RCON is not enabled, but commands were sent")
+			}
+			// array<string> splitsenders = split(senders,"%&%#[")
+			for (int i = 0; i < splittexts.len(); i++)
+			// \u001b[38;2;232;234;3m
+			{
+				print(splittexts[i])
+				Chat_ServerBroadcast("\x1b[38;5;105m"+splittexts[i],false)
+				check.textcheck.append(splittextvalidation[i])
+				// check.append(splittexts[i])
+			}
+		}
+		
+		void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
+		{
+			shouldsend = 1
+			print("[DiscordLogger] ECode: "+failure.errorCode)
+			print("[DiscordLogger] EMSG: "+failure.errorMessage)
 
-			print(splittexts[i])
-			Chat_ServerBroadcast("\x1b[38;5;105m"+splittexts[i],false)
-			check.textcheck.append(splittextvalidation[i])
-			// check.append(splittexts[i])
-    }
+			eCount++;
+		}
+		if (shouldsend == 1){
+			// print("sending")
+			shouldsend = 0
+
+			NSHttpRequest( request, onSuccess, onFailure )
+		}
 	}
-    
-    void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
-    {
-		shouldsend = 1
-		print("[DiscordLogger] ECode: "+failure.errorCode)
-		print("[DiscordLogger] EMSG: "+failure.errorMessage)
-
-		eCount++;
-		
-    }
-	if (shouldsend == 1){
-		
-		// print("sending")
-		shouldsend = 0
-
-		NSHttpRequest( request, onSuccess, onFailure )}
-}
 }
 
