@@ -46,7 +46,8 @@ table<string, string> MAP_NAME_TABLE = {
     mp_rise = "Rise",
     mp_thaw = "Exoplanet",
     mp_wargames = "Wargames",
-    mp_mirror_city = "Mirror City"
+    mp_mirror_city = "Mirror City",
+	mp_brick = "BRICK"
 }
 
 
@@ -77,7 +78,7 @@ void function discordloggerinit() {
 		AddCallback_OnReceivedSayTextMessage( LogMSG )
 	AddCallback_OnClientConnected( LogConnect )
 	AddCallback_OnClientDisconnected( LogDC)
-	AddCallback_GameStateEnter(eGameState.PickLoadout, Onmapchange);
+	// AddCallback_GameStateEnter(eGameState.PickLoadout, Onmapchange);
     AddCallback_GameStateEnter(eGameState.Prematch, Onmapchange);
 
 	if (GetConVarInt("discordloggingallowreturnmessages")) {
@@ -188,9 +189,12 @@ int shouldsend = 1
 int breakercounter = 0
 
 void function Onmapchange(){
+	wait 1
 	outgoingmessage newmessage 
+	// string LocalizedMapName = Localize( "#STATS_NOT_APPLICABLE" ) 
 	newmessage.playername = ""
-	newmessage.message = "Map has changed to "+MAP_NAME_TABLE[GetMapName()]
+	newmessage.message = "New round starting" //+ MAP_NAME_TABLE[GetMapName()]
+	// print(newmessage.message)
 	newmessage.timestamp = GetUnixTimestamp()
 	newmessage.type = 2
 	Postmessages(newmessage)
@@ -229,7 +233,7 @@ void function DiscordClientMessageinloop()
 
 	params["serverid"] <- serverdetails.serverid
 	foreach (text in check.textcheck) {
-		print(text)
+		// print(text)
     	params[text] <- text
 	}
 

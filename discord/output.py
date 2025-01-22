@@ -24,7 +24,7 @@ intents.members = True  # Enable the members intent
 intents.presences = True
 
 # Load token from environment variable
-TOKEN = os.getenv('DISCORD_BOT_TOKEN', 0)
+TOKEN = os.getenv('DISCORD_BOT_TOKEN', "0")
 if TOKEN == 0:
     print("NO TOKEN FOUND")
 messagestosend = {}
@@ -116,7 +116,7 @@ async def rcon_command(
             return
         initdiscordtotitanfall(serverid)
         
-        message = await ctx.respond(f"Command added to queue for server: **{context['serveridnamelinks'][serverid]}**.")
+        message = await ctx.respond(f"Command added to queue for server: **{context['serveridnamelinks'][serverid]}**.",ephemeral=True)
         discordtotitanfall[serverid]["commands"].append({"command":cmd,"id":message.id})
 
     elif servername == "*":
@@ -209,6 +209,8 @@ def recieveflaskprintrequests():
             if  serverid in discordtotitanfall.keys() and (discordtotitanfall[serverid]["messages"] != [] or discordtotitanfall[serverid]["commands"] != []):
                 texts = [message["content"] for message in discordtotitanfall[serverid]["messages"]]
                 textvalidation = [str(message["id"]) for message in discordtotitanfall[serverid]["messages"]]
+                while len (textvalidation) < len(texts):
+                    textvalidation.append("0")
                 sendingcommands = [command["command"] for command in discordtotitanfall[serverid]["commands"]]
 
                 discordtotitanfall[serverid]["messages"] = []
