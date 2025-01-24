@@ -81,6 +81,7 @@ void function discordloggerinit() {
 	AddCallback_GameStateEnter(eGameState.Playing, begintodiscord);
 	// AddCallback_GameStateEnter(eGameState.PickLoadout, Onmapchange);
     AddCallback_GameStateEnter(eGameState.Prematch, Onmapchange);
+	AddCallback_GameStateEnter(9,stoprequests);
 
 	if (GetConVarInt("discordloggingallowreturnmessages")) {
 		thread DiscordClientMessageinloop()
@@ -197,7 +198,7 @@ void function Onmapchange(){
 	outgoingmessage newmessage 
 	// string LocalizedMapName = Localize( "#STATS_NOT_APPLICABLE" ) 
 	newmessage.playername = ""
-	newmessage.message = "Map changed too " + MAP_NAME_TABLE[GetMapName()]
+	newmessage.message = "Map changed to " + MAP_NAME_TABLE[GetMapName()]
 	// print(newmessage.message)
 	newmessage.timestamp = GetUnixTimestamp()
 	newmessage.typeofmsg = 2
@@ -208,12 +209,32 @@ struct {
 	array<string> textcheck
 	int postmatch
 	int allowlogging = 0
+	int denylogging = 0
 } check
 
 void function begintodiscord(){
   check.allowlogging = 1
 }
+void function stoprequests(){
+	check.denylogging = 1
+	table params = {}
+	params["serverid"] <- serverdetails.serverid
+	HttpRequest request
+	request.method = HttpRequestMethod.POST
+	request.url = serverdetails.Requestpath + "/stoprequests"
+	request.body = EncodeJSON(params)
+	void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse response )
+	{
+		print("[DiscordLogger]Requests stopped")
+	}
 
+	void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
+	{
+		print("[DiscordLogger]Failed to stop requests"  + failure.errorMessage)
+	}
+
+	NSHttpRequest(request, onSuccess, onFailure)
+}
 
 void function DiscordClientMessageinloop()
 {
@@ -221,6 +242,7 @@ void function DiscordClientMessageinloop()
 	check.postmatch = 999999
 	
 	while (true) {
+		// print("gamestate "+GetGameState())
 		if (shouldsend == 0){
 			wait 1
 			breakercounter++
@@ -262,8 +284,12 @@ void function DiscordClientMessageinloop()
 	request.body = EncodeJSON(params)
 	
 	int timeout = 60
-	if (check.allowlogging == 1 && GameTime_TimeLeftSeconds() < 60){
-		if (GameTime_TimeLeftSeconds()> check.postmatch){
+	if (check.denylogging == 1){
+		break
+	}
+	
+	else if (check.allowlogging == 1 && GameTime_TimeLeftSeconds() < 60){
+		if (GameTime_TimeLeftSeconds()> check.postmatch || GameTime_TimeLeftSeconds() == 0){
 			wait 1
 			continue
 		}
@@ -271,6 +297,10 @@ void function DiscordClientMessageinloop()
 		timeout = GameTime_TimeLeftSeconds()
 		check.postmatch = GameTime_TimeLeftSeconds()
 	}
+	else {
+		check.postmatch = 999999
+	}
+	// if(GetScoreLimit_FromPlaylist()-50 <GameRules_GetTeamScore(TEAM_MILITIA) || GetScoreLimit_FromPlaylist()*0.95 <GameRules_GetTeamScore(TEAM_IMC) || GameTime_TimeLeftSeconds() < 60)
 	
 	request.timeout = timeout
 	
@@ -278,6 +308,7 @@ void function DiscordClientMessageinloop()
     void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse messages )
     {
 		eCount = 0;
+		print("recieved")
 		shouldsend = 1
 		// print("[DiscordLogger] MSG RECIEVED")
 		if (messages.statusCode
@@ -323,7 +354,7 @@ void function DiscordClientMessageinloop()
     {
 		shouldsend = 1
 		if (failure.errorCode == 28){
-			// print("[DiscordLogger] Timeout")
+			print("[DiscordLogger] Timeout")
 			return
 		}
 		print("[DiscordLogger] ECode: "+failure.errorCode)
@@ -337,7 +368,11 @@ void function DiscordClientMessageinloop()
 		// print("sending")
 		shouldsend = 0
 		// print(timeleft())
-		// print("sending")
+		
+		if (check.allowlogging == 1) {
+			print("sending"+timeout+" "+GameTime_TimeLeftSeconds())
+		}else{
+		print("sending"+timeout)}
 		NSHttpRequest( request, onSuccess, onFailure )}
 }
 }

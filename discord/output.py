@@ -30,6 +30,7 @@ if TOKEN == 0:
     print("NO TOKEN FOUND")
 messagestosend = {}
 commands = {}
+stoprequestsforserver = {}
 discordtotitanfall = {}
 # Load channel ID from file
 context = {
@@ -242,6 +243,13 @@ async def on_message(message):
 
 def recieveflaskprintrequests():
     app = Flask(__name__)
+    @app.route("/stoprequests", methods=["POST"])
+    def stoprequests():
+        global stoprequestsforserver
+        data = request.get_json()
+        serverid = data["serverid"]
+        print("stopping requests for", serverid)
+        stoprequestsforserver[serverid] = True
 
     @app.route("/askformessage", methods=["POST"])
     def askformessage():
@@ -252,10 +260,11 @@ def recieveflaskprintrequests():
         ids = list(data.keys())
         # print(ids)
         asyncio.run_coroutine_threadsafe(reactomessages(list(ids), serverid), bot.loop)
-
+        if serverid not in stoprequestsforserver.keys():
+            stoprequestsforserver[serverid] = False
         timer = 0
-        while timer < 60:
-            timer += 1
+        while timer < 30 and not stoprequestsforserver[serverid]:
+            timer += 0.2
             if serverid in discordtotitanfall.keys() and (
                 discordtotitanfall[serverid]["messages"] != []
                 or discordtotitanfall[serverid]["commands"] != []
@@ -287,7 +296,7 @@ def recieveflaskprintrequests():
                     "textvalidation": "%&%&".join(textvalidation),
                 }
             time.sleep(0.2)
-
+        stoprequestsforserver[serverid] = False
         return {"texts": "", "commands": "", "textvalidation": ""}
 
     @app.route("/servermessagein", methods=["POST"])
