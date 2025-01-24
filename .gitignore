@@ -9,5 +9,7 @@ mods/*
 discord/discordtitanfall/*
 discord/discordtitanfall/**
 discord/data/channels.json
+discord/venv
+
 .venv
 .env
