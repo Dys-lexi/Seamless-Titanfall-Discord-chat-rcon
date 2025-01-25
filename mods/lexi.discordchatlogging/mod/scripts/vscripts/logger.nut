@@ -83,6 +83,7 @@ void function discordloggerinit() {
     AddCallback_GameStateEnter(eGameState.Prematch, Onmapchange);
 	AddCallback_GameStateEnter(9,stoprequests);
 
+
 	if (GetConVarInt("discordloggingallowreturnmessages")) {
 		thread DiscordClientMessageinloop()
 	}
@@ -308,7 +309,7 @@ void function DiscordClientMessageinloop()
     void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse messages )
     {
 		eCount = 0;
-		print("recieved")
+		// print("recieved")
 		shouldsend = 1
 		// print("[DiscordLogger] MSG RECIEVED")
 		if (messages.statusCode
@@ -321,13 +322,15 @@ void function DiscordClientMessageinloop()
 		}
 		
 		check.textcheck = []
+		// print(messages.body)
 		table messagess = DecodeJSON(messages.body)
 		string commands = expect string(messagess["commands"])
-		string texts = expect string(messagess["texts"])
-		string textvalidation = expect string(messagess["textvalidation"])
-		array<string> splittextvalidation = split(textvalidation,"%&%&")
-		array<string> splittexts = split(texts,"%&%&")
-		array<string> splitcommands = split(commands,"%&%&")
+		// string texts = expect string(messagess["texts"])
+		table texts = expect table(messagess["texts"])
+		// string textvalidation = expect string(messagess["textvalidation"])
+		// array<string> splittextvalidation = split(textvalidation,"%&%&")
+		// array<string> splittexts = split(texts,"%&%&")
+		array<string> splitcommands = split(commands,"⌨")
 		if (serverdetails.rconenabled){
 		for (int i = 0; i < splitcommands.len(); i++)
 		{
@@ -338,16 +341,22 @@ void function DiscordClientMessageinloop()
 			print("[DiscordLogger] RCON is not enabled, but commands were sent")
 		}
 		// array<string> splitsenders = split(senders,"%&%#[")
-		for (int i = 0; i < splittexts.len(); i++)
-		// \u001b[38;2;232;234;3m
-		{
+		// if(splittexts.len()!=splittextvalidation.len())
+		// {
+		// 	return
+		// }
+		foreach (key, value in texts){
+			string validation = expect string(value)
+			string text = expect string(key)
+			print(text)
+			check.textcheck.append(validation)
+			Chat_ServerBroadcast("\x1b[38;5;105m"+text,false)
+			// foreach (entity player in GetPlayerArray()) {
+			// 	Chat_PrivateMessage(player,player,"\x1b[38;5;105m"+text,false)
+			// }
 			
-
-			print(splittexts[i])
-			Chat_ServerBroadcast("\x1b[38;5;105m"+splittexts[i],false)
-			check.textcheck.append(splittextvalidation[i])
-			// check.append(splittexts[i])
-    }
+		}
+		
 	}
     
     void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
@@ -369,10 +378,10 @@ void function DiscordClientMessageinloop()
 		shouldsend = 0
 		// print(timeleft())
 		
-		if (check.allowlogging == 1) {
-			print("sending"+timeout+" "+GameTime_TimeLeftSeconds())
-		}else{
-		print("sending"+timeout)}
+		// if (check.allowlogging == 1) {
+		// 	print("sending"+timeout+" "+GameTime_TimeLeftSeconds())
+		// }else{
+		// print("sending"+timeout)}
 		NSHttpRequest( request, onSuccess, onFailure )}
 }
 }

@@ -291,13 +291,14 @@ def recieveflaskprintrequests():
                     "sending messages and commands to titanfall", texts, sendingcommands
                 )
                 return {
-                    "texts": "%&%&".join(texts),
-                    "commands": "%&%&".join(sendingcommands),
-                    "textvalidation": "%&%&".join(textvalidation),
+                    "texts": {a: b for a, b in zip(texts, textvalidation)},
+                    # "texts": "%&%&".join(texts),
+                    "commands": "⌨".join(sendingcommands),
+                    # "textvalidation": "%&%&".join(textvalidation),
                 }
             time.sleep(0.2)
         stoprequestsforserver[serverid] = False
-        return {"texts": "", "commands": "", "textvalidation": ""}
+        return {"texts": {}, "commands": ""}
 
     @app.route("/servermessagein", methods=["POST"])
     def printmessage():
