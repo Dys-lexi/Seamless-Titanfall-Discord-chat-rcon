@@ -184,7 +184,7 @@ async def rcon_command(
         await ctx.respond("Server not found.", ephemeral=True)
         return
     i = 0
-    while i < 150:
+    while i < 100:
         await asyncio.sleep(0.1)
         if not allservers:
             if str(ids[0]) in discordtotitanfall[serverid]["returnids"]["commandsreturn"].keys():
@@ -255,6 +255,9 @@ async def on_message(message):
         )
         if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 30:
             await reactomessages([message.id], serverid, "🔴"   )
+        elif discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5:
+            await reactomessages([message.id], serverid, "🟡"   )
+        
         # messagestosend[serverid].append(
         #     f"{message.author.nick if message.author.nick is not None else message.author.display_name}: [38;5;254m{message.content}"
         # )

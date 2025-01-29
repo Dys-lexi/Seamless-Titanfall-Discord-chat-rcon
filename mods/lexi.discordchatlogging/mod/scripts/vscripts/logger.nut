@@ -368,10 +368,11 @@ void function DiscordClientMessageinloop()
 			if (command[0] == 47 || command[0] == 33){
 				runcommand(command, validation)
 	}
+	else{
 
 			ServerCommand(command)
 			// table output = {commandid="validation",returntext=command+": command not found"}
-			check.commandcheck[validation] <- command+": sucsessfully ran console command"
+			check.commandcheck[validation] <- command+": successfully ran console command"}
 			
 
 		}}
