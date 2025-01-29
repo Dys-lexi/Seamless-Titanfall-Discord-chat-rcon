@@ -228,7 +228,7 @@ async def on_message(message):
     if message.author == bot.user:
         return
     if message.channel.id in context["serverchannelidlinks"].values():
-        print("message recieved")
+        print("discord message recieved")
         serverid = [
             key
             for key, value in context["serverchannelidlinks"].items()
@@ -294,7 +294,7 @@ def recieveflaskprintrequests():
         ids = list(data.keys())
         if "time" in data.keys():
             timesent = int(data["time"])
-            print(timesent, discordtotitanfall[serverid]["returnids"]["messages"].keys())
+            # print(timesent, discordtotitanfall[serverid]["returnids"]["messages"].keys())
             if timesent in discordtotitanfall[serverid]["returnids"]["commands"].keys():
                 del discordtotitanfall[serverid]["returnids"]["commands"][timesent]
             if timesent in discordtotitanfall[serverid]["returnids"]["messages"].keys():
@@ -340,7 +340,7 @@ def recieveflaskprintrequests():
                 if len(sendingcommands) > 0:
                     # print("true")
                     discordtotitanfall[serverid]["returnids"]["commands"][now] = sendingcommandsids                
-                print(json.dumps(discordtotitanfall, indent=4))
+                # print(json.dumps(discordtotitanfall, indent=4))
                 print(
                     "sending messages and commands to titanfall", texts, sendingcommands
                 )
