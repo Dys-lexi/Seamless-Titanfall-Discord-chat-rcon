@@ -12,7 +12,7 @@ import discord
 from discord import Option
 
 # this whole thing is a mess of global varibles, jank threading and whatever, but it works just fine :)
-# (I never bothered learning any better)
+# (I never bothered much with coding style)
 
 # print("meow")
 messageflush = []
@@ -292,9 +292,13 @@ def recieveflaskprintrequests():
             for key, value in data["commands"].items():
                 discordtotitanfall[serverid]["returnids"]["commandsreturn"][key] = value
         ids = list(data.keys())
-        timesent = data["time"]
-        discordtotitanfall[serverid]["returnids"]["commands"][timesent] = []
-        discordtotitanfall[serverid]["returnids"]["messages"][timesent] = []
+        if "time" in data.keys():
+            timesent = int(data["time"])
+            print(timesent, discordtotitanfall[serverid]["returnids"]["messages"].keys())
+            if timesent in discordtotitanfall[serverid]["returnids"]["commands"].keys():
+                del discordtotitanfall[serverid]["returnids"]["commands"][timesent]
+            if timesent in discordtotitanfall[serverid]["returnids"]["messages"].keys():
+                del discordtotitanfall[serverid]["returnids"]["messages"][timesent]
         if len (data.keys()) > 1:
             print(json.dumps(data, indent=4))
         # print(ids)
@@ -327,13 +331,16 @@ def recieveflaskprintrequests():
                     str(command["id"])
                     for command in discordtotitanfall[serverid]["commands"]
                 ]
-                print(json.dumps(discordtotitanfall, indent=4))
+        
                 discordtotitanfall[serverid]["messages"] = []
                 discordtotitanfall[serverid]["commands"] = []
                 now = int(time.time()*100)
-                discordtotitanfall[serverid]["returnids"]["messages"][now] = textvalidation
-                discordtotitanfall[serverid]["returnids"]["commands"][now] = sendingcommandsids                
-
+                if len(textvalidation) > 0:
+                    discordtotitanfall[serverid]["returnids"]["messages"][now] = textvalidation
+                if len(sendingcommands) > 0:
+                    # print("true")
+                    discordtotitanfall[serverid]["returnids"]["commands"][now] = sendingcommandsids                
+                print(json.dumps(discordtotitanfall, indent=4))
                 print(
                     "sending messages and commands to titanfall", texts, sendingcommands
                 )
@@ -421,7 +428,6 @@ async def createchannel(guild, category, servername, serverid):
 
 
 async def reactomessages(messages, serverid, emoji = "🟢"):
-    # print("bap")
     # print(messages,"wqdqw")
     for message in messages:
         # print("run")
@@ -433,8 +439,8 @@ async def reactomessages(messages, serverid, emoji = "🟢"):
         ).fetch_message(int(message))
         # print("reacting to message")
         # if the bot has reacted with "🔴" remove it.
-        if "🔴" in [reaction.emoji for reaction in message.reactions] or "🟡" in [reaction.emoji for reaction in message.reactions]:
-            await message.clear_reactions()
+        # if "🔴" in [reaction.emoji for reaction in message.reactions] or "🟡" in [reaction.emoji for reaction in message.reactions]:
+        #     await message.clear_reactions()
         await message.add_reaction(emoji)
 
 
@@ -545,11 +551,13 @@ def messageloop():
                 iterator = 0
                 while iterator < len(discordtotitanfall[serverid]["returnids"]["messages"].keys()):
                     key = list(discordtotitanfall[serverid]["returnids"]["messages"].keys())[iterator]
-                    value = discordtotitanfall[serverid]["returnids"]["messages"][key]
+                    value = [int(x) for x in discordtotitanfall[serverid]["returnids"]["messages"][key]]
+                    # print("key",key)
                     iterator += 1
 
-                    if key < now-1000:
-                        asyncio.run_coroutine_threadsafe(reactomessages([value], serverid, "🟡"), bot.loop)
+                    if int(key) < now-300:
+                        # print("running this")
+                        asyncio.run_coroutine_threadsafe(reactomessages(value, serverid, "🟡"), bot.loop)
                         del discordtotitanfall[serverid]["returnids"]["messages"][key]
                         iterator -= 1
 

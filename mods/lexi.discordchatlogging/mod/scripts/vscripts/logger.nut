@@ -332,6 +332,7 @@ void function DiscordClientMessageinloop()
 	// print("[DiscordLogger] Sending req:")
     void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse messages )
     {
+		
 		eCount = 0;
 		// print("recieved")
 		shouldsend = 1
@@ -419,6 +420,7 @@ void function DiscordClientMessageinloop()
 		// 	print("sending"+timeout+" "+GameTime_TimeLeftSeconds())
 		// }else{
 		// print("sending"+timeout)}
+		// wait 15
 		NSHttpRequest( request, onSuccess, onFailure )}
 }
 }
