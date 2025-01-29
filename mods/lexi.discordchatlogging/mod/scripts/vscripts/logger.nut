@@ -206,11 +206,18 @@ void function Onmapchange(){
 	Postmessages(newmessage)
 }
 
+// struct commandchecker {
+// 	string commandid
+// 	string returntext
+// }
+
 struct {
-	array<string> textcheck
+	array<string> textcheck = []
+	table commandcheck = {}
 	int postmatch
 	int allowlogging = 0
 	int denylogging = 0
+	string timeof = "0"
 } check
 
 void function begintodiscord(){
@@ -237,9 +244,12 @@ void function stoprequests(){
 	NSHttpRequest(request, onSuccess, onFailure)
 }
 
+
+
 void function DiscordClientMessageinloop()
 {
-	check.textcheck = []
+	// check.textcheck = []
+	// check.commandcheck = []
 	check.postmatch = 999999
 	
 	while (true) {
@@ -273,11 +283,21 @@ void function DiscordClientMessageinloop()
 	table params = {}
 
 	params["serverid"] <- serverdetails.serverid
+	// array<string>params["texts"] <- check.textcheck
+	if (check.commandcheck.len() > 0){
+	params["commands"] <- check.commandcheck}
 	foreach (text in check.textcheck) {
 		// print(text)
     	params[text] <- text
 	}
-
+	if (check.timeof != "0"){
+		params["time"] <- check.timeof
+	}
+	// foreach (key,value in check.commandcheck){
+	// 	string commandid = expect string(key)
+	// 	string returntext = expect string(value)
+	// 	params[commandid] <- returntext
+	// }
 	
     HttpRequest request
     request.method = HttpRequestMethod.POST
@@ -288,14 +308,18 @@ void function DiscordClientMessageinloop()
 	if (check.denylogging == 1){
 		break
 	}
+	if (check.allowlogging == 0) {
+		wait 1
+		continue
+	}
 	
 	else if (check.allowlogging == 1 && GameTime_TimeLeftSeconds() < 60){
-		if (GameTime_TimeLeftSeconds()> check.postmatch || GameTime_TimeLeftSeconds() == 0){
-			wait 1
-			continue
-		}
+		// if (GameTime_TimeLeftSeconds()> check.postmatch || GameTime_TimeLeftSeconds() == 0){
+		// 	wait 1
+		// 	continue
+		// }
 		// print(GameTime_TimeLeftSeconds())
-		timeout = GameTime_TimeLeftSeconds()
+		// timeout = GameTime_TimeLeftSeconds()
 		check.postmatch = GameTime_TimeLeftSeconds()
 	}
 	else {
@@ -322,22 +346,35 @@ void function DiscordClientMessageinloop()
 		}
 		
 		check.textcheck = []
+		check.commandcheck = {}
 		// print(messages.body)
 		table messagess = DecodeJSON(messages.body)
-		string commands = expect string(messagess["commands"])
+		table commands = expect table(messagess["commands"])
 		// string texts = expect string(messagess["texts"])
+		check.timeof = expect string(messagess["time"])
 		table texts = expect table(messagess["texts"])
 		// string textvalidation = expect string(messagess["textvalidation"])
 		// array<string> splittextvalidation = split(textvalidation,"%&%&")
 		// array<string> splittexts = split(texts,"%&%&")
-		array<string> splitcommands = split(commands,"⌨")
+		// array<string> splitcommands = split(commands,"⌨")
 		if (serverdetails.rconenabled){
-		for (int i = 0; i < splitcommands.len(); i++)
-		{
-			print(splitcommands[i])
-			ServerCommand(splitcommands[i])
+		foreach (key,value in commands){
+		
+			string command = expect string(key)
+			string validation = expect string(value)
+
+			print(command)
+			if (command[0] == 47 || command[0] == 33){
+				runcommand(command, validation)
+	}
+
+			ServerCommand(command)
+			// table output = {commandid="validation",returntext=command+": command not found"}
+			check.commandcheck[validation] <- command+": sucsessfully ran console command"
+			
+
 		}}
-		else if (splitcommands.len() > 0){
+		else if (commands.len() > 0){
 			print("[DiscordLogger] RCON is not enabled, but commands were sent")
 		}
 		// array<string> splitsenders = split(senders,"%&%#[")
@@ -386,3 +423,70 @@ void function DiscordClientMessageinloop()
 }
 }
 
+void function runcommand(string command,string validation) {
+	check.commandcheck[validation] <- command+": special command not found"
+	throwplayer(command,validation)
+}
+
+// void function PushEntWithVelocity( entity ent, vector velocity )
+
+void function throwplayer(string args, string validation){
+	if (split(args," ")[0].find("throw") == null){
+		return
+	}
+	array<string> splitargs = split(args," ")
+	if (splitargs[1] == "all"){
+		print("throwing all players")
+		array<entity> players = GetPlayerArray()
+		foreach (entity player in players){
+			if (player != null){
+				vector velocity = player.GetVelocity()
+				velocity.z = 10000
+				PushEntWithVelocity(player,velocity)
+			}
+		}
+		check.commandcheck[validation] <- args + ": All players thrown"
+	}
+	else {
+		entity player = findname(splitargs[1])
+		if (player != null){
+			print("throwing "+player.GetPlayerName())
+			vector velocity =player.GetVelocity()
+			velocity.z = 10000
+			PushEntWithVelocity(player,velocity)
+			check.commandcheck[validation] <-  args + ": "+player.GetPlayerName()+" thrown"
+		}
+		else {
+			check.commandcheck[validation] <- args + ": Player not found"}
+	}
+
+
+}
+
+
+entity function findname(string name)
+{
+    array<entity> players = GetPlayerArray()
+	array<entity> successfulnames = []
+    foreach (entity player in players)
+    {
+        if (player != null)
+        {
+            string playername = player.GetPlayerName()
+            if (playername.tolower().find(name.tolower()) != null)
+            {
+              
+                successfulnames.append(player)
+                
+                           
+            }
+        }
+    }
+	if (successfulnames.len() == 1){
+		return successfulnames[0]
+	}
+	else {
+		return null
+	}
+    return;
+}

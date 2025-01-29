@@ -3,12 +3,16 @@ import json
 import os
 import threading
 import time
+import random
 
 from flask import Flask, jsonify, request
 from waitress import serve
 
 import discord
 from discord import Option
+
+# this whole thing is a mess of global varibles, jank threading and whatever, but it works just fine :)
+# (I never bothered learning any better)
 
 # print("meow")
 messageflush = []
@@ -28,8 +32,6 @@ intents.presences = True
 TOKEN = os.getenv("DISCORD_BOT_TOKEN", "0")
 if TOKEN == 0:
     print("NO TOKEN FOUND")
-messagestosend = {}
-commands = {}
 stoprequestsforserver = {}
 discordtotitanfall = {}
 # Load channel ID from file
@@ -110,6 +112,7 @@ async def rcon_command(
         required=False,
     ) = None,
 ):
+    await ctx.defer() #only add if needed :(
     print(
         "rcon command from",
         ctx.author.id,
@@ -118,12 +121,13 @@ async def rcon_command(
         servername if servername is not None else "Auto",
     )
 
-    global context, discordtotitanfall, commands
+    global context, discordtotitanfall
     if ctx.author.id not in context["RCONallowedusers"]:
         await ctx.respond("You are not allowed to use RCON commands.", ephemeral=True)
         return
     # await ctx.respond(f"Command: {cmd}, Server: {servername if servername != None else 'current channels'}", ephemeral=True)
-
+    allservers = False
+    ids = []
     if (
         servername is None
         and ctx.channel.id in context["serverchannelidlinks"].values()
@@ -140,21 +144,26 @@ async def rcon_command(
             return
         initdiscordtotitanfall(serverid)
 
-        message = await ctx.respond(
-            f"Command added to queue for server: **{context['serveridnamelinks'][serverid]}**.",
-            ephemeral=True,
-        )
+        # message = await ctx.respond(
+        #     f"Command added to queue for server: **{context['serveridnamelinks'][serverid]}**.",
+        #     ephemeral=True,
+        # )
+        ids.append(random.randint(0, 100000000000))
         discordtotitanfall[serverid]["commands"].append(
-            {"command": cmd, "id": message.id}
+            {"command": cmd, "id": ids[-1]}
         )
 
     elif servername == "*":
         for serverid in context["serverchannelidlinks"].keys():
             initdiscordtotitanfall(serverid)
-            discordtotitanfall[serverid]["commands"].append({"command": cmd, "id": 0})
-        message = await ctx.respond(
+            message = await ctx.respond(
             "Command added to queue for all servers.", ephemeral=True
         )
+            allservers = True
+            ids.append(random.randint(0, 100000000000))
+            discordtotitanfall[serverid]["commands"].append({"command": cmd, "id": ids[-1]})
+        return
+        
     elif servername in context["serveridnamelinks"].values():
         for serverid, name in context["serveridnamelinks"].items():
             if name == servername:
@@ -164,15 +173,30 @@ async def rcon_command(
             return
         initdiscordtotitanfall(serverid)
 
-        message = await ctx.respond(
-            f"Command added to queue for server: **{servername}**.", ephemeral=True
-        )
+        # message = await ctx.respond(
+        #     f"Command added to queue for server: **{servername}**.", ephemeral=True
+        # )
+        ids.append(random.randint(0, 100000000000))
         discordtotitanfall[serverid]["commands"].append(
-            {"command": cmd, "id": message.id}
+            {"command": cmd, "id": ids[-1]}
         )
     else:
         await ctx.respond("Server not found.", ephemeral=True)
+        return
+    i = 0
+    while i < 150:
+        await asyncio.sleep(0.1)
+        if not allservers:
+            if str(ids[0]) in discordtotitanfall[serverid]["returnids"]["commandsreturn"].keys():
+                await ctx.respond(
+                    f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(ids[0])]}```",
+                    ephemeral=True,
+                )
+                break
 
+        i += 1
+    else:
+        await ctx.respond("Command response timed out.", ephemeral=True)
 
 @bot.slash_command(
     name="rconchangeuserallowed",
@@ -180,6 +204,7 @@ async def rcon_command(
 )
 async def rcon_add_user(ctx, user: Option(discord.User, "The user to add")):
     global context
+    return
     # check if the user is an admin on the discord
     if user.id in context["RCONallowedusers"]:
         context["RCONallowedusers"].remove(user.id)
@@ -199,7 +224,7 @@ async def rcon_add_user(ctx, user: Option(discord.User, "The user to add")):
 
 @bot.event
 async def on_message(message):
-    global messagestosend, context, discordtotitanfall
+    global  context, discordtotitanfall
     if message.author == bot.user:
         return
     if message.channel.id in context["serverchannelidlinks"].values():
@@ -208,17 +233,18 @@ async def on_message(message):
             for key, value in context["serverchannelidlinks"].items()
             if value == message.channel.id
         ][0]
-        if serverid not in messagestosend.keys():
-            messagestosend[serverid] = []
+        # if serverid not in messagestosend.keys():
+        #     messagestosend[serverid] = []
         initdiscordtotitanfall(serverid)
         if (
             len(
                 f"{message.author.nick if message.author.nick is not None else message.author.display_name}: [38;5;254m{message.content}"
             )
             > 240
-            or message.content == ""
         ):
             await message.channel.send("Message too long, cannot send.")
+            return
+        elif message.content == "":
             return
         discordtotitanfall[serverid]["messages"].append(
             {
@@ -226,9 +252,11 @@ async def on_message(message):
                 "content": f"{message.author.nick if message.author.nick is not None else message.author.display_name}: [38;5;254m{message.content}",
             }
         )
-        messagestosend[serverid].append(
-            f"{message.author.nick if message.author.nick is not None else message.author.display_name}: [38;5;254m{message.content}"
-        )
+        if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 30:
+            await reactomessages([message.id], serverid, "🔴"   )
+        # messagestosend[serverid].append(
+        #     f"{message.author.nick if message.author.nick is not None else message.author.display_name}: [38;5;254m{message.content}"
+        # )
 
 
 # @bot.slash_command(name="bindloggingtochannel", description="Bind logging to an existing channel")
@@ -243,6 +271,7 @@ async def on_message(message):
 
 def recieveflaskprintrequests():
     app = Flask(__name__)
+
     @app.route("/stoprequests", methods=["POST"])
     def stoprequests():
         global stoprequestsforserver
@@ -250,20 +279,27 @@ def recieveflaskprintrequests():
         serverid = data["serverid"]
         print("stopping requests for", serverid)
         stoprequestsforserver[serverid] = True
+        return {"message": "ok"}
 
     @app.route("/askformessage", methods=["POST"])
     def askformessage():
-        global context, messagestosend, commands, discordtotitanfall
-        # print("uwu")
+        global context,  discordtotitanfall
         data = request.get_json()
         serverid = data["serverid"]
+        initdiscordtotitanfall(serverid)
+        if "commands" in data.keys():
+            for key, value in data["commands"].items():
+                discordtotitanfall[serverid]["returnids"]["commandsreturn"][key] = value
         ids = list(data.keys())
+        if len (data.keys()) > 1:
+            print(json.dumps(data, indent=4))
         # print(ids)
         asyncio.run_coroutine_threadsafe(reactomessages(list(ids), serverid), bot.loop)
         if serverid not in stoprequestsforserver.keys():
             stoprequestsforserver[serverid] = False
         timer = 0
-        while timer < 30 and not stoprequestsforserver[serverid]:
+        while timer < 45 and not stoprequestsforserver[serverid]:
+            discordtotitanfall[serverid]["lastheardfrom"] = int(time.time())
             timer += 0.2
             if serverid in discordtotitanfall.keys() and (
                 discordtotitanfall[serverid]["messages"] != []
@@ -283,9 +319,16 @@ def recieveflaskprintrequests():
                     command["command"]
                     for command in discordtotitanfall[serverid]["commands"]
                 ]
-
+                sendingcommandsids = [
+                    str(command["id"])
+                    for command in discordtotitanfall[serverid]["commands"]
+                ]
+                print(json.dumps(discordtotitanfall, indent=4))
                 discordtotitanfall[serverid]["messages"] = []
                 discordtotitanfall[serverid]["commands"] = []
+                now = int(time.time()*100)
+                discordtotitanfall[serverid]["returnids"]["messages"][now] = textvalidation
+                discordtotitanfall[serverid]["returnids"]["commands"][now] = sendingcommandsids                
 
                 print(
                     "sending messages and commands to titanfall", texts, sendingcommands
@@ -293,12 +336,13 @@ def recieveflaskprintrequests():
                 return {
                     "texts": {a: b for a, b in zip(texts, textvalidation)},
                     # "texts": "%&%&".join(texts),
-                    "commands": "⌨".join(sendingcommands),
+                    "commands": {a: b for a, b in zip(sendingcommands, sendingcommandsids)},
                     # "textvalidation": "%&%&".join(textvalidation),
+                    "time": str(now)
                 }
             time.sleep(0.2)
         stoprequestsforserver[serverid] = False
-        return {"texts": {}, "commands": ""}
+        return {"texts": {}, "commands": {}, "time": "0"}
 
     @app.route("/servermessagein", methods=["POST"])
     def printmessage():
@@ -372,19 +416,22 @@ async def createchannel(guild, category, servername, serverid):
     savecontext()
 
 
-async def reactomessages(messages, serverid):
+async def reactomessages(messages, serverid, emoji = "🟢"):
     # print("bap")
     # print(messages,"wqdqw")
     for message in messages:
         # print("run")
-        if message == "serverid":
+        if message == "serverid" or message == "commands" or message == "time":
             continue
         # print("run2")
         message = await bot.get_channel(
             context["serverchannelidlinks"][serverid]
         ).fetch_message(int(message))
         # print("reacting to message")
-        await message.add_reaction("✅")
+        # if the bot has reacted with "🔴" remove it.
+        if "🔴" in [reaction.emoji for reaction in message.reactions] or "🟡" in [reaction.emoji for reaction in message.reactions]:
+            await message.clear_reactions()
+        await message.add_reaction(emoji)
 
 
 async def changechannelname(guild, servername, serverid):
@@ -399,7 +446,7 @@ async def changechannelname(guild, servername, serverid):
 
 
 def messageloop():
-    global messageflush, lastmessage
+    global messageflush, lastmessage,discordtotitanfall
     addflag = False
     while True:
         try:
@@ -489,6 +536,20 @@ def messageloop():
                 )
                 messageflush = []
                 lastmessage = time.time()
+            now = int(time.time()*100)
+            for serverid in discordtotitanfall.keys():
+                iterator = 0
+                while iterator < len(discordtotitanfall[serverid]["returnids"]["messages"].keys()):
+                    key = list(discordtotitanfall[serverid]["returnids"]["messages"].keys())[iterator]
+                    value = discordtotitanfall[serverid]["returnids"]["messages"][key]
+                    iterator += 1
+
+                    if key < now-1000:
+                        asyncio.run_coroutine_threadsafe(reactomessages([value], serverid, "🟡"), bot.loop)
+                        del discordtotitanfall[serverid]["returnids"]["messages"][key]
+                        iterator -= 1
+
+
         except AttributeError as e:
             time.sleep(3)
             print("bot not ready", e)
@@ -510,6 +571,10 @@ def initdiscordtotitanfall(serverid):
         discordtotitanfall[serverid]["messages"] = []
     if "commands" not in discordtotitanfall[serverid].keys():
         discordtotitanfall[serverid]["commands"] = []
+    if "returnids" not in discordtotitanfall[serverid].keys():
+        discordtotitanfall[serverid]["returnids"] = {"messages": {}, "commands": {}, "commandsreturn": {}}
+    if "lastheardfrom" not in discordtotitanfall[serverid].keys():
+        discordtotitanfall[serverid]["lastheardfrom"] = 0
 
 
 threading.Thread(target=messageloop).start()
