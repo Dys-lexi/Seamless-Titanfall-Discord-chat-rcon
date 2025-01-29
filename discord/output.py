@@ -228,6 +228,7 @@ async def on_message(message):
     if message.author == bot.user:
         return
     if message.channel.id in context["serverchannelidlinks"].values():
+        print("message recieved")
         serverid = [
             key
             for key, value in context["serverchannelidlinks"].items()
@@ -291,6 +292,9 @@ def recieveflaskprintrequests():
             for key, value in data["commands"].items():
                 discordtotitanfall[serverid]["returnids"]["commandsreturn"][key] = value
         ids = list(data.keys())
+        timesent = data["time"]
+        discordtotitanfall[serverid]["returnids"]["commands"][timesent] = []
+        discordtotitanfall[serverid]["returnids"]["messages"][timesent] = []
         if len (data.keys()) > 1:
             print(json.dumps(data, indent=4))
         # print(ids)
