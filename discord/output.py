@@ -344,13 +344,13 @@ def recieveflaskprintrequests():
                     # print("true")
                     discordtotitanfall[serverid]["returnids"]["commands"][now] = sendingcommandsids                
                 # print(json.dumps(discordtotitanfall, indent=4))
-                print(
-                    "sending messages and commands to titanfall", texts, sendingcommands
-                )
+                print("sending messages and commands to titanfall", texts, sendingcommands)
+                # print({a: b for a, b in zip(texts, textvalidation)})
+                # print((texts), (textvalidation))
                 return {
-                    "texts": {a: b for a, b in zip(texts, textvalidation)},
+                    "texts": {a: b for a, b in zip(textvalidation,texts)},
                     # "texts": "%&%&".join(texts),
-                    "commands": {a: b for a, b in zip(sendingcommands, sendingcommandsids)},
+                    "commands": {a: b for a, b in zip( sendingcommandsids,sendingcommands)},
                     # "textvalidation": "%&%&".join(textvalidation),
                     "time": str(now)
                 }

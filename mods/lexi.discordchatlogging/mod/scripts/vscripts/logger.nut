@@ -358,8 +358,9 @@ void function DiscordClientMessageinloop()
 		// array<string> splittextvalidation = split(textvalidation,"%&%&")
 		// array<string> splittexts = split(texts,"%&%&")
 		// array<string> splitcommands = split(commands,"⌨")
+		// print(texts.len())
 		if (serverdetails.rconenabled){
-		foreach (key,value in commands){
+		foreach (value,key in commands){
 		
 			string command = expect string(key)
 			string validation = expect string(value)
@@ -384,7 +385,7 @@ void function DiscordClientMessageinloop()
 		// {
 		// 	return
 		// }
-		foreach (key, value in texts){
+		foreach (value, key in texts){
 			string validation = expect string(value)
 			string text = expect string(key)
 			print(text)
