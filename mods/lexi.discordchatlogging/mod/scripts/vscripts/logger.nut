@@ -430,9 +430,61 @@ void function DiscordClientMessageinloop()
 void function runcommand(string command,string validation) {
 	check.commandcheck[validation] <- command+": special command not found"
 	throwplayer(command,validation)
+	listplayers(command,validation)
 }
 
 // void function PushEntWithVelocity( entity ent, vector velocity )
+
+struct playerinfo {
+	string playername = "Not found"
+	int score = 0
+	string team = "No team"
+	int kills = 0
+	int deaths = 0
+}
+// struct playerlist {
+// 	array<table> playerlist = []
+// } 
+
+void function listplayers(string args, string validation){
+	// print(split(args," ")[0])
+	if (split(args," ")[0].find("playing") == null){
+		return
+	}
+	array<entity> players = GetPlayerArray()
+	table playerlist
+	foreach (entity player in players){
+		playerinfo playerinfoe
+		if (player != null){
+			playerinfoe.playername = player.GetPlayerName()
+			print(PGS_SCORE)
+			playerinfoe.score = player.GetPlayerGameStat(8)
+			playerinfoe.kills = player.GetPlayerGameStat(1)
+			playerinfoe.deaths = player.GetPlayerGameStat(2)
+			if (player.GetTeam() == TEAM_MILITIA){
+				playerinfoe.team = "Militia"
+			}
+			else if (player.GetTeam() == TEAM_IMC){
+				playerinfoe.team = "IMC"
+			}
+			else {
+				playerinfoe.team = string(player.GetTeam())
+			}
+			// playerlist.append(playerinfoe)
+			print(playerinfoe.playername)
+			playerlist[playerinfoe.playername] <- [playerinfoe.score,playerinfoe.team,playerinfoe.kills,playerinfoe.deaths]
+			int mtimeleft = 0
+			if (check.allowlogging == 1){
+				mtimeleft = GameTime_TimeLeftSeconds()
+			}
+			playerlist["meta"] <- [MAP_NAME_TABLE[GetMapName()],mtimeleft]
+		}
+	}
+
+
+	check.commandcheck[validation] <- EncodeJSON(playerlist)
+
+}
 
 void function throwplayer(string args, string validation){
 	if (split(args," ")[0].find("throw") == null){

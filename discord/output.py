@@ -101,6 +101,102 @@ async def bind_logging_to_category(ctx, category_name: str):
         ephemeral=True,
     )
 
+@bot.slash_command(name="playing", description="List the players on a server")
+async def playing(
+    ctx,
+    servername: Option(
+        str, "The servername (* for all, omit for current channel's server)", required=False
+    ) = None,
+):
+    global context, discordtotitanfall
+    await ctx.defer()
+    if servername is None and ctx.channel.id in context["serveridnamelinks"].values():
+        serverid = [
+            key
+            for key, value in context["serveridnamelinks"].items()
+            if value == ctx.channel.id
+        ][0]
+    elif ctx.channel.id in context["serverchannelidlinks"].values():
+        for key, value in context["serverchannelidlinks"].items():
+            if value == ctx.channel.id:
+                serverid = key
+                break
+    else:
+        await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=True)
+        return
+    print("playing command from", ctx.author.id, "to", servername if servername is not None else "Auto")
+    initdiscordtotitanfall(serverid)
+    discordtotitanfall[serverid]["commands"].append(
+            {"command": "!playing", "id": random.randint(0, 100000000000)}
+        )
+    await returncommandfeedback(serverid, discordtotitanfall[serverid]["commands"][-1]["id"], ctx, listplayersoverride)
+
+def listplayersoverride(data, serverid):
+    data = json.loads(data)
+    if len(data) == 0:
+        return discord.Embed(
+            title=f"Server status for {context['serveridnamelinks'][serverid]}",
+            description="No players online",
+            color=0xff70cb,
+        )
+    else:
+        formattedata = {"meta":{}}
+        for key, value in data.items():
+            if key == "meta":
+                formattedata["meta"]["map"] = value[0]
+                formattedata["meta"]["time"] = f"{value[1]//60}m {value[1]%60}s"
+                continue
+                
+            if value[1] not in formattedata.keys():
+                formattedata[value[1]] = {
+                "playerinfo": {},
+                "teaminfo": {"score":0},
+                }
+            formattedata[value[1]]["playerinfo"][key] = {"score":value[0],"kills":value[2],"deaths":value[3]}
+            formattedata[value[1]]["teaminfo"]["score"] += value[0]
+    embed = discord.Embed(
+        title=f"Server status for {context['serveridnamelinks'][serverid]}",
+        # description="This is a **test embed** with multiple customizations!",
+        color=0xff70cb,
+    )
+    embed.add_field(name="Map", value=f"\u200b {formattedata['meta']['map']}", inline=True)
+    embed.add_field(name="Players", value=f"\u200b {len(data)-1} players online", inline=True)
+    embed.add_field(name="Time left", value=f"\u200b {formattedata['meta']['time']}", inline=True)
+    sortedteams = sorted([team for team in formattedata.keys() if team != "meta"], key=lambda x: formattedata[x]["teaminfo"]["score"], reverse=True)
+    sortedvalues = {}
+    for team in sortedteams:
+        sortedvalues[team] = formattedata[team]
+    for team in sortedvalues.keys():
+        if team == "meta":
+            continue
+        embed.add_field(name=f"> *Team {team}*", value=f"\u200b Score: {formattedata[team]['teaminfo']['score']}", inline=False)
+        for player in formattedata[team]["playerinfo"].keys():
+            embed.add_field(name=f"\u200b    {player}", value=f"\u200b \u200b \u200b \u200b \u200b Score: {formattedata[team]['playerinfo'][player]['score']} | Kills: {formattedata[team]['playerinfo'][player]['kills']} | Deaths: {formattedata[team]['playerinfo'][player]['deaths']}", inline=False)
+    return embed
+
+        
+        
+    
+        
+    return f"```{data}```"
+    
+async def returncommandfeedback(serverid, id, ctx,overridemsg = None):
+    i = 0
+    while i < 100:
+        await asyncio.sleep(0.1)
+        if str(id) in discordtotitanfall[serverid]["returnids"]["commandsreturn"].keys():
+            if overridemsg:
+                realmessage = overridemsg(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)], serverid)
+            await ctx.respond(
+                f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None,
+                ephemeral=True,
+            )
+            break
+
+        i += 1
+    else:
+        await ctx.respond("Command response timed out.", ephemeral=True)
+
 
 @bot.slash_command(name="rcon", description="Send an RCON command to a server")
 async def rcon_command(
@@ -183,20 +279,26 @@ async def rcon_command(
     else:
         await ctx.respond("Server not found.", ephemeral=True)
         return
-    i = 0
-    while i < 100:
-        await asyncio.sleep(0.1)
-        if not allservers:
-            if str(ids[0]) in discordtotitanfall[serverid]["returnids"]["commandsreturn"].keys():
-                await ctx.respond(
-                    f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(ids[0])]}```",
-                    ephemeral=True,
-                )
-                break
+    if allservers:
+        await ctx.respond(
+            f"Command sent to all servers.", ephemeral=True
+        )
+        return
+    await returncommandfeedback(serverid, ids[-1], ctx)
+    # i = 0
+    # while i < 100:
+    #     await asyncio.sleep(0.1)
+    #     if not allservers:
+    #         if str(ids[0]) in discordtotitanfall[serverid]["returnids"]["commandsreturn"].keys():
+    #             await ctx.respond(
+    #                 f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(ids[0])]}```",
+    #                 ephemeral=True,
+    #             )
+    #             break
 
-        i += 1
-    else:
-        await ctx.respond("Command response timed out.", ephemeral=True)
+    #     i += 1
+    # else:
+    #     await ctx.respond("Command response timed out.", ephemeral=True)
 
 @bot.slash_command(
     name="rconchangeuserallowed",
@@ -253,9 +355,9 @@ async def on_message(message):
                 "content": f"{message.author.nick if message.author.nick is not None else message.author.display_name}: [38;5;254m{message.content}",
             }
         )
-        if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 30:
+        if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 45: #server crash (likely)
             await reactomessages([message.id], serverid, "🔴"   )
-        elif discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5:
+        elif discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5: #changing maps (likely)
             await reactomessages([message.id], serverid, "🟡"   )
         
         # messagestosend[serverid].append(
