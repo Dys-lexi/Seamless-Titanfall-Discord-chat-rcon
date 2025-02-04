@@ -170,7 +170,7 @@ def listplayersoverride(data, serverid):
         if team == "meta":
             continue
         embed.add_field(name=f"> *Team {team}*", value=f"\u200b Score: {formattedata[team]['teaminfo']['score']}", inline=False)
-        for player in formattedata[team]["playerinfo"].keys():
+        for player in sorted(formattedata[team]["playerinfo"].keys(), key=lambda x: formattedata[team]["playerinfo"][x]["score"], reverse=True):
             embed.add_field(name=f"\u200b    {player}", value=f"\u200b \u200b \u200b \u200b \u200b Score: {formattedata[team]['playerinfo'][player]['score']} | Kills: {formattedata[team]['playerinfo'][player]['kills']} | Deaths: {formattedata[team]['playerinfo'][player]['deaths']}", inline=False)
     return embed
 

@@ -457,10 +457,12 @@ void function listplayers(string args, string validation){
 		playerinfo playerinfoe
 		if (player != null){
 			playerinfoe.playername = player.GetPlayerName()
-			print(PGS_SCORE)
+			// print(PGS_SCORE)
 			playerinfoe.score = player.GetPlayerGameStat(8)
 			playerinfoe.kills = player.GetPlayerGameStat(1)
 			playerinfoe.deaths = player.GetPlayerGameStat(2)
+			// print(player.GetPlayerGameStat(PGS_PING)/100000)
+			// playerinfoe.ping = string(player.GetPlayerGameStat(12))+ " " + string(player.GetPlayerGameStat(0)) + " " + string(player.GetPlayerGameStat(1)) + " " + string(player.GetPlayerGameStat(2)) + " " + string(player.GetPlayerGameStat(3)) + " " + string(player.GetPlayerGameStat(4)) + " " + string(player.GetPlayerGameStat(5)) + " " + string(player.GetPlayerGameStat(6)) + " " + string(player.GetPlayerGameStat(7)) + " " + string(player.GetPlayerGameStat(8)) + " " + string(player.GetPlayerGameStat(9)) + " " + string(player.GetPlayerGameStat(10)) + " " + string(player.GetPlayerGameStat(11)) + " " + string(player.GetPlayerGameStat(12)) + " " + string(player.GetPlayerGameStat(13)) + " " + string(player.GetPlayerGameStat(14)) + " " + string(player.GetPlayerGameStat(15)) + " " + string(player.GetPlayerGameStat(16)) + " " + string(player.GetPlayerGameStat(17)) + " " + string(player.GetPlayerGameStat(18)) + " " + string(player.GetPlayerGameStat(PGS_PING))
 			if (player.GetTeam() == TEAM_MILITIA){
 				playerinfoe.team = "Militia"
 			}
@@ -471,8 +473,8 @@ void function listplayers(string args, string validation){
 				playerinfoe.team = string(player.GetTeam())
 			}
 			// playerlist.append(playerinfoe)
-			print(playerinfoe.playername)
-			playerlist[playerinfoe.playername] <- [playerinfoe.score,playerinfoe.team,playerinfoe.kills,playerinfoe.deaths]
+			// print(playerinfoe.playername)
+			playerlist[playerinfoe.playername] <- [playerinfoe.score,playerinfoe.team,playerinfoe.kills,playerinfoe.deaths,playerinfoe.ping]
 			int mtimeleft = 0
 			if (check.allowlogging == 1){
 				mtimeleft = GameTime_TimeLeftSeconds()
