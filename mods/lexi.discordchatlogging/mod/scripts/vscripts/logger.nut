@@ -474,7 +474,7 @@ void function listplayers(string args, string validation){
 			}
 			// playerlist.append(playerinfoe)
 			// print(playerinfoe.playername)
-			playerlist[playerinfoe.playername] <- [playerinfoe.score,playerinfoe.team,playerinfoe.kills,playerinfoe.deaths,playerinfoe.ping]
+			playerlist[playerinfoe.playername] <- [playerinfoe.score,playerinfoe.team,playerinfoe.kills,playerinfoe.deaths]
 			int mtimeleft = 0
 			if (check.allowlogging == 1){
 				mtimeleft = GameTime_TimeLeftSeconds()

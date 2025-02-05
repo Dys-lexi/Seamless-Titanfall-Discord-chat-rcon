@@ -105,7 +105,7 @@ async def bind_logging_to_category(ctx, category_name: str):
 async def playing(
     ctx,
     servername: Option(
-        str, "The servername (* for all, omit for current channel's server)", required=False
+        str, "The servername (omit for current channel's server)", required=False
     ) = None,
 ):
     global context, discordtotitanfall
@@ -169,9 +169,9 @@ def listplayersoverride(data, serverid):
     for team in sortedvalues.keys():
         if team == "meta":
             continue
-        embed.add_field(name=f"> *Team {team}*", value=f"\u200b Score: {formattedata[team]['teaminfo']['score']}", inline=False)
+        embed.add_field(name=f"> *Team {team}*", value=f"\u200b Score: {formattedata[team]['teaminfo']['score']} | Players: {len(formattedata[team]['playerinfo'])}", inline=False)
         for player in sorted(formattedata[team]["playerinfo"].keys(), key=lambda x: formattedata[team]["playerinfo"][x]["score"], reverse=True):
-            embed.add_field(name=f"\u200b    {player}", value=f"\u200b \u200b \u200b \u200b \u200b Score: {formattedata[team]['playerinfo'][player]['score']} | Kills: {formattedata[team]['playerinfo'][player]['kills']} | Deaths: {formattedata[team]['playerinfo'][player]['deaths']}", inline=False)
+            embed.add_field(name=f"\u200b \u200b \u200b \u200b \u200b \u200b {player}", value=f"\u200b \u200b \u200b \u200b \u200b \u200b \u200b Score: {formattedata[team]['playerinfo'][player]['score']} | Kills: {formattedata[team]['playerinfo'][player]['kills']} | Deaths: {formattedata[team]['playerinfo'][player]['deaths']}", inline=False)
     return embed
 
         
