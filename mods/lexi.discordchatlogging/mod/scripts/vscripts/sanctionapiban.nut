@@ -55,6 +55,7 @@ discordlogcommand function discordlogsanction(discordlogcommand commandin) {
 	string reason = "";
     string issueruid = "";
     int SanctionType=-1;
+    string realsanctiontype = ""
 	for(int i = 1; i < commandin.commandargs.len()-1; i++)
 	{
 		switch( commandin.commandargs[i] )
@@ -63,9 +64,11 @@ discordlogcommand function discordlogsanction(discordlogcommand commandin) {
 					if(commandin.commandargs[i+1]=="mute")
 					{
 						SanctionType = 0
+                        realsanctiontype = "mute"
 					}else if(commandin.commandargs[i+1]=="ban")
 					{
 						SanctionType = 1
+                        realsanctiontype = "ban"
 					}
 					else{
 						
@@ -126,8 +129,15 @@ discordlogcommand function discordlogsanction(discordlogcommand commandin) {
         commandin.returnmessage = "No issuer specified";
         return commandin;
     }
-
+    table data = {}
+    data["playername"] <- playername
+    data["Sanctiontype"] <- realsanctiontype
+    data["expire"] <- expiresat
+    data["reason"] <- reason
+    data["IP"] <- IP
+    data["issueruid"] <- issueruid
+    data["UID"] <- UID
     // UploadToDatabase(playername, UID, SanctionType.tostring(), "DISCORD_ISSUED_BAN_TEMP", expire, reason, IP)
-    commandin.returnmessage = "Sanction issued to "+playername+" with type: "+SanctionType.tostring()+" reason: "+reason + "issued by: "+issueruid+" expires at: "+expiresat;
+    commandin.returnmessage = EncodeJSON(data)
     return commandin;
 }

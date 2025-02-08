@@ -137,10 +137,23 @@ async def sanction(
 def sanctionoverride(data, serverid):
     embed = discord.Embed(
         title="Sanction Result",
-        description=f"```{data}```",
         color=0xff70cb,
     )
+    try:
+        data = json.loads(data)
+    except:
+        embed.add_field(name="Response", value=f"\u200b {data}", inline=False)
+    else:
+        embed.add_field(name="Targeted Player", value=f"\u200b {data['playername']}", inline=False)
+        embed.add_field(name="Sanction Type", value=f"\u200b {data['Sanctiontype']}", inline=False)
+        embed.add_field(name="Sanction Reason", value=f"\u200b {data['reason']}", inline=False)
+        embed.add_field(name="Sanction Expiry", value=f"\u200b {data['expire']}", inline=False)
+        embed.add_field(name="Targeted player UID", value=f"\u200b {data['UID']}", inline=False)
+        embed.add_field(name="Sanction Issuer discord UID", value=f"\u200b {data['issueruid']}", inline=False)
+
     return embed
+
+
 @bot.slash_command(name="playing", description="List the players on a server")
 async def playing(
     ctx,
