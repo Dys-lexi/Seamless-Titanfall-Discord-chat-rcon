@@ -1,12 +1,32 @@
 global function discordloggerinit
 global function discordlogextmessage
 
-//local loggingflush = array(100) 
+global function discordlogcheck
+// to add your own function create a file called xyz.nut in the same place as this one
+// then make it's file load in the mod.json AFTER logger.nut
+// after that, make the line "global function discordlogYOURFUNCTIONNAME"
+// then create the function, in the same format as the one in sanctionapiban.nut -> it must immedtiatly call discordlogcheck, and return the commandin struct if it doesn't match. if it does,
+// set commandin.commandmatch to true, and set commandin.returnmessage to the message you want to return.
+// Then add the function's name to the line "registeredfunctions.funcs = [discordlogsanction]" in discordloggerinit. (below in this file)
 
-array<string> loggingflush
-// create a string var
-string logging_url
 
+
+
+global struct discordlogcommand {
+	bool commandmatch = false
+	string returnmessage
+	string command 
+	array<string> commandargs
+}
+struct { // register new functions here
+	array<discordlogcommand functionref(discordlogcommand)> funcs
+} registeredfunctions
+
+
+bool function discordlogcheck(string command, discordlogcommand inputcommand){
+	// print(split(inputcommand.command," ")[0].find(command) == null)
+	return (split(inputcommand.command," ")[0].find(command) == null || (inputcommand.command[0] != 47 && inputcommand.command[0] != 33))
+}
 struct outgoingmessage{
 	string playername
 	string message
@@ -19,6 +39,7 @@ struct {
 	string serverid
 	int rconenabled
 } serverdetails
+
 
 // maps shamelessly stolen fvnk
 
@@ -52,6 +73,7 @@ table<string, string> MAP_NAME_TABLE = {
 
 
 void function discordloggerinit() {
+	registeredfunctions.funcs = [discordlogsanction]
 
 	if(!GetConVarBool("discordloggingenabled"))
 	{
@@ -325,7 +347,7 @@ void function DiscordClientMessageinloop()
 	else {
 		check.postmatch = 999999
 	}
-	// if(GetScoreLimit_FromPlaylist()-50 <GameRules_GetTeamScore(TEAM_MILITIA) || GetScoreLimit_FromPlaylist()*0.95 <GameRules_GetTeamScore(TEAM_IMC) || GameTime_TimeLeftSeconds() < 60)
+	// if(GetScoreLimit_FromPlaylist()-50 <GameRules_GetTeamScore(TEAM_MILITIA) || GetScoreLimit_FromPlaylist()*0.95 <GameRulfes_GetTeamScore(TEAM_IMC) || GameTime_TimeLeftSeconds() < 60)
 	
 	request.timeout = timeout
 	
@@ -429,6 +451,19 @@ void function DiscordClientMessageinloop()
 
 void function runcommand(string command,string validation) {
 	check.commandcheck[validation] <- command+": special command not found"
+	discordlogcommand commandstruct
+	commandstruct.command = split(command," ")[0]
+	array <string> commandargs = split(command," ")
+	commandargs.remove(0)
+	commandstruct.commandargs = commandargs
+	for (int i = 0; i < registeredfunctions.funcs.len(); i++) {
+		commandstruct = registeredfunctions.funcs[i](commandstruct)
+		if (commandstruct.commandmatch) {
+			check.commandcheck[validation] <- commandstruct.returnmessage
+			return
+		}
+	}
+
 	throwplayer(command,validation)
 	listplayers(command,validation)
 }
@@ -489,7 +524,7 @@ void function listplayers(string args, string validation){
 }
 
 void function throwplayer(string args, string validation){
-	if (split(args," ")[0].find("throw") == null){
+	if (split(args," ")[0].find("throw") == null || split(args," ").len() < 2){
 		return
 	}
 	array<string> splitargs = split(args," ")

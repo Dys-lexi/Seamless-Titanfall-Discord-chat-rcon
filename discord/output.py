@@ -21,7 +21,7 @@ lastmessage = 0
 print("running discord logger bot")
 lastrestart = 0
 messagecounter = 0
-
+SLEEPTIME_ON_FAILED_COMMAND = 7
 intents = discord.Intents.default()
 intents.message_content = True
 intents.messages = True
@@ -122,6 +122,7 @@ async def playing(
                 serverid = key
                 break
     else:
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=True)
         return
     print("playing command from", ctx.author.id, "to", servername if servername is not None else "Auto")
@@ -265,6 +266,7 @@ async def rcon_command(
             if name == servername:
                 break
         else:
+            await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
             await ctx.respond("Server not found.", ephemeral=True)
             return
         initdiscordtotitanfall(serverid)
@@ -277,6 +279,7 @@ async def rcon_command(
             {"command": cmd, "id": ids[-1]}
         )
     else:
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("Server not found.", ephemeral=True)
         return
     if allservers:
@@ -515,7 +518,7 @@ def recieveflaskprintrequests():
         return jsonify({"message": "success"})
 
     serve(app, host="0.0.0.0", port=3451, threads=60)  # prod
-    # app.run(host="0.0.0.0", port=3451, threads=60)  #dev
+    #app.run(host="0.0.0.0", port=3451)  #dev
 
 
 async def createchannel(guild, category, servername, serverid):

@@ -8,7 +8,7 @@
         {
             "Name": "discordlogginghttpServer",
             "DefaultValue": "http://host.docker.internal:3451" 
-        }, //http://discordlog http://host.docker.internal (1st is a docker container name second is localhost of main pc)
+        }, //discordlog http://host.docker.internal (1st is a docker container second is localhost of main pc)
         {
             "Name": "discordloggingallowreturnmessages", //for discord -> northstar chat
             "DefaultValue": "1"
@@ -28,15 +28,27 @@
         {
             "Name": "discordloggingenabled", //0 completly disables the mod
             "DefaultValue": "1"
+        },
+        {
+            "Name": "discordloggingenablesanctionapicommand",
+            "DefaultValue": "0"
         }
     ],
     "Scripts": [
+       
         {
             "Path": "logger.nut",
             "RunOn": "SERVER",
             "ServerCallback": {
                 "After": "discordloggerinit"
             }
-        }
+        },
+        {
+			"Path": "sanctionapiban.nut",
+			"RunOn": "SERVER"
+	
+		}
+      
+
     ]
 }
