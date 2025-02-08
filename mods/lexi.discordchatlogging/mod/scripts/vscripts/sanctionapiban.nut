@@ -74,10 +74,21 @@ discordlogcommand function discordlogsanction(discordlogcommand commandin) {
 					}
 					break
 				case "-expire":
-					expire = commandin.commandargs[i+1]
+                    if (commandin.commandargs[i+1] == "-expire" || commandin.commandargs[i+1] == "-reason" || commandin.commandargs[i+1] == "-type" || commandin.commandargs[i+1] == "-issuer")
+                    {
+                        
+                    }
+                    else{
+        
+					expire = commandin.commandargs[i+1]}
 					break
                 case "-issuer":
-                    issueruid = commandin.commandargs[i+1]
+                    if (commandin.commandargs[i+1] == "-expire" || commandin.commandargs[i+1] == "-reason" || commandin.commandargs[i+1] == "-type" || commandin.commandargs[i+1] == "-issuer")
+                    {
+                        
+                    }
+                    else{
+                    issueruid = commandin.commandargs[i+1]}
                     break
 				case "-reason":
                         for(int y = i+1; y < commandin.commandargs.len(); y++)

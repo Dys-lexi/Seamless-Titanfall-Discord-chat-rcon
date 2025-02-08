@@ -100,7 +100,47 @@ async def bind_logging_to_category(ctx, category_name: str):
         f"Logging channel created under category '{category_name}' with channel ID {context['logging_cat_id']}.",
         ephemeral=True,
     )
+# sanction command. expiry, playername, reason, and a choice bettween ban or mute must be provided
+@bot.slash_command(name="sanction", description="Sanction a player")
+async def sanction(
+    ctx,
+    playername: str,
+    reason: str,
+    sanctiontype: Option(
+        str, "The type of sanction to apply", choices=["mute", "ban"]
+    ),
+    expiry: Option(str, "The expiry time of the sanction in format yyyy-mm-dd, omit is forever") = None,
+    servername: Option(
+        str, "The servername (omit for current channel's server)", required=False
+    ) = None,
+):
+    global context, discordtotitanfall
+    await ctx.defer()
 
+    if ctx.author.id not in context["RCONallowedusers"]:
+        await ctx.respond("You are not allowed to use this command.", ephemeral=True)
+        return
+    if expiry == None: expiry = ""
+    commandstring = f"!sanctionban {playername} -expire {expiry} -reason {reason} -type {sanctiontype} -issuer {ctx.author.id}"
+    print("sanction command from", ctx.author.id, "to", playername)
+    serverid = getchannelidfromname(servername,ctx)
+    if serverid is None:
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=True)
+        return
+    initdiscordtotitanfall(serverid)
+    discordtotitanfall[serverid]["commands"].append(
+        {"command": commandstring, "id": random.randint(0, 100000000000)}
+    )
+    await returncommandfeedback(serverid, discordtotitanfall[serverid]["commands"][-1]["id"], ctx, sanctionoverride)
+
+def sanctionoverride(data, serverid):
+    embed = discord.Embed(
+        title="Sanction Result",
+        description=f"```{data}```",
+        color=0xff70cb,
+    )
+    return embed
 @bot.slash_command(name="playing", description="List the players on a server")
 async def playing(
     ctx,
@@ -181,22 +221,7 @@ def listplayersoverride(data, serverid):
         
     return f"```{data}```"
     
-async def returncommandfeedback(serverid, id, ctx,overridemsg = None):
-    i = 0
-    while i < 100:
-        await asyncio.sleep(0.1)
-        if str(id) in discordtotitanfall[serverid]["returnids"]["commandsreturn"].keys():
-            if overridemsg:
-                realmessage = overridemsg(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)], serverid)
-            await ctx.respond(
-                f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None,
-                ephemeral=True,
-            )
-            break
 
-        i += 1
-    else:
-        await ctx.respond("Command response timed out.", ephemeral=True)
 
 
 @bot.slash_command(name="rcon", description="Send an RCON command to a server")
@@ -696,9 +721,35 @@ def initdiscordtotitanfall(serverid):
     if "lastheardfrom" not in discordtotitanfall[serverid].keys():
         discordtotitanfall[serverid]["lastheardfrom"] = 0
 
+def getchannelidfromname(name,ctx):
+    for key, value in context["serveridnamelinks"].items():
+        if value == name:
+            return key
+    if ctx.channel.id in context["serverchannelidlinks"].values():
+        for key, value in context["serverchannelidlinks"].items():
+            if value == ctx.channel.id:
+                return key
+            
+async def returncommandfeedback(serverid, id, ctx,overridemsg = None):
+    i = 0
+    while i < 100:
+        await asyncio.sleep(0.1)
+        if str(id) in discordtotitanfall[serverid]["returnids"]["commandsreturn"].keys():
+            if overridemsg:
+                realmessage = overridemsg(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)], serverid)
+            await ctx.respond(
+                f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None,
+                ephemeral=True,
+            )
+            break
+
+        i += 1
+    else:
+        await ctx.respond("Command response timed out.", ephemeral=True)
 
 threading.Thread(target=messageloop).start()
 threading.Thread(target=recieveflaskprintrequests).start()
+
 
 
 bot.run(TOKEN)

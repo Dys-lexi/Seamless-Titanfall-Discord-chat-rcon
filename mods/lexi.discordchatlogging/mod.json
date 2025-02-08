@@ -31,7 +31,7 @@
         },
         {
             "Name": "discordloggingenablesanctionapicommand",
-            "DefaultValue": "0"
+            "DefaultValue": "1"
         }
     ],
     "Scripts": [
