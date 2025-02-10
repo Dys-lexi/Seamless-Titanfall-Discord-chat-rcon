@@ -2,8 +2,13 @@
     "Name": "lexi.discordchatlogging",
     "Description": "Logs chat messages to a discord channel.",
     "Version": "1.0.0",
+	"Authors": ["Lexiglasss"],
+	"Contacts": ["dyslexi (Discord)"],
     "LoadPriority": 1,
     "RequiredOnClient": false,
+    "Dependencies": {
+		"SANCTIONAPI_ENABLED": "Sanction System"
+	},
     "ConVars": [
         {
             "Name": "discordlogginghttpServer",

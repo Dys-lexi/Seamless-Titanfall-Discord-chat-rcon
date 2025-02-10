@@ -73,7 +73,15 @@ table<string, string> MAP_NAME_TABLE = {
 
 
 void function discordloggerinit() {
-	registeredfunctions.funcs = [discordlogsanction]
+
+	registeredfunctions.funcs = []
+	if (SANCTIONAPI_ENABLED){
+		print("[DiscordLogger]Sanction API enabled")
+		registeredfunctions.funcs.append(discordlogsanction)
+	}
+	else{
+		print("[DiscordLogger]Sanction API not enabled")
+	}
 
 	if(!GetConVarBool("discordloggingenabled"))
 	{
@@ -81,7 +89,6 @@ void function discordloggerinit() {
 		return
 	}
 	
-	print("[DiscordLogger]Discord logging enabled")
 	//AddNewFunctForEnd(SaveLog)
 	// get epoch time
 	// mp\_gamestate_mp.nut:
@@ -97,6 +104,7 @@ void function discordloggerinit() {
 	if (GetConVarInt("discordloggingserverid") == 0){
 		print("[DiscordLogger]Server ID not set, please set it in the console")
 	} else {
+		print("[DiscordLogger]Discord logging enabled")
 		AddCallback_OnReceivedSayTextMessage( LogMSG )
 	AddCallback_OnClientConnected( LogConnect )
 	AddCallback_OnClientDisconnected( LogDC)
@@ -176,6 +184,14 @@ void function discordlogextmessage(string message, bool formatascodeblock = fals
 	Postmessages(newmessage)
 }
 
+struct {
+	array<string> textcheck = []
+	table commandcheck = {}
+	int postmatch
+	int allowlogging = 0
+	int denylogging = 0
+	string timeof = "0"
+} check
 
 void function Postmessages(outgoingmessage message){
 	// print(serverdetails.Servername)
@@ -233,14 +249,6 @@ void function Onmapchange(){
 // 	string returntext
 // }
 
-struct {
-	array<string> textcheck = []
-	table commandcheck = {}
-	int postmatch
-	int allowlogging = 0
-	int denylogging = 0
-	string timeof = "0"
-} check
 
 void function begintodiscord(){
   check.allowlogging = 1

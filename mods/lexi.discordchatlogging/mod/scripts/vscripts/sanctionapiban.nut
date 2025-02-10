@@ -137,7 +137,9 @@ discordlogcommand function discordlogsanction(discordlogcommand commandin) {
     data["IP"] <- IP
     data["issueruid"] <- issueruid
     data["UID"] <- UID
-    // UploadToDatabase(playername, UID, SanctionType.tostring(), "DISCORD_ISSUED_BAN_TEMP", expire, reason, IP)
+#if SANCTIONAPI_ENABLED
+    UploadToDatabase(playername, UID, SanctionType.tostring(), issueruid, expire, reason, IP)
     commandin.returnmessage = EncodeJSON(data)
+#endif
     return commandin;
 }
