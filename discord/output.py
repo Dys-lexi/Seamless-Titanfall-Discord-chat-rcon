@@ -122,7 +122,7 @@ async def sanction(
         await ctx.respond("You are not allowed to use this command.", ephemeral=True)
         return
     if expiry == None: expiry = ""
-    commandstring = f"!sanctionban {playername} -expire {expiry} -reason {reason} -type {sanctiontype} -issuer {ctx.author.id}"
+    commandstring = f"!sanctionban {playername} -expire {expiry} -reason {reason} -type {sanctiontype} -issuer {ctx.author.name}"
     print("sanction command from", ctx.author.id, "to", playername)
     serverid = getchannelidfromname(servername,ctx)
     if serverid is None:
@@ -150,7 +150,7 @@ def sanctionoverride(data, serverid):
         embed.add_field(name="Sanction Reason", value=f"\u200b {data['reason']}", inline=False)
         embed.add_field(name="Sanction Expiry", value=f"\u200b {data['expire']}", inline=False)
         embed.add_field(name="Targeted player UID", value=f"\u200b {data['UID']}", inline=False)
-        embed.add_field(name="Sanction Issuer discord UID", value=f"\u200b {data['issueruid']}", inline=False)
+        embed.add_field(name="Sanction Issuer", value=f"\u200b {data['issueruid']}", inline=False)
 
     return embed
 
@@ -552,10 +552,13 @@ def recieveflaskprintrequests():
         newmessage["serverid"] = data["serverid"]
         newmessage["type"] = data["type"]
         newmessage["timestamp"] = data["timestamp"]
-        newmessage["globalmessage"] = data["globalmessage"]
-        newmessage["messagecontent"] = data["messagecontent"]
+        newmessage["globalmessage"] = data["globalmessage"] if "globalmessage" in data.keys() else False
         
-        print("message request from", newmessage["serverid"], newmessage["servername"])
+        newmessage["messagecontent"] = data["messagecontent"]
+        if not newmessage["globalmessage"]:
+            print("message request from", newmessage["serverid"], newmessage["servername"])
+        else:
+            print("global message request from", newmessage["serverid"], newmessage["servername"])
         messageflush.append(newmessage)
 
         messagecounter += 1

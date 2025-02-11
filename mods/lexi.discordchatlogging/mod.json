@@ -12,7 +12,7 @@
     "ConVars": [
         {
             "Name": "discordlogginghttpServer",
-            "DefaultValue": "http://host.docker.internal:3451" 
+            "DefaultValue": "http://discordlog:3451" 
         }, //     http://discordlog:3451     http://host.docker.internal (1st is a docker container second is localhost of main pc)
         {
             "Name": "discordloggingallowreturnmessages", //for discord -> northstar chat
