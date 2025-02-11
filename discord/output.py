@@ -41,6 +41,7 @@ context = {
     "serveridnamelinks": {},
     "serverchannelidlinks": {},
     "RCONallowedusers": [],
+    "globalchannelid": 0,
 }
 serverchannels = []
 if not os.path.exists("./data"):
@@ -234,6 +235,28 @@ def listplayersoverride(data, serverid):
         
     return f"```{data}```"
     
+
+@bot.slash_command(name="bindglobalchannel", description="Bind a global channel to the bot")
+async def bind_global_channel(
+    ctx,
+    channel: Option(
+        discord.TextChannel, "The channel to bind to", required=True
+    )):
+    global context
+    guild = ctx.guild
+    if guild.id != context["activeguild"]:
+        await ctx.respond("This guild is not the active guild.", ephemeral=True)
+        return
+    if ctx.author.id not in context["RCONallowedusers"]:
+        await ctx.respond("You are not allowed to use this command.", ephemeral=True)
+        return
+    if channel.id in context["serverchannelidlinks"].values():
+        await ctx.respond("This channel is already bound to a server.", ephemeral=True)
+        return
+    context["globalchannelid"] = channel.id
+    savecontext()
+    await ctx.respond(f"Global channel bound to {channel.name}.", ephemeral=True)
+
 
 
 
@@ -505,13 +528,13 @@ def recieveflaskprintrequests():
     def printmessage():
         global messageflush, lastmessage, messagecounter, context
         data = request.get_json()
-
+        newmessage = {}
         if context["logging_cat_id"] == 0:
             return jsonify({"message": "no category bound"})
         if "servername" in data.keys():
-            servername = data["servername"]
+            newmessage["servername"] = data["servername"]
         if "player" in data.keys():
-            playername = data["player"]
+            newmessage["player"] = data["player"]
         if (
             "serverid" not in data.keys()
             or "type" not in data.keys()
@@ -524,31 +547,25 @@ def recieveflaskprintrequests():
                     "message": "missing paramaters (type, timestamp, messagecontent, serverid)"
                 }
             )
-
-        serverid = data["serverid"]
-        typeofmessage = data["type"]
-        timestamp = data["timestamp"]
-        messagecontent = data["messagecontent"]
-        print("message request from", serverid)
-        messageflush.append(
-            {
-                "servername": servername,
-                "player": playername,
-                "messagecontent": messagecontent,
-                "timestamp": timestamp,
-                "type": typeofmessage,
-                "serverid": serverid,
-            }
-        )
+        if "player" not in data.keys() and data["type"] < 3:
+            data["type"] +=2 #set the type to a one that does not need a player
+        newmessage["serverid"] = data["serverid"]
+        newmessage["type"] = data["type"]
+        newmessage["timestamp"] = data["timestamp"]
+        newmessage["globalmessage"] = data["globalmessage"]
+        newmessage["messagecontent"] = data["messagecontent"]
+        
+        print("message request from", newmessage["serverid"], newmessage["servername"])
+        messageflush.append(newmessage)
 
         messagecounter += 1
         lastmessage = time.time()
 
-        if serverid not in context["serveridnamelinks"]:
-            context["serveridnamelinks"][serverid] = servername
+        if  newmessage["serverid"] not in context["serveridnamelinks"]:
+            context["serveridnamelinks"][newmessage["serverid"]] = newmessage["servername"]
             savecontext()
 
-        if serverid not in context["serverchannelidlinks"].keys():
+        if newmessage["serverid"] not in context["serverchannelidlinks"].keys():
             # Get guild and category
             guild = bot.get_guild(context["activeguild"])
             category = guild.get_channel(context["logging_cat_id"])
@@ -602,7 +619,7 @@ async def changechannelname(guild, servername, serverid):
 
 
 def messageloop():
-    global messageflush, lastmessage,discordtotitanfall
+    global messageflush, lastmessage,discordtotitanfall, context
     addflag = False
     while True:
         try:
@@ -646,12 +663,16 @@ def messageloop():
                             bot.loop,
                         )
                 addflag = False
-                channel = bot.get_channel(
-                    context["serverchannelidlinks"][messageflush[0]["serverid"]]
-                )
-                output = []
+                # channel = bot.get_channel(
+                #     context["serverchannelidlinks"][messageflush[0]["serverid"]]
+                # )
+                output = {}
                 messageflush = sorted(messageflush, key=lambda x: x["timestamp"])
                 for message in messageflush:
+                    if message["serverid"] not in output.keys() and not message["globalmessage"]:
+                        output[message["serverid"]] = []
+                    elif message["globalmessage"] and context["globalchannelid"] not in output.keys():
+                        output[context["globalchannelid"]] = []
                     if ("\033[") in message["messagecontent"]:
                         print("colour codes found in message")
                         while "\033[" in message["messagecontent"]:
@@ -665,14 +686,14 @@ def messageloop():
                                 + message["messagecontent"][endpos + 1 :]
                             )
                     if message["type"] == 1:
-                        output.append(
+                        output[message["serverid"] if not message["globalmessage"] else context["globalchannelid"]].append(
                             f"**{message['player']}**:  {message['messagecontent']}"
                         )
                         print(f"**{message['player']}**:  {message['messagecontent']}")
                     elif message["type"] == 2:
                         # print("2")
                         # output.append(f"meow")
-                        output.append(
+                        output[message["serverid"] if not message["globalmessage"] else context["globalchannelid"]].append(
                             f"""```{message["player"]} {message["messagecontent"]}```"""
                         )
                         print(
@@ -681,14 +702,26 @@ def messageloop():
                             )
                         )
                     elif message["type"] == 3:
-                        output.append(f"{message['messagecontent']}")
+                        output[message["serverid"] if not message["globalmessage"] else context["globalchannelid"]].append(f"{message['messagecontent']}")
                         print(f"{message['messagecontent']}")
+                    elif message["type"] == 4:
+                        output[message["serverid"] if not message["globalmessage"] else context["globalchannelid"]].append(f"```{message['messagecontent']}```")
+                        print(f"```{message['messagecontent']}```")
 
                     else:
                         print("type of message unkown")
                     print("\033[0m", end="")
-                asyncio.run_coroutine_threadsafe(
-                    channel.send("\n".join(output)), bot.loop
+                for serverid in output.keys():
+                    if serverid not in context["serverchannelidlinks"].keys() and serverid != context["globalchannelid"]:
+                        print("channel not not in bots known channels")
+                        continue
+                    channel = bot.get_channel(context["serverchannelidlinks"][serverid]) if serverid != context["globalchannelid"] else bot.get_channel(context["globalchannelid"])
+                    if channel is None:
+                        print("channel not found")
+                        continue
+
+                    asyncio.run_coroutine_threadsafe(
+                    channel.send("\n".join(output[serverid])), bot.loop
                 )
                 messageflush = []
                 lastmessage = time.time()

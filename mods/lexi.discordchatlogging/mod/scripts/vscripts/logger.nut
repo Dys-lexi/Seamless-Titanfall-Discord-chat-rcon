@@ -31,7 +31,8 @@ struct outgoingmessage{
 	string playername
 	string message
 	int timestamp
-	int typeofmsg
+	int typeofmsg // 1 = chat message, needs a playername. 2 = codeblock chat message, needs a playername. 3 and 4 are the same pattern, but do not need a playername.
+	bool globalmessage = false
 }
 struct {
 	string Requestpath
@@ -171,15 +172,16 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	
     return message
 }
-void function discordlogextmessage(string message, bool formatascodeblock = false){
+void function discordlogextmessage(string message, bool formatascodeblock = false, bool globalmessage = false){
 	outgoingmessage newmessage 
-	newmessage.playername = ""
 	newmessage.message = message
 	newmessage.timestamp = GetUnixTimestamp()
-	if (formatascodeblock){
-		newmessage.typeofmsg = 2
-	} else {
+	newmessage.globalmessage = globalmessage
+	if (!formatascodeblock){
 		newmessage.typeofmsg = 3
+	}
+	else{
+		newmessage.typeofmsg = 4
 	}
 	Postmessages(newmessage)
 }
@@ -198,10 +200,12 @@ void function Postmessages(outgoingmessage message){
 	table params = {}
 	params["servername"] <- serverdetails.Servername
 	params["messagecontent"] <- message.message
-	params["player"] <- message.playername
 	params["timestamp"] <- message.timestamp
 	params["type"] <- message.typeofmsg
 	params["serverid"] <- serverdetails.serverid
+	if (message.playername != ""){
+	params["player"] <- message.playername}
+	params["globalmessage"] <- message.globalmessage
 	HttpRequest request
 	request.method = HttpRequestMethod.POST
 	request.url = serverdetails.Requestpath + "/servermessagein"

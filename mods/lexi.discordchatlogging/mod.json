@@ -13,7 +13,7 @@
         {
             "Name": "discordlogginghttpServer",
             "DefaultValue": "http://host.docker.internal:3451" 
-        }, //discordlog http://host.docker.internal (1st is a docker container second is localhost of main pc)
+        }, //     http://discordlog:3451     http://host.docker.internal (1st is a docker container second is localhost of main pc)
         {
             "Name": "discordloggingallowreturnmessages", //for discord -> northstar chat
             "DefaultValue": "1"
