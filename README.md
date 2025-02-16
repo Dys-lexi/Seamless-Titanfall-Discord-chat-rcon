@@ -15,6 +15,18 @@ discordlog:
       - ./discord/data:/app/data:rw
     restart: always
 ```
+For each server you'll *need*:
+```
++discordloggingserverid 1234
+```
+this should be unique.
 
-Check the mod.json file for configuration, and you'll most likely need 
-```-allowlocalhttp``` in your server settings
+And you'll most likely *want*:
+```
++discordloggingservername Channel_Name_In_Discord
+-allowlocalhttp
+```
+    
+
+
+Check the mod.json file for configuration on other things.
