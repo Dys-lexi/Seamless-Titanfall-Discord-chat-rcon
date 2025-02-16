@@ -11,6 +11,7 @@ discordlog:
     container_name: discordlog
     environment:
       - DISCORD_BOT_TOKEN= PUT YOUR DISCORD TOKEN HERE
+      - DISCORD_BOT_PASSWORD=scarypassword
     volumes:
       - ./discord/data:/app/data:rw
     restart: always
