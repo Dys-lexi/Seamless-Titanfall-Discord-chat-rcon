@@ -39,6 +39,7 @@ struct {
 	string Servername
 	string serverid
 	int rconenabled
+	string password
 } serverdetails
 
 
@@ -96,6 +97,9 @@ void function discordloggerinit() {
 	table currentTime = GetUnixTimeParts()
 	print(currentTime)
 	serverdetails.Requestpath = GetConVarString("discordlogginghttpServer")
+	serverdetails.password = GetConVarString("discordloggingserverpassword")
+	print("[DiscordLogger]Servername: "+GetConVarString("discordloggingservername"))
+	print("[DiscordLogger]Requestpath: "+serverdetails.Requestpath)
 	if (GetConVarString("discordloggingservername") == "useactualservername"){
 	serverdetails.Servername = GetConVarString("NS_SERVER_NAME")}
 	else {
@@ -198,6 +202,7 @@ struct {
 void function Postmessages(outgoingmessage message){
 	// print(serverdetails.Servername)
 	table params = {}
+	params["password"] <- serverdetails.password
 	params["servername"] <- serverdetails.Servername
 	params["messagecontent"] <- message.message
 	params["timestamp"] <- message.timestamp
@@ -260,6 +265,7 @@ void function begintodiscord(){
 void function stoprequests(){
 	check.denylogging = 1
 	table params = {}
+	params["password"] <- serverdetails.password
 	params["serverid"] <- serverdetails.serverid
 	HttpRequest request
 	request.method = HttpRequestMethod.POST
@@ -315,6 +321,7 @@ void function DiscordClientMessageinloop()
 	}
 
 	table params = {}
+	params["password"] <- serverdetails.password
 
 	params["serverid"] <- serverdetails.serverid
 	// array<string>params["texts"] <- check.textcheck

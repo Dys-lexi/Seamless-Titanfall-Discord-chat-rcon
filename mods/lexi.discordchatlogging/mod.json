@@ -12,11 +12,16 @@
     "ConVars": [
         {
             "Name": "discordlogginghttpServer",
-            "DefaultValue": "http://discordlog:3451" 
-        }, //     http://discordlog:3451     http://host.docker.internal (1st is a docker container second is localhost of main pc)
+            "DefaultValue": "http://host.docker.internal:3451" 
+        }, //     http://discordlog:3451     http://host.docker.internal:3451 (1st is a docker container second is localhost of main pc)
         {
             "Name": "discordloggingallowreturnmessages", //for discord -> northstar chat
             "DefaultValue": "1"
+        },
+        {
+            "Name": "discordloggingserverpassword", //set here, and in the discord bot's compose. means that if you have the bot port forwaded for whatever reason, people still need a password to use api
+            "DefaultValue": "scarypassword"
+
         },
         {
             "Name": "discordloggingserverid", //IMPORTANT to set in server convars
@@ -27,7 +32,7 @@
             "DefaultValue": "useactualservername"
         },
         {
-            "Name": "discordloggingRCONenabled", // enable rcon from discord
+            "Name": "discordloggingRCONenabled", // enable rcon from discord (and well all other commands)
             "DefaultValue": "1"
         },
         {
@@ -35,8 +40,8 @@
             "DefaultValue": "1"
         },
         {
-            "Name": "discordloggingenablesanctionapicommand",
-            "DefaultValue": "1"
+            "Name": "discordloggingenablesanctionapicommand", // enable sanction api commands
+            "DefaultValue": "0"
         }
     ],
     "Scripts": [

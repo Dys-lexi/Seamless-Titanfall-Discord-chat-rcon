@@ -30,6 +30,11 @@ intents.presences = True
 
 # Load token from environment variable
 TOKEN = os.getenv("DISCORD_BOT_TOKEN", "0")
+SERVERPASS = os.getenv("DISCORD_BOT_PASSWORD", "*")
+if SERVERPASS == "*":
+    print("No password found, allowing inputs from all addresses")
+else:
+    print("Server password set to", "*"*len(SERVERPASS))
 if TOKEN == 0:
     print("NO TOKEN FOUND")
 stoprequestsforserver = {}
@@ -446,6 +451,9 @@ def recieveflaskprintrequests():
     def stoprequests():
         global stoprequestsforserver
         data = request.get_json()
+        if data["password"] != SERVERPASS and SERVERPASS != "*":
+            print("invalid password used on stoprequests")
+            return {"message": "invalid password"}
         serverid = data["serverid"]
         print("stopping requests for", serverid)
         stoprequestsforserver[serverid] = True
@@ -455,6 +463,10 @@ def recieveflaskprintrequests():
     def askformessage():
         global context,  discordtotitanfall
         data = request.get_json()
+        if data["password"] != SERVERPASS and SERVERPASS != "*":
+            print("invalid password used on askformessage")
+            time.sleep(30)
+            return {"message": "invalid password","texts": {}, "commands": {}, "time": "0"}
         serverid = data["serverid"]
         initdiscordtotitanfall(serverid)
         if "commands" in data.keys():
@@ -468,7 +480,7 @@ def recieveflaskprintrequests():
                 del discordtotitanfall[serverid]["returnids"]["commands"][timesent]
             if timesent in discordtotitanfall[serverid]["returnids"]["messages"].keys():
                 del discordtotitanfall[serverid]["returnids"]["messages"][timesent]
-        if len (data.keys()) > 1:
+        if len (data.keys()) > 2:
             print(json.dumps(data, indent=4))
         # print(ids)
         asyncio.run_coroutine_threadsafe(reactomessages(list(ids), serverid), bot.loop)
@@ -528,6 +540,9 @@ def recieveflaskprintrequests():
     def printmessage():
         global messageflush, lastmessage, messagecounter, context
         data = request.get_json()
+        if data["password"] != SERVERPASS and SERVERPASS != "*":
+            print("invalid password used on printmessage")
+            return {"message": "invalid password"}
         newmessage = {}
         if context["logging_cat_id"] == 0:
             return jsonify({"message": "no category bound"})
@@ -542,11 +557,10 @@ def recieveflaskprintrequests():
             or "messagecontent" not in data.keys()
         ):
             print("invalid message request recieved (not all params supplied)")
-            return jsonify(
-                {
+            return {
                     "message": "missing paramaters (type, timestamp, messagecontent, serverid)"
                 }
-            )
+            
         if "player" not in data.keys() and data["type"] < 3:
             data["type"] +=2 #set the type to a one that does not need a player
         newmessage["serverid"] = data["serverid"]
@@ -573,7 +587,7 @@ def recieveflaskprintrequests():
             guild = bot.get_guild(context["activeguild"])
             category = guild.get_channel(context["logging_cat_id"])
 
-        return jsonify({"message": "success"})
+        return {"message": "success"}
 
     serve(app, host="0.0.0.0", port=3451, threads=60)  # prod
     #app.run(host="0.0.0.0", port=3451)  #dev

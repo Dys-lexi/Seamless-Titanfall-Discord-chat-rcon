@@ -1,6 +1,7 @@
 *
 !.gitignore
 !mods/
+restarter/*
 mods/*
 !mods/lexi.discordchatlogging/
 !mods/lexi.discordchatlogging/**
