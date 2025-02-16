@@ -447,6 +447,21 @@ async def on_message(message):
 def recieveflaskprintrequests():
     app = Flask(__name__)
 
+    @app.route("/getrunningservers", methods=["POST"])
+    def getrunningservers():
+        global discordtotitanfall
+        data = request.get_json()
+        if data["password"] != SERVERPASS and SERVERPASS != "*":
+            print("invalid password used on getrunningservers")
+            return {"message": "invalid password"}
+        print("getting running servers")
+        output = {"message":"ok","servers":{}}
+        for (key, value) in discordtotitanfall.items():
+            output["servers"][key] = value["lastheardfrom"]
+        return output
+            
+
+
     @app.route("/stoprequests", methods=["POST"])
     def stoprequests():
         global stoprequestsforserver
