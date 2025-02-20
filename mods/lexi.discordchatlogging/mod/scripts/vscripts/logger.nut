@@ -206,7 +206,7 @@ void function Postmessages(outgoingmessage message){
 	params["servername"] <- serverdetails.Servername
 	params["messagecontent"] <- message.message
 	params["timestamp"] <- message.timestamp
-	params["type"] <- message.typeofmsg
+	params["type"] <- message.typeofmsg //yr
 	params["serverid"] <- serverdetails.serverid
 	if (message.playername != ""){
 	params["player"] <- message.playername}
@@ -228,7 +228,7 @@ void function Postmessages(outgoingmessage message){
         print("[DiscordLogger]Failed to log chat message"  + failure.errorMessage)
     }
 
-	print(EncodeJSON(params))
+	// print(EncodeJSON(params))
 
     NSHttpRequest(request, onSuccess, onFailure)
 

@@ -502,7 +502,7 @@ def recieveflaskprintrequests():
         if serverid not in stoprequestsforserver.keys():
             stoprequestsforserver[serverid] = False
         timer = 0
-        while timer < 45 and not stoprequestsforserver[serverid]:
+        while timer < 50 and not stoprequestsforserver[serverid]:
             discordtotitanfall[serverid]["lastheardfrom"] = int(time.time())
             timer += 0.2
             if serverid in discordtotitanfall.keys() and (
@@ -626,9 +626,10 @@ async def reactomessages(messages, serverid, emoji = "🟢"):
     # print(messages,"wqdqw")
     for message in messages:
         # print("run")
-        if message == "serverid" or message == "commands" or message == "time":
+        if message == "serverid" or message == "commands" or message == "time" or message == "password":
             continue
         # print("run2")
+        # print(message,"owo")
         message = await bot.get_channel(
             context["serverchannelidlinks"][serverid]
         ).fetch_message(int(message))

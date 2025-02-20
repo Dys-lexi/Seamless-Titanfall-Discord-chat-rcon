@@ -24,11 +24,11 @@
 
         },
         {
-            "Name": "discordloggingserverid", //IMPORTANT to set in server convars
+            "Name": "discordloggingserverid", //IMPORTANT to set in server convars  DO NOT TOUCH IT HERE
             "DefaultValue": "0"
         },
         {
-            "Name": "discordloggingservername", //ALSO IMPORTANT to set in server convars
+            "Name": "discordloggingservername", //ALSO IMPORTANT to set in server convars  DO NOT TOUCH IT HERE
             "DefaultValue": "useactualservername"
         },
         {
