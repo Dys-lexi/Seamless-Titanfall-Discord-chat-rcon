@@ -7,7 +7,8 @@ global function discordlogcheck
 // after that, make the line "global function discordlogYOURFUNCTIONNAME"
 // then create the function, in the same format as the one in sanctionapiban.nut -> it must immedtiatly call discordlogcheck, and return the commandin struct if it doesn't match. if it does,
 // set commandin.commandmatch to true, and set commandin.returnmessage to the message you want to return.
-// Then add the function's name to the line "registeredfunctions.funcs = [discordlogsanction]" in discordloggerinit. (below in this file)
+// Then add the function's name to the array in getregisteredfunctions (below)
+
 
 
 
@@ -21,6 +22,11 @@ global struct discordlogcommand {
 struct { // register new functions here
 	array<discordlogcommand functionref(discordlogcommand)> funcs
 } registeredfunctions
+
+
+array <discordlogcommand functionref(discordlogcommand)> function getregisteredfunctions(){
+	return [] //add functions here, and they'll work with / commands (if they fill criteria above)
+}
 
 
 bool function discordlogcheck(string command, discordlogcommand inputcommand){
@@ -76,7 +82,7 @@ table<string, string> MAP_NAME_TABLE = {
 
 void function discordloggerinit() {
 
-	registeredfunctions.funcs = []
+	registeredfunctions.funcs = getregisteredfunctions()
 	if (SANCTIONAPI_ENABLED){
 		print("[DiscordLogger]Sanction API enabled")
 		registeredfunctions.funcs.append(discordlogsanction)
