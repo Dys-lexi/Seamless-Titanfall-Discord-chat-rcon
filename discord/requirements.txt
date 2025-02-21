@@ -14,7 +14,7 @@ itsdangerous==2.2.0
 Jinja2==3.1.5
 MarkupSafe==3.0.2
 multidict==6.1.0
-propcache==0.2.1
+propcache==0.3.0
 py-cord==2.6.1
 requests==2.32.3
 urllib3==2.3.0
