@@ -21,7 +21,7 @@ lastmessage = 0
 print("running discord logger bot")
 lastrestart = 0
 messagecounter = 0
-SLEEPTIME_ON_FAILED_COMMAND = 7
+SLEEPTIME_ON_FAILED_COMMAND = 2.5
 intents = discord.Intents.default()
 intents.message_content = True
 intents.messages = True
@@ -84,7 +84,7 @@ async def bind_logging_to_category(ctx, category_name: str):
 
     guild = ctx.guild
     if guild.id == context["activeguild"] and context["logging_cat_id"] != 0:
-        await ctx.respond("Logging is already bound to a category.", ephemeral=True)
+        await ctx.respond("Logging is already bound to a category.", ephemeral=False)
         return
     # Create the new category, unless the name exists, then bind to that one
     if category_name in [category.name for category in guild.categories]:
@@ -104,7 +104,7 @@ async def bind_logging_to_category(ctx, category_name: str):
 
     await ctx.respond(
         f"Logging channel created under category '{category_name}' with channel ID {context['logging_cat_id']}.",
-        ephemeral=True,
+        ephemeral=False,
     )
 # sanction command. expiry, playername, reason, and a choice bettween ban or mute must be provided
 @bot.slash_command(name="sanction", description="Sanction a player")
@@ -121,10 +121,9 @@ async def sanction(
     ) = None,
 ):
     global context, discordtotitanfall
-    await ctx.defer()
 
     if ctx.author.id not in context["RCONallowedusers"]:
-        await ctx.respond("You are not allowed to use this command.", ephemeral=True)
+        await ctx.respond("You are not allowed to use this command.", ephemeral=False)
         return
     if expiry == None: expiry = ""
     commandstring = f"!sanctionban {playername} -expire {expiry} -reason {reason} -type {sanctiontype} -issuer {ctx.author.name}"
@@ -132,13 +131,12 @@ async def sanction(
     serverid = getchannelidfromname(servername,ctx)
     if serverid is None:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-        await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=True)
+        await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
         return
-    initdiscordtotitanfall(serverid)
-    discordtotitanfall[serverid]["commands"].append(
-        {"command": commandstring, "id": random.randint(0, 100000000000)}
-    )
-    await returncommandfeedback(serverid, discordtotitanfall[serverid]["commands"][-1]["id"], ctx, sanctionoverride)
+    await ctx.defer()
+    
+    
+    await returncommandfeedback(serverid, sendrconcommand(serverid,commandstring), ctx, sanctionoverride)
 
 def sanctionoverride(data, serverid):
     embed = discord.Embed(
@@ -168,7 +166,7 @@ async def playing(
     ) = None,
 ):
     global context, discordtotitanfall
-    await ctx.defer()
+    
     if servername is None and ctx.channel.id in context["serveridnamelinks"].values():
         serverid = [
             key
@@ -182,14 +180,12 @@ async def playing(
                 break
     else:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-        await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=True)
+        await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
         return
+    
     print("playing command from", ctx.author.id, "to", servername if servername is not None else "Auto")
-    initdiscordtotitanfall(serverid)
-    discordtotitanfall[serverid]["commands"].append(
-            {"command": "!playing", "id": random.randint(0, 100000000000)}
-        )
-    await returncommandfeedback(serverid, discordtotitanfall[serverid]["commands"][-1]["id"], ctx, listplayersoverride)
+    await ctx.defer()
+    await returncommandfeedback(serverid, sendrconcommand(serverid, "!playing"), ctx, listplayersoverride)
 
 def listplayersoverride(data, serverid):
     data = json.loads(data)
@@ -205,6 +201,7 @@ def listplayersoverride(data, serverid):
             if key == "meta":
                 formattedata["meta"]["map"] = value[0]
                 formattedata["meta"]["time"] = f"{value[1]//60}m {value[1]%60}s"
+                # formattedata["meta"]["time"] = f"<t:{int(time.time()+value[1])}:R>"
                 continue
                 
             if value[1] not in formattedata.keys():
@@ -250,17 +247,17 @@ async def bind_global_channel(
     global context
     guild = ctx.guild
     if guild.id != context["activeguild"]:
-        await ctx.respond("This guild is not the active guild.", ephemeral=True)
+        await ctx.respond("This guild is not the active guild.", ephemeral=False)
         return
     if ctx.author.id not in context["RCONallowedusers"]:
-        await ctx.respond("You are not allowed to use this command.", ephemeral=True)
+        await ctx.respond("You are not allowed to use this command.", ephemeral=False)
         return
     if channel.id in context["serverchannelidlinks"].values():
-        await ctx.respond("This channel is already bound to a server.", ephemeral=True)
+        await ctx.respond("This channel is already bound to a server.", ephemeral=False)
         return
     context["globalchannelid"] = channel.id
     savecontext()
-    await ctx.respond(f"Global channel bound to {channel.name}.", ephemeral=True)
+    await ctx.respond(f"Global channel bound to {channel.name}.", ephemeral=False)
 
 
 
@@ -275,7 +272,7 @@ async def rcon_command(
         required=False,
     ) = None,
 ):
-    await ctx.defer() #only add if needed :(
+    #only add if needed :(
     print(
         "rcon command from",
         ctx.author.id,
@@ -286,9 +283,9 @@ async def rcon_command(
 
     global context, discordtotitanfall
     if ctx.author.id not in context["RCONallowedusers"]:
-        await ctx.respond("You are not allowed to use RCON commands.", ephemeral=True)
+        await ctx.respond("You are not allowed to use RCON commands.", ephemeral=False)
         return
-    # await ctx.respond(f"Command: {cmd}, Server: {servername if servername != None else 'current channels'}", ephemeral=True)
+    # await ctx.respond(f"Command: {cmd}, Server: {servername if servername != None else 'current channels'}", ephemeral=False)
     allservers = False
     ids = []
     if (
@@ -302,14 +299,14 @@ async def rcon_command(
         else:
             await ctx.respond(
                 "Server not bound to this channel, could not send command.",
-                ephemeral=True,
+                ephemeral=False,
             )
             return
         initdiscordtotitanfall(serverid)
 
         # message = await ctx.respond(
         #     f"Command added to queue for server: **{context['serveridnamelinks'][serverid]}**.",
-        #     ephemeral=True,
+        #     ephemeral=False,
         # )
         ids.append(random.randint(0, 100000000000))
         discordtotitanfall[serverid]["commands"].append(
@@ -320,7 +317,7 @@ async def rcon_command(
         for serverid in context["serverchannelidlinks"].keys():
             initdiscordtotitanfall(serverid)
             message = await ctx.respond(
-            "Command added to queue for all servers.", ephemeral=True
+            "Command added to queue for all servers.", ephemeral=False
         )
             allservers = True
             ids.append(random.randint(0, 100000000000))
@@ -333,12 +330,12 @@ async def rcon_command(
                 break
         else:
             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-            await ctx.respond("Server not found.", ephemeral=True)
+            await ctx.respond("Server not found.", ephemeral=False)
             return
         initdiscordtotitanfall(serverid)
 
         # message = await ctx.respond(
-        #     f"Command added to queue for server: **{servername}**.", ephemeral=True
+        #     f"Command added to queue for server: **{servername}**.", ephemeral=False
         # )
         ids.append(random.randint(0, 100000000000))
         discordtotitanfall[serverid]["commands"].append(
@@ -346,13 +343,14 @@ async def rcon_command(
         )
     else:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-        await ctx.respond("Server not found.", ephemeral=True)
+        await ctx.respond("Server not found.", ephemeral=False)
         return
     if allservers:
         await ctx.respond(
-            f"Command sent to all servers.", ephemeral=True
+            f"Command sent to all servers.", ephemeral=False
         )
         return
+    await ctx.defer()
     await returncommandfeedback(serverid, ids[-1], ctx)
     # i = 0
     # while i < 100:
@@ -361,13 +359,13 @@ async def rcon_command(
     #         if str(ids[0]) in discordtotitanfall[serverid]["returnids"]["commandsreturn"].keys():
     #             await ctx.respond(
     #                 f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(ids[0])]}```",
-    #                 ephemeral=True,
+    #                 ephemeral=False,
     #             )
     #             break
 
     #     i += 1
     # else:
-    #     await ctx.respond("Command response timed out.", ephemeral=True)
+    #     await ctx.respond("Command response timed out.", ephemeral=False)
 
 @bot.slash_command(
     name="rconchangeuserallowed",
@@ -381,15 +379,15 @@ async def rcon_add_user(ctx, user: Option(discord.User, "The user to add")):
         context["RCONallowedusers"].remove(user.id)
         savecontext()
         await ctx.respond(
-            f"User {user.name} removed from RCON whitelist.", ephemeral=True
+            f"User {user.name} removed from RCON whitelist.", ephemeral=False
         )
     elif ctx.author.guild_permissions.administrator:
         context["RCONallowedusers"].append(user.id)
         savecontext()
-        await ctx.respond(f"User {user.name} added to RCON whitelist.", ephemeral=True)
+        await ctx.respond(f"User {user.name} added to RCON whitelist.", ephemeral=False)
     else:
         await ctx.respond(
-            "Only administrators can add users to the RCON whitelist.", ephemeral=True
+            "Only administrators can add users to the RCON whitelist.", ephemeral=False
         )
 
 
@@ -808,6 +806,14 @@ def getchannelidfromname(name,ctx):
         for key, value in context["serverchannelidlinks"].items():
             if value == ctx.channel.id:
                 return key
+def sendrconcommand(serverid, command):
+    global discordtotitanfall
+    initdiscordtotitanfall(serverid)
+    commandid = random.randint(0, 100000000000)
+    discordtotitanfall[serverid]["commands"].append(
+            {"command": command, "id": commandid}
+        )
+    return commandid
             
 async def returncommandfeedback(serverid, id, ctx,overridemsg = None):
     i = 0
@@ -815,16 +821,20 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = None):
         await asyncio.sleep(0.1)
         if str(id) in discordtotitanfall[serverid]["returnids"]["commandsreturn"].keys():
             if overridemsg:
-                realmessage = overridemsg(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)], serverid)
+                try:
+                    realmessage = overridemsg(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)], serverid)
+                except Exception as e:
+                    print("error in overridemsg", e)
+                    overridemsg = None
             await ctx.respond(
                 f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None,
-                ephemeral=True,
+                ephemeral=False,
             )
             break
 
         i += 1
     else:
-        await ctx.respond("Command response timed out.", ephemeral=True)
+        await ctx.respond("Command response timed out.", ephemeral=False)
 
 threading.Thread(target=messageloop).start()
 threading.Thread(target=recieveflaskprintrequests).start()

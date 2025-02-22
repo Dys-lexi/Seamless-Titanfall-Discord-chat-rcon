@@ -25,7 +25,11 @@ struct { // register new functions here
 
 
 array <discordlogcommand functionref(discordlogcommand)> function getregisteredfunctions(){
-	return [] //add functions here, and they'll work with / commands (if they fill criteria above)
+	return [
+		discordlogplaying,
+		discordlogthrowplayer
+		]
+		 //add functions here, and they'll work with / commands (if they fill criteria above)
 }
 
 
@@ -489,122 +493,62 @@ void function runcommand(string command,string validation) {
 		}
 	}
 
-	throwplayer(command,validation)
-	listplayers(command,validation)
+	// throwplayer(command,validation)
+	// listplayers(command,validation)
 }
 
 // void function PushEntWithVelocity( entity ent, vector velocity )
 
-struct playerinfo {
-	string playername = "Not found"
-	int score = 0
-	string team = "No team"
-	int kills = 0
-	int deaths = 0
-}
+// struct playerinfo {
+// 	string playername = "Not found"
+// 	int score = 0
+// 	string team = "No team"
+// 	int kills = 0
+// 	int deaths = 0
+// }
 // struct playerlist {
 // 	array<table> playerlist = []
 // } 
 
-void function listplayers(string args, string validation){
-	// print(split(args," ")[0])
-	if (split(args," ")[0].find("playing") == null){
-		return
-	}
-	array<entity> players = GetPlayerArray()
-	table playerlist
-	foreach (entity player in players){
-		playerinfo playerinfoe
-		if (player != null){
-			playerinfoe.playername = player.GetPlayerName()
-			// print(PGS_SCORE)
-			playerinfoe.score = player.GetPlayerGameStat(8)
-			playerinfoe.kills = player.GetPlayerGameStat(1)
-			playerinfoe.deaths = player.GetPlayerGameStat(2)
-			// print(player.GetPlayerGameStat(PGS_PING)/100000)
-			// playerinfoe.ping = string(player.GetPlayerGameStat(12))+ " " + string(player.GetPlayerGameStat(0)) + " " + string(player.GetPlayerGameStat(1)) + " " + string(player.GetPlayerGameStat(2)) + " " + string(player.GetPlayerGameStat(3)) + " " + string(player.GetPlayerGameStat(4)) + " " + string(player.GetPlayerGameStat(5)) + " " + string(player.GetPlayerGameStat(6)) + " " + string(player.GetPlayerGameStat(7)) + " " + string(player.GetPlayerGameStat(8)) + " " + string(player.GetPlayerGameStat(9)) + " " + string(player.GetPlayerGameStat(10)) + " " + string(player.GetPlayerGameStat(11)) + " " + string(player.GetPlayerGameStat(12)) + " " + string(player.GetPlayerGameStat(13)) + " " + string(player.GetPlayerGameStat(14)) + " " + string(player.GetPlayerGameStat(15)) + " " + string(player.GetPlayerGameStat(16)) + " " + string(player.GetPlayerGameStat(17)) + " " + string(player.GetPlayerGameStat(18)) + " " + string(player.GetPlayerGameStat(PGS_PING))
-			if (player.GetTeam() == TEAM_MILITIA){
-				playerinfoe.team = "Militia"
-			}
-			else if (player.GetTeam() == TEAM_IMC){
-				playerinfoe.team = "IMC"
-			}
-			else {
-				playerinfoe.team = string(player.GetTeam())
-			}
-			// playerlist.append(playerinfoe)
-			// print(playerinfoe.playername)
-			playerlist[playerinfoe.playername] <- [playerinfoe.score,playerinfoe.team,playerinfoe.kills,playerinfoe.deaths]
-			int mtimeleft = 0
-			if (check.allowlogging == 1){
-				mtimeleft = GameTime_TimeLeftSeconds()
-			}
-			playerlist["meta"] <- [MAP_NAME_TABLE[GetMapName()],mtimeleft]
-		}
-	}
+// void function listplayers(string args, string validation){
+// 	// print(split(args," ")[0])
+// 	if (split(args," ")[0].find("playing") == null){
+// 		return
+// 	}
+// 	array<entity> players = GetPlayerArray()
+// 	table playerlist
+// 	foreach (entity player in players){
+// 		playerinfo playerinfoe
+// 		if (player != null){
+// 			playerinfoe.playername = player.GetPlayerName()
+// 			// print(PGS_SCORE)
+// 			playerinfoe.score = player.GetPlayerGameStat(8)
+// 			playerinfoe.kills = player.GetPlayerGameStat(1)
+// 			playerinfoe.deaths = player.GetPlayerGameStat(2)
+// 			// print(player.GetPlayerGameStat(PGS_PING)/100000)
+// 			// playerinfoe.ping = string(player.GetPlayerGameStat(12))+ " " + string(player.GetPlayerGameStat(0)) + " " + string(player.GetPlayerGameStat(1)) + " " + string(player.GetPlayerGameStat(2)) + " " + string(player.GetPlayerGameStat(3)) + " " + string(player.GetPlayerGameStat(4)) + " " + string(player.GetPlayerGameStat(5)) + " " + string(player.GetPlayerGameStat(6)) + " " + string(player.GetPlayerGameStat(7)) + " " + string(player.GetPlayerGameStat(8)) + " " + string(player.GetPlayerGameStat(9)) + " " + string(player.GetPlayerGameStat(10)) + " " + string(player.GetPlayerGameStat(11)) + " " + string(player.GetPlayerGameStat(12)) + " " + string(player.GetPlayerGameStat(13)) + " " + string(player.GetPlayerGameStat(14)) + " " + string(player.GetPlayerGameStat(15)) + " " + string(player.GetPlayerGameStat(16)) + " " + string(player.GetPlayerGameStat(17)) + " " + string(player.GetPlayerGameStat(18)) + " " + string(player.GetPlayerGameStat(PGS_PING))
+// 			if (player.GetTeam() == TEAM_MILITIA){
+// 				playerinfoe.team = "Militia"
+// 			}
+// 			else if (player.GetTeam() == TEAM_IMC){
+// 				playerinfoe.team = "IMC"
+// 			}
+// 			else {
+// 				playerinfoe.team = string(player.GetTeam())
+// 			}
+// 			// playerlist.append(playerinfoe)
+// 			// print(playerinfoe.playername)
+// 			playerlist[playerinfoe.playername] <- [playerinfoe.score,playerinfoe.team,playerinfoe.kills,playerinfoe.deaths]
+// 			int mtimeleft = 0
+// 			if (check.allowlogging == 1){
+// 				mtimeleft = GameTime_TimeLeftSeconds()
+// 			}
+// 			playerlist["meta"] <- [MAP_NAME_TABLE[GetMapName()],mtimeleft]
+// 		}
+// 	}
 
 
-	check.commandcheck[validation] <- EncodeJSON(playerlist)
+// 	check.commandcheck[validation] <- EncodeJSON(playerlist)
 
-}
+// }
 
-void function throwplayer(string args, string validation){
-	if (split(args," ")[0].find("throw") == null || split(args," ").len() < 2){
-		return
-	}
-	array<string> splitargs = split(args," ")
-	if (splitargs[1] == "all"){
-		print("throwing all players")
-		array<entity> players = GetPlayerArray()
-		foreach (entity player in players){
-			if (player != null){
-				vector velocity = player.GetVelocity()
-				velocity.z = 10000
-				PushEntWithVelocity(player,velocity)
-			}
-		}
-		check.commandcheck[validation] <- args + ": All players thrown"
-	}
-	else {
-		entity player = findname(splitargs[1])
-		if (player != null){
-			print("throwing "+player.GetPlayerName())
-			vector velocity =player.GetVelocity()
-			velocity.z = 10000
-			PushEntWithVelocity(player,velocity)
-			check.commandcheck[validation] <-  args + ": "+player.GetPlayerName()+" thrown"
-		}
-		else {
-			check.commandcheck[validation] <- args + ": Player not found"}
-	}
-
-
-}
-
-
-entity function findname(string name)
-{
-    array<entity> players = GetPlayerArray()
-	array<entity> successfulnames = []
-    foreach (entity player in players)
-    {
-        if (player != null)
-        {
-            string playername = player.GetPlayerName()
-            if (playername.tolower().find(name.tolower()) != null)
-            {
-              
-                successfulnames.append(player)
-                
-                           
-            }
-        }
-    }
-	if (successfulnames.len() == 1){
-		return successfulnames[0]
-	}
-	else {
-		return null
-	}
-    return;
-}
