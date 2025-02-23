@@ -1,6 +1,6 @@
 global function discordloggerinit
 global function discordlogextmessage
-
+global function discordlogmatchplayers
 global function discordlogcheck
 // to add your own function create a file called xyz.nut in the same place as this one
 // then make it's file load in the mod.json AFTER logger.nut
@@ -15,11 +15,12 @@ global function discordlogcheck
 
 global struct discordlogcommand {
 	bool commandmatch = false
+	int returncode = -1
 	string returnmessage
 	string command 
 	array<string> commandargs
 }
-struct { // register new functions here
+struct {
 	array<discordlogcommand functionref(discordlogcommand)> funcs
 } registeredfunctions
 
@@ -27,11 +28,31 @@ struct { // register new functions here
 array <discordlogcommand functionref(discordlogcommand)> function getregisteredfunctions(){
 	return [
 		discordlogplaying,
-		discordlogthrowplayer
+		discordlogthrowplayer,
+		discordlogsimplesay,
+		discordloggetuid,
+		discordlogkickplayer
 		]
 		 //add functions here, and they'll work with / commands (if they fill criteria above)
 }
 
+array <entity> function discordlogmatchplayers(string playername){ //returns all players that have a partial playername match
+	array<entity> matchedplayers = [];
+    array<entity> players = GetPlayerArray()
+    foreach (entity player in players)
+        {
+            if (player != null)
+            {
+                string playername = player.GetPlayerName()
+                if (playername.tolower().find(playername.tolower()) != null)
+                {
+                    matchedplayers.append(player)
+                    
+                }
+            }
+        }
+	return matchedplayers
+}
 
 bool function discordlogcheck(string command, discordlogcommand inputcommand){
 	// print(split(inputcommand.command," ")[0].find(command) == null)
@@ -87,13 +108,12 @@ table<string, string> MAP_NAME_TABLE = {
 void function discordloggerinit() {
 
 	registeredfunctions.funcs = getregisteredfunctions()
-	if (SANCTIONAPI_ENABLED){
+
+	#if SANCTIONAPI_ENABLED
 		print("[DiscordLogger]Sanction API enabled")
 		registeredfunctions.funcs.append(discordlogsanction)
-	}
-	else{
-		print("[DiscordLogger]Sanction API not enabled")
-	}
+		registeredfunctions.funcs.append(discordlogsanctionremove)
+	#endif
 
 	if(!GetConVarBool("discordloggingenabled"))
 	{
@@ -488,7 +508,10 @@ void function runcommand(string command,string validation) {
 	for (int i = 0; i < registeredfunctions.funcs.len(); i++) {
 		commandstruct = registeredfunctions.funcs[i](commandstruct)
 		if (commandstruct.commandmatch) {
-			check.commandcheck[validation] <- commandstruct.returnmessage
+			table params = {}
+			params["statuscode"] <- commandstruct.returncode
+			params["output"] <- commandstruct.returnmessage
+			check.commandcheck[validation] <- EncodeJSON(params)
 			return
 		}
 	}

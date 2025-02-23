@@ -189,6 +189,9 @@ async def playing(
 
 def listplayersoverride(data, serverid):
     data = json.loads(data)
+    statuscode = data["statuscode"]
+
+    data = data["output"]
     if len(data) == 0:
         return discord.Embed(
             title=f"Server status for {context['serveridnamelinks'][serverid]}",
@@ -211,11 +214,15 @@ def listplayersoverride(data, serverid):
                 }
             formattedata[value[1]]["playerinfo"][key] = {"score":value[0],"kills":value[2],"deaths":value[3]}
             formattedata[value[1]]["teaminfo"]["score"] += value[0]
+
     embed = discord.Embed(
         title=f"Server status for {context['serveridnamelinks'][serverid]}",
         # description="This is a **test embed** with multiple customizations!",
         color=0xff70cb,
     )
+    if statuscode != 0:
+        embed.add_field(name="Error", value=f"\u200b {data}", inline=False)
+        return embed
     embed.add_field(name="Map", value=f"\u200b {formattedata['meta']['map']}", inline=True)
     embed.add_field(name="Players", value=f"\u200b {len(data)-1} players online", inline=True)
     embed.add_field(name="Time left", value=f"\u200b {formattedata['meta']['time']}", inline=True)
@@ -823,6 +830,8 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = None):
             if overridemsg:
                 try:
                     realmessage = overridemsg(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)], serverid)
+                    if not realmessage:
+                        overridemsg = None
                 except Exception as e:
                     print("error in overridemsg", e)
                     overridemsg = None

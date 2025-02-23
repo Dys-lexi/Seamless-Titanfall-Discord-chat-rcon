@@ -65,17 +65,17 @@ discordlogcommand function discordlogplaying(discordlogcommand commandin) {
 			// playerlist.append(playerinfoe)
 			// print(playerinfoe.playername)
 			playerlist[playerinfoe.playername] <- [playerinfoe.score,playerinfoe.team,playerinfoe.kills,playerinfoe.deaths]
-			int mtimeleft = 0
+		
+		}
+	}
+		int mtimeleft = 0
 			try{
 				mtimeleft = GameTime_TimeLeftSeconds()
 			}
             catch (e){
                 mtimeleft = 0
             }
-			playerlist["meta"] <- [MAP_NAME_TABLE[GetMapName()],mtimeleft]
-		}
-	}
-
+	playerlist["meta"] <- [MAP_NAME_TABLE[GetMapName()],mtimeleft]
 
     commandin.returnmessage = EncodeJSON(playerlist)
     return commandin;

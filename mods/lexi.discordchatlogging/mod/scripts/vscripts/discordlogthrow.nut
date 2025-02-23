@@ -5,6 +5,13 @@ discordlogcommand function discordlogthrowplayer(discordlogcommand commandin) {
             return commandin;
     }
     commandin.commandmatch = true
+	if (commandin.commandargs.len() != 1)
+	{
+		commandin.returnmessage = "Wrong number of args";
+		commandin.returncode = 400
+		return commandin;
+	}
+
 	array<string> splitargs = commandin.commandargs
 	if (splitargs[0] == "all"){
 		print("throwing all players")
@@ -18,6 +25,7 @@ discordlogcommand function discordlogthrowplayer(discordlogcommand commandin) {
 		}
 		// check.commandcheck[validation] <- args + ": All players thrown"
         commandin.returnmessage = commandin.command+": All players thrown"
+		commandin.returncode = 200
 	}
 	else {
 		entity player = findname(splitargs[0])
@@ -28,10 +36,12 @@ discordlogcommand function discordlogthrowplayer(discordlogcommand commandin) {
 			PushEntWithVelocity(player,velocity)
 			// check.commandcheck[validation] <-  args + ": "+player.GetPlayerName()+" thrown"
             commandin.returnmessage = commandin.command+": "+player.GetPlayerName()+" thrown"
+			commandin.returncode = 200
 		}
 		else {
 			// check.commandcheck[validation] <- args + ": Player not found"}
             commandin.returnmessage = commandin.command+": Player not found"
+			commandin.returncode = 401
 	}
 
     }

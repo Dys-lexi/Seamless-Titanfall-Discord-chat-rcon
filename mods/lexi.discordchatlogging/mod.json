@@ -54,16 +54,23 @@
             }
         },
         {
-			"Path": "sanctionapiban.nut",
-			"RunOn": "SERVER"
-	
-		},
-        {
-            "Path": "playing.nut",
+            "Path": "discordlogplaying.nut",
             "RunOn": "SERVER"
         },
         {
-            "Path": "throw.nut",
+            "Path": "discordlogthrow.nut",
+            "RunOn": "SERVER"
+        },
+        {
+            "Path": "discordlogsimplesay.nut",
+            "RunOn": "SERVER"
+        },
+        {
+            "Path": "discordlogkick.nut",
+            "RunOn": "SERVER"
+        },
+        {
+            "Path": "discordloggetuid.nut",
             "RunOn": "SERVER"
         }
 
