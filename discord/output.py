@@ -143,18 +143,16 @@ def sanctionoverride(data, serverid):
         title="Sanction Result",
         color=0xff70cb,
     )
+
     try:
-        data = json.loads(data)
-    except:
-        embed.add_field(name="Response", value=f"\u200b {data}", inline=False)
-    else:
         embed.add_field(name="Targeted Player", value=f"\u200b {data['playername']}", inline=False)
         embed.add_field(name="Sanction Type", value=f"\u200b {data['Sanctiontype']}", inline=False)
         embed.add_field(name="Sanction Reason", value=f"\u200b {data['reason']}", inline=False)
         embed.add_field(name="Sanction Expiry", value=f"\u200b {data['expire']}", inline=False)
         embed.add_field(name="Targeted player UID", value=f"\u200b {data['UID']}", inline=False)
         embed.add_field(name="Sanction Issuer", value=f"\u200b {data['issueruid']}", inline=False)
-
+    except:
+        embed.add_field(name="Response", value=f"\u200b {data}", inline=False)
     return embed
 
 
@@ -188,9 +186,7 @@ async def playing(
     await returncommandfeedback(serverid, sendrconcommand(serverid, "!playing"), ctx, listplayersoverride)
 
 def listplayersoverride(data, serverid):
-    data = json.loads(data)
     statuscode = data["statuscode"]
-
     data = data["output"]
     if len(data) == 0:
         return discord.Embed(
@@ -220,8 +216,8 @@ def listplayersoverride(data, serverid):
         # description="This is a **test embed** with multiple customizations!",
         color=0xff70cb,
     )
-    if statuscode != 0:
-        embed.add_field(name="Error", value=f"\u200b {data}", inline=False)
+    if statuscode != 200:
+        embed.add_field(name="Error", value=f"\u200b {data} {statuscode}", inline=False)
         return embed
     embed.add_field(name="Map", value=f"\u200b {formattedata['meta']['map']}", inline=True)
     embed.add_field(name="Players", value=f"\u200b {len(data)-1} players online", inline=True)
@@ -491,7 +487,7 @@ def recieveflaskprintrequests():
         initdiscordtotitanfall(serverid)
         if "commands" in data.keys():
             for key, value in data["commands"].items():
-                discordtotitanfall[serverid]["returnids"]["commandsreturn"][key] = value
+                discordtotitanfall[serverid]["returnids"]["commandsreturn"][key] = getjson(value)
         ids = list(data.keys())
         if "time" in data.keys():
             timesent = int(data["time"])
@@ -821,6 +817,20 @@ def sendrconcommand(serverid, command):
             {"command": command, "id": commandid}
         )
     return commandid
+
+def getjson(data): #ty chatgpt
+    if isinstance(data, str):
+        try:
+            parsed = json.loads(data)
+            return getjson(parsed)
+        except json.JSONDecodeError:
+            return data
+    elif isinstance(data, dict):
+        return {key: getjson(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [getjson(item) for item in data]
+    else:
+        return data
             
 async def returncommandfeedback(serverid, id, ctx,overridemsg = None):
     i = 0
@@ -836,7 +846,7 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = None):
                     print("error in overridemsg", e)
                     overridemsg = None
             await ctx.respond(
-                f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None,
+                f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]['output']}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None,
                 ephemeral=False,
             )
             break

@@ -501,6 +501,7 @@ void function DiscordClientMessageinloop()
 void function runcommand(string command,string validation) {
 	check.commandcheck[validation] <- command+": special command not found"
 	discordlogcommand commandstruct
+	commandstruct.returnmessage = "Nothing returned by command"
 	commandstruct.command = split(command," ")[0]
 	array <string> commandargs = split(command," ")
 	commandargs.remove(0)

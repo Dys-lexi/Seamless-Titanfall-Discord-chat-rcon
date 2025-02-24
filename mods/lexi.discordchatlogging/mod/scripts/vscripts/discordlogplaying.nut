@@ -78,5 +78,6 @@ discordlogcommand function discordlogplaying(discordlogcommand commandin) {
 	playerlist["meta"] <- [MAP_NAME_TABLE[GetMapName()],mtimeleft]
 
     commandin.returnmessage = EncodeJSON(playerlist)
+	commandin.returncode = 200
     return commandin;
 }
