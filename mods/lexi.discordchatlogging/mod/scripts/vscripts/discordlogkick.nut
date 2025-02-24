@@ -5,7 +5,7 @@ discordlogcommand function discordlogkickplayer(discordlogcommand commandin) {
             return commandin;
     }
     commandin.commandmatch = true
-    if (commandin.commandargs.len() != 1)
+    if (commandin.commandargs.len() < 1)
     {
         commandin.returnmessage = "Wrong number of args";
         commandin.returncode = 400
@@ -22,7 +22,15 @@ discordlogcommand function discordlogkickplayer(discordlogcommand commandin) {
     }
     else {
         commandin.returnmessage = "Kicking " + players[0].GetPlayerName()
-        NSDisconnectPlayer(players[0],"You were kicked :( swwy")
+        string reason = "You were kicked :( swwy"
+        if (commandin.commandargs.len() > 1){
+            reason = ""
+            for (int i = 1; i < commandin.commandargs.len(); i++){
+                reason += commandin.commandargs[i] + " "
+            }
+            
+        }
+        NSDisconnectPlayer(players[0], reason)
         commandin.returncode = 200
     }
     return commandin;

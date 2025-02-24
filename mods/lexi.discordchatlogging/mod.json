@@ -72,6 +72,10 @@
         {
             "Path": "discordloggetuid.nut",
             "RunOn": "SERVER"
+        },
+        {
+            "Path": "imagesender.nut",
+            "RunOn": "SERVER"
         }
 
     ]

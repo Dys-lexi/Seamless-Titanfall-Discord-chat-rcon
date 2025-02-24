@@ -10,7 +10,7 @@ discordlogcommand function discordlogsimplesay(discordlogcommand commandin) {
     {
         message += commandin.commandargs[i] + " "
     }
-    Chat_ServerBroadcast(message,false)
+    thread discordlogsendmessage(message)
     commandin.returnmessage = "Message sent"
     commandin.returncode = 200
     return commandin;

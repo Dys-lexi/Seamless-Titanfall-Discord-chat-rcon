@@ -1,7 +1,8 @@
-global function discordloggerinit
-global function discordlogextmessage
-global function discordlogmatchplayers
-global function discordlogcheck
+global function discordloggerinit //init mod
+global function discordlogextmessage //allows other mods to send messages
+global function discordlogmatchplayers //given a string, returns all players whose name includes said string
+global function discordlogcheck //check if a command should be run
+global function discordlogsendmessage //send a message to all players, accounting for them being dead (messages sent here have a chance of not being in order, if sent fast)
 // to add your own function create a file called xyz.nut in the same place as this one
 // then make it's file load in the mod.json AFTER logger.nut
 // after that, make the line "global function discordlogYOURFUNCTIONNAME"
@@ -31,7 +32,8 @@ array <discordlogcommand functionref(discordlogcommand)> function getregisteredf
 		discordlogthrowplayer,
 		discordlogsimplesay,
 		discordloggetuid,
-		discordlogkickplayer
+		discordlogkickplayer,
+		discordlogsendimage
 		]
 		 //add functions here, and they'll work with / commands (if they fill criteria above)
 }
@@ -314,6 +316,28 @@ void function stoprequests(){
 	NSHttpRequest(request, onSuccess, onFailure)
 }
 
+void function discordlogsendmessage(string message){
+	int trys = 0
+	array <entity> players = GetPlayerArray()
+	array <entity> playersdone
+	array <entity> playersnotdone = GetPlayerArray()
+	while (trys < 30 && players.len() > playersdone.len()){
+		foreach (entity player in players){
+			if (player.IsEntAlive()){
+				Chat_ServerPrivateMessage(player,message,false,false)
+				playersdone.append(player)
+				playersnotdone.remove(playersnotdone.find(player))
+			}
+			
+		}
+		wait 0.5
+		trys++
+	}
+	for (int i = 0; i < playersnotdone.len(); i++){
+		Chat_ServerPrivateMessage(playersnotdone[i],message,false,false)
+	}
+
+}
 
 
 void function DiscordClientMessageinloop()
@@ -436,7 +460,7 @@ void function DiscordClientMessageinloop()
 			string command = expect string(key)
 			string validation = expect string(value)
 
-			print(command)
+			print("[DiscordLogger] COMMAND"+command)
 			if (command[0] == 47 || command[0] == 33){
 				runcommand(command, validation)
 	}
@@ -459,9 +483,9 @@ void function DiscordClientMessageinloop()
 		foreach (value, key in texts){
 			string validation = expect string(value)
 			string text = expect string(key)
-			print(text)
+			print("[DiscordLogger] MESSAGE"+text)
 			check.textcheck.append(validation)
-			Chat_ServerBroadcast("\x1b[38;5;105m"+text,false)
+			thread discordlogsendmessage("\x1b[38;5;105m"+text)
 			// foreach (entity player in GetPlayerArray()) {
 			// 	Chat_PrivateMessage(player,player,"\x1b[38;5;105m"+text,false)
 			// }

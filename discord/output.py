@@ -4,7 +4,10 @@ import os
 import threading
 import time
 import random
-
+import io
+from PIL import Image
+import numpy as np
+from sklearn.cluster import MeanShift, estimate_bandwidth
 from flask import Flask, jsonify, request
 from waitress import serve
 
@@ -30,6 +33,7 @@ intents.presences = True
 
 # Load token from environment variable
 TOKEN = os.getenv("DISCORD_BOT_TOKEN", "0")
+SHOULDUSEIMAGES = os.getenv("DISCORD_BOT_USE_IMAGES", "1")
 SERVERPASS = os.getenv("DISCORD_BOT_PASSWORD", "*")
 if SERVERPASS == "*":
     print("No password found, allowing inputs from all addresses")
@@ -136,7 +140,7 @@ async def sanction(
     await ctx.defer()
     
     
-    await returncommandfeedback(serverid, sendrconcommand(serverid,commandstring), ctx, sanctionoverride)
+    await returncommandfeedback(*sendrconcommand(serverid,commandstring), ctx, sanctionoverride)
 
 def sanctionoverride(data, serverid,statuscode):
     embed = discord.Embed(
@@ -183,7 +187,7 @@ async def playing(
     
     print("playing command from", ctx.author.id, "to", servername if servername is not None else "Auto")
     await ctx.defer()
-    await returncommandfeedback(serverid, sendrconcommand(serverid, "!playing"), ctx, listplayersoverride)
+    await returncommandfeedback(*sendrconcommand(serverid, "!playing"), ctx, listplayersoverride)
 
 def listplayersoverride(data, serverid, statuscode):
     data
@@ -407,28 +411,33 @@ async def on_message(message):
         ][0]
         # if serverid not in messagestosend.keys():
         #     messagestosend[serverid] = []
+
+
+    
         initdiscordtotitanfall(serverid)
         if (
             len(
                 f"{message.author.nick if message.author.nick is not None else message.author.display_name}: [38;5;254m{message.content}"
             )
-            > 240
+            > 240222
         ):
             await message.channel.send("Message too long, cannot send.")
             return
-        elif message.content == "":
-            return
-        discordtotitanfall[serverid]["messages"].append(
-            {
-                "id": message.id,
-                "content": f"{message.author.nick if message.author.nick is not None else message.author.display_name}: [38;5;254m{message.content}",
-            }
-        )
+        if message.content != "":
+            discordtotitanfall[serverid]["messages"].append(
+                {
+                    "id": message.id,
+                    "content": f"{message.author.nick if message.author.nick is not None else message.author.display_name}: [38;5;254m{message.content}",
+                }
+            )
         if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 45: #server crash (likely)
             await reactomessages([message.id], serverid, "🔴"   )
         elif discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5: #changing maps (likely)
             await reactomessages([message.id], serverid, "🟡"   )
-        
+        if message.attachments and SHOULDUSEIMAGES == "1":
+            print("creating image")
+            image = await createimage(message)
+            await returncommandfeedback(*sendrconcommand(serverid,f"!sendimage {' '.join(image)}"), message, iscommandnotmessage = False)
         # messagestosend[serverid].append(
         #     f"{message.author.nick if message.author.nick is not None else message.author.display_name}: [38;5;254m{message.content}"
         # )
@@ -815,7 +824,7 @@ def sendrconcommand(serverid, command):
     discordtotitanfall[serverid]["commands"].append(
             {"command": command, "id": commandid}
         )
-    return commandid
+    return serverid,commandid
 
 def getjson(data): #ty chatgpt
     if isinstance(data, str):
@@ -831,7 +840,7 @@ def getjson(data): #ty chatgpt
     else:
         return data
             
-async def returncommandfeedback(serverid, id, ctx,overridemsg = None):
+async def returncommandfeedback(serverid, id, ctx,overridemsg = None, iscommandnotmessage = True):
     i = 0
     while i < 100:
         await asyncio.sleep(0.1)
@@ -844,15 +853,114 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = None):
                 except Exception as e:
                     print("error in overridemsg", e)
                     overridemsg = None
-            await ctx.respond(
-                f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]['output']}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None,
-                ephemeral=False,
-            )
+            if iscommandnotmessage:
+                await ctx.respond(
+                    f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]['output']}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None,
+                    ephemeral=False,
+                )
+            else:
+                await reactomessages([ctx.id], serverid, "🟢"   )
             break
 
         i += 1
     else:
-        await ctx.respond("Command response timed out.", ephemeral=False)
+        if iscommandnotmessage:
+            await ctx.respond("Command response timed out.", ephemeral=False)
+        else:
+            await reactomessages([ctx.id], serverid, "🔴"   )
+
+# IMAGE SLOP PLEASE DON'T LOOK AT IT I HATE IT
+
+async def createimage(message):
+    for attachment in message.attachments:
+                if any(attachment.filename.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".gif"]):
+                    image_bytes = await attachment.read()
+                    ascii_art = fitimage(image_bytes, output_width=80, ascii_char = "~", maxlen = 249)
+                    lenarray = [len(s) for s in ascii_art]
+                    length = min(lenarray)
+                    if lenarray.count(length) > 1:
+                        secondshortest = min(lenarray)
+                    else:
+                        secondshortest = min([x for x in lenarray if x != length])
+                    for i in range(len(ascii_art)):
+                        if len(ascii_art[i]) == length:
+                            # print(length)
+                            ascii_art[i] = ascii_art[i] + "\x1b[38;5;105m-" + (message.author.nick if message.author.nick is not None else message.author.display_name).replace(" ", "_")
+                            length = -1
+                        elif len(ascii_art[i]) == secondshortest:
+                            ascii_art[i] = ascii_art[i] + "\x1b[38;5;105m-" + ("Image from discord").replace(" ", "_")
+                            secondshortest = -1
+
+                  
+                    art_text = "\n".join(ascii_art)
+                    # print(art_text) OUTPUT IT ON DISCORD
+                    return ascii_art
+
+def convansi(rgb):
+    r, g, b = rgb
+    r_val = int(r / 51)
+    g_val = int(g / 51)
+    b_val = int(b / 51)
+    ansi_code = 16 + 36 * r_val + 6 * g_val + b_val
+    return ansi_code
+
+def fitimage(image_bytes, output_width=30, ascii_char="█",maxlen = 249):
+    ascii_art = lotsofmathscreatingimage(image_bytes, output_width, ascii_char)
+    length = max(len(s) for s in ascii_art)
+    while length > maxlen:
+        if (length - maxlen) > 200:
+            output_width -= 10
+        elif (length - maxlen) > 100:
+            output_width -= 5
+        output_width -= 1
+        print(output_width)
+        ascii_art = lotsofmathscreatingimage(image_bytes, output_width, ascii_char)
+        length = max(len(s) for s in ascii_art)
+    return ascii_art
+
+def lotsofmathscreatingimage(image_bytes, output_width=80, ascii_char="█", max_height=11):
+    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    original_width, original_height = image.size
+    computed_height = int((original_height / original_width) * output_width)
+    if computed_height > max_height:
+        output_height = max_height
+        output_width = int((original_width / original_height) * max_height)
+    else:
+        output_height = computed_height
+    output_width*=1.8
+    output_width = int(output_width)
+    image = image.resize((output_width, output_height), Image.LANCZOS)
+    img_array = np.array(image)
+    pixels = img_array.reshape((-1, 3))
+    bandwidth = estimate_bandwidth(pixels, quantile=0.05, n_samples=100)
+    if bandwidth <= 0:
+        bandwidth = 10 
+    ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
+    ms.fit(pixels)
+    labels = ms.labels_
+    cluster_centers = ms.cluster_centers_
+    label_to_ansi = {}
+    for label, center in enumerate(cluster_centers):
+        rgb = tuple(map(int, center))
+        ansi = convansi(rgb)
+        label_to_ansi[label] = ansi
+    ascii_art = []
+    idx = 0
+    for row in range(output_height):
+        row_chars = ""
+        lastansi = None
+        for col in range(output_width):
+            pixel_label = labels[idx]
+            ansi = label_to_ansi[pixel_label]
+            if ansi != lastansi:
+                colored_char = f"\x1b[38;5;{ansi}m{ascii_char}"
+                lastansi = ansi
+            else:
+                colored_char = ascii_char
+            row_chars += colored_char
+            idx += 1
+        ascii_art.append(row_chars)
+    return ascii_art
 
 threading.Thread(target=messageloop).start()
 threading.Thread(target=recieveflaskprintrequests).start()
