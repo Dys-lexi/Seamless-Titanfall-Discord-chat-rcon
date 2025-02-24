@@ -138,7 +138,7 @@ async def sanction(
     
     await returncommandfeedback(serverid, sendrconcommand(serverid,commandstring), ctx, sanctionoverride)
 
-def sanctionoverride(data, serverid):
+def sanctionoverride(data, serverid,statuscode):
     embed = discord.Embed(
         title="Sanction Result",
         color=0xff70cb,
@@ -185,9 +185,8 @@ async def playing(
     await ctx.defer()
     await returncommandfeedback(serverid, sendrconcommand(serverid, "!playing"), ctx, listplayersoverride)
 
-def listplayersoverride(data, serverid):
-    statuscode = data["statuscode"]
-    data = data["output"]
+def listplayersoverride(data, serverid, statuscode):
+    data
     if len(data) == 0:
         return discord.Embed(
             title=f"Server status for {context['serveridnamelinks'][serverid]}",
@@ -839,7 +838,7 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = None):
         if str(id) in discordtotitanfall[serverid]["returnids"]["commandsreturn"].keys():
             if overridemsg:
                 try:
-                    realmessage = overridemsg(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)], serverid)
+                    realmessage = overridemsg(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]["output"], serverid,discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]["statuscode"] )
                     if not realmessage:
                         overridemsg = None
                 except Exception as e:
