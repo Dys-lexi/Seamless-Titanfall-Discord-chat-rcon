@@ -43,8 +43,8 @@ array <entity> function discordlogmatchplayers(string playername){ //returns all
         {
             if (player != null)
             {
-                string playername = player.GetPlayerName()
-                if (playername.tolower().find(playername.tolower()) != null)
+                string playernamec = player.GetPlayerName()
+                if (playernamec.tolower().find(playername.tolower()) != null)
                 {
                     matchedplayers.append(player)
                     
