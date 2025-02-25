@@ -320,22 +320,22 @@ void function discordlogsendmessage(string message){
 	int trys = 0
 	array <entity> players = GetPlayerArray()
 	array <entity> playersdone
-	array <entity> playersnotdone = GetPlayerArray()
-	while (trys < 30 && players.len() > playersdone.len()){
+	// array <entity> playersnotdone = GetPlayerArray()
+	while (trys < 120 && players.len() > playersdone.len()){
 		foreach (entity player in players){
 			if (player.IsEntAlive()){
 				Chat_ServerPrivateMessage(player,message,false,false)
 				playersdone.append(player)
-				playersnotdone.remove(playersnotdone.find(player))
+				// playersnotdone.remove(playersnotdone.find(player))
 			}
 			
 		}
 		wait 0.5
 		trys++
 	}
-	for (int i = 0; i < playersnotdone.len(); i++){
-		Chat_ServerPrivateMessage(playersnotdone[i],message,false,false)
-	}
+	// for (int i = 0; i < playersnotdone.len(); i++){
+	// 	Chat_ServerPrivateMessage(playersnotdone[i],message,false,false)
+	// }
 
 }
 
@@ -468,10 +468,13 @@ void function DiscordClientMessageinloop()
 
 			ServerCommand(command)
 			// table output = {commandid="validation",returntext=command+": command not found"}
-			check.commandcheck[validation] <- command+": successfully ran console command"}
+			table params
+			params["statuscode"] <- 200
+			params["output"] <- command+": successfully ran console command"
+			check.commandcheck[validation] <- EncodeJSON(params)
 			
 
-		}}
+		}}}
 		else if (commands.len() > 0){
 			print("[DiscordLogger] RCON is not enabled, but commands were sent")
 		}

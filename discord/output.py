@@ -4,10 +4,6 @@ import os
 import threading
 import time
 import random
-import io
-from PIL import Image
-import numpy as np
-from sklearn.cluster import MeanShift, estimate_bandwidth
 from flask import Flask, jsonify, request
 from waitress import serve
 
@@ -33,7 +29,13 @@ intents.presences = True
 
 # Load token from environment variable
 TOKEN = os.getenv("DISCORD_BOT_TOKEN", "0")
-SHOULDUSEIMAGES = os.getenv("DISCORD_BOT_USE_IMAGES", "1")
+SHOULDUSEIMAGES = os.getenv("DISCORD_BOT_USE_IMAGES", "0")
+if SHOULDUSEIMAGES == "1":
+    print("Images enabled")
+    import io
+    from PIL import Image
+    import numpy as np
+    from sklearn.cluster import MeanShift, estimate_bandwidth
 SERVERPASS = os.getenv("DISCORD_BOT_PASSWORD", "*")
 if SERVERPASS == "*":
     print("No password found, allowing inputs from all addresses")
@@ -845,6 +847,7 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = None, iscommandn
     while i < 100:
         await asyncio.sleep(0.1)
         if str(id) in discordtotitanfall[serverid]["returnids"]["commandsreturn"].keys():
+            print(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)])
             if overridemsg:
                 try:
                     realmessage = overridemsg(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]["output"], serverid,discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]["statuscode"] )
@@ -873,7 +876,7 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = None, iscommandn
 
 async def createimage(message):
     for attachment in message.attachments:
-                if any(attachment.filename.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".gif"]):
+                if any(attachment.filename.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".gif",".webp"]):
                     image_bytes = await attachment.read()
                     ascii_art = fitimage(image_bytes, output_width=80, ascii_char = "~", maxlen = 249)
                     lenarray = [len(s) for s in ascii_art]
