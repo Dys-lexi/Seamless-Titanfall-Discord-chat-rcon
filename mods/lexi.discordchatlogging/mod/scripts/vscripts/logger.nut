@@ -317,22 +317,23 @@ void function stoprequests(){
 }
 
 void function discordlogsendmessage(string message){
-	int trys = 0
-	array <entity> players = GetPlayerArray()
-	array <entity> playersdone
-	// array <entity> playersnotdone = GetPlayerArray()
-	while (trys < 120 && players.len() > playersdone.len()){
-		foreach (entity player in players){
-			if (player.IsEntAlive()){
-				Chat_ServerPrivateMessage(player,message,false,false)
-				playersdone.append(player)
-				// playersnotdone.remove(playersnotdone.find(player))
-			}
+	Chat_ServerBroadcast(message,false)
+	// int trys = 0
+	// array <entity> players = GetPlayerArray()
+	// array <entity> playersdone
+	// // array <entity> playersnotdone = GetPlayerArray()
+	// while (trys < 120 && players.len() > playersdone.len()){
+	// 	foreach (entity player in players){
+	// 		if (player.IsEntAlive()){
+	// 			Chat_ServerPrivateMessage(player,message,false,false)
+	// 			playersdone.append(player)
+	// 			// playersnotdone.remove(playersnotdone.find(player))
+	// 		}
 			
-		}
-		wait 0.5
-		trys++
-	}
+	// 	}
+	// 	wait 0.5
+	// 	trys++
+	// }
 	// for (int i = 0; i < playersnotdone.len(); i++){
 	// 	Chat_ServerPrivateMessage(playersnotdone[i],message,false,false)
 	// }
@@ -468,7 +469,7 @@ void function DiscordClientMessageinloop()
 
 			ServerCommand(command)
 			// table output = {commandid="validation",returntext=command+": command not found"}
-			check.commandcheck[validation] <- EncodeJSON({statuscode=200,output=command+": successfully ran console command"})
+			check.commandcheck[validation] <- EncodeJSON({statuscode=-2,output=command+": successfully ran console command"})
 			
 
 		}}}
@@ -523,7 +524,7 @@ void function DiscordClientMessageinloop()
 }
 
 void function runcommand(string command,string validation) {
-	check.commandcheck[validation] <- EncodeJSON({statuscode=200,output=command+": Special command not found"})
+	check.commandcheck[validation] <- EncodeJSON({statuscode=-3,output=command+": Special command not found"})
 	discordlogcommand commandstruct
 	commandstruct.returnmessage = "Nothing returned by command"
 	commandstruct.command = split(command," ")[0]
