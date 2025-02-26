@@ -468,10 +468,7 @@ void function DiscordClientMessageinloop()
 
 			ServerCommand(command)
 			// table output = {commandid="validation",returntext=command+": command not found"}
-			table params
-			params["statuscode"] <- 200
-			params["output"] <- command+": successfully ran console command"
-			check.commandcheck[validation] <- EncodeJSON(params)
+			check.commandcheck[validation] <- EncodeJSON({statuscode=200,output=command+": successfully ran console command"})
 			
 
 		}}}
@@ -526,7 +523,7 @@ void function DiscordClientMessageinloop()
 }
 
 void function runcommand(string command,string validation) {
-	check.commandcheck[validation] <- command+": special command not found"
+	check.commandcheck[validation] <- EncodeJSON({statuscode=200,output=command+": Special command not found"})
 	discordlogcommand commandstruct
 	commandstruct.returnmessage = "Nothing returned by command"
 	commandstruct.command = split(command," ")[0]
@@ -536,10 +533,7 @@ void function runcommand(string command,string validation) {
 	for (int i = 0; i < registeredfunctions.funcs.len(); i++) {
 		commandstruct = registeredfunctions.funcs[i](commandstruct)
 		if (commandstruct.commandmatch) {
-			table params = {}
-			params["statuscode"] <- commandstruct.returncode
-			params["output"] <- commandstruct.returnmessage
-			check.commandcheck[validation] <- EncodeJSON(params)
+			check.commandcheck[validation] <- EncodeJSON({statuscode=commandstruct.returncode,output=commandstruct.returnmessage})
 			return
 		}
 	}
