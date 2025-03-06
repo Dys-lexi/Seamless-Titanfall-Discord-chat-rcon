@@ -1,4 +1,4 @@
-# Seamless Titanfall <-> Discord chat relay and rcon
+# Seamless Titanfall <-> Discord chat relay, rcon and custom commands
 A mod / discord bot that relays titanfall messages to discord, discord messages to titanfall, and allows rcon to send console commands to titanfall
 
 you'll have to create a discord bot at discord developers to use this, and put token in
@@ -12,6 +12,7 @@ discordlog:
     environment:
       - DISCORD_BOT_TOKEN= PUT YOUR DISCORD TOKEN HERE
       - DISCORD_BOT_PASSWORD=scarypassword
+      - SHOULDUSEIMAGES=1
     volumes:
       - ./discord/data:/app/data:rw
     restart: always
@@ -31,3 +32,6 @@ And you'll most likely *want*:
 
 
 Check the mod.json file for configuration on other things.
+
+To add your own custom commands, the top of logger.nut provides some help.
+without a dedicated / command, to call them you can do /rcon cmd:!yourcommand yourcommandparam1 yourcommandparam2...
