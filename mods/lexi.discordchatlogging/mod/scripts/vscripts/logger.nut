@@ -3,6 +3,7 @@ global function discordlogextmessage //allows other mods to send messages
 global function discordlogmatchplayers //given a string, returns all players whose name includes said string
 global function discordlogcheck //check if a command should be run
 global function discordlogsendmessage //send a message to all players, accounting for them being dead (messages sent here have a chance of not being in order, if sent fast)
+
 // to add your own function create a file called xyz.nut in the same place as this one
 // then make it's file load in the mod.json AFTER logger.nut
 // after that, make the line "global function discordlogYOURFUNCTIONNAME"
