@@ -17,6 +17,7 @@ discordlog:
       - ./discord/data:/app/data:rw
     restart: always
 ```
+### Convars
 For each server you'll *need*:
 ```
 +discordloggingserverid 1234
@@ -32,6 +33,8 @@ And you'll most likely *want*:
 
 
 Check the mod.json file for configuration on other things.
+
+### Custom Commands
 
 To add your own custom commands, the top of logger.nut provides some help.
 without a dedicated / command, to call them you can do /rcon cmd:!yourcommand yourcommandparam1 yourcommandparam2...
