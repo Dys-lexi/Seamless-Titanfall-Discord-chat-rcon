@@ -21,7 +21,9 @@ discordlogcommand function discordloggetuid(discordlogcommand commandin) {
         commandin.returncode = 402
     }
     else {
-        commandin.returnmessage = "UID for " + players[0].GetPlayerName() + " is " + players[0].GetUID()
+        table output
+        output["UID for " + players[0].GetPlayerName()] <- players[0].GetUID()
+        commandin.returnmessage = EncodeJSON(output)
         commandin.returncode = 200
     }
     

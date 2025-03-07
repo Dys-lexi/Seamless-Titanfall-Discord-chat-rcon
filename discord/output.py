@@ -4,6 +4,9 @@ import os
 import threading
 import time
 import random
+from discord.commands import Option
+
+import inspect
 from flask import Flask, jsonify, request
 from waitress import serve
 
@@ -53,6 +56,7 @@ context = {
     "serverchannelidlinks": {},
     "RCONallowedusers": [],
     "globalchannelid": 0,
+    "commands": {},
 }
 serverchannels = []
 if not os.path.exists("./data"):
@@ -161,35 +165,56 @@ def sanctionoverride(data, serverid,statuscode):
         embed.add_field(name="Response", value=f"\u200b {data}", inline=False)
     return embed
 
+# @bot.slash_command(name="getuid", description="Get a player's UID")
+# async def getuid(
+#     ctx,
+#     playername: Option(str, "The playername to get the UID of"),
+#     servername: Option(
+#         str, "The servername (omit for current channel's server)", required=False
+#     ) = None,
+# ):
+#     global context, discordtotitanfall
 
-@bot.slash_command(name="playing", description="List the players on a server")
-async def playing(
-    ctx,
-    servername: Option(
-        str, "The servername (omit for current channel's server)", required=False
-    ) = None,
-):
-    global context, discordtotitanfall
+#     if not checkrconallowed(ctx.author):
+#         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
+#         return
+#     print("getuid command from", ctx.author.id, "to", playername)
+#     serverid = getchannelidfromname(servername,ctx)
+#     if serverid is None:
+#         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+#         await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
+#         return
+#     await ctx.defer()
+#     await returncommandfeedback(*sendrconcommand(serverid,f"!getuid {playername}"), ctx)
+
+# @bot.slash_command(name="playing", description="List the players on a server")
+# async def playing(
+#     ctx,
+#     servername: Option(
+#         str, "The servername (omit for current channel's server)", required=False
+#     ) = None,
+# ):
+#     global context, discordtotitanfall
     
-    if servername is None and ctx.channel.id in context["serveridnamelinks"].values():
-        serverid = [
-            key
-            for key, value in context["serveridnamelinks"].items()
-            if value == ctx.channel.id
-        ][0]
-    elif ctx.channel.id in context["serverchannelidlinks"].values():
-        for key, value in context["serverchannelidlinks"].items():
-            if value == ctx.channel.id:
-                serverid = key
-                break
-    else:
-        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-        await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
-        return
+#     if servername is None and ctx.channel.id in context["serveridnamelinks"].values():
+#         serverid = [
+#             key
+#             for key, value in context["serveridnamelinks"].items()
+#             if value == ctx.channel.id
+#         ][0]
+#     elif ctx.channel.id in context["serverchannelidlinks"].values():
+#         for key, value in context["serverchannelidlinks"].items():
+#             if value == ctx.channel.id:
+#                 serverid = key
+#                 break
+#     else:
+#         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+#         await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
+#         return
     
-    print("playing command from", ctx.author.id, "to", servername if servername is not None else "Auto")
-    await ctx.defer()
-    await returncommandfeedback(*sendrconcommand(serverid, "!playing"), ctx, listplayersoverride)
+#     print("playing command from", ctx.author.id, "to", servername if servername is not None else "Auto")
+#     await ctx.defer()
+#     await returncommandfeedback(*sendrconcommand(serverid, "!playing"), ctx, listplayersoverride)
 
 def listplayersoverride(data, serverid, statuscode):
     data
@@ -841,8 +866,26 @@ def getjson(data): #ty chatgpt
         return [getjson(item) for item in data]
     else:
         return data
+    
+def defaultoverride(data, serverid, statuscode):
+    print(data)
+
+    embed = discord.Embed(
+    
+        title=f"Command sent to server: *{context['serveridnamelinks'][serverid]}*",
+        description=f"Status code: {statuscode}",
+        color=0xff70cb,
+    )
+    if type(data) == str:
+        embed.add_field(name="> Output:", value=f"```{data}```", inline=False)
+    else:
+        for key, value in data.items():
+            embed.add_field(name=f"> {key}:", value=f"```{value}```", inline=False)
+    return embed
             
-async def returncommandfeedback(serverid, id, ctx,overridemsg = None, iscommandnotmessage = True):
+async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride, iscommandnotmessage = True):
+    if not overridemsg:
+        overridemsg = defaultoverride
     i = 0
     while i < 100:
         await asyncio.sleep(0.1)
@@ -856,6 +899,12 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = None, iscommandn
                 except Exception as e:
                     print("error in overridemsg", e)
                     overridemsg = None
+                    try:
+                        realmessage = defaultoverride(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]["output"], serverid,discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]["statuscode"] )
+                        overridemsg = True
+                    except Exception as e:
+                        print("error in defaultoverride", e)
+                        overridemsg = None
             if iscommandnotmessage:
                 await ctx.respond(
                     f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]['output']}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None,
@@ -871,6 +920,74 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = None, iscommandn
             await ctx.respond("Command response timed out.", ephemeral=False)
         else:
             await reactomessages([ctx.id], serverid, "🔴"   )
+
+def checkrconallowed(author):
+    global context
+    if author.id not in context["RCONallowedusers"]:
+        return False
+    return True
+# command slop
+
+def create_dynamic_command(command_name, description , rcon = False, parameters = [], outputfunc=None):
+    param_list = []
+    for param in parameters:
+        pname = param["name"]
+        ptype = param["type"]
+        pdesc = param.get("description", "")
+        prequired = param.get("required", True)
+        if "choices" in param:
+            pchoices = param["choices"]
+            param_str = f'{pname}: Option({ptype}, "{pdesc}", choices={pchoices}, required={prequired})'
+        else:
+            param_str = f'{pname}: Option({ptype}, "{pdesc}", required={prequired})'
+        if not prequired:
+            param_str += " = None"
+        param_list.append(param_str)
+    servername_param = 'servername: Option(str, "The servername (omit for current channel\'s server)", required=False) = None'
+    param_list.append(servername_param)
+    params_signature = ", ".join(param_list)
+    command_parts = [f'"!{command_name}"'] + [f'str({param["name"]})' for param in parameters]
+
+    command_expr = " + ' ' + ".join(command_parts)
+
+    dict_literal = "{" + ", ".join([f'"{p["name"]}": {p["name"]}' for p in parameters]) + "}"
+
+
+    outputfunc_expr = outputfunc.__name__ if outputfunc is not None else None
+
+    func_code = f'''
+@bot.slash_command(name="{command_name}", description="{description}")
+async def {command_name}(ctx, {params_signature}):
+    if {rcon} and not checkrconallowed(ctx.author):
+        await ctx.respond("You are not allowed to use this command.", ephemeral=False)
+        return
+    params = {dict_literal}
+    print("{command_name} command from", ctx.author.id, "with parameters:", params," to server:", servername)
+    serverid = getchannelidfromname(servername, ctx)
+    if serverid is None:
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
+        return
+    await ctx.defer()
+    command = {command_expr}
+    await returncommandfeedback(*sendrconcommand(serverid, command), ctx, {outputfunc_expr})
+'''
+
+    env = globals().copy()
+    local_vars = {}
+    exec(func_code, env, local_vars)
+    return local_vars[command_name]
+
+
+for command_name, command_info in context["commands"].items():
+    create_dynamic_command(
+        command_name=command_name,
+        description=command_info["description"],
+        parameters=command_info["parameters"] if "parameters" in command_info else [],
+        rcon=command_info["rcon"] if "rcon" in command_info else False,
+        outputfunc=globals().get(command_info["outputfunc"]) if "outputfunc" in command_info  and callable(globals().get(command_info["outputfunc"])) else None,
+    )
+
 
 # IMAGE SLOP PLEASE DON'T LOOK AT IT I HATE IT
 
