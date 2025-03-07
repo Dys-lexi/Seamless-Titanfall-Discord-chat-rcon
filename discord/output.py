@@ -926,8 +926,8 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride,
     if not overridemsg:
         overridemsg = defaultoverride
     i = 0
-    while i < 100:
-        await asyncio.sleep(0.1)
+    while i < 200:
+        await asyncio.sleep(0.05)
         if str(id) in discordtotitanfall[serverid]["returnids"]["commandsreturn"].keys():
             print(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)])
             if overridemsg:
@@ -956,7 +956,7 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride,
         i += 1
     else:
         if iscommandnotmessage:
-            await ctx.respond("Command response timed out.", ephemeral=False)
+            await ctx.respond("Command response timed out - server is unresponsive", ephemeral=False)
         else:
             await reactomessages([ctx.id], serverid, "🔴"   )
 
