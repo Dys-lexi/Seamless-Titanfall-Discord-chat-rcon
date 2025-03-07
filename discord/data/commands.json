@@ -13,13 +13,10 @@
         "outputfunc": false
     },
     "playing": {
-        "description": "List players on a server",
-        "parameters": [],
-        "rcon": false,
-        "outputfunc": "listplayersoverride"
+        "description": "List players on a server"
     },
     "throw": {
-        "description": "Throw a player - this is not a rcon command (yet DON'T ABUSE)",
+        "description": "Throw a player",
         "parameters": [
             {
                 "name": "playername",
@@ -62,5 +59,70 @@
         ],
         "rcon": true,
         "outputfunc": false
+    },
+    "sanctionban": {
+        "description": "Sanction a player",
+        "parameters": [
+            {
+                "name": "playername",
+                "type": "str",
+                "description": "The player name",
+                "required": true
+            },
+            {
+                "name": "reason",
+                "type": "str",
+                "description": "The reason for the sanction",
+                "required": true
+            },
+            {
+                "name": "sanctiontype",
+                "type": "str",
+                "description": "The type of sanction to apply",
+                "required": true,
+                "choices": [
+                    "mute",
+                    "ban"
+                ]
+            },
+            {
+                "name": "expiry",
+                "type": "str",
+                "description": "The expiry time of the sanction in format yyyy-mm-dd, omit is forever",
+                "required": false
+            }
+        ],
+        "rcon": true,
+        "commandparaminputoverride": {
+            "reason" : "-reason",
+            "sanctiontype" : "-type",
+            "expiry" : "-expire",
+            "appendtoend": "'-issuer '+ctx.author.name"
+        },
+        "outputfunc": "sanctionoverride"
+
+    },
+    "sanctionbanremove":{
+        "description": "Remove a sanction",
+        "parameters": [
+            {
+                "name": "typeofremove",
+                "type": "str",
+                "description": "uid or name",
+                "required": true,
+                "choices": [
+                    "uid",
+                    "name"
+                ]
+            },
+            {
+                "name": "who",
+                "type": "str",
+                "description": "Who is unbanned",
+                "required": true
+            }
+        ],
+        "rcon": true,
+        "outputfunc": "sanctionoverride"
     }
 }

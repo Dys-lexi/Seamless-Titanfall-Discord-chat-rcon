@@ -126,37 +126,66 @@ async def bind_logging_to_category(ctx, category_name: str):
         f"Logging channel created under category '{category_name}' with channel ID {context['logging_cat_id']}.",
         ephemeral=False,
     )
-# sanction command. expiry, playername, reason, and a choice bettween ban or mute must be provided
-@bot.slash_command(name="sanction", description="Sanction a player")
-async def sanction(
-    ctx,
-    playername: str,
-    reason: str,
-    sanctiontype: Option(
-        str, "The type of sanction to apply", choices=["mute", "ban"]
-    ),
-    expiry: Option(str, "The expiry time of the sanction in format yyyy-mm-dd, omit is forever") = None,
-    servername: Option(
-        str, "The servername (omit for current channel's server)", required=False
-    ) = None,
-):
-    global context, discordtotitanfall
 
-    if ctx.author.id not in context["RCONallowedusers"]:
-        await ctx.respond("You are not allowed to use this command.", ephemeral=False)
-        return
-    if expiry == None: expiry = ""
-    commandstring = f"!sanctionban {playername} -expire {expiry} -reason {reason} -type {sanctiontype} -issuer {ctx.author.name}"
-    print("sanction command from", ctx.author.id, "to", playername)
-    serverid = getchannelidfromname(servername,ctx)
-    if serverid is None:
-        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-        await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
-        return
-    await ctx.defer()
+
+@bot.slash_command(name="help", description="Show help for commands")
+async def help(
+    ctx,
+    command: Option(str, "The command to get help for", required=False,choices = list(context["commands"].keys()))
+):
+    global context
+    if command is None:
+        embed = discord.Embed(
+            title="Help",
+            description="Use /help <command> to get help for a specific command",
+            color=0xff70cb,
+        )
+        for key in context["commands"].keys():
+            embed.add_field(name=key, value=context["commands"][key]["description"], inline=False)
+        await ctx.respond(embed=embed)
+    else:
+        embed = discord.Embed(
+            title=command,
+            description=context["commands"][command]["description"],
+            color=0xff70cb,
+        )
+        for key in context["commands"][command]["options"].keys():
+            embed.add_field(name=key, value=context["commands"][command]["options"][key], inline=False)
+        await ctx.respond(embed=embed)
+
+# sanction command. expiry, playername, reason, and a choice bettween ban or mute must be provided
+
+# @bot.slash_command(name="sanction", description="Sanction a player")
+# async def sanction(
+#     ctx,
+#     playername: str,
+#     reason: str,
+#     sanctiontype: Option(
+#         str, "The type of sanction to apply", choices=["mute", "ban"]
+#     ),
+#     expiry: Option(str, "The expiry time of the sanction in format yyyy-mm-dd, omit is forever") = None,
+#     servername: Option(
+#         str, "The servername (omit for current channel's server)", required=False
+#     ) = None,
+# ):
+#     global context, discordtotitanfall
+
+#     if ctx.author.id not in context["RCONallowedusers"]:
+#         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
+#         return
+#     if expiry == None: expiry = ""
+#     commandstring = f"!sanctionban {playername} -expire {expiry} -reason {reason} -type {sanctiontype} -issuer {ctx.author.name}"
+#     print(commandstring)
+#     print("sanction command from", ctx.author.id, "to", playername)
+#     serverid = getchannelidfromname(servername,ctx)
+#     if serverid is None:
+#         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+#         await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
+#         return
+#     await ctx.defer()
     
     
-    await returncommandfeedback(*sendrconcommand(serverid,commandstring), ctx, sanctionoverride)
+#     await returncommandfeedback(*sendrconcommand(serverid,commandstring), ctx, sanctionoverride)
 
 def sanctionoverride(data, serverid,statuscode):
     embed = discord.Embed(
@@ -938,7 +967,7 @@ def checkrconallowed(author):
     return True
 # command slop
 
-def create_dynamic_command(command_name, description , rcon = False, parameters = [], outputfunc=None):
+def create_dynamic_command(command_name, description , rcon = False, parameters = [], commandparaminputoverride = {}, outputfunc=None):
     param_list = []
     for param in parameters:
         pname = param["name"]
@@ -956,15 +985,21 @@ def create_dynamic_command(command_name, description , rcon = False, parameters 
     servername_param = 'servername: Option(str, "The servername (omit for current channel\'s server)", required=False) = None'
     param_list.append(servername_param)
     params_signature = ", ".join(param_list)
-    command_parts = [f'"!{command_name}"'] + [f'str({param["name"]})' for param in parameters]
-
+    # print(commandparaminputoverride)
+    quotationmark = '"'
+    command_parts = [f'"!{command_name}"'] + [f'{quotationmark+ commandparaminputoverride[param["name"]] + " " + quotationmark + "+"   if param["name"] in list(commandparaminputoverride.keys())else ""}str({param["name"]})' for param in parameters]
+    if "appendtoend" in commandparaminputoverride.keys():
+        command_parts.append(commandparaminputoverride["appendtoend"])
+    # print(command_name,command_parts)
     command_expr = " + ' ' + ".join(command_parts)
+    # print(command_expr)
+    # print(parameters[0]["name"] if len(parameters) > 0 else None,list(commandparaminputoverride.keys()))
 
     dict_literal = "{" + ", ".join([f'"{p["name"]}": {p["name"]}' for p in parameters]) + "}"
 
-
+    # print(dict_literal)
     outputfunc_expr = outputfunc.__name__ if outputfunc is not None else None
-
+    # this code here HURTS MY HEAD but is incredibly cool in the way it works
     func_code = f'''
 @bot.slash_command(name="{command_name}", description="{description}")
 async def {command_name}(ctx, {params_signature}):
@@ -972,7 +1007,7 @@ async def {command_name}(ctx, {params_signature}):
         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
         return
     params = {dict_literal}
-    print("{command_name} command from", ctx.author.id, "with parameters:", params," to server:", servername)
+    print("{command_name} command from", ctx.author.name, "with parameters:", params," to server:", servername)
     serverid = getchannelidfromname(servername, ctx)
     if serverid is None:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
@@ -980,6 +1015,7 @@ async def {command_name}(ctx, {params_signature}):
         return
     await ctx.defer()
     command = {command_expr}
+    print("Expression:",command)
     await returncommandfeedback(*sendrconcommand(serverid, command), ctx, {outputfunc_expr})
 '''
 
@@ -995,6 +1031,7 @@ for command_name, command_info in context["commands"].items():
         description=command_info["description"],
         parameters=command_info["parameters"] if "parameters" in command_info else [],
         rcon=command_info["rcon"] if "rcon" in command_info else False,
+        commandparaminputoverride=command_info["commandparaminputoverride"] if "commandparaminputoverride" in command_info else {},
         outputfunc=globals().get(command_info["outputfunc"]) if "outputfunc" in command_info  and callable(globals().get(command_info["outputfunc"])) else None,
     )
 

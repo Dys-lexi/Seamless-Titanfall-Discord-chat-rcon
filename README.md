@@ -36,36 +36,58 @@ Check the mod.json file for configuration on other things.
 To add your own custom commands, the top of logger.nut provides some help.
 without a dedicated / command, to call them you can do /rcon cmd:!yourcommand yourcommandparam1 yourcommandparam2...
 
-to make a command on discord, edit the commands.json file.
+to make a /command on discord, edit the commands.json file.
 
-an example is:
+an more complex example is:
 
 ```
-    "ban": {
-        "description": "bans a player",
-        "parameters": [
-            {
-                "name": "playername",
-                "type": "str",
-                "description": "The player name",
-                "required": true
-            },
-            {
-                "name": "duration",
-                "type": "str",
-                "description": "duration of ban",
-                "required": true,
-                "choices": ["permanent", "two weeks"]
-            },
-            {
-                "name": "reason",
-                "type": "str",
-                "description": "The reason for the kick",
-                "required": false
-            }
-        ],
-        "rcon": true,
-        "outputfunc": false
-    }
-```
+"sanctionban": {
+    "description": "Sanction a player",
+    "parameters": [
+        {
+            "name": "playername",
+            "type": "str",
+            "description": "The player name",
+            "required": true
+        },
+        {
+            "name": "reason",
+            "type": "str",
+            "description": "The reason for the sanction",
+            "required": true
+        },
+        {
+            "name": "sanctiontype",
+            "type": "str",
+            "description": "The type of sanction to apply",
+            "required": true,
+            "choices": [
+                "mute",
+                "ban"
+            ]
+        },
+        {
+            "name": "expiry",
+            "type": "str",
+            "description": "The expiry time of the sanction in format yyyy-mm-dd, omit is forever",
+            "required": false
+        }
+    ],
+    "rcon": true,
+    "commandparaminputoverride": {
+        "reason" : "-reason",
+        "sanctiontype" : "-type",
+        "expiry" : "-expire",
+        "appendtoend": "'-issuer '+ctx.author.name"
+    },
+    "outputfunc": "sanctionoverride"
 
+}
+```
+all options but "description" are optional, meaning a command can just look like this:
+
+```
+"playing": {
+    "description": "List players on a server"
+}
+``` 
