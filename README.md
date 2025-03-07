@@ -67,5 +67,5 @@ an example is:
         "rcon": true,
         "outputfunc": false
     }
-``
+```
 
