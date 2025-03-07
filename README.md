@@ -35,3 +35,37 @@ Check the mod.json file for configuration on other things.
 
 To add your own custom commands, the top of logger.nut provides some help.
 without a dedicated / command, to call them you can do /rcon cmd:!yourcommand yourcommandparam1 yourcommandparam2...
+
+to make a command on discord, edit the commands.json file.
+
+an example is:
+
+```
+    "ban": {
+        "description": "bans a player",
+        "parameters": [
+            {
+                "name": "playername",
+                "type": "str",
+                "description": "The player name",
+                "required": true
+            },
+            {
+                "name": "duration",
+                "type": "str",
+                "description": "duration of ban",
+                "required": true,
+                "choices": ["permanent", "two weeks"]
+            },
+            {
+                "name": "reason",
+                "type": "str",
+                "description": "The reason for the kick",
+                "required": false
+            }
+        ],
+        "rcon": true,
+        "outputfunc": false
+    }
+``
+

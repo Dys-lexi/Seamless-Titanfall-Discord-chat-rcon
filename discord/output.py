@@ -62,6 +62,7 @@ serverchannels = []
 if not os.path.exists("./data"):
     os.makedirs("./data")
 channel_file = "channels.json"
+command_file = "commands.json"
 if os.path.exists("./data/" + channel_file):
     with open("./data/" + channel_file, "r") as f:
         tempcontext = json.load(f)
@@ -71,6 +72,15 @@ else:
     context["logging_cat_id"] = 0
     context["activeguild"] = 0
     print("Channel file not found, using default channel ID 0.")
+if os.path.exists("./data/" + command_file):
+    with open("./data/" + command_file, "r") as f:
+        context["commands"] = json.load(f)
+        print("Command file found, using commands.")
+        for command in context["commands"].keys():
+            print(f"{command} ", end="")
+else:
+    context["commands"] = {}
+    print("Command file not found, using NO (added) commands.")
 print(json.dumps(context, indent=4))
 bot = discord.Bot(intents=intents)
 
@@ -935,7 +945,7 @@ def create_dynamic_command(command_name, description , rcon = False, parameters 
         ptype = param["type"]
         pdesc = param.get("description", "")
         prequired = param.get("required", True)
-        if "choices" in param:
+        if "choices" in param and param["choices"]:
             pchoices = param["choices"]
             param_str = f'{pname}: Option({ptype}, "{pdesc}", choices={pchoices}, required={prequired})'
         else:

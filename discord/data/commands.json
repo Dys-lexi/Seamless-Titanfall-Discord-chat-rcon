@@ -1,0 +1,66 @@
+{
+    "getuid": {
+        "description": "Get a player's UID",
+        "parameters": [
+            {
+                "name": "playername",
+                "type": "str",
+                "description": "Get a player's UID",
+                "required": true
+            }
+        ],
+        "rcon": false,
+        "outputfunc": false
+    },
+    "playing": {
+        "description": "List players on a server",
+        "parameters": [],
+        "rcon": false,
+        "outputfunc": "listplayersoverride"
+    },
+    "throw": {
+        "description": "Throw a player - this is not a rcon command (yet DON'T ABUSE)",
+        "parameters": [
+            {
+                "name": "playername",
+                "type": "str",
+                "description": "The player name",
+                "required": true
+            }
+        ],
+        "rcon": false,
+        "outputfunc": false
+    },
+    "simplesay": {
+        "description": "Say stuff in plain text",
+        "parameters": [
+            {
+                "name": "message",
+                "type": "str",
+                "description": "The message to send",
+                "required": true
+            }
+        ],
+        "rcon": true,
+        "outputfunc": false
+    },
+    "kick": {
+        "description": "Kick a player",
+        "parameters": [
+            {
+                "name": "playername",
+                "type": "str",
+                "description": "The player name",
+                "required": true
+            },
+            {
+                "name": "reason",
+                "type": "str",
+                "description": "The reason for the kick",
+                "required": false
+            }
+        ],
+        "rcon": true,
+        "outputfunc": false
+    }
+}
