@@ -59,7 +59,7 @@ array <entity> function discordlogmatchplayers(string playername){ //returns all
 
 bool function discordlogcheck(string command, discordlogcommand inputcommand){
 	// print(split(inputcommand.command," ")[0].find(command) == null)
-	return (split(inputcommand.command," ")[0].find(command) == null || (inputcommand.command[0] != 47 && inputcommand.command[0] != 33))
+	return ( (inputcommand.command[0] != 47 && inputcommand.command[0] != 33) || split(split(inputcommand.command," ")[0],"!/")[0] != command)
 }
 struct outgoingmessage{
 	string playername
