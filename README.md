@@ -87,10 +87,11 @@ an more complex example is:
 
 }
 ```
-all options but "description" are optional, meaning a command can just look like this:
+All options but are optional, meaning a command can just look like this:
 
 ```
 "playing": {
-    "description": "List players on a server"
+
 }
 ``` 
+This will just run the "playing" command on the server, passing no paramaters, will be available to all uses, with no special formatting of the output, or command description

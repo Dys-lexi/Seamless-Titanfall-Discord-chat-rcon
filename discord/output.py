@@ -967,7 +967,7 @@ def checkrconallowed(author):
     return True
 # command slop
 
-def create_dynamic_command(command_name, description , rcon = False, parameters = [], commandparaminputoverride = {}, outputfunc=None):
+def create_dynamic_command(command_name, description = None, rcon = False, parameters = [], commandparaminputoverride = {}, outputfunc=None):
     param_list = []
     for param in parameters:
         pname = param["name"]
@@ -1028,7 +1028,7 @@ async def {command_name}(ctx, {params_signature}):
 for command_name, command_info in context["commands"].items():
     create_dynamic_command(
         command_name=command_name,
-        description=command_info["description"],
+        description=command_info["description"] if "description" in command_info else "No description available",
         parameters=command_info["parameters"] if "parameters" in command_info else [],
         rcon=command_info["rcon"] if "rcon" in command_info else False,
         commandparaminputoverride=command_info["commandparaminputoverride"] if "commandparaminputoverride" in command_info else {},

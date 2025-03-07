@@ -13,7 +13,8 @@
         "outputfunc": false
     },
     "playing": {
-        "description": "List players on a server"
+        "description": "List players on a server",
+        "outputfunc": "listplayersoverride"
     },
     "throw": {
         "description": "Throw a player",
