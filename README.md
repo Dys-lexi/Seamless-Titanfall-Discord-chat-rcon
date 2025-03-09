@@ -1,5 +1,5 @@
 # Seamless Titanfall <-> Discord chat relay, rcon and custom commands
-A mod / discord bot that relays titanfall messages to discord, discord messages to titanfall, and allows rcon to send console commands to titanfall
+A mod / discord bot that relays titanfall messages to discord, discord messages to titanfall, and allows rcon to send console commands to titanfall, or custom commands that you can create! (a few come already with the mod)
 
 you'll have to create a discord bot at discord developers to use this, and put token in
 
@@ -43,7 +43,7 @@ without a dedicated / command, to call them you can do /rcon cmd:!yourcommand yo
 
 to make a /command on discord, edit the commands.json file.
 
-an more complex example is:
+A more complex example is:
 
 ```
 "sanctionban": {
