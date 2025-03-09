@@ -877,7 +877,7 @@ def initdiscordtotitanfall(serverid):
 
 def getchannelidfromname(name,ctx):
     for key, value in context["serveridnamelinks"].items():
-        if value == name:
+        if value.lower() == name.lower():
             return key
     if ctx.channel.id in context["serverchannelidlinks"].values():
         for key, value in context["serverchannelidlinks"].items():
@@ -982,7 +982,7 @@ def create_dynamic_command(command_name, description = None, rcon = False, param
         if not prequired:
             param_str += " = None"
         param_list.append(param_str)
-    servername_param = 'servername: Option(str, "The servername (omit for current channel\'s server)", required=False) = None'
+    servername_param = f'servername: Option(str, "The servername (omit for current channel\'s server)", required=False,choices=list(context["serveridnamelinks"].values())) = None'
     param_list.append(servername_param)
     params_signature = ", ".join(param_list)
     # print(commandparaminputoverride)
