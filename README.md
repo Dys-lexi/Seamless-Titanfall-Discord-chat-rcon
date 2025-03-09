@@ -36,6 +36,8 @@ Check the mod.json file for configuration on other things.
 
 ### Custom Commands
 
+*The servername paramater of commands is only updated on bot restart. either restart bot, or just use the commands in the designated channel for a titanfall server*
+
 To add your own custom commands, the top of logger.nut provides some help.
 without a dedicated / command, to call them you can do /rcon cmd:!yourcommand yourcommandparam1 yourcommandparam2...
 
