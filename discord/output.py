@@ -9,9 +9,12 @@ from discord.commands import Option
 import inspect
 from flask import Flask, jsonify, request
 from waitress import serve
-
+from datetime import datetime
 import discord
 from discord import Option
+
+import importlib
+
 
 # this whole thing is a mess of global varibles, jank threading and whatever, but it works just fine :)
 # (I never bothered much with coding style)
@@ -20,6 +23,23 @@ from discord import Option
 messageflush = []
 lastmessage = 0
 
+
+log_file = "logs.txt"
+if not os.path.exists("./data/" + log_file):
+    with open("./data/" + log_file, "w") as f:
+        f.write("")
+realprint = print
+def print(*message, end="\n"):
+    message = " ".join([str(i) for i in message])
+    if len(message) < 1000:
+        with open("./data/" + log_file, "a") as file:
+            file.write(
+                datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                + ": "
+                + str(message)
+                + "\n"
+            )
+    realprint(message, end=end)
 print("running discord logger bot")
 lastrestart = 0
 messagecounter = 0
@@ -63,6 +83,8 @@ if not os.path.exists("./data"):
     os.makedirs("./data")
 channel_file = "channels.json"
 command_file = "commands.json"
+
+
 if os.path.exists("./data/" + channel_file):
     with open("./data/" + channel_file, "r") as f:
         tempcontext = json.load(f)
@@ -877,7 +899,7 @@ def initdiscordtotitanfall(serverid):
 
 def getchannelidfromname(name,ctx):
     for key, value in context["serveridnamelinks"].items():
-        if value.lower() == name.lower():
+        if name and value.lower() == name.lower():
             return key
     if ctx.channel.id in context["serverchannelidlinks"].values():
         for key, value in context["serverchannelidlinks"].items():
@@ -982,7 +1004,7 @@ def create_dynamic_command(command_name, description = None, rcon = False, param
         if not prequired:
             param_str += " = None"
         param_list.append(param_str)
-    servername_param = f'servername: Option(str, "The servername (omit for current channel\'s server)", required=False,choices=list(context["serveridnamelinks"].values())) = None'
+    servername_param = f'servername: Option(str, "The servername (omit for current channel\'s server)", required=False) = None' # ,choices=list(context["serveridnamelinks"].values())) = None
     param_list.append(servername_param)
     params_signature = ", ".join(param_list)
     # print(commandparaminputoverride)

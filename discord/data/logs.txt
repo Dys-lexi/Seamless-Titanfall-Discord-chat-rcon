@@ -1,0 +1,55 @@
+10/03/2025 00:08:10: running discord logger bot
+10/03/2025 00:08:10: No password found, allowing inputs from all addresses
+10/03/2025 00:08:10: Command file found, using commands.
+10/03/2025 00:08:10: getuid 
+10/03/2025 00:08:10: playing 
+10/03/2025 00:08:10: throw 
+10/03/2025 00:08:10: simplesay 
+10/03/2025 00:08:10: kick 
+10/03/2025 00:08:10: sanctionban 
+10/03/2025 00:08:10: sanctionbanremove 
+10/03/2025 00:08:13: titanfallchathelper#1588 has connected to Discord!
+10/03/2025 00:08:49: playing command from dyslexi with parameters: {}  to server: None
+10/03/2025 00:11:03: running discord logger bot
+10/03/2025 00:11:03: No password found, allowing inputs from all addresses
+10/03/2025 00:11:03: Command file found, using commands.
+10/03/2025 00:11:03: getuid 
+10/03/2025 00:11:03: playing 
+10/03/2025 00:11:03: throw 
+10/03/2025 00:11:03: simplesay 
+10/03/2025 00:11:03: kick 
+10/03/2025 00:11:03: sanctionban 
+10/03/2025 00:11:03: sanctionbanremove 
+10/03/2025 00:11:06: titanfallchathelper#1588 has connected to Discord!
+10/03/2025 00:13:28: running discord logger bot
+10/03/2025 00:13:28: No password found, allowing inputs from all addresses
+10/03/2025 00:13:28: Command file found, using commands.
+10/03/2025 00:13:28: getuid 
+10/03/2025 00:13:28: playing 
+10/03/2025 00:13:28: throw 
+10/03/2025 00:13:28: simplesay 
+10/03/2025 00:13:28: kick 
+10/03/2025 00:13:28: sanctionban 
+10/03/2025 00:13:28: sanctionbanremove 
+10/03/2025 00:15:08: running discord logger bot
+10/03/2025 00:15:08: No password found, allowing inputs from all addresses
+10/03/2025 00:15:08: Command file found, using commands.
+10/03/2025 00:15:08: getuid 
+10/03/2025 00:15:08: playing 
+10/03/2025 00:15:08: throw 
+10/03/2025 00:15:08: simplesay 
+10/03/2025 00:15:08: kick 
+10/03/2025 00:15:08: sanctionban 
+10/03/2025 00:15:08: sanctionbanremove 
+10/03/2025 00:15:11: titanfallchathelper#1588 has connected to Discord!
+10/03/2025 00:20:09: running discord logger bot
+10/03/2025 00:20:09: No password found, allowing inputs from all addresses
+10/03/2025 00:20:09: Command file found, using commands.
+10/03/2025 00:20:09: getuid 
+10/03/2025 00:20:09: playing 
+10/03/2025 00:20:09: throw 
+10/03/2025 00:20:09: simplesay 
+10/03/2025 00:20:09: kick 
+10/03/2025 00:20:09: sanctionban 
+10/03/2025 00:20:09: sanctionbanremove 
+10/03/2025 00:20:12: titanfallchathelper#1588 has connected to Discord!
