@@ -10,6 +10,7 @@ mods/*
 discord/discordtitanfall/*
 discord/discordtitanfall/**
 discord/data/channels.json
+discord/data/logs.txt
 discord/venv
 
 .venv
