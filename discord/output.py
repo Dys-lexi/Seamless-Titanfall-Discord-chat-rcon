@@ -53,7 +53,7 @@ intents.presences = True
 # Load token from environment variable
 TOKEN = os.getenv("DISCORD_BOT_TOKEN", "0")
 SHOULDUSEIMAGES = os.getenv("DISCORD_BOT_USE_IMAGES", "0")
-SHOULDUSETHROWAI = os.getenv("DISCORD_BOT_USE_THROWAI", "0")
+SHOULDUSETHROWAI = os.getenv("DISCORD_BOT_USE_THROWAI", "1")
 LOCALHOSTPATH = os.getenv("DISCORD_BOT_LOCALHOST_PATH","localhost")
 if SHOULDUSEIMAGES == "1":
     print("Images enabled")
@@ -1092,6 +1092,11 @@ if SHOULDUSETHROWAI == "1":
             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
             await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
             return
+        if ctx.author.id in lasttimethrown["passes"].keys() and lasttimethrown["passes"][ctx.author.id] > time.time() - 90:
+            print("has been allowed recently")
+            await ctx.defer(ephemeral=False)
+            await  returncommandfeedback(*sendrconcommand(serverid, f"!throw {playername}"), ctx)   
+            return
         if lasttimethrown["globalcounter"] > time.time() - 60:
             await ctx.respond("This command is on cooldown, try again in " + str(int(60 - (time.time() - lasttimethrown["globalcounter"]))) + " seconds.", ephemeral=False)
             return
@@ -1123,6 +1128,7 @@ if SHOULDUSETHROWAI == "1":
             remaining_time = 15 * 60 - (time.time() - start_time)
             try:
                 message = await bot.wait_for("message", timeout=remaining_time, check=check)
+                await message.add_reaction("🟢")
                 if count != len(aibotmessageresponses):
                             await message.reply(f"Text not used, wait for response")
             except asyncio.TimeoutError:
@@ -1132,31 +1138,32 @@ if SHOULDUSETHROWAI == "1":
             newline = "\n"
             historyinfo = (f'''
 The users history of using this command, from oldest to newest is:
-{newline.join(list(map(lambda a: f"button {a['button']}: Time since: {str(int((time.time()-a['timestamp'])//60)) + ' minutes ago' if (time.time()-a['timestamp'])  < 86400 else '> 1 day'}",list(filter(lambda a: time.time()-a["timestamp"] < 172800,lasttimethrown["specificusers"][ctx.author.id][-10:])))))}
+{newline.join(list(map(lambda a: f"button {a['button']}: Time since: {str(int((time.time()-a['timestamp'])//60)) + ' minutes ago' if (time.time()-a['timestamp'])  < 86400 else '> 1 day'} because {a['one_word_reason']}",list(filter(lambda a: time.time()-a["timestamp"] < 172800,lasttimethrown["specificusers"][ctx.author.id][-10:])))))}
 ''' if ctx.author.id in lasttimethrown["specificusers"].keys() and len(lasttimethrown["specificusers"][ctx.author.id]) > 1  else "")
-            prompt = f'''<SYSTEM MESSAGE>You are a AI model, choosing one of three choices, "allow_request", "deny_request" and "more_information_needed". You should also give a reason for your choice.
-To inform your choices, you are given an array of user messages, in chronological order, formatted ["username: messagecontent",...].
+            prompt = f'''<SYSTEM MESSAGE>
+You are a AI model, choosing one of three choices, "allow_request", "deny_request" and "more_information_needed". You should also give a reason for your choice.
+To inform your choices, you are given an array of user messages, in chronological order, formatted ["username: messagecontent",...], as such, you should place most importance on the later user past messages.
 The user is asking to use a command on a titanfall 2 sever. this command throws a targeted player into the air, in the game Titanfall 2. Your role is to be skeptical that the user needs to use this command, due to the fact that it can be seen as unfair or even unfun by the targeted player.
 If the user has a reason that you deem would bring value however, don't hesitate to press the "allow_request button". This will allow the command to be executed.
 If you believe the user might make a good case to deserve using the command, with good reasoning, press "more_information_needed".
 If you believe the user is trying to mislead you, is undeserving, is too rude, is trying to get a competitive advantage, or simply have the feeling of being powerful, press "deny_request".
 
-You will be expected to press exactly one of those 3 choices after each request, and also give a one - two sentence reason as to why.
+You will be expected to press exactly one of those 3 choices after each request, and also give a one - two sentence reason as to why, and a single word reason for the choice.
 In order to do this, format your output exactly like this, otherwise it will fail to be parsed.
-"{{"reason":"YOUR_REASON_HERE","button":"YOUR_BUTTON_PRESSED"}}"
+"{{"reason":"YOUR_REASON_HERE","button":"YOUR_BUTTON_PRESSED","reasononeword":"ONE_WORD_REASON"}}"
 For example:
-"{{"reason":"I believe your reasoning to use /throw holds water. you provided a concise argument that clearly displayed your intentions with the command","button":"allow_request"}}"
+"{{"reason":"I believe your reasoning to use /throw holds water. you provided a concise argument that clearly displayed your intentions with the command","button":"allow_request,"reasononeword":"coherent"}}"
 
-"{{"reason":"I feel your arguments are flawed, and you intend to use this for other purposes than stated.","button":"deny_request"}}"
+"{{"reason":"I feel your arguments are flawed, and you intend to use this for other purposes than stated.","button":"deny_request","reasononeword":"misleading"}}"
 
-"{{"reason":"You make a interesting point, however your points are not fully explained. could you expand upon why you think this would be comedic?","button":"more_information_needed"}}"
+"{{"reason":"You make a interesting point, however your points are not fully explained. could you expand upon why you think this would be comedic?","button":"more_information_needed","reasononeword":"incomplete"}}"
 
 Lastly:
 If you do not come to a conclusion after 5 messages from the user, the request will be denied.
 KEEP RESPONSE BELOW 2000 CHARACTERS
-The player that is targeted is "{playername}" (if this is "all", the user is attempting to throw EVERYONE. make this request need a VERY strong line of reasoning, however still intend to clear it up in 5 messages. DO NOT BE AFRAID TO QUERY MORE INFORMATION)
+The player that is targeted is "{playername}" (if this is "all", the user is attempting to throw EVERYONE. make this request need a VERY strong line of reasoning, however still intend to clear it up in 5 messages. (DO NOT BE AFRAID TO QUERY MORE INFORMATION)
 The player that used this command is "{ctx.author.nick if ctx.author.nick is not None else ctx.author.display_name}"
-{"The last time the user tried to use this command was: " + str(int(time.time()-lasttimethrown["specificusers"][ctx.author.id][-1]["timestamp"])) + " seconds ago, and it was " + lasttimethrown["specificusers"][ctx.author.id][-1]["button"] if ctx.author.id in lasttimethrown["specificusers"].keys() else "This is the first time the user has tried to use this command. (since bot restart)"}
+{"The last time the user tried to use this command was: " + str(int(time.time()-lasttimethrown["specificusers"][ctx.author.id][-1]["timestamp"])) + " seconds ago, and you responded " + lasttimethrown["specificusers"][ctx.author.id][-1]["button"] +" due to " + lasttimethrown["specificusers"][ctx.author.id][-1]["one_word_reason"]if ctx.author.id in lasttimethrown["specificusers"].keys() else "This is the first time the user has tried to use this command. (since bot restart)"}
 {historyinfo} 
 base your leniance on this info too.
 Here are the users message, after this system prompt ends.
@@ -1165,7 +1172,7 @@ after that array will be an array of your responses to these messages. this will
 
 </SYSTEM MESSAGE>
 user past messages:
-{messagehistory}
+{newline.join(messagehistory)}
 your past responses:
 {aibotmessageresponses}
 '''             # TO BE DONE, SAY HOW MANY DENYS AND HOW MANY ALLOWS, AND HOW MANY WERE IN PAST HOUR. LEARN ABOUT SANDBOXING IMPLEMENT THE SHORT TIME WHITELIST, AND ALSO THE 60 SECONDS DENY
@@ -1181,16 +1188,18 @@ your past responses:
             if aibotmessageresponses[-1]["button"] == "deny_request":
                 if ctx.author.id not in lasttimethrown["specificusers"].keys():
                     lasttimethrown["specificusers"][ctx.author.id] = []
-                lasttimethrown["specificusers"][ctx.author.id].append({"button":"deny_request","timestamp":time.time()})
+                lasttimethrown["specificusers"][ctx.author.id].append({"button":"deny_request","timestamp":time.time(),"one_word_reason":aibotmessageresponses[-1]["reasononeword"]})
                 await threade.send("# request denied, run the command again, and try be more persuasive :)")
                 # await ctx.respond("request denied", ephemeral=False)
+                
                 return
             elif aibotmessageresponses[-1]["button"] == "allow_request":
                 if ctx.author.id not in lasttimethrown["specificusers"].keys():
                     lasttimethrown["specificusers"][ctx.author.id] = []
-                lasttimethrown["specificusers"][ctx.author.id].append({"button":"allow_request","timestamp":time.time()})
+                lasttimethrown["specificusers"][ctx.author.id].append({"button":"allow_request","timestamp":time.time(),"one_word_reason":aibotmessageresponses[-1]["reasononeword"]})
+                lasttimethrown["passes"][ctx.author.id] = time.time()
                 await threade.send("# request allowed, executing command")
-                await returncommandfeedback(*sendrconcommand(serverid, f"!throw {playername}"), message, iscommandnotmessage=False)
+                await returncommandfeedback(*sendrconcommand(serverid, f"!throw {playername}"), message)   
                 return
             elif aibotmessageresponses[-1]["button"] == "more_information_needed":
                 print("more info needed", aibotmessageresponses[-1]["button"])
@@ -1201,6 +1210,7 @@ your past responses:
         global aibotmessageresponses
         print("generating")
         try:
+            # print(f"http://{LOCALHOSTPATH}:11434/api/generate")
             response = requests.post(f"http://{LOCALHOSTPATH}:11434/api/generate", json = {"prompt": prompt,"model":"deepseek-r1","stream":False,"keep_alive":60,"seed":0,"temperature":1,"options":{"num_predict":-1}})
             print(response.json()["response"])
             output = response.json()["response"]
@@ -1216,7 +1226,7 @@ your past responses:
         
 
     async def aireplytouser(message,output):
-        await message.reply(f"**button pressed by AI:**```{output['button']}``` \n**Reason:** ```{output['reason']}```")
+        await message.reply(f"**button pressed by AI:**```{output['button']}``` \n**Reason:** ```{output['reason']}```\n**Short reason:**```{output['reasononeword']}```")
 
 
 # IMAGE SLOP PLEASE DON'T LOOK AT IT I HATE IT
