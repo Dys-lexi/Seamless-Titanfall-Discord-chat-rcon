@@ -1220,8 +1220,8 @@ your past responses:
             print("done, responding")
         except Exception as e:
             print(e)
-            output = {"button":"deny_request","reason":"ai broken. "+ str(e)}
-            aibotmessageresponses.append({"button":"deny_request","reason":"ai broken. "+ str(e)})
+            output = {"button":"deny_request","reason":"ai broken. "+ str(e),"reasononeword":"broken"}
+            aibotmessageresponses.append(output)
         asyncio.run_coroutine_threadsafe(aireplytouser(message,output),bot.loop)
         
 
