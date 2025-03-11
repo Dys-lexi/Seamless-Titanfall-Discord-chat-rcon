@@ -54,6 +54,7 @@ intents.presences = True
 TOKEN = os.getenv("DISCORD_BOT_TOKEN", "0")
 SHOULDUSEIMAGES = os.getenv("DISCORD_BOT_USE_IMAGES", "0")
 SHOULDUSETHROWAI = os.getenv("DISCORD_BOT_USE_THROWAI", "0")
+LOCALHOSTPATH = os.getenv("DISCORD_BOT_LOCALHOST_PATH","localhost")
 if SHOULDUSEIMAGES == "1":
     print("Images enabled")
     import io
@@ -968,24 +969,30 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride,
                         print("error in defaultoverride", e)
                         overridemsg = None
             if iscommandnotmessage:
-                await ctx.respond(
-                    f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]['output']}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None,
-                    ephemeral=False,
-                )
-            else:
-                # await reactomessages([ctx.id], serverid, "🟢"   )
-                await ctx.reply(
+                try:
+                    await ctx.respond(
+                        f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]['output']}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None,
+                        ephemeral=False,
+                    )
+                except:
+                    await ctx.reply(
                     f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]['output']}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None
                 )
+            else:
+                await reactomessages([ctx.id], serverid, "🟢"   )
+                
             break
 
         i += 1
     else:
         if iscommandnotmessage:
-            await ctx.respond("Command response timed out - server is unresponsive", ephemeral=False)
+            try:
+                await ctx.respond("Command response timed out - server is unresponsive", ephemeral=False)
+            except:
+                await ctx.reply("Command response timed out - server is unresponsive")
+
         else:
-            await ctx.reply("Command response timed out - server is unresponsive")
-            # await reactomessages([ctx.id], serverid, "🔴"   )
+            await reactomessages([ctx.id], serverid, "🔴"   )
 
 def checkrconallowed(author):
     global context
@@ -1088,19 +1095,16 @@ if SHOULDUSETHROWAI == "1":
             await ctx.respond("This command is on cooldown, try again in " + str(int(60 - (time.time() - lasttimethrown["globalcounter"]))) + " seconds.", ephemeral=False)
             return
 
-        # Defer the response (must be non-ephemeral for thread creation)
         await ctx.defer(ephemeral=False)
    
-        # Run your RCON command and send feedback
-
-        # Retrieve the original response message to serve as the parent for the thread.
+   
         original_message = await ctx.interaction.original_response()
         
         # Create a thread attached to the original message.
         await ctx.respond("creating thread", ephemeral=False)
         threade = await original_message.create_thread(
             name=f"throw request for {ctx.author.nick if ctx.author.nick is not None else ctx.author.display_name}",
-            auto_archive_duration=60  # Archive thread after 60 minutes of inactivity
+            auto_archive_duration=60  
         )
         
         # Notify the channel that the thread has been created.
@@ -1111,21 +1115,16 @@ if SHOULDUSETHROWAI == "1":
         start_time = time.time()
             # response = requests.post("http://localhost:11434/api/generate", json = {"prompt": question,"model":"mistral","stream":True,"seed":0,"temperature":1,"options":{"num_predict":-1}})
 
-        # We'll keep replying until 10 messages have been processed or 15 minutes have passed.
-
         await threade.send("Justify your use of this command. you have 5 messages to do so. Only send one message at a time, and wait for response (it can take a while, ai is hard). if you fail, you must wait 60 seconds, before asking again. if you succeed, you are allowed to freely use the command for 60 seconds")
         while count < 5 and (time.time() - start_time < 15 * 60):
-            # print("in loop")
             def check(m):
                 return m.author.id == ctx.author.id and m.channel.id == threade.id
             remaining_time = 15 * 60 - (time.time() - start_time)
             try:
-                # Wait for a message from the original user in the thread.
                 message = await bot.wait_for("message", timeout=remaining_time, check=check)
                 if count != len(aibotmessageresponses):
                             await message.reply(f"Text not used, wait for response")
             except asyncio.TimeoutError:
-                # Exit the loop if the timeout is reached.
                 break
 
             messagehistory.append(f"{ctx.author.nick if ctx.author.nick is not None else ctx.author.display_name}: {message.content}")
@@ -1162,7 +1161,7 @@ user past messages:
 {messagehistory}
 your past responses:
 {aibotmessageresponses}
-'''             
+'''             # TO BE DONE, SAY HOW MANY DENYS AND HOW MANY ALLOWS, AND HOW MANY WERE IN PAST HOUR. LEARN ABOUT SANDBOXING IMPLEMENT THE SHORT TIME WHITELIST, AND ALSO THE 60 SECONDS DENY
             # print(f'{"The last time the user tried to use this command was: " + str(time.time()-lasttimethrown["specificusers"][ctx.author.id][-1]["timestamp"]) + " seconds ago, and it was " + lasttimethrown["specificusers"][ctx.author.id][-1]["button"] if ctx.author.id in lasttimethrown["specificusers"].keys() else "This is the first time the user has tried to use this command. since bot restart"}')
             print(prompt)
             thready = threading.Thread(target=respondtotext, daemon=True, args=(message,prompt))
@@ -1190,12 +1189,11 @@ your past responses:
                 print("more info needed", aibotmessageresponses[-1]["button"])
                 pass
             # print("there")
-        # Optionally, indicate that the session has ended.
         await threade.send("timeout, request denied")
     def respondtotext(message,prompt):
         global aibotmessageresponses
         print("generating")
-        response = requests.post("http://localhost:11434/api/generate", json = {"prompt": prompt,"model":"deepseek-r1","stream":False,"keep_alive":60,"seed":0,"temperature":1,"options":{"num_predict":-1}})
+        response = requests.post(f"http://{LOCALHOSTPATH}:11434/api/generate", json = {"prompt": prompt,"model":"deepseek-r1","stream":False,"keep_alive":60,"seed":0,"temperature":1,"options":{"num_predict":-1}})
         print(response.json()["response"])
         output = response.json()["response"]
         output = output[output.index("</think>")+8:].strip()
@@ -1206,7 +1204,6 @@ your past responses:
         
 
     async def aireplytouser(message,output):
-        # respond with output, and the button pressed by ai
         await message.reply(f"**button pressed by AI:**```{output['button']}``` \n**Reason:** ```{output['reason']}```")
 
 

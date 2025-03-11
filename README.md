@@ -10,9 +10,11 @@ discordlog:
     build: ./discord
     container_name: discordlog
     environment:
-      - DISCORD_BOT_TOKEN= PUT YOUR DISCORD TOKEN HERE
+      - DISCORD_BOT_TOKEN=PUT YOUR DISCORD TOKEN HERE
       - DISCORD_BOT_PASSWORD=scarypassword
-      - SHOULDUSEIMAGES=1
+      - SHOULDUSEIMAGES=0 #allow discord images to be turned into text and relayed
+      - DISCORD_BOT_USE_THROWAI=0 #allow the use of the non rcon throw command, (requires ollama + deepseek model installed)
+      - DISCORD_BOT_LOCALHOST_PATH=host.docker.internal #right now used only for throwai. don't worry about it if not using
     volumes:
       - ./discord/data:/app/data:rw
     restart: always
