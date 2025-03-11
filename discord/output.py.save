@@ -53,7 +53,7 @@ intents.presences = True
 # Load token from environment variable
 TOKEN = os.getenv("DISCORD_BOT_TOKEN", "0")
 SHOULDUSEIMAGES = os.getenv("DISCORD_BOT_USE_IMAGES", "0")
-SHOULDUSETHROWAI = os.getenv("DISCORD_BOT_USE_THROWAI", "0")
+SHOULDUSETHROWAI = os.getenv("DISCORD_BOT_USE_THROWAI", "1")
 if SHOULDUSEIMAGES == "1":
     print("Images enabled")
     import io
@@ -973,10 +973,7 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride,
                     ephemeral=False,
                 )
             else:
-                # await reactomessages([ctx.id], serverid, "🟢"   )
-                await ctx.reply(
-                    f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]['output']}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None
-                )
+                await reactomessages([ctx.id], serverid, "🟢"   )
             break
 
         i += 1
@@ -984,8 +981,7 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride,
         if iscommandnotmessage:
             await ctx.respond("Command response timed out - server is unresponsive", ephemeral=False)
         else:
-            await ctx.reply("Command response timed out - server is unresponsive")
-            # await reactomessages([ctx.id], serverid, "🔴"   )
+            await reactomessages([ctx.id], serverid, "🔴"   )
 
 def checkrconallowed(author):
     global context
@@ -1063,8 +1059,7 @@ for command_name, command_info in context["commands"].items():
     )
 # THROW AI NON SLOP
 if SHOULDUSETHROWAI == "1":
-    lasttimethrown = {"specificusers":{},"globalcounter":0,"passes":{}}
-    aibotmessageresponses = []
+    lasttimethrown = {"specificusers":{},"globalcounter":time.time(),"passes":{}}
     import requests
     @bot.slash_command(name="thrownonrcon", description="non rcon throw command")
     async def getuid(
@@ -1075,31 +1070,27 @@ if SHOULDUSETHROWAI == "1":
         ) = None,
     ):
         
-        global context, discordtotitanfall, lasttimethrown, aibotmessageresponses
+        global context, discordtotitanfall, lasttimethrown
         messagehistory = []
-        aibotmessageresponses = []
+        messageresponses = []
         print("thrownonrcon command from", ctx.author.id, "to", playername)
         serverid = getchannelidfromname(servername, ctx)
         if serverid is None:
             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
             await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
             return
-        if lasttimethrown["globalcounter"] > time.time() - 60:
-            await ctx.respond("This command is on cooldown, try again in " + str(int(60 - (time.time() - lasttimethrown["globalcounter"]))) + " seconds.", ephemeral=False)
-            return
 
         # Defer the response (must be non-ephemeral for thread creation)
         await ctx.defer(ephemeral=False)
-   
+
         # Run your RCON command and send feedback
 
         # Retrieve the original response message to serve as the parent for the thread.
         original_message = await ctx.interaction.original_response()
         
         # Create a thread attached to the original message.
-        await ctx.respond("creating thread", ephemeral=False)
-        threade = await original_message.create_thread(
-            name=f"throw request for {ctx.author.nick if ctx.author.nick is not None else ctx.author.display_name}",
+        thread = await original_message.create_thread(
+            name=f"Thread for {playername}",
             auto_archive_duration=60  # Archive thread after 60 minutes of inactivity
         )
         
@@ -1112,26 +1103,25 @@ if SHOULDUSETHROWAI == "1":
             # response = requests.post("http://localhost:11434/api/generate", json = {"prompt": question,"model":"mistral","stream":True,"seed":0,"temperature":1,"options":{"num_predict":-1}})
 
         # We'll keep replying until 10 messages have been processed or 15 minutes have passed.
-
-        await threade.send("Justify your use of this command. you have 5 messages to do so. Only send one message at a time, and wait for response (it can take a while, ai is hard). if you fail, you must wait 60 seconds, before asking again. if you succeed, you are allowed to freely use the command for 60 seconds")
+        await thread.send("Justify your use of this command. you have 5 messages to do so. Only send one message at a time, and wait for response")
         while count < 5 and (time.time() - start_time < 15 * 60):
-            # print("in loop")
+            print("in loop")
             def check(m):
-                return m.author.id == ctx.author.id and m.channel.id == threade.id
+                return m.author.id == ctx.author.id and m.channel.id == thread.id
             remaining_time = 15 * 60 - (time.time() - start_time)
             try:
                 # Wait for a message from the original user in the thread.
                 message = await bot.wait_for("message", timeout=remaining_time, check=check)
-                if count != len(aibotmessageresponses):
+                if count != messageresponses.len():
                             await message.reply(f"Text not used, wait for response")
             except asyncio.TimeoutError:
                 # Exit the loop if the timeout is reached.
                 break
 
-            messagehistory.append(f"{ctx.author.nick if ctx.author.nick is not None else ctx.author.display_name}: {message.content}")
+            messagehistory.append(f"{message.author.nick}: {message.content}")
             prompt = f'''<SYSTEM MESSAGE>You are a AI model, choosing one of three choices, "allow_request", "deny_request" and "more_information_needed". You should also give a reason for your choice.
 To inform your choices, you are given an array of user messages, in chronological order, formatted ["username: messagecontent",...].
-The user is asking to use a command on a titanfall 2 sever. this command throws a targeted player into the air, in the game Titanfall 2. Your role is to be skeptical that the user needs to use this command, due to the fact that it can be seen as unfair or even unfun by the targeted player.
+The user is asking to use a command on a titanfall 2 sever. this command throws a targeted player into the air. Your role is to be skeptical that the user needs to use this command, due to the fact that it can be seen as unfair or even unfun by the targeted player.
 If the user has a reason that you deem would bring value however, don't hesitate to press the "allow_request button". This will allow the command to be executed.
 If you believe the user might make a good case to deserve using the command, with good reasoning, press "more_information_needed".
 If you believe the user is trying to mislead you, is undeserving, is too rude, is trying to get a competitive advantage, or simply have the feeling of being powerful, press "deny_request".
@@ -1149,65 +1139,41 @@ For example:
 Lastly:
 If you do not come to a conclusion after 5 messages from the user, the request will be denied.
 KEEP RESPONSE BELOW 2000 CHARACTERS
-The player that is targeted is {playername} (if this is "all", the user is attempting to throw EVERYONE. make this request need a VERY strong line of reasoning, however still intend to clear it up in 5 messages. DO NOT BE AFRAID TO QUERY MORE INFORMATION)
-The player that used this command is {ctx.author.nick if ctx.author.nick is not None else ctx.author.display_name}
-{"The last time the user tried to use this command was: " + str(time.time()-lasttimethrown["specificusers"][ctx.author.id][-1]["timestamp"]) + " seconds ago, and it was " + lasttimethrown["specificusers"][ctx.author.id][-1]["button"] if ctx.author.id in lasttimethrown["specificusers"].keys() else "This is the first time the user has tried to use this command. (since bot restart)"}
-base your leniance on this info too.
+The player that is targeted is {playername} (if this is "all", the user is attempting to throw EVERYONE. make this request need a VERY strong line of reasoning, however still intend to clear it up in 5 messages.)
+{"This users history of using this command is: " + str(lasttimethrown["specificusers"][message.author.id]) if message.author.id in lasttimethrown["specificusers"].keys() else ""}
+
 Here are the users message, after this system prompt ends.
 
 after that array will be an array of your responses to these messages. this will be one shorter by 1, as a placeholder for your current message.
 
 </SYSTEM MESSAGE>
-user past messages:
+user messages:
 {messagehistory}
-your past responses:
-{aibotmessageresponses}
+your responsed:
+{messageresponses}
+
+
 '''             
-            # print(f'{"The last time the user tried to use this command was: " + str(time.time()-lasttimethrown["specificusers"][ctx.author.id][-1]["timestamp"]) + " seconds ago, and it was " + lasttimethrown["specificusers"][ctx.author.id][-1]["button"] if ctx.author.id in lasttimethrown["specificusers"].keys() else "This is the first time the user has tried to use this command. since bot restart"}')
-            print(prompt)
-            thready = threading.Thread(target=respondtotext, daemon=True, args=(message,prompt))
+            thready = threading.Thread(target=respondtotext, daemon=True, args=(message,prompt,messageresponses))
             thready.start()
             count += 1
 
-            while count != len(aibotmessageresponses):
-                await asyncio.sleep(0.3)
-                # print(aibotmessageresponses)
-            if aibotmessageresponses[-1]["button"] == "deny_request":
-                if ctx.author.id not in lasttimethrown["specificusers"].keys():
-                    lasttimethrown["specificusers"][ctx.author.id] = []
-                lasttimethrown["specificusers"][ctx.author.id].append({"button":"deny_request","timestamp":time.time()})
-                await threade.send("# request denied, try again later")
-                # await ctx.respond("request denied", ephemeral=False)
-                return
-            elif aibotmessageresponses[-1]["button"] == "allow_request":
-                if ctx.author.id not in lasttimethrown["specificusers"].keys():
-                    lasttimethrown["specificusers"][ctx.author.id] = []
-                lasttimethrown["specificusers"][ctx.author.id].append({"button":"allow_request","timestamp":time.time()})
-                await threade.send("# request allowed, executing command")
-                await returncommandfeedback(*sendrconcommand(serverid, f"!throw {playername}"), message, iscommandnotmessage=False)
-                return
-            elif aibotmessageresponses[-1]["button"] == "more_information_needed":
-                print("more info needed", aibotmessageresponses[-1]["button"])
-                pass
-            # print("there")
         # Optionally, indicate that the session has ended.
-        await threade.send("timeout, request denied")
-    def respondtotext(message,prompt):
-        global aibotmessageresponses
+        await thread.send("a decision was made")
+        returncommandfeedback(*sendrconcommand(serverid, f"!getuid {playername}"), ctx)
+
+    def respondtotext(message,prompt,messageresponses):
         print("generating")
         response = requests.post("http://localhost:11434/api/generate", json = {"prompt": prompt,"model":"deepseek-r1","stream":False,"keep_alive":60,"seed":0,"temperature":1,"options":{"num_predict":-1}})
         print(response.json()["response"])
-        output = response.json()["response"]
-        output = output[output.index("</think>")+8:].strip()
-        output = json.loads(output)
-        aibotmessageresponses.append((output))
+        output = response.json()["response"].strip()
+        output = output[output.index("</think>")+8:]
         print("done, responding")
         asyncio.run_coroutine_threadsafe(aireplytouser(message,output),bot.loop)
-        
+        messageresponses.append(json.dumps(output))
 
     async def aireplytouser(message,output):
-        # respond with output, and the button pressed by ai
-        await message.reply(f"**button pressed by AI:**```{output['button']}``` \n**Reason:** ```{output['reason']}```")
+        await message.reply(f"Response: {output}")
 
 
 # IMAGE SLOP PLEASE DON'T LOOK AT IT I HATE IT

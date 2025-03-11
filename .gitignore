@@ -9,8 +9,8 @@ mods/*
 !discord/**
 discord/discordtitanfall/*
 discord/discordtitanfall/**
-discord/data/channels.json
-discord/data/logs.txt
+discord/data/*
+!discord/data/commands.json
 discord/venv
 
 .venv
