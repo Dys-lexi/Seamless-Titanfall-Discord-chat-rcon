@@ -1,6 +1,8 @@
 # Seamless Titanfall <-> Discord chat relay, rcon and custom commands
 A mod / discord bot that relays titanfall messages to discord, discord messages to titanfall, and allows rcon to send console commands to titanfall, or custom commands that you can create! (a few come already with the mod)
 
+(also optionally supports sending ascii images to titanfall, and a ai version of /throw that requires perswading an ai to use)
+
 you'll have to create a discord bot at discord developers to use this, and put token in
 
 ### A docker compose could look like this

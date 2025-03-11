@@ -1070,6 +1070,7 @@ for command_name, command_info in context["commands"].items():
     )
 # THROW AI NON SLOP
 if SHOULDUSETHROWAI == "1":
+    print("ai throw enabled")
     lasttimethrown = {"specificusers":{},"globalcounter":0,"passes":{}}
     aibotmessageresponses = []
     import requests
@@ -1128,6 +1129,11 @@ if SHOULDUSETHROWAI == "1":
                 break
 
             messagehistory.append(f"{ctx.author.nick if ctx.author.nick is not None else ctx.author.display_name}: {message.content}")
+            newline = "\n"
+            historyinfo = (f'''
+The users history of using this command, from oldest to newest is:
+{newline.join(list(map(lambda a: f"button {a['button']}: Time since: {str(int((time.time()-a['timestamp'])//60)) + ' minutes ago' if (time.time()-a['timestamp'])  < 86400 else '> 1 day'}",list(filter(lambda a: time.time()-a["timestamp"] < 172800,lasttimethrown["specificusers"][ctx.author.id][-10:])))))}
+''' if ctx.author.id in lasttimethrown["specificusers"].keys() and len(lasttimethrown["specificusers"][ctx.author.id]) > 1  else "")
             prompt = f'''<SYSTEM MESSAGE>You are a AI model, choosing one of three choices, "allow_request", "deny_request" and "more_information_needed". You should also give a reason for your choice.
 To inform your choices, you are given an array of user messages, in chronological order, formatted ["username: messagecontent",...].
 The user is asking to use a command on a titanfall 2 sever. this command throws a targeted player into the air, in the game Titanfall 2. Your role is to be skeptical that the user needs to use this command, due to the fact that it can be seen as unfair or even unfun by the targeted player.
@@ -1137,20 +1143,21 @@ If you believe the user is trying to mislead you, is undeserving, is too rude, i
 
 You will be expected to press exactly one of those 3 choices after each request, and also give a one - two sentence reason as to why.
 In order to do this, format your output exactly like this, otherwise it will fail to be parsed.
-"{{"button":"YOUR_BUTTON_PRESSED","reason":"YOUR_REASON_HERE"}}"
+"{{"reason":"YOUR_REASON_HERE","button":"YOUR_BUTTON_PRESSED"}}"
 For example:
-"{{"button":"allow_request","reason":"I believe your reasoning to use /throw holds water. you provided a concise argument that clearly displayed your intentions with the command"}}"
+"{{"reason":"I believe your reasoning to use /throw holds water. you provided a concise argument that clearly displayed your intentions with the command","button":"allow_request"}}"
 
-"{{"button":"deny_request","reason":"I feel your arguments are flawed, and you intend to use this for other purposes than stated."}}"
+"{{"reason":"I feel your arguments are flawed, and you intend to use this for other purposes than stated.","button":"deny_request"}}"
 
-"{{"button":"more_information_needed","reason":"You make a interesting point, however your points are not fully explained. could you expand upon why you think this would be comedic?"}}"
+"{{"reason":"You make a interesting point, however your points are not fully explained. could you expand upon why you think this would be comedic?","button":"more_information_needed"}}"
 
 Lastly:
 If you do not come to a conclusion after 5 messages from the user, the request will be denied.
 KEEP RESPONSE BELOW 2000 CHARACTERS
-The player that is targeted is {playername} (if this is "all", the user is attempting to throw EVERYONE. make this request need a VERY strong line of reasoning, however still intend to clear it up in 5 messages. DO NOT BE AFRAID TO QUERY MORE INFORMATION)
-The player that used this command is {ctx.author.nick if ctx.author.nick is not None else ctx.author.display_name}
-{"The last time the user tried to use this command was: " + str(time.time()-lasttimethrown["specificusers"][ctx.author.id][-1]["timestamp"]) + " seconds ago, and it was " + lasttimethrown["specificusers"][ctx.author.id][-1]["button"] if ctx.author.id in lasttimethrown["specificusers"].keys() else "This is the first time the user has tried to use this command. (since bot restart)"}
+The player that is targeted is "{playername}" (if this is "all", the user is attempting to throw EVERYONE. make this request need a VERY strong line of reasoning, however still intend to clear it up in 5 messages. DO NOT BE AFRAID TO QUERY MORE INFORMATION)
+The player that used this command is "{ctx.author.nick if ctx.author.nick is not None else ctx.author.display_name}"
+{"The last time the user tried to use this command was: " + str(int(time.time()-lasttimethrown["specificusers"][ctx.author.id][-1]["timestamp"])) + " seconds ago, and it was " + lasttimethrown["specificusers"][ctx.author.id][-1]["button"] if ctx.author.id in lasttimethrown["specificusers"].keys() else "This is the first time the user has tried to use this command. (since bot restart)"}
+{historyinfo} 
 base your leniance on this info too.
 Here are the users message, after this system prompt ends.
 
@@ -1175,7 +1182,7 @@ your past responses:
                 if ctx.author.id not in lasttimethrown["specificusers"].keys():
                     lasttimethrown["specificusers"][ctx.author.id] = []
                 lasttimethrown["specificusers"][ctx.author.id].append({"button":"deny_request","timestamp":time.time()})
-                await threade.send("# request denied, try again later")
+                await threade.send("# request denied, run the command again, and try be more persuasive :)")
                 # await ctx.respond("request denied", ephemeral=False)
                 return
             elif aibotmessageresponses[-1]["button"] == "allow_request":
@@ -1193,13 +1200,18 @@ your past responses:
     def respondtotext(message,prompt):
         global aibotmessageresponses
         print("generating")
-        response = requests.post(f"http://{LOCALHOSTPATH}:11434/api/generate", json = {"prompt": prompt,"model":"deepseek-r1","stream":False,"keep_alive":60,"seed":0,"temperature":1,"options":{"num_predict":-1}})
-        print(response.json()["response"])
-        output = response.json()["response"]
-        output = output[output.index("</think>")+8:].strip()
-        output = json.loads(output)
-        aibotmessageresponses.append((output))
-        print("done, responding")
+        try:
+            response = requests.post(f"http://{LOCALHOSTPATH}:11434/api/generate", json = {"prompt": prompt,"model":"deepseek-r1","stream":False,"keep_alive":60,"seed":0,"temperature":1,"options":{"num_predict":-1}})
+            print(response.json()["response"])
+            output = response.json()["response"]
+            output = output[output.index("</think>")+8:].strip()
+            output = json.loads(output)
+            aibotmessageresponses.append((output))
+            print("done, responding")
+        except Exception as e:
+            print(e)
+            output = {"button":"deny_request","reason":"ai broken. "+ str(e)}
+            aibotmessageresponses.append({"button":"deny_request","reason":"ai broken. "+ str(e)})
         asyncio.run_coroutine_threadsafe(aireplytouser(message,output),bot.loop)
         
 
