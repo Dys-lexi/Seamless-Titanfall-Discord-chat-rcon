@@ -53,7 +53,7 @@ intents.presences = True
 # Load token from environment variable
 TOKEN = os.getenv("DISCORD_BOT_TOKEN", "0")
 SHOULDUSEIMAGES = os.getenv("DISCORD_BOT_USE_IMAGES", "0")
-SHOULDUSETHROWAI = os.getenv("DISCORD_BOT_USE_THROWAI", "1")
+SHOULDUSETHROWAI = os.getenv("DISCORD_BOT_USE_THROWAI", "0")
 LOCALHOSTPATH = os.getenv("DISCORD_BOT_LOCALHOST_PATH","localhost")
 if SHOULDUSEIMAGES == "1":
     print("Images enabled")
