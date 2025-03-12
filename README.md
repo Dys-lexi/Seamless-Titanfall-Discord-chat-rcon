@@ -96,7 +96,7 @@ A more complex example is:
 
 }
 ```
-All options but are optional, meaning a command can just look like this:
+All options are fully optional, meaning a command can just look like this:
 
 ```
 "playing": {
