@@ -55,6 +55,7 @@ TOKEN = os.getenv("DISCORD_BOT_TOKEN", "0")
 SHOULDUSEIMAGES = os.getenv("DISCORD_BOT_USE_IMAGES", "0")
 SHOULDUSETHROWAI = os.getenv("DISCORD_BOT_USE_THROWAI", "0")
 LOCALHOSTPATH = os.getenv("DISCORD_BOT_LOCALHOST_PATH","localhost")
+DISCORDBOTAIUSED = os.getenv("DISCORD_BOT_AI_USED","deepseek-r1")
 if SHOULDUSEIMAGES == "1":
     print("Images enabled")
     import io
@@ -1092,7 +1093,7 @@ if SHOULDUSETHROWAI == "1":
             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
             await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
             return
-        if ctx.author.id in lasttimethrown["passes"].keys() and lasttimethrown["passes"][ctx.author.id] > time.time() - 90:
+        if ctx.author.id in lasttimethrown["passes"].keys() and lasttimethrown["passes"][ctx.author.id] > time.time() - 120:
             print("has been allowed recently")
             await ctx.defer(ephemeral=False)
             await  returncommandfeedback(*sendrconcommand(serverid, f"!throw {playername}"), ctx)   
@@ -1121,7 +1122,12 @@ if SHOULDUSETHROWAI == "1":
         start_time = time.time()
             # response = requests.post("http://localhost:11434/api/generate", json = {"prompt": question,"model":"mistral","stream":True,"seed":0,"temperature":1,"options":{"num_predict":-1}})
 
-        await threade.send("Justify your use of this command. you have 5 messages to do so. Only send one message at a time, and wait for response (it can take a while, ai is hard). if you fail, you must wait 60 seconds, before asking again. if you succeed, you are allowed to freely use the command for 60 seconds")
+        await threade.send('''Justify your use of this command:
+- you have 5 messages to do so, after witch, it auto denys
+- Only send one message at a time, and wait for response (it can take a while, ai is hard).
+- messages that are being processed are marked by a 🟢
+- if you fail, you must wait a short while before asking again.
+- if you succeed, you are allowed to freely use the command for 120 seconds''')
         while count < 5 and (time.time() - start_time < 15 * 60):
             def check(m):
                 return m.author.id == ctx.author.id and m.channel.id == threade.id
@@ -1211,7 +1217,7 @@ your past responses:
         print("generating")
         try:
             # print(f"http://{LOCALHOSTPATH}:11434/api/generate")
-            response = requests.post(f"http://{LOCALHOSTPATH}:11434/api/generate", json = {"prompt": prompt,"model":"deepseek-r1","stream":False,"keep_alive":60,"seed":0,"temperature":1,"options":{"num_predict":-1}})
+            response = requests.post(f"http://{LOCALHOSTPATH}:11434/api/generate", json = {"prompt": prompt,"model":DISCORDBOTAIUSED,"stream":False,"keep_alive":"120m","seed":0,"temperature":1,"options":{"num_predict":-1}})
             print(response.json()["response"])
             output = response.json()["response"]
             output = output[output.index("</think>")+8:].strip()

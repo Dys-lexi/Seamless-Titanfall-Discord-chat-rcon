@@ -15,11 +15,14 @@ discordlog:
       - DISCORD_BOT_TOKEN=PUT YOUR DISCORD TOKEN HERE
       - DISCORD_BOT_PASSWORD=scarypassword
       - SHOULDUSEIMAGES=0 #allow discord images to be turned into text and relayed
-      - DISCORD_BOT_USE_THROWAI=0 #allow the use of the non rcon throw command, (requires ollama + deepseek model installed)
+      - DISCORD_BOT_USE_THROWAI=0 #allow the use of the non rcon throw command, (requires ollama + ai model installed)
       - DISCORD_BOT_LOCALHOST_PATH=host.docker.internal #right now used only for throwai. don't worry about it if not using
+      - DISCORD_BOT_AI_USED=deepseek-r1 #llm to use (default is deepseek-r1)
     volumes:
       - ./discord/data:/app/data:rw
     restart: always
+    extra_hosts: #you may need this argument to send requests to ollama for throwai.
+      - "host.docker.internal:host-gateway"
 ```
 ### Convars
 For each server you'll *need*:
