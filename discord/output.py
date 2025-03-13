@@ -1073,7 +1073,7 @@ for command_name, command_info in context["commands"].items():
 if SHOULDUSETHROWAI == "1":
     print("ai throw enabled")
     lasttimethrown = {"specificusers":{},"globalcounter":0,"passes":{}}
-    aibotmessageresponses = []
+    aibotmessageresponses = {}
     import requests
     @bot.slash_command(name="thrownonrcon", description="non rcon throw command")
     async def getuid(
@@ -1086,7 +1086,8 @@ if SHOULDUSETHROWAI == "1":
         
         global context, discordtotitanfall, lasttimethrown, aibotmessageresponses
         messagehistory = []
-        aibotmessageresponses = []
+        keyaireply = random.randint(1,10000000000)
+        aibotmessageresponses[keyaireply] = []
         print("thrownonrcon command from", ctx.author.id, "to", playername)
         serverid = getchannelidfromname(servername, ctx)
         if serverid is None:
@@ -1135,7 +1136,7 @@ if SHOULDUSETHROWAI == "1":
             try:
                 message = await bot.wait_for("message", timeout=remaining_time, check=check)
                 await message.add_reaction("🟢")
-                if count != len(aibotmessageresponses):
+                if count != len(aibotmessageresponses[keyaireply]):
                             await message.reply(f"Text not used, wait for response")
             except asyncio.TimeoutError:
                 break
@@ -1180,39 +1181,42 @@ after that array will be an array of your responses to these messages. this will
 user past messages:
 {newline.join(messagehistory)}
 your past responses:
-{aibotmessageresponses}
+{newline.join(aibotmessageresponses[keyaireply])}
 '''             # TO BE DONE, SAY HOW MANY DENYS AND HOW MANY ALLOWS, AND HOW MANY WERE IN PAST HOUR. LEARN ABOUT SANDBOXING IMPLEMENT THE SHORT TIME WHITELIST, AND ALSO THE 60 SECONDS DENY
             # print(f'{"The last time the user tried to use this command was: " + str(time.time()-lasttimethrown["specificusers"][ctx.author.id][-1]["timestamp"]) + " seconds ago, and it was " + lasttimethrown["specificusers"][ctx.author.id][-1]["button"] if ctx.author.id in lasttimethrown["specificusers"].keys() else "This is the first time the user has tried to use this command. since bot restart"}')
             print(prompt)
-            thready = threading.Thread(target=respondtotext, daemon=True, args=(message,prompt))
+            thready = threading.Thread(target=respondtotext, daemon=True, args=(message,prompt,keyaireply))
             thready.start()
             count += 1
 
-            while count != len(aibotmessageresponses):
+            while count != len(aibotmessageresponses[keyaireply]):
                 await asyncio.sleep(0.3)
                 # print(aibotmessageresponses)
-            if aibotmessageresponses[-1]["button"] == "deny_request":
+            if aibotmessageresponses[keyaireply][-1]["button"] == "deny_request":
                 if ctx.author.id not in lasttimethrown["specificusers"].keys():
                     lasttimethrown["specificusers"][ctx.author.id] = []
-                lasttimethrown["specificusers"][ctx.author.id].append({"button":"deny_request","timestamp":time.time(),"one_word_reason":aibotmessageresponses[-1]["reasononeword"]})
+                lasttimethrown["specificusers"][ctx.author.id].append({"button":"deny_request","timestamp":time.time(),"one_word_reason":aibotmessageresponses[keyaireply][-1]["reasononeword"]})
                 await threade.send("# request denied, run the command again, and try be more persuasive :)")
                 # await ctx.respond("request denied", ephemeral=False)
-                
+                del aibotmessageresponses[keyaireply]
                 return
-            elif aibotmessageresponses[-1]["button"] == "allow_request":
+            elif aibotmessageresponses[keyaireply][-1]["button"] == "allow_request":
                 if ctx.author.id not in lasttimethrown["specificusers"].keys():
                     lasttimethrown["specificusers"][ctx.author.id] = []
-                lasttimethrown["specificusers"][ctx.author.id].append({"button":"allow_request","timestamp":time.time(),"one_word_reason":aibotmessageresponses[-1]["reasononeword"]})
+                lasttimethrown["specificusers"][ctx.author.id].append({"button":"allow_request","timestamp":time.time(),"one_word_reason":aibotmessageresponses[keyaireply][-1]["reasononeword"]})
                 lasttimethrown["passes"][ctx.author.id] = time.time()
+                
                 await threade.send("# request allowed, executing command")
                 await returncommandfeedback(*sendrconcommand(serverid, f"!throw {playername}"), message)   
+                del aibotmessageresponses[keyaireply]
                 return
-            elif aibotmessageresponses[-1]["button"] == "more_information_needed":
-                print("more info needed", aibotmessageresponses[-1]["button"])
+            elif aibotmessageresponses[keyaireply][-1]["button"] == "more_information_needed":
+                print("more info needed", aibotmessageresponses[keyaireply][-1]["button"])
                 pass
             # print("there")
         await threade.send("timeout, request denied")
-    def respondtotext(message,prompt):
+        del aibotmessageresponses[keyaireply]
+    def respondtotext(message,prompt,keyaireply):
         global aibotmessageresponses
         print("generating")
         try:
@@ -1222,12 +1226,12 @@ your past responses:
             output = response.json()["response"]
             output = output[output.index("</think>")+8:].strip()
             output = json.loads(output)
-            aibotmessageresponses.append((output))
+            aibotmessageresponses[keyaireply].append((output))
             print("done, responding")
         except Exception as e:
             print(e)
             output = {"button":"deny_request","reason":"ai broken. "+ str(e),"reasononeword":"broken"}
-            aibotmessageresponses.append(output)
+            aibotmessageresponses[keyaireply].append(output)
         asyncio.run_coroutine_threadsafe(aireplytouser(message,output),bot.loop)
         
 
