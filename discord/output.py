@@ -53,7 +53,7 @@ intents.presences = True
 # Load token from environment variable
 TOKEN = os.getenv("DISCORD_BOT_TOKEN", "0")
 SHOULDUSEIMAGES = os.getenv("DISCORD_BOT_USE_IMAGES", "0")
-SHOULDUSETHROWAI = os.getenv("DISCORD_BOT_USE_THROWAI", "0")
+SHOULDUSETHROWAI = os.getenv("DISCORD_BOT_USE_THROWAI", "1")
 LOCALHOSTPATH = os.getenv("DISCORD_BOT_LOCALHOST_PATH","localhost")
 DISCORDBOTAIUSED = os.getenv("DISCORD_BOT_AI_USED","deepseek-r1")
 if SHOULDUSEIMAGES == "1":
@@ -1181,7 +1181,7 @@ after that array will be an array of your responses to these messages. this will
 user past messages:
 {newline.join(messagehistory)}
 your past responses:
-{newline.join(aibotmessageresponses[keyaireply])}
+{newline.join(list(map( lambda x: str(x) ,aibotmessageresponses[keyaireply])))}
 '''             # TO BE DONE, SAY HOW MANY DENYS AND HOW MANY ALLOWS, AND HOW MANY WERE IN PAST HOUR. LEARN ABOUT SANDBOXING IMPLEMENT THE SHORT TIME WHITELIST, AND ALSO THE 60 SECONDS DENY
             # print(f'{"The last time the user tried to use this command was: " + str(time.time()-lasttimethrown["specificusers"][ctx.author.id][-1]["timestamp"]) + " seconds ago, and it was " + lasttimethrown["specificusers"][ctx.author.id][-1]["button"] if ctx.author.id in lasttimethrown["specificusers"].keys() else "This is the first time the user has tried to use this command. since bot restart"}')
             print(prompt)
