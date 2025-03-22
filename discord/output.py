@@ -31,7 +31,7 @@ if not os.path.exists("./data/" + log_file):
 realprint = print
 def print(*message, end="\n"):
     message = " ".join([str(i) for i in message])
-    if len(message) < 1000:
+    if len(message) < 1000000:
         with open("./data/" + log_file, "a") as file:
             file.write(
                 datetime.now().strftime("%d/%m/%Y %H:%M:%S")
@@ -159,6 +159,7 @@ async def help(
     command: Option(str, "The command to get help for", required=False,choices = list(context["commands"].keys()))
 ):
     global context
+    print("help requested")
     if command is None:
         embed = discord.Embed(
             title="Help",
@@ -515,6 +516,7 @@ async def on_message(message):
             await message.channel.send("Message too long, cannot send.")
             return
         if message.content != "":
+            print(f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {message.content}")
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": message.id,
@@ -596,7 +598,7 @@ def recieveflaskprintrequests():
             if timesent in discordtotitanfall[serverid]["returnids"]["messages"].keys():
                 del discordtotitanfall[serverid]["returnids"]["messages"][timesent]
         if len (data.keys()) > 2:
-            print(json.dumps(data, indent=4))
+            realprint(json.dumps(data, indent=4))
         # print(ids)
         asyncio.run_coroutine_threadsafe(reactomessages(list(ids), serverid), bot.loop)
         if serverid not in stoprequestsforserver.keys():
@@ -831,7 +833,7 @@ def messageloop():
                         )
                         print(
                             (
-                                f"""```{message["player"]} {message["messagecontent"]}```"""
+                                f"""{message["player"]} {message["messagecontent"]}"""
                             )
                         )
                     elif message["type"] == 3:
@@ -839,11 +841,11 @@ def messageloop():
                         print(f"{message['messagecontent']}")
                     elif message["type"] == 4:
                         output[message["serverid"] if not message["globalmessage"] else context["globalchannelid"]].append(f"```{message['messagecontent']}```")
-                        print(f"```{message['messagecontent']}```")
+                        print(f"{message['messagecontent']}")
 
                     else:
                         print("type of message unkown")
-                    print("\033[0m", end="")
+                    realprint("\033[0m", end="")
                 for serverid in output.keys():
                     if serverid not in context["serverchannelidlinks"].keys() and serverid != context["globalchannelid"]:
                         print("channel not not in bots known channels")
@@ -901,8 +903,8 @@ def initdiscordtotitanfall(serverid):
         discordtotitanfall[serverid]["lastheardfrom"] = 0
 
 def getchannelidfromname(name,ctx):
-    for key, value in context["serveridnamelinks"].items():
-        if name and value.lower() == name.lower():
+    for key, value in sorted(context["serveridnamelinks"].items(), key = lambda x: len(value)):
+        if name and name.lower() in value.lower():
             return key
     if ctx.channel.id in context["serverchannelidlinks"].values():
         for key, value in context["serverchannelidlinks"].items():
