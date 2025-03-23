@@ -905,11 +905,13 @@ def initdiscordtotitanfall(serverid):
 def getchannelidfromname(name,ctx):
     for key, value in sorted(context["serveridnamelinks"].items(), key = lambda x: len(value)):
         if name and name.lower() in value.lower():
+            print("default server overridden, sending to", value.lower())
             return key
     if ctx.channel.id in context["serverchannelidlinks"].values():
         for key, value in context["serverchannelidlinks"].items():
             if value == ctx.channel.id:
                 return key
+    print("could not find overridden server")
 def sendrconcommand(serverid, command):
     global discordtotitanfall
     initdiscordtotitanfall(serverid)
