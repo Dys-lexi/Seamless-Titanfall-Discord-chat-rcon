@@ -222,7 +222,38 @@ async def bind_logging_to_category(ctx, category_name: str):
         f"Logging channel created under category '{category_name}' with channel ID {context['logging_cat_id']}.",
         ephemeral=False,
     )
+if DISCORDBOTLOGSTATS == "1":
+    @bot.slash_command(
+        name="togglejoinnotify",
+        description="Toggle if you are notified when a player joins",
+    )
+    async def togglejoinnotify(ctx,name: Option(str, "The playername to toggle")):
+        tfdb = sqlite3.connect("./data/tf2helper.db")
+        c = tfdb.cursor()
+        c.execute("SELECT playeruid, playername FROM uidnamelink")
+        data = c.fetchall()
+        if not data:
+            await ctx.respond("No players in the database", ephemeral=True)
+            return
+        data = [{"name": x[1], "uid": x[0]} for x in data]
+        data = sorted(data, key=lambda x: len(x["name"]))
 
+        data = [x for x in data if name.lower() in x["name"].lower()]
+        if len(data) == 0:
+            await ctx.respond("No players found", ephemeral=True)
+            return
+        player = data[0]
+        c.execute("SELECT * FROM joinnotify WHERE discordidnotify = ? AND uidnotify = ?", (ctx.author.id,player["uid"]))
+        data = c.fetchone()
+        if data is None:
+            c.execute("INSERT INTO joinnotify (discordidnotify, uidnotify) VALUES (?,?)",(ctx.author.id,player["uid"]))
+            await ctx.respond(f"{player['name']} added to notify list", ephemeral=True)
+        else:
+            c.execute("DELETE FROM joinnotify WHERE discordidnotify = ? AND uidnotify = ?", (ctx.author.id,player["uid"]))
+            await ctx.respond(f"{player['name']} removed from notify list", ephemeral=True)
+        tfdb.commit()
+        tfdb.close()
+        
 
 @bot.slash_command(name="help", description="Show help for commands")
 async def help(
@@ -541,7 +572,7 @@ async def rcon_command(
 )
 async def rcon_add_user(ctx, user: Option(discord.User, "The user to add")):
     global context
-    return
+    # return
     # check if the user is an admin on the discord
     if user.id in context["RCONallowedusers"]:
         context["RCONallowedusers"].remove(user.id)
@@ -727,7 +758,7 @@ def recieveflaskprintrequests():
     def printmessage():
         global messageflush, lastmessage, messagecounter, context
         data = request.get_json()
-        data = getjson(data)
+
         if data["password"] != SERVERPASS and SERVERPASS != "*":
             print("invalid password used on printmessage")
             return {"message": "invalid password"}
@@ -762,12 +793,13 @@ def recieveflaskprintrequests():
         else:
             print("global message request from", newmessage["serverid"], newmessage["servername"])
         messageflush.append(newmessage)
-        
-        if data["meta"] != "None":
-            if data["meta"]["type"] == "connect":
-                onplayerjoin(data["meta"]["uid"],data["serverid"])
-            elif data["meta"]["type"] == "disconnect":
-                onplayerleave(data["meta"]["uid"],data["serverid"])
+        print(list(data.keys()))
+        if "metadata" in data.keys() and data["metadata"] != "None":
+            data["metadata"] = getjson(data["metadata"])
+            if data["metadata"]["type"] == "connect":
+                onplayerjoin(data["metadata"]["uid"],data["serverid"])
+            elif data["metadata"]["type"] == "disconnect":
+                onplayerleave(data["metadata"]["uid"],data["serverid"])
                 
 
         messagecounter += 1
@@ -791,9 +823,10 @@ def recieveflaskprintrequests():
 async def createchannel(guild, category, servername, serverid):
     global context
     print("Creating channel...")
+    normalized_servername = servername.lower().replace(" ", "-")
     # check if channel name already exists, if so use that
-    if servername in [channel.name for channel in category.channels]:
-        channel = discord.utils.get(category.channels, name=servername)
+    if any(normalized_servername == channel.name.lower() for channel in category.channels):
+        channel = discord.utils.get(category.channels, name=normalized_servername)
         context["serverchannelidlinks"][serverid] = channel.id
         savecontext()
         return
@@ -840,13 +873,13 @@ def messageloop():
             if messageflushnotify:
                 messageflushnotifycopy = messageflushnotify.copy()
                 messageflushnotify = []
-            for message in messageflushnotifycopy:
-                user = bot.get_user(message["userid"])
-                if user is None:
-                    continue
-                asyncio.run_coroutine_threadsafe(
-                    user.send(message["sendingmessage"]), bot.loop
-                )
+                for message in messageflushnotifycopy:
+                    user = bot.get_user(message["userid"])
+                    if user is None:
+                        continue
+                    asyncio.run_coroutine_threadsafe(
+                        user.send(message["sendingmessage"]), bot.loop
+                    )
         except AttributeError as e:
             time.sleep(3)
             print("bot not ready", e)
@@ -862,6 +895,10 @@ def messageloop():
                         and not addflag
                     ):
                         addflag = True
+                        print("meow")
+                        print(message)
+                        print(list( context["serverchannelidlinks"].keys()),   message["serverid"])
+
                         guild = bot.get_guild(context["activeguild"])
                         category = guild.get_channel(context["logging_cat_id"])
                         asyncio.run_coroutine_threadsafe(
@@ -872,7 +909,7 @@ def messageloop():
                                 message["serverid"],
                             ),
                             bot.loop,
-                        )
+                    )
                         time.sleep(10)
                 addflag = False
                 for message in messageflush:
@@ -941,7 +978,7 @@ def messageloop():
                     realprint("\033[0m", end="")
                 for serverid in output.keys():
                     if serverid not in context["serverchannelidlinks"].keys() and serverid != context["globalchannelid"]:
-                        print("channel not not in bots known channels")
+                        print("channel not in bots known channels")
                         continue
                     channel = bot.get_channel(context["serverchannelidlinks"][serverid]) if serverid != context["globalchannelid"] else bot.get_channel(context["globalchannelid"])
                     if channel is None:
@@ -996,7 +1033,7 @@ def initdiscordtotitanfall(serverid):
         discordtotitanfall[serverid]["lastheardfrom"] = 0
 
 def getchannelidfromname(name,ctx):
-    for key, value in sorted(context["serveridnamelinks"].items(), key = lambda x: len(value)):
+    for key, value in sorted(context["serveridnamelinks"].items(), key = lambda x: len(x[1])):
         if name and name.lower() in value.lower():
             print("default server overridden, sending to", value.lower())
             return key
@@ -1045,6 +1082,7 @@ def defaultoverride(data, serverid, statuscode):
     return embed
             
 async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride, iscommandnotmessage = True):
+    # print(serverid, id, ctx,overridemsg)
     if not overridemsg:
         overridemsg = defaultoverride
     i = 0
@@ -1054,7 +1092,9 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride,
             print(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)])
             if overridemsg:
                 try:
+                   
                     realmessage = overridemsg(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]["output"], serverid,discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]["statuscode"] )
+           
                     if not realmessage:
                         overridemsg = None
                         return
@@ -1336,25 +1376,42 @@ your past responses:
     async def aireplytouser(message,output):
         await message.reply(f"**button pressed by AI:**```{output['button']}``` \n**Reason:** ```{output['reason']}```\n**Short reason:**```{output['reasononeword']}```")
 # joinleave logging stuff
-
+playercontext = {}
+playerjoinlist = {}
 def onplayerjoin(uid,serverid):
-    global context,messageflushnotify
+    global context,messageflushnotify,playerjoinlist
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
-    c.execute("SELECT discordnotify FROM joinnotify WHERE uidnotify = ?",(uid,))
-    c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
-    playername = c.fetchone()[0]
+    c.execute("SELECT count FROM joincounter WHERE uid = ?",(uid,))
+    count = c.fetchone()
+    if count:
+        count = count[0] + 1
+        c.execute("UPDATE joincounter SET count = ? WHERE uid = ?",(count,uid))
+    else:
+        c.execute("INSERT INTO joincounter (uid,count) VALUES (?,1)",(uid,))
+    tfdb.commit()
+    c.execute("SELECT discordidnotify FROM joinnotify WHERE uidnotify = ?",(uid,))
     discordnotify = c.fetchall()
+    c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
+    playername = c.fetchone()
+    if playername:
+        playername = playername[0]
+    else:
+        playername = f"Unkown user by uid {uid}"
+    
     if discordnotify:
         discordnotify = [x[0] for x in discordnotify]
     servername = context["serveridnamelinks"][serverid]
+    if uid in playerjoinlist and playerjoinlist[uid]:
+        return
+    playerjoinlist[uid] = True
     for discordid in discordnotify:
         messageflushnotify.append(
             {
                 "servername": servername,
                 "player": playername,
-                "persontonotif": discordid,
-                "sendingmessage": f"[JOINNOTIFY] {playername} has joined {servername}, disable this with [WILLADDACOMMANDSOON]",
+                "userid": discordid,
+                "sendingmessage": f"[JOINNOTIFY] {playername} has joined {servername}, disable this with /togglejoinnotify",
             }
         )
     tfdb.close()
@@ -1363,27 +1420,39 @@ def onplayerjoin(uid,serverid):
     
     
 def onplayerleave(uid,serverid):
-    global context,messageflushnotify
+    global context,messageflushnotify,playercontext
+    print("leavecommand")
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
-    c.execute("SELECT discordnotify FROM joinnotify WHERE uidnotify = ?",(uid,))
-    c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
-    playername = c.fetchone()[0]
+    c.execute("SELECT discordidnotify FROM joinnotify WHERE uidnotify = ?",(uid,))
     discordnotify = c.fetchall()
+    c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
+    playername = c.fetchone()
+    if playername:
+        playername = playername[0]
+    else:
+        playername = f"Unkown user by uid {uid}"
     if discordnotify:
         discordnotify = [x[0] for x in discordnotify]
     servername = context["serveridnamelinks"][serverid]
+    if uid in playerjoinlist and not playerjoinlist[uid]:
+        return
+    playerjoinlist[uid] = False
     for discordid in discordnotify:
         messageflushnotify.append(
             {
                 "servername": servername,
                 "player": playername,
-                "persontonotif": discordid,
-                "sendingmessage": f"[JOINNOTIFY] {playername} has left {servername}, disable this with [WILLADDACOMMANDSOON]",
+                "userid": discordid,
+                "sendingmessage": f"[JOINNOTIFY] {playername} has left {servername}, disable this with /togglejoinnotify",
             }
         )
     tfdb.close()
-playercontext = {}
+    # if str(uid)+playername in playercontext.keys():
+    #     savestats(playercontext[str(uid)+playername],1)
+    #     playercontext[str(uid)+playername] = {}
+    # if  playercontext[pinfo["uid"]+pinfo["name"]]
+
 
 def savestats(stats,endtype):
     # 1 is normal, they just left
@@ -1392,39 +1461,47 @@ def savestats(stats,endtype):
     # 4 is tempory save
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
-    c.execute("SELECT playername FROM uidnamelink WHERE uid = ?",(stats["uid"],))
-    playernames = c.fetchall()
-    if playernames:
-        playernames = [x[0] for x in playernames]
-    if stats["name"] not in playernames or not playernames:
-        c.execute("INSERT INTO uidnamelink (uid,playername) VALUES (?,?)",(stats["uid"],stats["name"]))
-    if stats["idoverride"] != 0:
-        c.execute("UPDATE playtime SET endtime = ? WHERE id = ?",(stats["endtime"],stats["idoverride"]))
-        lastrowid = stats["idoverride"]
-    else:
-        c.execute("INSERT INTO playtime (playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",(stats["uid"],stats["joined"],stats["endtime"],endtype,stats["serverid"],stats["score"],stats["titankills"],stats["kills"],stats["npckills"],stats["deaths"],stats["map"]))
-        lastrowid = c.lastrowid
+    try:
+        c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ?",(stats["uid"],))
+        playernames = c.fetchall()
+        if playernames:
+            playernames = [x[0] for x in playernames]
+        if stats["name"] not in playernames or not playernames:
+            c.execute("INSERT INTO uidnamelink (playeruid,playername) VALUES (?,?)",(stats["uid"],stats["name"]))
+        if stats["idoverride"] != 0:
+            c.execute("UPDATE playtime SET endtime = ? WHERE id = ?",(stats["endtime"],stats["idoverride"]))
+            lastrowid = stats["idoverride"]
+        else:
+            c.execute("INSERT INTO playtime (playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map ) VALUES (?,?,?,?,?,?,?,?,?,?,?)",(stats["uid"],stats["joined"],stats["endtime"],endtype,stats["serverid"],stats["score"],stats["titankills"],stats["kills"],stats["npckills"],stats["deaths"],stats["map"]))
+            lastrowid = c.lastrowid
+    except Exception as e:
+        print("error in saving",e)
     tfdb.commit()
     tfdb.close()
     return lastrowid
 def playerpolllog(data,serverid,statuscode):
-    Ithinktheplayerhasleft = 300
-    global discordtotitanfall,playercontext
+    Ithinktheplayerhasleft = 10
+    global discordtotitanfall,playercontext,playerjoinlist
     # save who is playing on the specific server into playercontext.
     # dicts kind of don't support composite primary keys..
     # use the fact that theoretically one player can be on just one server at a time
     # playerid+playername = primary key. this is because of the edge case where people join one server on one account twice because.. well they do that sometimes
+    print(data,serverid,statuscode)
     map = data["meta"][0]
-    now = time.time()
-    players = [lambda x: {"uid":x[0],"score":x[1][0],"team":x[1][1],"kills":x[1][2],"deaths":x[1][3],"name":x[1][4],"titankills":x[1][5],"npckills":x[1][6]} for x in list(filter(lambda x: x[0] != "meta",list(data.items())))]
+    now = int(time.time())
+    # players = [lambda x: {"uid":x[0],"score":x[1][0],"team":x[1][1],"kills":x[1][2],"deaths":x[1][3],"name":x[1][4],"titankills":x[1][5],"npckills":x[1][6]} for x in list(filter(lambda x: x[0] != "meta",list(data.items())))]
+    players = [{"uid":x[0], "score":x[1][0], "team":x[1][1], "kills":x[1][2], "deaths":x[1][3], "name":x[1][4], "titankills":x[1][5], "npckills":x[1][6]} for x in list(filter(lambda x: x[0] != "meta", list(data.items())))]
+
     for pinfo in players:
-        if pinfo["uid"]+pinfo["name"] in list(playercontext.keys()) and playercontext[pinfo["uid"]+pinfo["name"]]["map"] != map:
+        if pinfo["uid"]+pinfo["name"] in list(playercontext.keys()) and playercontext[pinfo["uid"]+pinfo["name"]] and ( playercontext[pinfo["uid"]+pinfo["name"]]["map"] != map or playercontext[pinfo["uid"]+pinfo["name"]]["serverid"] != serverid  ):
             playercontext[pinfo["uid"]+pinfo["name"]]["endtime"] = now
+            print("saving")
             savestats(playercontext[pinfo["uid"]+pinfo["name"]] ,2)
             playercontext[pinfo["uid"]+pinfo["name"]] = {}
             pass #SAVE SAVE SAVE
         if pinfo["uid"]+pinfo["name"] not in list(playercontext.keys()) or playercontext[pinfo["uid"]+pinfo["name"]] == {}:
-            playercontext[pinfo["uid"]+pinfo["name"]] = {"joined":now,"map":map,"name":pinfo["name"],"uid":pinfo["uid"],"idoverride":0,"endtime":0,"serverid":serverid,"kills":0,"deaths":0,"titankills":0,"npckills":0}
+            onplayerjoin(pinfo["uid"],serverid)
+            playercontext[pinfo["uid"]+pinfo["name"]] = {"joined":now,"map":map,"name":pinfo["name"],"uid":pinfo["uid"],"idoverride":0,"endtime":0,"serverid":serverid,"kills":0,"deaths":0,"titankills":0,"npckills":0,"score":0}
         # check if any data that requires a save has changed
             # on map change, we save before we overwrite. also we couuld try to return a thing, given stuff!
         playercontext[pinfo["uid"]+pinfo["name"]]["endtime"] = now
@@ -1432,18 +1509,24 @@ def playerpolllog(data,serverid,statuscode):
         playercontext[pinfo["uid"]+pinfo["name"]]["deaths"] = pinfo["deaths"]
         playercontext[pinfo["uid"]+pinfo["name"]]["titankills"] = pinfo["titankills"]
         playercontext[pinfo["uid"]+pinfo["name"]]["npckills"] = pinfo["npckills"]
+        playercontext[pinfo["uid"]+pinfo["name"]]["score"] = pinfo["score"]
+
         # playercontext[pinfo["uid"]+pinfo["name"]]["kills"] = pinfo["kills"]
-    for pinfo in playercontext:
-        if now -pinfo["endtime"] > Ithinktheplayerhasleft:
+    for key,pinfo in playercontext.items():
+        if pinfo and  now -pinfo["endtime"] > Ithinktheplayerhasleft:
             # SAVE SAVE SAVE
+            print("saving")
+            onplayerleave(pinfo["uid"],serverid)
+            playercontext[key] = {}
             savestats(pinfo,1)
-            
+        
+    
 
 def playerpoll():
     global discordtotitanfall,playercontext
     Ithinktheserverhascrashed = 180
     autosaveinterval = 180
-    pinginterval = 10
+    pinginterval = 5
     # if the player leaves and rejoins, continue their streak.
     # if the server does not respond for this time, assume it crashed.
     counter = 0
@@ -1452,6 +1535,7 @@ def playerpoll():
         if not counter % autosaveinterval*pinginterval:
             for key,pinfo in playercontext.items():
                 if pinfo != {}:
+                    print("saving")
                     lastrow = savestats(pinfo,4)
                     playercontext[key]["idoverride"] = lastrow
                     
@@ -1463,13 +1547,15 @@ def playerpoll():
                 pass #SAVE SAVE SAVE
                 # the server has crashed, or is empty. assume all players left.
                 # save all sql stuff related to this server.
+                print("saving")
                 for key,pinfo in playercontext.items():
                     if pinfo != {} and pinfo["serverid"] == serverid:
                         lastrow = savestats(pinfo,3)
                         playercontext[key]["idoverride"] = lastrow # not sure if I want to wipe it so the save can be overwritten if server restarts to same map or not. it's fine.
             # ask the server nicely who is playing
             else:
-                returncommandfeedback(*sendrconcommand(serverid,"!playingpoll"),"fake context",playerpolllog)
+                asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,"!playingpoll"),"fake context",playerpolllog), bot.loop)
+                # returncommandfeedback(*sendrconcommand(serverid,"!playingpoll"),"fake context",playerpolllog)
                 
     # should poll for players on ALL servers every xyz seconds.
     # only do it on servers that have been active recently.
