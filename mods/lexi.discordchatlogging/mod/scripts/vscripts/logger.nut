@@ -19,7 +19,7 @@ global struct discordlogcommand {
 	bool commandmatch = false
 	int returncode = -1
 	string returnmessage
-	string command 
+	string command
 	array<string> commandargs
 }
 struct {
@@ -34,7 +34,8 @@ array <discordlogcommand functionref(discordlogcommand)> function getregisteredf
 		discordlogsimplesay,
 		discordloggetuid,
 		discordlogkickplayer,
-		discordlogsendimage
+		discordlogsendimage,
+		discordlogplayingpoll
 		]
 		 //add functions here, and they'll work with / commands (if they fill criteria above)
 }
@@ -50,7 +51,7 @@ array <entity> function discordlogmatchplayers(string playername){ //returns all
                 if (playernamec.tolower().find(playername.tolower()) != null)
                 {
                     matchedplayers.append(player)
-                    
+
                 }
             }
         }
@@ -67,6 +68,7 @@ struct outgoingmessage{
 	int timestamp
 	int typeofmsg // 1 = chat message, needs a playername. 2 = codeblock chat message, needs a playername. 3 and 4 are the same pattern, but do not need a playername.
 	bool globalmessage = false
+	string metadata = "None"
 }
 struct {
 	string Requestpath
@@ -123,7 +125,7 @@ void function discordloggerinit() {
 		print("[DiscordLogger]discord logging disabled")
 		return
 	}
-	
+
 	//AddNewFunctForEnd(SaveLog)
 	// get epoch time
 	// mp\_gamestate_mp.nut:
@@ -158,7 +160,7 @@ void function discordloggerinit() {
 	serverdetails.rconenabled = GetConVarInt("discordloggingrconenabled")
 	}
 	// print(serverdetails.Servername)
-}   
+}
 void function LogConnect( entity player )
 {
 	if(!IsValid(player) || Time() < 30)
@@ -166,13 +168,17 @@ void function LogConnect( entity player )
 		return
 	}
 	// print(Time())
-	outgoingmessage newmessage 
+	outgoingmessage newmessage
 	newmessage.playername = player.GetPlayerName()
 	newmessage.message = "has joined the server ("+GetPlayerArray().len().tostring()+" Connected)"
 	newmessage.timestamp = GetUnixTimestamp()
+	table meta
+	meta["uid"] <- player.GetUID()
+	meta["type"] <- "connect"
+	newmessage.metadata = EncodeJSON(meta)
 	newmessage.typeofmsg = 2
 	Postmessages(newmessage)
-	
+
 }
 void function LogDC( entity player )
 {
@@ -180,13 +186,17 @@ void function LogDC( entity player )
 	{
 		return
 	}
-	outgoingmessage newmessage 
+	outgoingmessage newmessage
 	newmessage.playername = player.GetPlayerName()
 	newmessage.message = "has left the server ("+(GetPlayerArray().len()-1).tostring()+" Connected)"
 	newmessage.timestamp = GetUnixTimestamp()
+	table meta
+	meta["uid"] <- player.GetUID()
+	meta["type"] <- "disconnect"
+	newmessage.metadata = EncodeJSON(meta)
 	newmessage.typeofmsg = 2
 	Postmessages(newmessage)
-	
+
 }
 
 ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
@@ -194,7 +204,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
     // string playername = message.player.GetPlayerName()
 	// string messagecontent = message.message
 	// print(serverdetails.Servername)
-	outgoingmessage newmessage 
+	outgoingmessage newmessage
 	newmessage.playername = message.player.GetPlayerName()
 	newmessage.message = message.message
 	newmessage.timestamp = GetUnixTimestamp()
@@ -206,11 +216,11 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 
 
 
-	
+
     return message
 }
 void function discordlogextmessage(string message, bool formatascodeblock = false, bool globalmessage = false){
-	outgoingmessage newmessage 
+	outgoingmessage newmessage
 	newmessage.message = message
 	newmessage.timestamp = GetUnixTimestamp()
 	newmessage.globalmessage = globalmessage
@@ -241,6 +251,7 @@ void function Postmessages(outgoingmessage message){
 	params["timestamp"] <- message.timestamp
 	params["type"] <- message.typeofmsg //yr
 	params["serverid"] <- serverdetails.serverid
+	params["metadata"] <- message.metadata
 	if (message.playername != ""){
 	params["player"] <- message.playername}
 	params["globalmessage"] <- message.globalmessage
@@ -276,8 +287,8 @@ int breakercounter = 0
 
 void function Onmapchange(){
 	wait 1
-	outgoingmessage newmessage 
-	// string LocalizedMapName = Localize( "#STATS_NOT_APPLICABLE" ) 
+	outgoingmessage newmessage
+	// string LocalizedMapName = Localize( "#STATS_NOT_APPLICABLE" )
 	newmessage.playername = ""
 	newmessage.message = "Map changed to " + MAP_NAME_TABLE[GetMapName()]
 	// print(newmessage.message)
@@ -330,7 +341,7 @@ void function discordlogsendmessage(string message){
 	// 			playersdone.append(player)
 	// 			// playersnotdone.remove(playersnotdone.find(player))
 	// 		}
-			
+
 	// 	}
 	// 	wait 0.5
 	// 	trys++
@@ -347,7 +358,7 @@ void function DiscordClientMessageinloop()
 	// check.textcheck = []
 	// check.commandcheck = []
 	check.postmatch = 999999
-	
+
 	while (true) {
 		// print("gamestate "+GetGameState())
 		if (shouldsend == 0){
@@ -366,14 +377,14 @@ void function DiscordClientMessageinloop()
 		wait 1
 		continue
 	}
-	// wait 1	
+	// wait 1
 	breakercounter = 0
 	// print(GetPlayerArray().len())
 	if(eCount==3 || GetPlayerArray().len() == 12313) //set to 0 to not relay if no people are on
 	{
 		wait 15
 		eCount = 0
-		
+
 	}
 
 	table params = {}
@@ -395,12 +406,12 @@ void function DiscordClientMessageinloop()
 	// 	string returntext = expect string(value)
 	// 	params[commandid] <- returntext
 	// }
-	
+
     HttpRequest request
     request.method = HttpRequestMethod.POST
     request.url = serverdetails.Requestpath + "/askformessage"
 	request.body = EncodeJSON(params)
-	
+
 	int timeout = 60
 	if (check.denylogging == 1){
 		break
@@ -409,7 +420,7 @@ void function DiscordClientMessageinloop()
 		wait 1
 		continue
 	}
-	
+
 	else if (check.allowlogging == 1 && GameTime_TimeLeftSeconds() < 60){
 		// if (GameTime_TimeLeftSeconds()> check.postmatch || GameTime_TimeLeftSeconds() == 0){
 		// 	wait 1
@@ -423,13 +434,13 @@ void function DiscordClientMessageinloop()
 		check.postmatch = 999999
 	}
 	// if(GetScoreLimit_FromPlaylist()-50 <GameRules_GetTeamScore(TEAM_MILITIA) || GetScoreLimit_FromPlaylist()*0.95 <GameRulfes_GetTeamScore(TEAM_IMC) || GameTime_TimeLeftSeconds() < 60)
-	
+
 	request.timeout = timeout
-	
+
 	// print("[DiscordLogger] Sending req:")
     void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse messages )
     {
-		
+
 		eCount = 0;
 		// print("recieved")
 		shouldsend = 1
@@ -442,7 +453,7 @@ void function DiscordClientMessageinloop()
 			eCount++;
 			return
 		}
-		
+
 		check.textcheck = []
 		check.commandcheck = {}
 		// print(messages.body)
@@ -458,7 +469,7 @@ void function DiscordClientMessageinloop()
 		// print(texts.len())
 		if (serverdetails.rconenabled){
 		foreach (value,key in commands){
-		
+
 			string command = expect string(key)
 			string validation = expect string(value)
 
@@ -471,7 +482,7 @@ void function DiscordClientMessageinloop()
 			ServerCommand(command)
 			// table output = {commandid="validation",returntext=command+": command not found"}
 			check.commandcheck[validation] <- EncodeJSON({statuscode=-2,output=command+": successfully ran console command"})
-			
+
 
 		}}}
 		else if (commands.len() > 0){
@@ -485,17 +496,17 @@ void function DiscordClientMessageinloop()
 		foreach (value, key in texts){
 			string validation = expect string(value)
 			string text = expect string(key)
-			print("[DiscordLogger] MESSAGE"+text)
+			print("[DiscordLogger] MESSAGE "+text)
 			check.textcheck.append(validation)
 			thread discordlogsendmessage("\x1b[38;5;105m"+text)
 			// foreach (entity player in GetPlayerArray()) {
 			// 	Chat_PrivateMessage(player,player,"\x1b[38;5;105m"+text,false)
 			// }
-			
+
 		}
-		
+
 	}
-    
+
     void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
     {
 		shouldsend = 1
@@ -507,14 +518,14 @@ void function DiscordClientMessageinloop()
 		print("[DiscordLogger] EMSG: "+failure.errorMessage)
 
 		eCount++;
-		
+
     }
 	if (shouldsend == 1){
-		
+
 		// print("sending")
 		shouldsend = 0
 		// print(timeleft())
-		
+
 		// if (check.allowlogging == 1) {
 		// 	print("sending"+timeout+" "+GameTime_TimeLeftSeconds())
 		// }else{
@@ -555,7 +566,7 @@ void function runcommand(string command,string validation) {
 // }
 // struct playerlist {
 // 	array<table> playerlist = []
-// } 
+// }
 
 // void function listplayers(string args, string validation){
 // 	// print(split(args," ")[0])
