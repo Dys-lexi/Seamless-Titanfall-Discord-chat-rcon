@@ -233,6 +233,8 @@ if DISCORDBOTLOGSTATS == "1":
         c.execute("SELECT playeruid, playername FROM uidnamelink")
         data = c.fetchall()
         if not data:
+            tfdb.commit()
+            tfdb.close()
             await ctx.respond("No players in the database", ephemeral=True)
             return
         data = [{"name": x[1], "uid": x[0]} for x in data]
@@ -240,6 +242,8 @@ if DISCORDBOTLOGSTATS == "1":
 
         data = [x for x in data if name.lower() in x["name"].lower()]
         if len(data) == 0:
+            tfdb.commit()
+            tfdb.close()
             await ctx.respond("No players found", ephemeral=True)
             return
         player = data[0]
@@ -1469,13 +1473,14 @@ def savestats(stats,endtype):
         if stats["name"] not in playernames or not playernames:
             c.execute("INSERT INTO uidnamelink (playeruid,playername) VALUES (?,?)",(stats["uid"],stats["name"]))
         if stats["idoverride"] != 0:
-            c.execute("UPDATE playtime SET endtime = ? WHERE id = ?",(stats["endtime"],stats["idoverride"]))
+            c.execute("UPDATE playtime SET leftatunix = ? WHERE id = ?",(stats["endtime"],stats["idoverride"]))
             lastrowid = stats["idoverride"]
         else:
             c.execute("INSERT INTO playtime (playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map ) VALUES (?,?,?,?,?,?,?,?,?,?,?)",(stats["uid"],stats["joined"],stats["endtime"],endtype,stats["serverid"],stats["score"],stats["titankills"],stats["kills"],stats["npckills"],stats["deaths"],stats["map"]))
             lastrowid = c.lastrowid
     except Exception as e:
         print("error in saving",e)
+        return 0
     tfdb.commit()
     tfdb.close()
     return lastrowid
