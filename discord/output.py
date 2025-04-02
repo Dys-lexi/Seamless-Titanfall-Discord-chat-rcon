@@ -79,7 +79,6 @@ def playeruidnamelink():
 # this whole thing is a mess of global varibles, jank threading and whatever, but it works just fine :)
 # (I never bothered much with coding style)
 
-# print("meow")
 messageflush = []
 messageflushnotify = []
 lastmessage = 0
@@ -108,16 +107,16 @@ SLEEPTIME_ON_FAILED_COMMAND = 2.5
 intents = discord.Intents.default()
 intents.message_content = True
 intents.messages = True
-intents.members = True  # Enable the members intent
+intents.members = True  
 intents.presences = True
 
-# Load token from environment variable
 TOKEN = os.getenv("DISCORD_BOT_TOKEN", "0")
 SHOULDUSEIMAGES = os.getenv("DISCORD_BOT_USE_IMAGES", "0")
 SHOULDUSETHROWAI = os.getenv("DISCORD_BOT_USE_THROWAI", "1")
 LOCALHOSTPATH = os.getenv("DISCORD_BOT_LOCALHOST_PATH","localhost")
 DISCORDBOTAIUSED = os.getenv("DISCORD_BOT_AI_USED","deepseek-r1")
 DISCORDBOTLOGSTATS = os.getenv("DISCORD_BOT_LOG_STATS","1")
+SERVERPASS = os.getenv("DISCORD_BOT_PASSWORD", "*")
 
 if DISCORDBOTLOGSTATS == "1":
     print("stats logging enabled")
@@ -133,7 +132,6 @@ if SHOULDUSEIMAGES == "1":
     from PIL import Image
     import numpy as np
     from sklearn.cluster import MeanShift, estimate_bandwidth
-SERVERPASS = os.getenv("DISCORD_BOT_PASSWORD", "*")
 if SERVERPASS == "*":
     print("No password found, allowing inputs from all addresses")
 else:
@@ -223,6 +221,38 @@ async def bind_logging_to_category(ctx, category_name: str):
         ephemeral=False,
     )
 if DISCORDBOTLOGSTATS == "1":
+    
+    @bot.slash_command(
+        name="whois",
+        description="Get a player's Aliases",
+    )
+    async def whois(ctx,name: Option(str, "The playername to Query")):
+        tfdb = sqlite3.connect("./data/tf2helper.db")
+        c = tfdb.cursor()
+        c.execute("SELECT playeruid, playername FROM uidnamelink")
+        data = c.fetchall()
+        if not data:
+            tfdb.commit()
+            tfdb.close()
+            await ctx.respond("No players in the database", ephemeral=True)
+            return
+        data = [{"name": x[1], "uid": x[0]} for x in data]
+        data = sorted(data, key=lambda x: len(x["name"]))
+
+        data = [x for x in data if name.lower() in x["name"].lower()]
+        if len(data) == 0:
+            tfdb.commit()
+            tfdb.close()
+            await ctx.respond("No players found", ephemeral=True)
+            return
+        player = data[0]
+        c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC",(player["uid"],))
+        data = c.fetchall()
+        data = [f"{y}) {x[0]}" for y,x in enumerate(data)]
+        data = "\n".join(data)
+        tfdb.commit()
+        tfdb.close()
+        await ctx.respond(data, ephemeral=True)
     @bot.slash_command(
         name="togglejoinnotify",
         description="Toggle if you are notified when a player joins",
@@ -703,7 +733,8 @@ def recieveflaskprintrequests():
             if timesent in discordtotitanfall[serverid]["returnids"]["messages"].keys():
                 del discordtotitanfall[serverid]["returnids"]["messages"][timesent]
         if len (data.keys()) > 2:
-            realprint(json.dumps(data, indent=4))
+            pass
+            # realprint(json.dumps(data, indent=4))
         # print(ids)
         asyncio.run_coroutine_threadsafe(reactomessages(list(ids), serverid), bot.loop)
         if serverid not in stoprequestsforserver.keys():
@@ -899,7 +930,6 @@ def messageloop():
                         and not addflag
                     ):
                         addflag = True
-                        print("meow")
                         print(message)
                         print(list( context["serverchannelidlinks"].keys()),   message["serverid"])
 
@@ -960,8 +990,6 @@ def messageloop():
                         )
                         print(f"**{message['player']}**:  {message['messagecontent']}")
                     elif message["type"] == 2:
-                        # print("2")
-                        # output.append(f"meow")
                         output[message["serverid"] if not message["globalmessage"] else context["globalchannelid"]].append(
                             f"""```{message["player"]} {message["messagecontent"]}```"""
                         )
@@ -1383,6 +1411,7 @@ your past responses:
 playercontext = {}
 playerjoinlist = {}
 def onplayerjoin(uid,serverid):
+    print("joincommand")
     global context,messageflushnotify,playerjoinlist
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
@@ -1473,7 +1502,7 @@ def savestats(stats,endtype):
         if stats["name"] not in playernames or not playernames:
             c.execute("INSERT INTO uidnamelink (playeruid,playername) VALUES (?,?)",(stats["uid"],stats["name"]))
         if stats["idoverride"] != 0:
-            c.execute("UPDATE playtime SET leftatunix = ? WHERE id = ?",(stats["endtime"],stats["idoverride"]))
+            c.execute("UPDATE playtime SET leftatunix = ?, endtype = ?, scoregained = ?, titankills = ?, pilotkills = ?, deaths = ? WHERE id = ?",(stats["endtime"],endtype,stats["score"],stats["titankills"],stats["pilotkills"],stats["deaths"],stats["idoverride"]))
             lastrowid = stats["idoverride"]
         else:
             c.execute("INSERT INTO playtime (playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map ) VALUES (?,?,?,?,?,?,?,?,?,?,?)",(stats["uid"],stats["joined"],stats["endtime"],endtype,stats["serverid"],stats["score"],stats["titankills"],stats["kills"],stats["npckills"],stats["deaths"],stats["map"]))
@@ -1491,7 +1520,7 @@ def playerpolllog(data,serverid,statuscode):
     # dicts kind of don't support composite primary keys..
     # use the fact that theoretically one player can be on just one server at a time
     # playerid+playername = primary key. this is because of the edge case where people join one server on one account twice because.. well they do that sometimes
-    print(data,serverid,statuscode)
+    # print(data,serverid,statuscode)
     map = data["meta"][0]
     now = int(time.time())
     # players = [lambda x: {"uid":x[0],"score":x[1][0],"team":x[1][1],"kills":x[1][2],"deaths":x[1][3],"name":x[1][4],"titankills":x[1][5],"npckills":x[1][6]} for x in list(filter(lambda x: x[0] != "meta",list(data.items())))]
@@ -1612,7 +1641,7 @@ def fitimage(image_bytes, output_width=30, ascii_char="█",maxlen = 249):
         elif (length - maxlen) > 100:
             output_width -= 5
         output_width -= 1
-        print(output_width)
+        # print(output_width)
         ascii_art = lotsofmathscreatingimage(image_bytes, output_width, ascii_char)
         length = max(len(s) for s in ascii_art)
     return ascii_art

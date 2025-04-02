@@ -18,6 +18,7 @@ discordlog:
       - DISCORD_BOT_USE_THROWAI=0 #allow the use of the non rcon throw command, (requires ollama + ai model installed)
       - DISCORD_BOT_LOCALHOST_PATH=host.docker.internal #right now used only for throwai. don't worry about it if not using
       - DISCORD_BOT_AI_USED=deepseek-r1 #llm to use (default is deepseek-r1)
+      - DISCORD_BOT_LOG_STATS=1 # log player's time played, and some basic stats
     volumes:
       - ./discord/data:/app/data:rw
     restart: always
