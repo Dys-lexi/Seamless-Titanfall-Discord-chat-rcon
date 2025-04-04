@@ -33,8 +33,10 @@ def joincounterdb():
     c = tfdb.cursor()
     c.execute(
         """CREATE TABLE IF NOT EXISTS joincounter (
-            uid INTEGER PRIMARY KEY,
-            count INTEGER
+            uid INTEGER,
+            serverid INTEGER,
+            count INTEGER,
+            PRIMARY KEY (uid, serverid)
             )"""
     )
     tfdb.commit()
@@ -227,7 +229,7 @@ if DISCORDBOTLOGSTATS == "1":
         name="whois",
         description="Get a player's Aliases",
     )
-    async def whois(ctx,name: Option(str, "The playername to Query")):
+    async def whois(ctx,name: Option(str, "The playername/uid to Query")):
         tfdb = sqlite3.connect("./data/tf2helper.db")
         c = tfdb.cursor()
         c.execute("SELECT playeruid, playername FROM uidnamelink")
@@ -242,10 +244,15 @@ if DISCORDBOTLOGSTATS == "1":
 
         data = [x for x in data if name.lower() in x["name"].lower()]
         if len(data) == 0:
-            tfdb.commit()
-            tfdb.close()
-            await ctx.respond("No players found", ephemeral=True)
-            return
+            c.execute("SELECT playeruid FROM uidnamelink WHERE playeruid = ?",(name,))
+            output = c.fetchone()
+            if not output:
+                tfdb.commit()
+                tfdb.close()
+                await ctx.respond("No players found", ephemeral=True)
+    
+                return
+            output = {"uid":output[0]}
         player = data[0]
         c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC",(player["uid"],))
         data = c.fetchall()
@@ -831,7 +838,7 @@ def recieveflaskprintrequests():
         else:
             print("global message request from", newmessage["serverid"], newmessage["servername"])
         newmessage["metadata"] = {"type": None}
-        print(list(data.keys()))
+        #print(list(data.keys()))
         if "metadata" in data.keys() and data["metadata"] != "None":
             data["metadata"] = getjson(data["metadata"])
             newmessage["metadata"] = data["metadata"]
@@ -910,7 +917,7 @@ def get_ordinal(i): #Shamelessly stolen
         return 'th'
     else:
         return SUFFIXES.get(i % 10, 'th')
-def getmessagewidget(metadata):
+def getmessagewidget(metadata,serverid):
     output = ""
     if not metadata["type"]:
         pass
@@ -919,7 +926,7 @@ def getmessagewidget(metadata):
         uid = metadata["uid"]
         tfdb = sqlite3.connect("./data/tf2helper.db")
         c = tfdb.cursor()
-        c.execute("SELECT count FROM joincounter WHERE uid = ?", (uid,))
+        c.execute("SELECT count FROM joincounter WHERE uid = ? AND serverid = ?", (uid,serverid))
         data = c.fetchone()
         if data:
             data = data[0]
@@ -1000,7 +1007,7 @@ def messageloop():
                 output = {}
                 messageflush = sorted(messageflush, key=lambda x: x["timestamp"])
                 for message in messageflush:
-                    messagewidget = getmessagewidget(message["metadata"])
+                    messagewidget = getmessagewidget(message["metadata"],message["serverid"])
                     if message["serverid"] not in output.keys() and not message["globalmessage"]:
                         output[message["serverid"]] = []
                     elif message["globalmessage"] and context["globalchannelid"] not in output.keys():
@@ -1444,18 +1451,10 @@ your past responses:
 playercontext = {}
 playerjoinlist = {}
 def onplayerjoin(uid,serverid,nameof = False):
-    print("joincommand")
     global context,messageflushnotify,playerjoinlist
+    print("joincommand")
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
-    c.execute("SELECT count FROM joincounter WHERE uid = ?",(uid,))
-    count = c.fetchone()
-    if count:
-        count = count[0] + 1
-        c.execute("UPDATE joincounter SET count = ? WHERE uid = ?",(count,uid))
-    else:
-        c.execute("INSERT INTO joincounter (uid,count) VALUES (?,1)",(uid,))
-    tfdb.commit()
     c.execute("SELECT discordidnotify FROM joinnotify WHERE uidnotify = ?",(uid,))
     discordnotify = c.fetchall()
     c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
@@ -1469,14 +1468,26 @@ def onplayerjoin(uid,serverid,nameof = False):
     if nameof:
         playername = nameof
     else:
-        playername = f"Unkown user by uid {uid}"
+        playername = f"Unknown user by uid {uid}"
+    print(f"{uid}{playername}",playerjoinlist)
+    if f"{uid}{playername}" in playerjoinlist.keys() and playerjoinlist[f"{uid}{playername}"]:
+        print("already in list")
+        return
+    c.execute("SELECT count FROM joincounter WHERE uid = ?",(uid,))
+    count = c.fetchone()
+    if count:
+        count = count[0] + 1
+        c.execute("UPDATE joincounter SET count = ? WHERE uid = ? AND serverid = ?",(count,uid,serverid))
+    else:
+        c.execute("INSERT INTO joincounter (uid,serverid,count) VALUES (?,?,1)",(uid,serverid))
+    tfdb.commit()
+
     
     if discordnotify:
         discordnotify = [x[0] for x in discordnotify]
     servername = context["serveridnamelinks"][serverid]
-    if uid in playerjoinlist and playerjoinlist[uid]:
-        return
-    playerjoinlist[uid] = True
+
+    playerjoinlist[f"{uid}{playername}"] = True
     for discordid in discordnotify:
         messageflushnotify.append(
             {
@@ -1507,9 +1518,9 @@ def onplayerleave(uid,serverid):
     if discordnotify:
         discordnotify = [x[0] for x in discordnotify]
     servername = context["serveridnamelinks"][serverid]
-    if uid in playerjoinlist and not playerjoinlist[uid]:
+    if f"{uid}{playername}" in playerjoinlist.keys() and not playerjoinlist[f"{uid}{playername}"]:
         return
-    playerjoinlist[uid] = False
+    playerjoinlist[f"{uid}{playername}"] = False
     for discordid in discordnotify:
         messageflushnotify.append(
             {
@@ -1553,7 +1564,7 @@ def savestats(stats,endtype):
     tfdb.close()
     return lastrowid
 def playerpolllog(data,serverid,statuscode):
-    Ithinktheplayerhasleft = 10
+    Ithinktheplayerhasleft = 30
     global discordtotitanfall,playercontext,playerjoinlist
     # save who is playing on the specific server into playercontext.
     # dicts kind of don't support composite primary keys..
@@ -1564,16 +1575,17 @@ def playerpolllog(data,serverid,statuscode):
     now = int(time.time())
     # players = [lambda x: {"uid":x[0],"score":x[1][0],"team":x[1][1],"kills":x[1][2],"deaths":x[1][3],"name":x[1][4],"titankills":x[1][5],"npckills":x[1][6]} for x in list(filter(lambda x: x[0] != "meta",list(data.items())))]
     players = [{"uid":x[0], "score":x[1][0], "team":x[1][1], "kills":x[1][2], "deaths":x[1][3], "name":x[1][4], "titankills":x[1][5], "npckills":x[1][6]} for x in list(filter(lambda x: x[0] != "meta", list(data.items())))]
-
+    #print("players",players)
     for pinfo in players:
         if pinfo["uid"]+pinfo["name"] in list(playercontext.keys()) and playercontext[pinfo["uid"]+pinfo["name"]] and ( playercontext[pinfo["uid"]+pinfo["name"]]["map"] != map or playercontext[pinfo["uid"]+pinfo["name"]]["serverid"] != serverid  ):
             playercontext[pinfo["uid"]+pinfo["name"]]["endtime"] = now
-            print("saving")
+            print("saving-mapserver")
             savestats(playercontext[pinfo["uid"]+pinfo["name"]] ,2)
             playercontext[pinfo["uid"]+pinfo["name"]] = {}
             pass #SAVE SAVE SAVE
         if pinfo["uid"]+pinfo["name"] not in list(playercontext.keys()) or playercontext[pinfo["uid"]+pinfo["name"]] == {}:
             if now - Ijuststarted > 30:
+                print("alternate join", pinfo["uid"]+pinfo["name"])
                 onplayerjoin(pinfo["uid"],serverid,pinfo["name"])
             playercontext[pinfo["uid"]+pinfo["name"]] = {"joined":now,"map":map,"name":pinfo["name"],"uid":pinfo["uid"],"idoverride":0,"endtime":0,"serverid":serverid,"kills":0,"deaths":0,"titankills":0,"npckills":0,"score":0}
         # check if any data that requires a save has changed
@@ -1589,7 +1601,7 @@ def playerpolllog(data,serverid,statuscode):
     for key,pinfo in playercontext.items():
         if pinfo and  now -pinfo["endtime"] > Ithinktheplayerhasleft:
             # SAVE SAVE SAVE
-            print("saving")
+            print("saving-left")
             onplayerleave(pinfo["uid"],serverid)
             playercontext[key] = {}
             savestats(pinfo,1)
@@ -1600,18 +1612,14 @@ def playerpoll():
     global discordtotitanfall,playercontext
     Ithinktheserverhascrashed = 180
     autosaveinterval = 180
-    pinginterval = 10
+    pinginterval = 20
     # if the player leaves and rejoins, continue their streak.
     # if the server does not respond for this time, assume it crashed.
     counter = 0
     while True:
+        shouldIsave = True
         counter +=1
-        if not counter % autosaveinterval*pinginterval:
-            for key,pinfo in playercontext.items():
-                if pinfo != {}:
-                    print("saving")
-                    lastrow = savestats(pinfo,4)
-                    playercontext[key]["idoverride"] = lastrow
+        
                     
                     
        # poll time
@@ -1621,15 +1629,23 @@ def playerpoll():
                 pass #SAVE SAVE SAVE
                 # the server has crashed, or is empty. assume all players left.
                 # save all sql stuff related to this server.
-                print("saving")
+                print("saving-crashempty")
                 for key,pinfo in playercontext.items():
                     if pinfo != {} and pinfo["serverid"] == serverid:
                         lastrow = savestats(pinfo,3)
                         playercontext[key]["idoverride"] = lastrow # not sure if I want to wipe it so the save can be overwritten if server restarts to same map or not. it's fine.
             # ask the server nicely who is playing
             else:
+                shouldIsave = False
                 asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,"!playingpoll"),"fake context",playerpolllog), bot.loop)
                 # returncommandfeedback(*sendrconcommand(serverid,"!playingpoll"),"fake context",playerpolllog)
+        if shouldIsave:
+            if not counter % autosaveinterval*pinginterval:
+                for key,pinfo in playercontext.items():
+                    if pinfo != {}:
+                        print("saving-autosave")
+                        lastrow = savestats(pinfo,4)
+                        playercontext[key]["idoverride"] = lastrow
         time.sleep(pinginterval)      
     # should poll for players on ALL servers every xyz seconds.
     # only do it on servers that have been active recently.
