@@ -93,7 +93,8 @@ A more complex example is:
         "expiry" : "-expire",
         "appendtoend": "'-issuer '+ctx.author.name"
     },
-    "outputfunc": "sanctionoverride"
+    "outputfunc": "sanctionoverride",
+    "regularconsolecommand": false
 
 }
 ```
@@ -104,4 +105,4 @@ All options are fully optional, meaning a command can just look like this:
 
 }
 ``` 
-This will just run the "playing" command on the server, passing no paramaters, will be available to all uses, with no special formatting of the output, or command description
+This will just run the "playing" command on the server, passing no paramaters, will be available to all uses, with no special formatting of the output, or command description. (regularconsolecommand makes it run like a normal console command, like "quit" closing the game)

@@ -42,6 +42,10 @@
         {
             "Name": "discordloggingenablesanctionapicommand", // enable sanction api commands
             "DefaultValue": "0"
+        },
+        {            
+            "Name": "discordlogpreviousroundplayers", // who was playing last round
+            "DefaultValue": ""  
         }
     ],
     "Scripts": [
@@ -75,6 +79,10 @@
         },
         {
             "Path": "imagesender.nut",
+            "RunOn": "SERVER"
+        },
+        {
+            "Path": "togglemod.nut",
             "RunOn": "SERVER"
         }
 

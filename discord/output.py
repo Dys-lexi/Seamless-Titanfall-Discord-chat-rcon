@@ -224,7 +224,11 @@ async def bind_logging_to_category(ctx, category_name: str):
         ephemeral=False,
     )
 if DISCORDBOTLOGSTATS == "1":
-    
+    # @bot.slash_command(
+    #     name="getplayerhours",
+    #     description="Get a player's playtime",
+    # )
+    # async def getplayerhours(ctx, name: Option(str, "The playername/uid to Query")):
     @bot.slash_command(
         name="whois",
         description="Get a player's Aliases",
@@ -237,7 +241,7 @@ if DISCORDBOTLOGSTATS == "1":
         if not data:
             tfdb.commit()
             tfdb.close()
-            await ctx.respond("No players in the database", ephemeral=True)
+            await ctx.respond("No players in the database", ephemeral=False)
             return
         data = [{"name": x[1], "uid": x[0]} for x in data]
         data = sorted(data, key=lambda x: len(x["name"]))
@@ -249,18 +253,26 @@ if DISCORDBOTLOGSTATS == "1":
             if not output:
                 tfdb.commit()
                 tfdb.close()
-                await ctx.respond("No players found", ephemeral=True)
+                await ctx.respond("No players found", ephemeral=False)
     
                 return
             output = {"uid":output[0]}
         player = data[0]
         c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC",(player["uid"],))
         data = c.fetchall()
-        data = [f"{y}) {x[0]}" for y,x in enumerate(data)]
-        data = "\n".join(data)
+        data = [f"{x[0]}" for y,x in enumerate(data)]
         tfdb.commit()
         tfdb.close()
-        await ctx.respond(data, ephemeral=True)
+        embed = discord.Embed(
+            title=f"Aliases for uid {player['uid']}",
+            color=0xff70cb,
+            description=f"Most recent to oldest",
+        )
+        for y,x in enumerate( data):
+            embed.add_field(name=f"Alias {y+1}:", value=f"\u200b {x}", inline=False)
+        await ctx.respond(embed=embed, ephemeral=False)
+        
+        # await ctx.respond(data, ephemeral=False)
     @bot.slash_command(
         name="togglejoinnotify",
         description="Toggle if you are notified when a player joins",
@@ -314,15 +326,19 @@ async def help(
             embed.add_field(name=key, value=context["commands"][key]["description"], inline=False)
         embed.add_field(name="whois", value="Get somones aliases", inline=False)
         embed.add_field(name="togglejoinnotify", value="Toggle notifying on a player joining / leaving", inline=False)
+        if SHOULDUSETHROWAI == "1":
+            embed.add_field(name="thrownonrcon", value="Throw a player, after being persuasive", inline=False)
         await ctx.respond(embed=embed)
     else:
+        defaults = {"description": "No description available", "parameters": [], "rcon": False, "commandparaminputoverride": {}, "outputfunc": None, "regularconsolecommand": False}
         embed = discord.Embed(
             title=command,
             description=context["commands"][command]["description"],
             color=0xff70cb,
         )
-        for key in context["commands"][command]["options"].keys():
-            embed.add_field(name=key, value=context["commands"][command]["options"][key], inline=False)
+        mergeddescriptions = {**defaults, **context["commands"][command]}
+        for key in mergeddescriptions.keys():
+            embed.add_field(name=key, value=f"```json\n{json.dumps(mergeddescriptions[key],indent=4)}```", inline=False)
         await ctx.respond(embed=embed)
 
 # sanction command. expiry, playername, reason, and a choice bettween ban or mute must be provided
@@ -505,110 +521,110 @@ async def bind_global_channel(
 
 
 
-@bot.slash_command(name="rcon", description="Send an RCON command to a server")
-async def rcon_command(
-    ctx,
-    cmd: Option(str, "The command to send"),
-    servername: Option(
-        str,
-        "The servername (* for all, omit for current channel's server)",
-        required=False,
-    ) = None,
-):
-    #only add if needed :(
-    print(
-        "rcon command from",
-        ctx.author.id,
-        cmd,
-        "to",
-        servername if servername is not None else "Auto",
-    )
+# @bot.slash_command(name="rcon", description="Send an RCON command to a server")
+# async def rcon_command(
+#     ctx,
+#     cmd: Option(str, "The command to send"),
+#     servername: Option(
+#         str,
+#         "The servername (* for all, omit for current channel's server)",
+#         required=False,
+#     ) = None,
+# ):
+#     #only add if needed :(
+#     print(
+#         "rcon command from",
+#         ctx.author.id,
+#         cmd,
+#         "to",
+#         servername if servername is not None else "Auto",
+#     )
 
-    global context, discordtotitanfall
-    if ctx.author.id not in context["RCONallowedusers"]:
-        await ctx.respond("You are not allowed to use RCON commands.", ephemeral=False)
-        return
-    # await ctx.respond(f"Command: {cmd}, Server: {servername if servername != None else 'current channels'}", ephemeral=False)
-    allservers = False
-    ids = []
-    if (
-        servername is None
-        and ctx.channel.id in context["serverchannelidlinks"].values()
-    ):
-        for key, value in context["serverchannelidlinks"].items():
-            if value == ctx.channel.id:
-                serverid = key
-                break
-        else:
-            await ctx.respond(
-                "Server not bound to this channel, could not send command.",
-                ephemeral=False,
-            )
-            return
-        initdiscordtotitanfall(serverid)
+#     global context, discordtotitanfall
+#     if ctx.author.id not in context["RCONallowedusers"]:
+#         await ctx.respond("You are not allowed to use RCON commands.", ephemeral=False)
+#         return
+#     # await ctx.respond(f"Command: {cmd}, Server: {servername if servername != None else 'current channels'}", ephemeral=False)
+#     allservers = False
+#     ids = []
+#     if (
+#         servername is None
+#         and ctx.channel.id in context["serverchannelidlinks"].values()
+#     ):
+#         for key, value in context["serverchannelidlinks"].items():
+#             if value == ctx.channel.id:
+#                 serverid = key
+#                 break
+#         else:
+#             await ctx.respond(
+#                 "Server not bound to this channel, could not send command.",
+#                 ephemeral=False,
+#             )
+#             return
+#         initdiscordtotitanfall(serverid)
 
-        # message = await ctx.respond(
-        #     f"Command added to queue for server: **{context['serveridnamelinks'][serverid]}**.",
-        #     ephemeral=False,
-        # )
-        ids.append(random.randint(0, 100000000000000))
-        discordtotitanfall[serverid]["commands"].append(
-            {"command": cmd, "id": ids[-1]}
-        )
+#         # message = await ctx.respond(
+#         #     f"Command added to queue for server: **{context['serveridnamelinks'][serverid]}**.",
+#         #     ephemeral=False,
+#         # )
+#         ids.append(random.randint(0, 100000000000000))
+#         discordtotitanfall[serverid]["commands"].append(
+#             {"command": cmd, "id": ids[-1]}
+#         )
 
-    elif servername == "*":
-        for serverid in context["serverchannelidlinks"].keys():
-            initdiscordtotitanfall(serverid)
-            message = await ctx.respond(
-            "Command added to queue for all servers.", ephemeral=False
-        )
-            allservers = True
-            ids.append(random.randint(0, 100000000000000))
-            discordtotitanfall[serverid]["commands"].append({"command": cmd, "id": ids[-1]})
-        return
+#     elif servername == "*":
+#         for serverid in context["serverchannelidlinks"].keys():
+#             initdiscordtotitanfall(serverid)
+#             message = await ctx.respond(
+#             "Command added to queue for all servers.", ephemeral=False
+#         )
+#             allservers = True
+#             ids.append(random.randint(0, 100000000000000))
+#             discordtotitanfall[serverid]["commands"].append({"command": cmd, "id": ids[-1]})
+#         return
         
-    elif servername in context["serveridnamelinks"].values():
-        for serverid, name in context["serveridnamelinks"].items():
-            if name == servername:
-                break
-        else:
-            await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-            await ctx.respond("Server not found.", ephemeral=False)
-            return
-        initdiscordtotitanfall(serverid)
+#     elif servername in context["serveridnamelinks"].values():
+#         for serverid, name in context["serveridnamelinks"].items():
+#             if name == servername:
+#                 break
+#         else:
+#             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+#             await ctx.respond("Server not found.", ephemeral=False)
+#             return
+#         initdiscordtotitanfall(serverid)
 
-        # message = await ctx.respond(
-        #     f"Command added to queue for server: **{servername}**.", ephemeral=False
-        # )
-        ids.append(random.randint(0, 100000000000000))
-        discordtotitanfall[serverid]["commands"].append(
-            {"command": cmd, "id": ids[-1]}
-        )
-    else:
-        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-        await ctx.respond("Server not found.", ephemeral=False)
-        return
-    if allservers:
-        await ctx.respond(
-            f"Command sent to all servers.", ephemeral=False
-        )
-        return
-    await ctx.defer()
-    await returncommandfeedback(serverid, ids[-1], ctx)
-    # i = 0
-    # while i < 100:
-    #     await asyncio.sleep(0.1)
-    #     if not allservers:
-    #         if str(ids[0]) in discordtotitanfall[serverid]["returnids"]["commandsreturn"].keys():
-    #             await ctx.respond(
-    #                 f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(ids[0])]}```",
-    #                 ephemeral=False,
-    #             )
-    #             break
+#         # message = await ctx.respond(
+#         #     f"Command added to queue for server: **{servername}**.", ephemeral=False
+#         # )
+#         ids.append(random.randint(0, 100000000000000))
+#         discordtotitanfall[serverid]["commands"].append(
+#             {"command": cmd, "id": ids[-1]}
+#         )
+#     else:
+#         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+#         await ctx.respond("Server not found.", ephemeral=False)
+#         return
+#     if allservers:
+#         await ctx.respond(
+#             f"Command sent to all servers.", ephemeral=False
+#         )
+#         return
+#     await ctx.defer()
+#     await returncommandfeedback(serverid, ids[-1], ctx)
+#     # i = 0
+#     # while i < 100:
+#     #     await asyncio.sleep(0.1)
+#     #     if not allservers:
+#     #         if str(ids[0]) in discordtotitanfall[serverid]["returnids"]["commandsreturn"].keys():
+#     #             await ctx.respond(
+#     #                 f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(ids[0])]}```",
+#     #                 ephemeral=False,
+#     #             )
+#     #             break
 
-    #     i += 1
-    # else:
-    #     await ctx.respond("Command response timed out.", ephemeral=False)
+#     #     i += 1
+#     # else:
+#     #     await ctx.respond("Command response timed out.", ephemeral=False)
 
 @bot.slash_command(
     name="rconchangeuserallowed",
@@ -1150,9 +1166,47 @@ def defaultoverride(data, serverid, statuscode):
         embed.add_field(name="> Output:", value=f"```{data}```", inline=False)
     else:
         for key, value in data.items():
-            embed.add_field(name=f"> {key}:", value=f"```{value}```", inline=False)
+            embed.add_field(name=f"> {key}:", value=f"```json\n{json.dumps(value,indent=4)}```", inline=False)
     return embed
-            
+
+def resolveplayeruidfromdb(name,uidnameforce = None):
+        tfdb = sqlite3.connect("./data/tf2helper.db")
+        c = tfdb.cursor()
+        c.execute("SELECT playeruid, playername FROM uidnamelink")
+        data = c.fetchall()
+        if not data:
+            tfdb.commit()
+            tfdb.close()
+            return []
+
+        data = [{"name": x[1], "uid": x[0]} for x in data]
+        data = sorted(data, key=lambda x: len(x["name"]))
+
+        data = [x for x in data if name.lower() in x["name"].lower()]
+        if len(data) == 0 and uidnameforce == "name":
+            return []
+        if len(data) == 0 or uidnameforce == "uid":
+            c.execute("SELECT playeruid, playername FROM uidnamelink WHERE playeruid = ?",(name,))
+            output = c.fetchone()
+            if not output:
+                tfdb.commit()
+                tfdb.close()
+                
+    
+                return []
+            data = {"uid":output[0], "name":output[1]}
+        players = []
+        for x in data:
+            if x["uid"] not in players:
+                players.append(x)
+
+        tfdb.commit()
+        tfdb.close()
+        if len(players) == 0:
+            return []
+        return players
+        
+
 async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride, iscommandnotmessage = True):
     # print(serverid, id, ctx,overridemsg)
     if not overridemsg:
@@ -1212,7 +1266,7 @@ def checkrconallowed(author):
     return True
 # command slop
 
-def create_dynamic_command(command_name, description = None, rcon = False, parameters = [], commandparaminputoverride = {}, outputfunc=None):
+def create_dynamic_command(command_name, description = None, rcon = False, parameters = [], commandparaminputoverride = {}, outputfunc=None,regularconsolecommand=False):
     param_list = []
     for param in parameters:
         pname = param["name"]
@@ -1232,12 +1286,16 @@ def create_dynamic_command(command_name, description = None, rcon = False, param
     params_signature = ", ".join(param_list)
     # print(commandparaminputoverride)
     quotationmark = '"'
-    command_parts = [f'"!{command_name}"'] + [f'{quotationmark+ commandparaminputoverride[param["name"]] + " " + quotationmark + "+"   if param["name"] in list(commandparaminputoverride.keys())else ""}str({param["name"]})' for param in parameters]
+    if not regularconsolecommand:
+        command_parts = [f'"!{command_name}"'] +  [f'{"("+quotationmark+commandparaminputoverride[param["name"]]+ " " +quotationmark  + "if bool("+param["name"]+") else "+quotationmark+quotationmark+") +"   if param["name"] in list(commandparaminputoverride.keys())else ""}(str({param["name"]}) if bool({param["name"]}) else "")' for param in parameters]
+    else:
+        command_parts =  [f'{"("+quotationmark+commandparaminputoverride[param["name"]] +" " +quotationmark  + "if bool("+param["name"]+") else "+quotationmark+quotationmark+") +"   if param["name"] in list(commandparaminputoverride.keys())else ""}(str({param["name"]}) if bool({param["name"]}) else "")' for param in parameters]
     if "appendtoend" in commandparaminputoverride.keys():
         command_parts.append(commandparaminputoverride["appendtoend"])
     # print(command_name,command_parts)
     command_expr = " + ' ' + ".join(command_parts)
     # print(command_expr)
+
     # print(parameters[0]["name"] if len(parameters) > 0 else None,list(commandparaminputoverride.keys()))
 
     dict_literal = "{" + ", ".join([f'"{p["name"]}": {p["name"]}' for p in parameters]) + "}"
@@ -1252,7 +1310,7 @@ async def {command_name}(ctx, {params_signature}):
         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
         return
     params = {dict_literal}
-    print("{command_name} command from", ctx.author.name, "with parameters:", params," to server:", servername)
+    print("DISCORDCOMMAND {command_name} command from", ctx.author.name, "with parameters:", params," to server:", servername)
     serverid = getchannelidfromname(servername, ctx)
     if serverid is None:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
@@ -1278,6 +1336,7 @@ for command_name, command_info in context["commands"].items():
         rcon=command_info["rcon"] if "rcon" in command_info else False,
         commandparaminputoverride=command_info["commandparaminputoverride"] if "commandparaminputoverride" in command_info else {},
         outputfunc=globals().get(command_info["outputfunc"]) if "outputfunc" in command_info  and callable(globals().get(command_info["outputfunc"])) else None,
+        regularconsolecommand=command_info["regularconsolecommand"] if "regularconsolecommand" in command_info else False,
     )
 # THROW AI NON SLOP
 if SHOULDUSETHROWAI == "1":
@@ -1458,7 +1517,7 @@ def onplayerjoin(uid,serverid,nameof = False):
     c.execute("SELECT discordidnotify FROM joinnotify WHERE uidnotify = ?",(uid,))
     discordnotify = c.fetchall()
     c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
-    c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ?",(uid,))
+    # c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ?",(uid,))
     playernames = c.fetchall()
     if playernames:
         playernames = [x[0] for x in playernames]
@@ -1545,7 +1604,7 @@ def savestats(stats,endtype):
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
     try:
-        c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ?",(stats["uid"],))
+        c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(stats["uid"],))
         playernames = c.fetchall()
         if playernames:
             playernames = [x[0] for x in playernames]
@@ -1634,6 +1693,7 @@ def playerpoll():
                     if pinfo != {} and pinfo["serverid"] == serverid:
                         lastrow = savestats(pinfo,3)
                         playercontext[key]["idoverride"] = lastrow # not sure if I want to wipe it so the save can be overwritten if server restarts to same map or not. it's fine.
+                        playercontext[key] = {}
             # ask the server nicely who is playing
             else:
                 shouldIsave = False

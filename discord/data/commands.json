@@ -1,4 +1,17 @@
 {
+    "rcon":{
+        "description": "Send an RCON command to a server",
+        "parameters": [
+            {
+                "name": "command",
+                "type": "str",
+                "description": "The command to send",
+                "required": true
+            }
+        ],
+        "rcon": true,
+        "regularconsolecommand": true
+    },
     "getuid": {
         "description": "Get a player's UID",
         "parameters": [
@@ -125,5 +138,24 @@
         ],
         "rcon": true,
         "outputfunc": "sanctionoverride"
+    },
+    "toggleadmin": {
+        "description": "Toggle admin status for a player",
+        "parameters": [
+            {
+                "name": "playername",
+                "type": "str",
+                "description": "The player name",
+                "required": true
+            },
+            {
+                "name": "level",
+                "type": "int",
+                "description": "The admin level to set defaults 1",
+                "required": false
+            }
+        ],
+        "rcon": true,
+        "outputfunc": false
     }
 }

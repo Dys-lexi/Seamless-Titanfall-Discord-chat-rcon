@@ -3,7 +3,7 @@ global function discordlogextmessage //allows other mods to send messages
 global function discordlogmatchplayers //given a string, returns all players whose name includes said string
 global function discordlogcheck //check if a command should be run
 global function discordlogsendmessage //send a message to all players, accounting for them being dead (messages sent here have a chance of not being in order, if sent fast)
-
+global function stoprequests // stop sending requests till map change
 // to add your own function create a file called xyz.nut in the same place as this one
 // then make it's file load in the mod.json AFTER logger.nut
 // after that, make the line "global function discordlogYOURFUNCTIONNAME"
@@ -35,7 +35,8 @@ array <discordlogcommand functionref(discordlogcommand)> function getregisteredf
 		discordloggetuid,
 		discordlogkickplayer,
 		discordlogsendimage,
-		discordlogplayingpoll
+		discordlogplayingpoll,
+		discordlogtoggleadmin
 		]
 		 //add functions here, and they'll work with / commands (if they fill criteria above)
 }
@@ -76,6 +77,7 @@ struct {
 	string serverid
 	int rconenabled
 	string password
+	string currentlyplaying = ""
 } serverdetails
 
 
@@ -111,7 +113,6 @@ table<string, string> MAP_NAME_TABLE = {
 
 
 void function discordloggerinit() {
-
 	registeredfunctions.funcs = getregisteredfunctions()
 
 	#if SANCTIONAPI_ENABLED
@@ -129,8 +130,9 @@ void function discordloggerinit() {
 	//AddNewFunctForEnd(SaveLog)
 	// get epoch time
 	// mp\_gamestate_mp.nut:
-	table currentTime = GetUnixTimeParts()
-	print(currentTime)
+	// table currentTime = GetUnixTimeParts()
+	// print(currentTime)
+	// serverdetails.currentlyplaying = GetConVarString("discordlogpreviousroundplayers")
 	serverdetails.Requestpath = GetConVarString("discordlogginghttpServer")
 	serverdetails.password = GetConVarString("discordloggingserverpassword")
 	print("[DiscordLogger]Servername: "+GetConVarString("discordloggingservername"))
@@ -153,7 +155,6 @@ void function discordloggerinit() {
     AddCallback_GameStateEnter(eGameState.Prematch, Onmapchange);
 	AddCallback_GameStateEnter(9,stoprequests);
 
-
 	if (GetConVarInt("discordloggingallowreturnmessages")) {
 		thread DiscordClientMessageinloop()
 	}
@@ -161,12 +162,17 @@ void function discordloggerinit() {
 	}
 	// print(serverdetails.Servername)
 }
+
 void function LogConnect( entity player )
 {
-	if(!IsValid(player) || Time() < 30)
+	if(!IsValid(player))
 	{
 		return
 	}
+	// else if (Time() < 30 && serverdetails.currentlyplaying.find(player.GetUID().tostring()) != null){
+	// 	print("[DiscordLogger] Player "+player.GetPlayerName()+" is already in the server, not logging")
+	// 	return
+	// }
 	// print(Time())
 	outgoingmessage newmessage
 	newmessage.playername = player.GetPlayerName()
@@ -264,7 +270,7 @@ void function Postmessages(outgoingmessage message){
 
 	void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse response )
     {
-
+		// print("[DiscordLogger] MSG SENT")
     }
 
     void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
@@ -309,6 +315,16 @@ void function begintodiscord(){
 void function stoprequests(){
 	check.denylogging = 1
 	table params = {}
+	string uids = ""
+	foreach (entity player in GetPlayerArray()){
+		if (uids == ""){
+			uids = player.GetUID().tostring()
+		}
+		else {
+			uids = uids + "," + player.GetUID().tostring()
+		}
+	}
+	SetConVarString("discordlogpreviousroundplayers",uids)
 	params["password"] <- serverdetails.password
 	params["serverid"] <- serverdetails.serverid
 	HttpRequest request
