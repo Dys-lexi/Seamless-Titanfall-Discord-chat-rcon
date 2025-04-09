@@ -970,7 +970,7 @@ def messageloop():
                     asyncio.run_coroutine_threadsafe(
                         user.send(message["sendingmessage"]), bot.loop
                     )
-        except AttributeError as e:
+        except Exception as e:
             time.sleep(3)
             print("bot not ready", e)
         try:
@@ -1094,7 +1094,7 @@ def messageloop():
                         iterator -= 1
 
 
-        except AttributeError as e:
+        except Exception as e:
             time.sleep(3)
             print("bot not ready", e)
         time.sleep(0.1)

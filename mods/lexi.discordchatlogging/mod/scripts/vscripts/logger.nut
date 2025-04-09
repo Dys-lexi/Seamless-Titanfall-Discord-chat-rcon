@@ -169,10 +169,10 @@ void function LogConnect( entity player )
 	{
 		return
 	}
-	// else if (Time() < 30 && serverdetails.currentlyplaying.find(player.GetUID().tostring()) != null){
-	// 	print("[DiscordLogger] Player "+player.GetPlayerName()+" is already in the server, not logging")
-	// 	return
-	// }
+	else if (Time() < 30){ // && serverdetails.currentlyplaying.find(player.GetUID().tostring()) != null){
+		print("[DiscordLogger] Player "+player.GetPlayerName()+" is already in the server, not logging")
+		return
+	}
 	// print(Time())
 	outgoingmessage newmessage
 	newmessage.playername = player.GetPlayerName()
