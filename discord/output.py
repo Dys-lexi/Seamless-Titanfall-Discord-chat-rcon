@@ -121,12 +121,11 @@ DISCORDBOTAIUSED = os.getenv("DISCORD_BOT_AI_USED","deepseek-r1")
 DISCORDBOTLOGSTATS = os.getenv("DISCORD_BOT_LOG_STATS","1")
 SERVERPASS = os.getenv("DISCORD_BOT_PASSWORD", "*")
 
-if DISCORDBOTLOGSTATS == "1":
-    print("stats logging enabled")
-    notifydb()
-    playtimedb()
-    playeruidnamelink()
-    joincounterdb()
+
+notifydb()
+playtimedb()
+playeruidnamelink()
+joincounterdb()
     
 
 if SHOULDUSEIMAGES == "1":
@@ -937,16 +936,23 @@ def getmessagewidget(metadata,serverid):
     output = ""
     if not metadata["type"]:
         pass
-    elif metadata["type"] == "connect":
+    elif metadata["type"] == "connect" and DISCORDBOTLOGSTATS == "1":
         pass
         uid = metadata["uid"]
         tfdb = sqlite3.connect("./data/tf2helper.db")
         c = tfdb.cursor()
         c.execute("SELECT count FROM joincounter WHERE uid = ? AND serverid = ?", (uid,serverid))
         data = c.fetchone()
+        c.execute("SELECT leftatunix,joinatunix FROM playtime WHERE playeruid = ? AND serverid = ?", (uid,serverid))
+        data2 = c.fetchall()
+        
         if data:
             data = data[0]
-            output = f"\n({data}{get_ordinal(data)} time joining)"
+            output += f"\n({data}{get_ordinal(data)} time joining"
+            if data2:
+                data2 = sum(list(map(lambda x: x[0]-x[1], data2)))
+                output += f" - {data2//3600}h {data2//60%60}m time playing"
+            output += ")"
         
             
         
@@ -1532,7 +1538,7 @@ def onplayerjoin(uid,serverid,nameof = False):
     if f"{uid}{playername}" in playerjoinlist.keys() and playerjoinlist[f"{uid}{playername}"]:
         print("already in list")
         return
-    c.execute("SELECT count FROM joincounter WHERE uid = ?",(uid,))
+    c.execute("SELECT count FROM joincounter WHERE uid = ? AND serverid = ?",(uid,serverid))
     count = c.fetchone()
     if count:
         count = count[0] + 1
