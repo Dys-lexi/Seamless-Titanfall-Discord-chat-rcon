@@ -974,7 +974,7 @@ def messageloop():
                     if user is None:
                         continue
                     asyncio.run_coroutine_threadsafe(
-                        user.send(message["sendingmessage"]), bot.loop
+                        user.send(discord.utils.escape_mentions(message["sendingmessage"])), bot.loop
                     )
         except Exception as e:
             time.sleep(3)
@@ -1080,7 +1080,7 @@ def messageloop():
                         continue
 
                     asyncio.run_coroutine_threadsafe(
-                    channel.send("\n".join(output[serverid])), bot.loop
+                    channel.send(discord.utils.escape_mentions("\n".join(output[serverid]))), bot.loop
                 )
                 messageflush = []
                 lastmessage = time.time()
