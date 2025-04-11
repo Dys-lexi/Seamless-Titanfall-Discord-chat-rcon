@@ -107,7 +107,7 @@ discordlogcommand function discordlogplayingpoll(discordlogcommand commandin) {
             catch (e){
                 mtimeleft = 0
             }
-	playerlist["meta"] <- [GetMapName(),mtimeleft]
+	playerlist["meta"] <- [GetMapName(), mtimeleft, commandin.matchid]
 
     commandin.returnmessage = EncodeJSON(playerlist)
 	commandin.returncode = 200

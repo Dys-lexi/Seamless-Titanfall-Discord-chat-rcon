@@ -4,14 +4,16 @@ global function discordlogmatchplayers //given a string, returns all players who
 global function discordlogcheck //check if a command should be run
 global function discordlogsendmessage //send a message to all players, accounting for them being dead (messages sent here have a chance of not being in order, if sent fast)
 global function stoprequests // stop sending requests till map change
+
 // to add your own function create a file called xyz.nut in the same place as this one
 // then make it's file load in the mod.json AFTER logger.nut
 // after that, make the line "global function discordlogYOURFUNCTIONNAME"
-// then create the function, in the same format as the one in sanctionapiban.nut -> it must immedtiatly call discordlogcheck, and return the commandin struct if it doesn't match. if it does,
-// set commandin.commandmatch to true, and set commandin.returnmessage to the message you want to return.
+// then create the function, in the same format as the one in discordlogkick.nut -> it must immedtiatly call discordlogcheck, and return the commandin struct if it doesn't match. if it does,
+// set commandin.commandmatch to true, and set commandin.returnmessage to the message you want to return, and commandin.returncode to the code you want to return
+// (codes do not mean too much, they work in a similar way to http codes)
 // Then add the function's name to the array in getregisteredfunctions (below)
 
-
+// you'll be able to call the function with /rcon cmd:!YOURCOMMAND param1 param2 param3 on discord, or you can make a custom command in commands.json
 
 
 
@@ -21,6 +23,7 @@ global struct discordlogcommand {
 	string returnmessage
 	string command
 	array<string> commandargs
+	string matchid
 }
 struct {
 	array<discordlogcommand functionref(discordlogcommand)> funcs
@@ -78,6 +81,7 @@ struct {
 	int rconenabled
 	string password
 	string currentlyplaying = ""
+	string matchid
 } serverdetails
 
 
@@ -143,6 +147,7 @@ void function discordloggerinit() {
 		serverdetails.Servername = GetConVarString("discordloggingservername")
 	}
 	serverdetails.serverid = GetConVarString("discordloggingserverid")
+	serverdetails.matchid = GetUnixTimestamp()+"_" + GetConVarString("discordloggingserverid")
 	if (GetConVarInt("discordloggingserverid") == 0){
 		print("[DiscordLogger]Server ID not set, please set it in the console")
 	} else {
@@ -554,6 +559,7 @@ void function DiscordClientMessageinloop()
 void function runcommand(string command,string validation) {
 	check.commandcheck[validation] <- EncodeJSON({statuscode=-3,output=command+": Special command not found"})
 	discordlogcommand commandstruct
+	commandstruct.matchid = serverdetails.matchid
 	commandstruct.returnmessage = "Nothing returned by command"
 	commandstruct.command = split(command," ")[0]
 	array <string> commandargs = split(command," ")
