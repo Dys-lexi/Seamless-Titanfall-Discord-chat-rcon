@@ -4,6 +4,7 @@ import os
 import threading
 import time
 import random
+import traceback
 from discord.commands import Option
 
 # import inspect
@@ -151,6 +152,7 @@ LOCALHOSTPATH = os.getenv("DISCORD_BOT_LOCALHOST_PATH","localhost")
 DISCORDBOTAIUSED = os.getenv("DISCORD_BOT_AI_USED","deepseek-r1")
 DISCORDBOTLOGSTATS = os.getenv("DISCORD_BOT_LOG_STATS","1")
 SERVERPASS = os.getenv("DISCORD_BOT_PASSWORD", "*")
+LEADERBOARDUPDATERATE = int(os.getenv("DISCORD_BOT_LEADERBOARD_UPDATERATE", "300"))
 
 
 notifydb()
@@ -306,7 +308,7 @@ if DISCORDBOTLOGSTATS == "1":
         )
         savecontext()
         
-    @tasks.loop(seconds=300)
+    @tasks.loop(seconds=LEADERBOARDUPDATERATE)
     async def updateleaderboards():
         print("updating leaderboards")
         print("leaderboardchannelmessages",context["leaderboardchannelmessages"])
@@ -413,9 +415,9 @@ if DISCORDBOTLOGSTATS == "1":
             if i >= maxshown:
                 break
             embed.add_field(
-                name=f"**{i+1}. {name}**",
-                value="\n".join([
-                    f"{key}: {value}"
+                name=f" \u200b **{i+1}. {name}**",
+                value="\u200b \u200b \u200b" + "   ".join([
+                    f"{key}: **{value}**"
                     for key, value in data.items()
                     if (key != leaderboardmerge and key != leaderboardorderby) or key in leaderboardcategorysshown
                 ]),
@@ -1453,6 +1455,7 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride,
                         return
                 except Exception as e:
                     print("error in overridemsg", e)
+                    traceback.print_exc()
                     overridemsg = None
                     try:
                         realmessage = defaultoverride(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]["output"], serverid,discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]["statuscode"] )
@@ -1857,7 +1860,7 @@ def savestats(saveinfo):
     tfdb.close()
     return lastrowid
 def playerpolllog(data,serverid,statuscode):
-    Ithinktheplayerhasleft = 10
+    Ithinktheplayerhasleft = 120
     global discordtotitanfall,playercontext,playerjoinlist
     # save who is playing on the specific server into playercontext.
     # dicts kind of don't support composite primary keys..
@@ -1887,7 +1890,7 @@ def playerpolllog(data,serverid,statuscode):
                 "name": player["name"],
                 "uid": player["uid"],
                 "idoverride": 0,
-                "endtime": 0,
+                "endtime": now,
                 "serverid": serverid,
                 "kills": 0,
                 "deaths": 0,
@@ -1906,7 +1909,7 @@ def playerpolllog(data,serverid,statuscode):
                 "name": player["name"],
                 "uid": player["uid"],
                 "idoverride": 0,
-                "endtime": 0,
+                "endtime": now,
                 "serverid": serverid,
                 "kills": 0,
                 "deaths": 0,
@@ -1983,7 +1986,7 @@ def playerpoll():
     global discordtotitanfall,playercontext
     Ithinktheserverhascrashed = 180
     autosaveinterval = 180
-    pinginterval = 5
+    pinginterval = 20
     # if the player leaves and rejoins, continue their streak.
     # if the server does not respond for this time, assume it crashed.
     counter = 0
