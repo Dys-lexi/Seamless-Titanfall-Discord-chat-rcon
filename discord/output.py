@@ -29,15 +29,8 @@ def matchid():
             serverid INTEGER
             )"""
     )
-    c.execute("SELECT * FROM matchid")
-    data = c.fetchall()
-    if len(data) == 0:
-        c.execute("INSERT INTO matchid (matchid) VALUES (?)", (0,))
-        tfdb.commit()
-        tfdb.close()
-        return 0
-    else:
-        return data[0][1]
+    tfdb.commit()
+    tfdb.close()
 
 def notifydb():
     tfdb = sqlite3.connect("./data/tf2helper.db")
@@ -180,6 +173,7 @@ notifydb()
 playtimedb()
 playeruidnamelink()
 joincounterdb()
+matchid()
     
 
 if SHOULDUSEIMAGES == "1":
