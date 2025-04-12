@@ -18,6 +18,27 @@ from discord import Option
 import sqlite3
 
 
+def matchid():
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS matchid (
+            matchid STRING PRIMARY KEY,
+            map STRING,
+            time INTEGER,
+            serverid INTEGER
+            )"""
+    )
+    c.execute("SELECT * FROM matchid")
+    data = c.fetchall()
+    if len(data) == 0:
+        c.execute("INSERT INTO matchid (matchid) VALUES (?)", (0,))
+        tfdb.commit()
+        tfdb.close()
+        return 0
+    else:
+        return data[0][1]
+
 def notifydb():
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
@@ -287,17 +308,42 @@ if DISCORDBOTLOGSTATS == "1":
         # bind
         if context["leaderboardchannelid"] == 0:
             context["leaderboardchannelmessages"].append( {
-                "name": "Default Leaderboard",
-                "description": "No description",
-                "color": 0xff70cb,
-                "database": "playtime",
-                "orderby": "pilotkills",
-                "categorys": ["pilotkills", "scoregained"],
-                "filters": {},
-                "merge": "name",
-                "maxshown": 10,
-                "id": 0,
-            })
+            "name": "Pilot kills",
+            "description": "Top 10 players with most pilot kills",
+            "color": 16740555,
+            "database": "playtime",
+            "orderby": "Total kills",
+            "categorys": {
+                "Total kills": {
+                    "columnsbound": [
+                        "pilotkills"
+                    ]
+                },
+                "Total score": {
+                    "columnsbound": [
+                        "scoregained"
+                    ]
+                },
+                "duration": {
+                    "format": "time",
+                    "columnsbound": [
+                        "duration"
+                    ]
+                },
+                "Score Per Hour": {
+                    "columnsbound": [
+                        "scoregained",
+                        "duration"
+                    ],
+                    "format": "scoreperhour",
+                    "calculation": "scoregained / duration"
+                }
+            },
+            "filters": {},
+            "merge": "name",
+            "maxshown": 10,
+            "id": 0
+        })
         context["leaderboardchannelid"] = channel.id
         
         for i in range(len(context["leaderboardchannelmessages"])):
@@ -351,8 +397,17 @@ if DISCORDBOTLOGSTATS == "1":
                 params.extend(values)
 
         wherestring = " AND ".join(where_clauses)
-        leaderboardcategorys = list(set([*leaderboardcategorysshown, leaderboardorderby, leaderboardmerge]))
 
+        orderbyiscolumn = leaderboardorderby not in [x for x in leaderboardcategorysshown.keys()]
+
+        leaderboardcategorys = list(set([
+            *( [leaderboardorderby] if orderbyiscolumn else [] ),
+            leaderboardmerge,
+            *[col for x in leaderboardcategorysshown.values() for col in x["columnsbound"]]
+        ]))
+     
+        print("leaderboardcategorys",leaderboardcategorys)
+        # leaderboardcategorys = sorted(leaderboardcategorys, key=lambda x: list(leaderboardcategorysshown.keys()).index(x) if x in leaderboardcategorysshown else len(leaderboardcategorysshown))
         base_query = f"SELECT {','.join(leaderboardcategorys)} FROM {leaderboarddatabase}"
         query = f"{base_query} WHERE {wherestring}" if wherestring else base_query
 
@@ -389,7 +444,7 @@ if DISCORDBOTLOGSTATS == "1":
             actualoutput[key] = merged
 
         # Sort results
-        actualoutput = sorted(actualoutput.items(), key=lambda x: x[1][leaderboardorderby], reverse=True)
+        actualoutput = sorted(actualoutput.items(), key=lambda x: x[1][leaderboardorderby] if orderbyiscolumn else (  x[1][leaderboardcategorysshown[leaderboardorderby]["columnsbound"][0]] if len (leaderboardcategorysshown[leaderboardorderby]["columnsbound"]) == 1 else eval(leaderboardcategorysshown[leaderboardorderby]["calculation"], {}, x[1])), reverse=True)
 
         # Name override lookup if needed
         displayoutput = []
@@ -410,18 +465,31 @@ if DISCORDBOTLOGSTATS == "1":
             color=leaderboarddcolor,
             description=leaderboarddescription,
         )
-
+        # print(leaderboardcategorysshown)
+        # print("displayout",displayoutput)
         for i, (name, data) in enumerate(displayoutput):
             if i >= maxshown:
                 break
+            output = {}
+            for catname,category in leaderboardcategorysshown.items():
+                # print("catname",catname)
+                if "calculation" in category.keys():
+                    value = eval(category["calculation"],{},data)
+                else:
+                    if len(category["columnsbound"]) > 1:
+                        output[catname] = "Cannot bind multiple columns without a calculation function"
+                    value = data[category["columnsbound"][0]]
+                value = modifyvalue(value, category.get("format", None), category.get("calculation", None))
+                output[catname] = value
+                
+            actualoutput = "> \u200b \u200b \u200b " + " ".join(
+                [f"{category}: **{value}**" for category, value in zip(leaderboardcategorysshown, output.values())]
+            )
+                # first pull the category names, then send em through the calculator, 
             embed.add_field(
-                name=f" \u200b **{i+1}. {name}**",
-                value="\u200b \u200b \u200b" + "   ".join([
-                    f"{key}: **{value}**"
-                    for key, value in data.items()
-                    if (key != leaderboardmerge and key != leaderboardorderby) or key in leaderboardcategorysshown
-                ]),
-                inline=False,
+                name=f" \u200b **{str(i+1)}. {name}**",
+                value=f"{actualoutput}",
+                inline=False
             )
 
         # Update or send leaderboard message
@@ -440,8 +508,24 @@ if DISCORDBOTLOGSTATS == "1":
             savecontext()
 
         
+    def modifyvalue(value, format, calculation=None):
+        if format is None:
+            return value
+        elif format == "time":
+            hours = value // 3600
+            minutes = (value % 3600) // 60
+            seconds = value % 60
+            if hours:
+                return f"{hours}h {minutes}m"
+            else:
+                return f"{minutes}m {seconds}s"
+        elif format == "XperY":
+            if value == 0:
+                return "0"
+            else:
+                return f"{value*3600:.2f}{ calculation.split('/')[0].strip()[0].lower()}/{ calculation.split('/')[1].strip()[0].lower()}"
+        return value
         
-
 
 
 
@@ -1738,6 +1822,7 @@ your past responses:
         await message.reply(f"**button pressed by AI:**```{output['button']}``` \n**Reason:** ```{output['reason']}```\n**Short reason:**```{output['reasononeword']}```")
 # joinleave logging stuff
 playercontext = {}
+matchids = []
 playerjoinlist = {}
 def onplayerjoin(uid,serverid,nameof = False):
     global context,messageflushnotify,playerjoinlist
@@ -1851,17 +1936,37 @@ def savestats(saveinfo):
             lastrowid = c.lastrowid
     except Exception as e:
         print("error in saving",e)
+        traceback.print_exc()
         return 0
     if saveinfo["endtype"] == 1:
         playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["playerhasleft"] = True
     playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["mostrecentsave"] = True
+    playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["idoverride"] = lastrowid
     
     tfdb.commit()
     tfdb.close()
     return lastrowid
+
+def addmatchtodb(matchid,serverid,currentmap):
+    global matchids
+    print("adding match to db",matchid,serverid)
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    c.execute("SELECT matchid FROM matchid WHERE matchid = ?",(matchid,))
+    matchidcheck = c.fetchone()
+    if matchidcheck:
+        print("already in db")
+        return
+    c.execute("INSERT INTO matchid (matchid,serverid,map,time) VALUES (?,?,?,?)",(matchid,serverid,currentmap,int(time.time())))
+    
+    matchids.append(matchid)
+    tfdb.commit()
+    tfdb.close()
+    matchids.append(matchid)
+
 def playerpolllog(data,serverid,statuscode):
     Ithinktheplayerhasleft = 120
-    global discordtotitanfall,playercontext,playerjoinlist
+    global discordtotitanfall,playercontext,playerjoinlist,matchids
     # save who is playing on the specific server into playercontext.
     # dicts kind of don't support composite primary keys..
     # use the fact that theoretically one player can be on just one server at a time
@@ -1869,6 +1974,8 @@ def playerpolllog(data,serverid,statuscode):
     # print(data,serverid,statuscode)
     currentmap = data["meta"][0]
     matchid = data["meta"][2]
+    if matchid not in matchids:
+        addmatchtodb(matchid,serverid,currentmap)
     now = int(time.time())
     # players = [lambda x: {"uid":x[0],"score":x[1][0],"team":x[1][1],"kills":x[1][2],"deaths":x[1][3],"name":x[1][4],"titankills":x[1][5],"npckills":x[1][6]} for x in list(filter(lambda x: x[0] != "meta",list(data.items())))]
     players = [{"uid":x[0], "score":x[1][0], "team":x[1][1], "kills":x[1][2], "deaths":x[1][3], "name":x[1][4], "titankills":x[1][5], "npckills":x[1][6]} for x in list(filter(lambda x: x[0] != "meta", list(data.items())))]
