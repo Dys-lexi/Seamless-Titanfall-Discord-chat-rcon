@@ -329,7 +329,7 @@ if DISCORDBOTLOGSTATS == "1":
                         "scoregained",
                         "duration"
                     ],
-                    "format": "scoreperhour",
+                    "format": "XperY*3600",
                     "calculation": "scoregained / duration"
                 }
             },
@@ -513,11 +513,16 @@ if DISCORDBOTLOGSTATS == "1":
                 return f"{hours}h {minutes}m"
             else:
                 return f"{minutes}m {seconds}s"
-        elif format == "XperY":
+        elif format == "XperY*3600":
             if value == 0:
                 return "0"
             else:
                 return f"{value*3600:.2f}{ calculation.split('/')[0].strip()[0].lower()}/{ calculation.split('/')[1].strip()[0].lower()}"
+        elif format == "XperY":
+            if value == 0:
+                return "0"
+            else:
+                return f"{value:.2f}{ calculation.split('/')[0].strip()[0].lower()}/{ calculation.split('/')[1].strip()[0].lower()}"
         return value
         
 
@@ -2095,7 +2100,7 @@ def playerpoll():
         shouldIsave = True
         counter +=1
         
-        if not counter % autosaveinterval*pinginterval:
+        if not counter % autosaveinterval/pinginterval:
             for uid,value in playercontext.items():
                 for name, value2 in value.items():
                     for matchid,value3 in value2.items():
