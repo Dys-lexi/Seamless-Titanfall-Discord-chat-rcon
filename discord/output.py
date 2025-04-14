@@ -92,7 +92,8 @@ def playtimedb():
             deaths INTEGER,
             duration INTEGER,
             matchid STRING,
-            map TEXT
+            map TEXT,
+            timecounter INTEGER
             )"""
     )
     # add column duration IF NOT EXISTS
@@ -100,9 +101,9 @@ def playtimedb():
         "PRAGMA table_info(playtime)"
     )
     columns = [row[1] for row in c.fetchall()]
-    if "duration" not in columns:
-        c.execute("ALTER TABLE playtime ADD COLUMN duration INTEGER")
-        print("added column duration to playtime")
+    if "timecounter" not in columns:
+        c.execute("ALTER TABLE playtime ADD COLUMN timecounter INTEGER")
+        print("added column timecounter to playtime")
     if "matchid" not in columns:
         c.execute("ALTER TABLE playtime ADD COLUMN matchid STRING")
         print("added column matchid to playtime")
@@ -239,7 +240,8 @@ async def on_ready():
         guild = bot.get_guild(context["activeguild"])
         category = guild.get_channel(context["logging_cat_id"])
         serverchannels = category.channels
-    updateleaderboards.start()
+    if DISCORDBOTLOGSTATS == "1":
+        updateleaderboards.start()
 
 
 
@@ -1921,44 +1923,86 @@ def savestats(saveinfo):
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
     try:
-        c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["uid"],))
+        c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],))
         playernames = c.fetchall()
         if playernames:
             playernames = [x[0] for x in playernames]
-        if playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["name"] not in playernames or not playernames:
-            c.execute("INSERT INTO uidnamelink (playeruid,playername) VALUES (?,?)",(playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["uid"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["name"]))
-        if playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["idoverride"] != 0:
-            c.execute("UPDATE playtime SET leftatunix = ?, endtype = ?, scoregained = ?, titankills = ?, pilotkills = ?, deaths = ?, duration = ? WHERE id = ?",(playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["endtime"],saveinfo["endtype"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["score"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["titankills"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["pilotkills"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["deaths"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["endtime"]-playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["joined"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["idoverride"]))
-            lastrowid = playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["idoverride"]
+        if playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"] not in playernames or not playernames:
+            c.execute("INSERT INTO uidnamelink (playeruid,playername) VALUES (?,?)",(playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"]))
+        if playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"] != 0:
+            c.execute("UPDATE playtime SET leftatunix = ?, endtype = ?, scoregained = ?, titankills = ?, pilotkills = ?, deaths = ?, duration = ? WHERE id = ?",(playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"]))
+            lastrowid = playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"]
         else:
-            c.execute("INSERT INTO playtime (playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,matchid ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",(playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["uid"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["joined"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["endtime"],saveinfo["endtype"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["serverid"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["score"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["titankills"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["kills"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["npckills"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["deaths"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["map"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["endtime"]-playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["joined"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["matchid"]))
+            c.execute("INSERT INTO playtime (playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,matchid,timecounter ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",(playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["serverid"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["npckills"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["map"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["matchid"],playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["timecounter"]))
             lastrowid = c.lastrowid
     except Exception as e:
         print("error in saving",e)
         traceback.print_exc()
         return 0
-    if saveinfo["endtype"] == 1:
-        playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["playerhasleft"] = True
-    playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["mostrecentsave"] = True
-    playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][-1]["idoverride"] = lastrowid
+    if saveinfo["endtype"] == 1 or saveinfo["endtype"] == 2:
+        playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["playerhasleft"] = True
+    if saveinfo["endtype"] != 4:
+        pass
+    playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["mostrecentsave"] = True
+    playercontext[saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"] = lastrowid
     
     tfdb.commit()
     tfdb.close()
     return lastrowid
 
 def addmatchtodb(matchid,serverid,currentmap):
-    global matchids
+    global matchids,playercontext
     print("adding match to db",matchid,serverid)
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
     c.execute("SELECT matchid FROM matchid WHERE matchid = ?",(matchid,))
     matchidcheck = c.fetchone()
     if matchidcheck:
-        print("already in db")
+        print("already in db, loading data")
+        c.execute("SELECT playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,id,timecounter FROM playtime WHERE matchid = ?",(matchid,))
+        matchdata = c.fetchall()
+        c.execute("SELECT playername,playeruid FROM uidnamelink")
+        playernames = c.fetchall()
+        playernames = {str(x[1]):x[0] for x in playernames}
+        for player in matchdata:
+            player = list(player)
+            player[0] = str(player[0])
+            print("loading player data",player[0])
+            if player[0] not in playercontext:
+                playercontext[player[0]] = {}
+            if player[0] in playernames.keys() and playernames[player[0]] not in playercontext[player[0]].keys():
+                playercontext[player[0]][playernames[player[0]]] = {}
+            else:
+                pass
+                # print("panic")
+                # print(player[0],playernames[player[0]],playercontext[player[0]],playernames, player[0] in playernames.keys(),playernames[player[0]] not in playercontext[player[0]].keys())
+                #print(list(playernames.keys()),[ player[0]])
+                continue
+            if matchid not in playercontext[player[0]][playernames[player[0]]]:
+                playercontext[player[0]][playernames[player[0]]][matchid] = []
+            playercontext[player[0]][playernames[player[0]]][matchid].append({
+                "uid":player[0],
+                "name":playernames[player[0]],
+                "joined":player[1],
+                "endtime":player[2],
+                "serverid":player[4],
+                "score":player[5],
+                "titankills":player[6],
+                "kills":player[7],
+                "npckills":player[8],
+                "deaths":player[9],
+                "map":player[10],
+                "idoverride":player[12],
+                "matchid":matchid,
+                "playerhasleft": player[3] == 1,
+                "mostrecentsave": True,
+                "loadedfromsave": True,
+                "timecounter": player[13]
+            })
+        matchids.append(matchid)
         return
     c.execute("INSERT INTO matchid (matchid,serverid,map,time) VALUES (?,?,?,?)",(matchid,serverid,currentmap,int(time.time())))
     
-    matchids.append(matchid)
     tfdb.commit()
     tfdb.close()
     matchids.append(matchid)
@@ -1977,7 +2021,7 @@ def playerpolllog(data,serverid,statuscode):
         addmatchtodb(matchid,serverid,currentmap)
     now = int(time.time())
     # players = [lambda x: {"uid":x[0],"score":x[1][0],"team":x[1][1],"kills":x[1][2],"deaths":x[1][3],"name":x[1][4],"titankills":x[1][5],"npckills":x[1][6]} for x in list(filter(lambda x: x[0] != "meta",list(data.items())))]
-    players = [{"uid":x[0], "score":x[1][0], "team":x[1][1], "kills":x[1][2], "deaths":x[1][3], "name":x[1][4], "titankills":x[1][5], "npckills":x[1][6]} for x in list(filter(lambda x: x[0] != "meta", list(data.items())))]
+    players = [{"uid":x[0], "score":x[1][0], "team":x[1][1], "kills":x[1][2], "deaths":x[1][3], "name":x[1][4], "titankills":x[1][5], "npckills":x[1][6],"timecounter":x[1][7]} for x in list(filter(lambda x: x[0] != "meta", list(data.items())))]
     # playercontext[pinfo["uid"]+pinfo["name"]] = {"joined":now,"map":map,"name":pinfo["name"],"uid":pinfo["uid"],"idoverride":0,"endtime":0,"serverid":serverid,"kills":0,"deaths":0,"titankills":0,"npckills":0,"score":0}
 
     uids =list(set( [*list(map(lambda x: x["uid"],players))]))
@@ -1989,14 +2033,17 @@ def playerpolllog(data,serverid,statuscode):
         if player["name"] not in playercontext[player["uid"]]:
             playercontext[player["uid"]][player["name"]] = {}
         if matchid not in playercontext[player["uid"]][player["name"]]:
-            onplayerjoin(player["uid"],serverid,player["name"])
+            # print("playercontext",json.dumps(playercontext,indent=4))
+            # print([player["uid"]],list(playercontext.keys()))
+            # print("here")
+            # onplayerjoin(player["uid"],serverid,player["name"])
             playercontext[player["uid"]][player["name"]][matchid] = [{  #ON FIRST MAP JOIN
                 "joined": now,
                 "map": currentmap,
                 "name": player["name"],
                 "uid": player["uid"],
                 "idoverride": 0,
-                "endtime": now,
+                "endtime": now+1,
                 "serverid": serverid,
                 "kills": 0,
                 "deaths": 0,
@@ -2005,17 +2052,20 @@ def playerpolllog(data,serverid,statuscode):
                 "score": 0,
                 "matchid": matchid,
                 "mostrecentsave": False,
-                "playerhasleft": False
+                "playerhasleft": False,
+                "timecounter": player["timecounter"]
             }]
-        elif playercontext[player["uid"]][player["name"]][matchid][-1]["playerhasleft"]:
-            onplayerjoin(player["uid"],serverid,player["name"])
+        elif playercontext[player["uid"]][player["name"]][matchid][-1]["playerhasleft"] or  playercontext[player["uid"]][player["name"]][matchid][-1]["timecounter"] != player["timecounter"]:
+            # print("here2")
+            if not  playercontext[player["uid"]][player["name"]][matchid][-1].get("loadedfromsave",False):
+                onplayerjoin(player["uid"],serverid,player["name"])
             playercontext[player["uid"]][player["name"]][matchid].append({ #ON JOINING AFTER LEAVING
                 "joined": now,
                 "map": currentmap,
                 "name": player["name"],
                 "uid": player["uid"],
                 "idoverride": 0,
-                "endtime": now,
+                "endtime": now+1,
                 "serverid": serverid,
                 "kills": 0,
                 "deaths": 0,
@@ -2024,9 +2074,11 @@ def playerpolllog(data,serverid,statuscode):
                 "score": 0,
                 "matchid": matchid,
                 "mostrecentsave": False,
-                "playerhasleft": False
+                "playerhasleft": False,
+                "timecounter": player["timecounter"]
             })
         else:
+            # print("here3")
             playercontext[player["uid"]][player["name"]][matchid][-1] = { #ON NOT LEAVING
                 **playercontext[player["uid"]][player["name"]][matchid][-1],
                 "endtime": now,
@@ -2039,30 +2091,66 @@ def playerpolllog(data,serverid,statuscode):
             }
         # DISCOVER MISSING PLAYERS
     # print("boop")
-    for uid , value in playercontext.items():
-        # print("boop1")
-        if uid in uids:
-            continue
+    to_delete = []  # Store (uid, name, matchidofsave) to delete after the loop
+    # print(json.dumps(playercontext, indent=4))
+    for uid, value in playercontext.items():
+        # if uid in uids:
+        #     continue
         for name, value2 in value.items():
-            # print("boop2")
-            if name in names:
-                continue
+            # if name in names:
+            #     continue
             for matchidofsave, value3 in value2.items():
-                # print("boop3")
-                # only interested in last save. should be impossible to have two unsaved things at same time, right?
-                if value3[-1]["mostrecentsave"] or (now - value3[-1]["endtime"] < Ithinktheplayerhasleft and matchidofsave == matchid):
-                    continue # WE HAVE ALREADY SAVED OR THE PLAYER HAS NOT LEFT FOR LONG ENOUGH (so we don't think they have left upon map change)
-                print("SAVING")
-                if matchid != matchidofsave:
-                    savestats({"uid":uid,"name":name,"matchid":matchidofsave,"endtype":2})
-                elif matchid == matchidofsave:
-                    onplayerleave(uid,serverid)
-                    savestats({"uid":uid,"name":name,"matchid":matchidofsave,"endtype":1})
+                for index,value4 in enumerate(value3):
+                    if  (now - value4["endtime"] < Ithinktheplayerhasleft and matchidofsave == matchid and index == len(value3) - 1):
+                        # print("not saving1", uid, name, matchidofsave)
+                        continue
+
+                    if  value3[-1]["mostrecentsave"] == True and (value3[-1]["playerhasleft"] == True or matchidofsave != matchid):
+                            # print("not saving2", uid, name, matchidofsave)
+                            # Mark for deletion
+                            to_delete.append((uid, name, matchidofsave))
+                            continue
+                    # print("here4")
+                    if value4["mostrecentsave"] == False:
+                        print("SAVING", uid, name, matchidofsave,index)
+                        if matchid != matchidofsave:
+                            savestats({"uid": uid, "name": name, "matchid": matchidofsave, "endtype": 2, "index": index})
+                        elif matchid == matchidofsave:
+                            if index == len(value3) - 1:
+                                onplayerleave(uid, serverid)
+                            savestats({"uid": uid, "name": name, "matchid": matchidofsave, "endtype": 1, "index": index})
+                
+
+    # Perform deletions after the loop
+    for uid, name, matchidofsave in to_delete:
+        # print("deleting", uid, name, matchidofsave)
+        try:
+            del playercontext[uid][name][matchidofsave]
+            if not playercontext[uid][name]:
+                del playercontext[uid][name]
+            if not playercontext[uid]:
+                del playercontext[uid]
+        except KeyError:
+            # Optional: log or silently skip in case something was already deleted
+            pass
 
                 # value[3][-1]["playerhasleft"] = True  CHANGE THIS INSIDE THE SAVE FUNCTION ITSELF
                 # value[3][-1]["mostrecentsave"] = True
                 # At this point, all of these values should be saved. Either: is a old match, OR the player has left
-        
+    # i,j,k = 0,0,0
+    # while i < len(playercontext.keys()):
+    #     while j < len(playercontext[i].keys()):
+    #         while k < len(playercontext[i][j].keys()):
+    #             if playercontext[i][j][k][-1]["playerhasleft"] == True and playercontext[i][j][k][-1]["mostrecentsave"] == True:
+    #                     # dump the entry
+    #                     print("deleting",uid,name,matchidofsave)
+              
+    #                     if not playercontext[uid][name]:
+    #                         del playercontext[uid][name]
+    #                     if not playercontext[uid]:
+    #                         del playercontext[uid]
+    #             k += 1
+    #         j += 1
         # print("pinfo",pinfo)
     #print("players",players)
     # for pinfo in players:
@@ -2091,22 +2179,22 @@ def playerpolllog(data,serverid,statuscode):
 def playerpoll():
     global discordtotitanfall,playercontext
     Ithinktheserverhascrashed = 180
-    autosaveinterval = 180
-    pinginterval = 20
+    autosaveinterval = 120
+    pinginterval = 10
     # if the player leaves and rejoins, continue their streak.
     # if the server does not respond for this time, assume it crashed.
     counter = 0
     while True:
         shouldIsave = True
         counter +=1
-        
-        if not counter % autosaveinterval/pinginterval:
+        # print("counter",counter,autosaveinterval/pinginterval)
+        if not counter % int(autosaveinterval/pinginterval):
+            print("autosaving")
             for uid,value in playercontext.items():
                 for name, value2 in value.items():
                     for matchid,value3 in value2.items():
                         if value3[-1]["mostrecentsave"] == False:
-                            print("saving")
-                            savestats({"uid":uid,"name":name,"matchid":matchid,"endtype":4})
+                            savestats({"uid":uid,"name":name,"matchid":matchid,"endtype":4,"index":-1})
                             playercontext[uid][name][matchid][-1]["mostrecentsave"] = True
    
                     

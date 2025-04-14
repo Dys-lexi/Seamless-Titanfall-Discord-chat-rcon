@@ -59,7 +59,10 @@
         },
         {
             "Path": "discordlogplaying.nut",
-            "RunOn": "SERVER"
+            "RunOn": "SERVER",
+            "ServerCallback": {
+                "After": "discordlogplayinginit"
+            }
         },
         {
             "Path": "discordlogthrow.nut",

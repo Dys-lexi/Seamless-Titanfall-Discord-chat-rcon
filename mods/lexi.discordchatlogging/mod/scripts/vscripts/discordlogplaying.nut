@@ -1,6 +1,27 @@
 global function discordlogplaying
 global function discordlogplayingpoll
+global function discordlogplayinginit
 
+void function discordlogplayinginit() {
+
+
+AddCallback_OnClientConnected( LogConnect )
+
+}
+
+void function LogConnect( entity player )
+{
+	if (!(player.GetUID() in playerconnectimes)){
+		playerconnectimes[player.GetUID()] <- GetUnixTimestamp()
+
+	}
+	else{
+		playerconnectimes[player.GetUID()] = GetUnixTimestamp()
+	}
+
+}
+
+table <string, int> playerconnectimes
 struct playerinfo {
 	string playername = "Not found"
 	int score = 0
@@ -18,6 +39,7 @@ struct playerinfopoll {
 	int titankills = 0
 	int npckills = 0
 	string uid = "0"
+	int timeconnected = 0
 }
 
 table<string, string> MAP_NAME_TABLE = {
@@ -96,7 +118,11 @@ discordlogcommand function discordlogplayingpoll(discordlogcommand commandin) {
 			// print(playerinfoe.playername)
 			// string playerinforeal = EncodeJSON(playerinfoe)
 			// I really hate this fake json list thing, but I don't want to throw out the table design here, so it's staying for now :(
-			playerlist[playerinfoe.uid] <- [playerinfoe.score,playerinfoe.team,playerinfoe.kills,playerinfoe.deaths,playerinfoe.playername,playerinfoe.titankills,playerinfoe.npckills]
+			if (playerinfoe.uid in playerconnectimes)
+			{
+				playerinfoe.timeconnected = playerconnectimes[playerinfoe.uid]
+			}
+			playerlist[playerinfoe.uid] <- [playerinfoe.score,playerinfoe.team,playerinfoe.kills,playerinfoe.deaths,playerinfoe.playername,playerinfoe.titankills,playerinfoe.npckills,playerinfoe.timeconnected]
 
 		}
 	}

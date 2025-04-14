@@ -12,6 +12,7 @@ discordlogcommand function discordlogtoggleadmin(discordlogcommand commandin) {
         return commandin;
     }
     array<entity> players = discordlogmatchplayers(commandin.commandargs[0])
+    // print("boop")
     if (players.len() == 0){
         commandin.returnmessage = "No players found"
         commandin.returncode = 401
@@ -34,7 +35,7 @@ discordlogcommand function discordlogtoggleadmin(discordlogcommand commandin) {
         string uids = GetConVarString("admin_lvl" + i)
         print("uids: " + uids)
         if (uids.find(players[0].GetUID()) != null){
-            print("meow" + uids.find(players[0].GetUID()))
+            // print("meow" + uids.find(players[0].GetUID()))
             uids = StringReplace(uids, players[0].GetUID() , "")
             SetConVarString("admin_lvl" + i, uids)
             commandin.returnmessage = "Removed " + players[0].GetPlayerName() + " from admin lvl " + i
@@ -43,7 +44,7 @@ discordlogcommand function discordlogtoggleadmin(discordlogcommand commandin) {
         }}
         if (!foundadmin){
             string uids = GetConVarString("admin_lvl" + commandin.commandargs[1])
-            uids += players[0].GetUID() + ","
+            uids += "," + players[0].GetUID()
             SetConVarString("admin_lvl" + commandin.commandargs[1], uids)
             commandin.returnmessage = "Added " + players[0].GetPlayerName() + " to admin lvl " + commandin.commandargs[1]
             commandin.returncode = 200

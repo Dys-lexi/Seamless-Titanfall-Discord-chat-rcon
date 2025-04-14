@@ -131,6 +131,8 @@ This will just run the "playing" command on the server, passing no paramaters, w
 
 - use /bindleaderboardchannel to bind an existing channel to have the leaderboards sent in
 
+leaderboards are defined in channels.json under leaderboardchannelmessages
+
 A more complex example is:
 
 ```
