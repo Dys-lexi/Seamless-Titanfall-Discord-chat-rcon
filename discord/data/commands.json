@@ -1,5 +1,5 @@
 {
-    "rcon":{
+    "rcon": {
         "description": "Send an RCON command to a server",
         "parameters": [
             {
@@ -74,6 +74,18 @@
         "rcon": true,
         "outputfunc": false
     },
+    "getconvar": {
+        "description": "Get a convar value",
+        "parameters": [
+            {
+                "name": "convarname",
+                "type": "str",
+                "description": "The convar name",
+                "required": true
+            }
+        ],
+        "rcon": true
+    },
     "sanctionban": {
         "description": "Sanction a player",
         "parameters": [
@@ -108,15 +120,14 @@
         ],
         "rcon": true,
         "commandparaminputoverride": {
-            "reason" : "-reason",
-            "sanctiontype" : "-type",
-            "expiry" : "-expire",
+            "reason": "-reason",
+            "sanctiontype": "-type",
+            "expiry": "-expire",
             "appendtoend": "'-issuer '+ctx.author.name"
         },
         "outputfunc": "sanctionoverride"
-
     },
-    "sanctionbanremove":{
+    "sanctionbanremove": {
         "description": "Remove a sanction",
         "parameters": [
             {

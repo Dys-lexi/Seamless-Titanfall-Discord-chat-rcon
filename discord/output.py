@@ -445,7 +445,7 @@ if DISCORDBOTLOGSTATS == "1":
         # Name override lookup if needed
         displayoutput = []
         if nameoverride:
-            c.execute("SELECT playername, playeruid FROM uidnamelink ORDER BY id DESC")
+            c.execute("SELECT playername, playeruid FROM uidnamelink ORDER BY id")
             namemap = {uid: name for name, uid in c.fetchall()}
             for uid, rowdata in actualoutput:
                 displayname = namemap.get(uid, f"UID: {uid}")
@@ -1827,6 +1827,20 @@ your past responses:
 playercontext = {}
 matchids = []
 playerjoinlist = {}
+
+def checkandaddtouidnamelink(uid,playername):
+    global playercontext
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
+    playernames = c.fetchall()
+    if playernames:
+        playernames = [x[0] for x in playernames]
+    if playername not in playernames or not playernames:
+        c.execute("INSERT INTO uidnamelink (playeruid,playername) VALUES (?,?)",(uid,playername))
+        tfdb.commit()
+    tfdb.close()
+
 def onplayerjoin(uid,serverid,nameof = False):
     global context,messageflushnotify,playerjoinlist
     print("joincommand", uid, serverid)
@@ -2030,10 +2044,10 @@ def playerpolllog(data,serverid,statuscode):
     # players = [lambda x: {"uid":x[0],"score":x[1][0],"team":x[1][1],"kills":x[1][2],"deaths":x[1][3],"name":x[1][4],"titankills":x[1][5],"npckills":x[1][6]} for x in list(filter(lambda x: x[0] != "meta",list(data.items())))]
     players = [{"uid":x[0], "score":x[1][0], "team":x[1][1], "kills":x[1][2], "deaths":x[1][3], "name":x[1][4], "titankills":x[1][5], "npckills":x[1][6],"timecounter":x[1][7]} for x in list(filter(lambda x: x[0] != "meta", list(data.items())))]
     # playercontext[pinfo["uid"]+pinfo["name"]] = {"joined":now,"map":map,"name":pinfo["name"],"uid":pinfo["uid"],"idoverride":0,"endtime":0,"serverid":serverid,"kills":0,"deaths":0,"titankills":0,"npckills":0,"score":0}
-    print(list(map(lambda x: x["name"],players)))
+    # print(list(map(lambda x: x["name"],players)))
     uids =list(set( [*list(map(lambda x: x["uid"],players))]))
     names = list(set( [*list(map(lambda x: x["name"],players))]))
-    print("serverid",[serverid])
+    # print("serverid",[serverid])
     if serverid not in playercontext.keys():
         playercontext[serverid] = {}
     for player in players:
@@ -2046,6 +2060,7 @@ def playerpolllog(data,serverid,statuscode):
             # print([player["uid"]],list(playercontext[serverid].keys()))
             # print("here")
             # onplayerjoin(player["uid"],serverid,player["name"])
+            checkandaddtouidnamelink(player["uid"],player["name"])
             playercontext[serverid][player["uid"]][player["name"]][matchid] = [{  #ON FIRST MAP JOIN
                 "joined": player["timecounter"],  #FOR BOTH JOINED CASES, TEST CHANGINT IT TO INT(PLAYER["TIMECOUNTER"])
                 "map": currentmap,
@@ -2068,7 +2083,7 @@ def playerpolllog(data,serverid,statuscode):
             # print("here2")
             if not  playercontext[serverid][player["uid"]][player["name"]][matchid][-1].get("loadedfromsave",False):
                 onplayerjoin(player["uid"],serverid,player["name"])
-            print("beep boop",playercontext[serverid][player["uid"]][player["name"]][matchid][-1].get("loadedfromsave",False),playercontext[serverid][player["uid"]][player["name"]][matchid][-1]["playerhasleft"], playercontext[serverid][player["uid"]][player["name"]][matchid][-1]["timecounter"] != player["timecounter"])
+            # print("beep boop",playercontext[serverid][player["uid"]][player["name"]][matchid][-1].get("loadedfromsave",False),playercontext[serverid][player["uid"]][player["name"]][matchid][-1]["playerhasleft"], playercontext[serverid][player["uid"]][player["name"]][matchid][-1]["timecounter"] != player["timecounter"])
             playercontext[serverid][player["uid"]][player["name"]][matchid].append({ #ON JOINING AFTER LEAVING
                 "joined": player["timecounter"],
                 "map": currentmap,
@@ -2103,7 +2118,7 @@ def playerpolllog(data,serverid,statuscode):
     # print("boop")
     # print("playercontext[serverid]",json.dumps(playercontext[serverid],indent=4))
     to_delete = []  # Store (uid, name, matchidofsave) to delete after the loop
-    print(json.dumps(playercontext[serverid], indent=4))
+    # print(json.dumps(playercontext[serverid], indent=4))
     for uid, value in playercontext[serverid].items():
         # if uid in uids:
         #     continue
@@ -2116,15 +2131,15 @@ def playerpolllog(data,serverid,statuscode):
                 #     break
                 for index,value4 in enumerate(value3):
                     if  (now - value4["endtime"] < Ithinktheplayerhasleft and matchidofsave == matchid and index == len(value3) - 1):
-                        print("not saving1", uid, name, matchidofsave)
+                        # print("not saving1", uid, name, matchidofsave)
                         continue
 
                     if  value3[-1]["mostrecentsave"] == True and (value3[-1]["playerhasleft"] == True or matchidofsave != matchid):
-                            print("not saving2", uid, name, matchidofsave)
+                            # print("not saving2", uid, name, matchidofsave)
                             # Mark for deletion
                             to_delete.append((uid, name, matchidofsave))
                             continue
-                    print("here4")
+                    # print("here4")
                     if value4["mostrecentsave"] == False:
                         print("SAVING", uid, name, matchidofsave,index)
                         if matchid != matchidofsave:
