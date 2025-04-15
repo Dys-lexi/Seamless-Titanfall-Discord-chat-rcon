@@ -87,6 +87,10 @@
         {
             "Path": "togglemod.nut",
             "RunOn": "SERVER"
+        },
+        {
+            "Path": "getconvar.nut",
+            "RunOn": "SERVER"
         }
 
     ]
