@@ -1624,6 +1624,7 @@ def create_dynamic_command(command_name, description = None, rcon = False, param
 @bot.slash_command(name="{command_name}", description="{description}")
 async def {command_name}(ctx, {params_signature}):
     if {rcon} and not checkrconallowed(ctx.author):
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
         return
     params = {dict_literal}
