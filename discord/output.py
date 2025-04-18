@@ -168,6 +168,7 @@ DISCORDBOTAIUSED = os.getenv("DISCORD_BOT_AI_USED","deepseek-r1")
 DISCORDBOTLOGSTATS = os.getenv("DISCORD_BOT_LOG_STATS","1")
 SERVERPASS = os.getenv("DISCORD_BOT_PASSWORD", "*")
 LEADERBOARDUPDATERATE = int(os.getenv("DISCORD_BOT_LEADERBOARD_UPDATERATE", "300"))
+DISCORDBOTLOGCOMMANDS = os.getenv("DISCORD_BOT_LOG_COMMANDS", "0")
 
 
 notifydb()
@@ -1362,6 +1363,8 @@ def getmessagewidget(metadata,serverid,messagecontent,message):
                 output += f" - {data2//3600}h {data2//60%60}m time playing"
             output += ")"
     elif metadata["type"] == "command":
+        if DISCORDBOTLOGCOMMANDS != "1":
+            return ""
         output = f"""> {context['serveridnamelinks'].get(serverid,'Unknown server').ljust(30)} {message['player']+":".ljust(20)} {message['messagecontent']}"""
         
             
@@ -1441,6 +1444,8 @@ def messageloop():
                 messageflush = sorted(messageflush, key=lambda x: x["timestamp"])
                 for message in messageflush:
                     messagewidget = getmessagewidget(message["metadata"],message["serverid"],message["messagecontent"],message)
+                    if messagewidget == "":
+                        continue
                     if message["serverid"] not in output.keys() and not message["globalmessage"]:
                         output[message["serverid"]] = []
                     elif message["globalmessage"] and context["overridechannels"][message["overridechannel"]] not in output.keys():

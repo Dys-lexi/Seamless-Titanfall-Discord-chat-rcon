@@ -23,7 +23,8 @@ discordlog:
       - DISCORD_BOT_LOCALHOST_PATH=host.docker.internal #right now used only for throwai. don't worry about it if not using
       - DISCORD_BOT_AI_USED=deepseek-r1 #llm to use (default is deepseek-r1)
       - DISCORD_BOT_LOG_STATS=1 # log player's time played, and some basic stats
-      - DISCORD_BOT_LEADERBOARD_UPDATERATE # how often leaderboards update
+      - DISCORD_BOT_LEADERBOARD_UPDATERATE=300 # how often leaderboards update
+      - DISCORD_BOT_LOG_COMMANDS=1 #log command usage. needs bindchannel for commands to be set. (commands are messages beginning with ! or /)
     volumes:
       - ./discord/data:/app/data:rw
     restart: always
@@ -56,7 +57,7 @@ And you'll most likely _want_:
 
 - Use ```/bindloggingtocategory``` to make a category in a discord server, where the titanfall servers will log too
 - Use ```/rconchangeuserallowed``` to add a user (probably yourself) to rcon list
-- Use ```/blindglobalchannel``` if you intend to use the globalchannel message stuff. (titanfall servers can optionally choose to send a message to it, for example bans can be sent here)
+- Use ```/bindchannel``` if you intend to use leaderboards, globalchannel, and commandlogging. these go in seperate channels.
 - Use ```/help``` to see commands
 
 
