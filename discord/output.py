@@ -198,8 +198,11 @@ context = {
     "serveridnamelinks": {},
     "serverchannelidlinks": {},
     "RCONallowedusers": [],
-    "globalchannelid": 0,
-    "leaderboardchannelid": 0,
+    "overridechannels" : {
+        "globalchannel":0,
+        "commandlogchannel":0,
+        "leaderboardchannel":0,
+    },
     "leaderboardchannelmessages": [],
     "commands": {},
 }
@@ -282,80 +285,83 @@ if DISCORDBOTLOGSTATS == "1":
     #     description="Get a player's playtime",
     # )
     # async def getplayerhours(ctx, name: Option(str, "The playername/uid to Query")):
-    @bot.slash_command(
-        name="bindleaderboardchannel",
-        description="Bind a channel to the leaderboard",
-    )
-    async def bind_leaderboard_channel(
-        ctx,
-        channel: Option(
-            discord.TextChannel, "The channel to bind to", required=True
-        )):
-        global context
-        guild = ctx.guild
-        if guild.id != context["activeguild"]:
-            await ctx.respond("This guild is not the active guild.", ephemeral=False)
-            return
-        # if channel exists
-        if channel.id in context["serverchannelidlinks"].values():
-            await ctx.respond("This channel is already bound to a server.", ephemeral=False)
-            return
-        # if channel is not in the serverchannels
-        # bind
-        if context["leaderboardchannelid"] == 0:
-            context["leaderboardchannelmessages"].append( {
-            "name": "Pilot kills",
-            "description": "Top 10 players with most pilot kills",
-            "color": 16740555,
-            "database": "playtime",
-            "orderby": "Total kills",
-            "categorys": {
-                "Total kills": {
-                    "columnsbound": [
-                        "pilotkills"
-                    ]
-                },
-                "Total score": {
-                    "columnsbound": [
-                        "scoregained"
-                    ]
-                },
-                "duration": {
-                    "format": "time",
-                    "columnsbound": [
-                        "duration"
-                    ]
-                },
-                "Score Per Hour": {
-                    "columnsbound": [
-                        "scoregained",
-                        "duration"
-                    ],
-                    "format": "XperY*3600",
-                    "calculation": "scoregained / duration"
-                }
-            },
-            "filters": {},
-            "merge": "name",
-            "maxshown": 10,
-            "id": 0
-        })
-        context["leaderboardchannelid"] = channel.id
+    # @bot.slash_command(
+    #     name="bindleaderboardchannel",
+    #     description="Bind a channel to the leaderboard",
+    # )
+    # async def bind_leaderboard_channel(
+    #     ctx,
+    #     channel: Option(
+    #         discord.TextChannel, "The channel to bind to", required=True
+    #     )):
+    #     global context
+    #     guild = ctx.guild
+    #     if guild.id != context["activeguild"]:
+    #         await ctx.respond("This guild is not the active guild.", ephemeral=False)
+    #         return
+    #     # if channel exists
+    #     if channel.id in context["serverchannelidlinks"].values():
+    #         await ctx.respond("This channel is already bound to a server.", ephemeral=False)
+    #         return
+    #     # if channel is not in the serverchannels
+    #     # bind
+    #     if context["overridechannels"]["leaderboardchannel"] == 0:
+    #         context["leaderboardchannelmessages"].append( {
+    #         "name": "Pilot kills",
+    #         "description": "Top 10 players with most pilot kills",
+    #         "color": 16740555,
+    #         "database": "playtime",
+    #         "orderby": "Total kills",
+    #         "categorys": {
+    #             "Total kills": {
+    #                 "columnsbound": [
+    #                     "pilotkills"
+    #                 ]
+    #             },
+    #             "Total score": {
+    #                 "columnsbound": [
+    #                     "scoregained"
+    #                 ]
+    #             },
+    #             "duration": {
+    #                 "format": "time",
+    #                 "columnsbound": [
+    #                     "duration"
+    #                 ]
+    #             },
+    #             "Score Per Hour": {
+    #                 "columnsbound": [
+    #                     "scoregained",
+    #                     "duration"
+    #                 ],
+    #                 "format": "XperY*3600",
+    #                 "calculation": "scoregained / duration"
+    #             }
+    #         },
+    #         "filters": {},
+    #         "merge": "name",
+    #         "maxshown": 10,
+    #         "id": 0
+    #     })
+    #     context["overridechannels"]["leaderboardchannel"] = channel.id
         
-        for i in range(len(context["leaderboardchannelmessages"])):
-            context["leaderboardchannelmessages"][i]["id"] = 0
+    #     for i in range(len(context["leaderboardchannelmessages"])):
+    #         context["leaderboardchannelmessages"][i]["id"] = 0
         
-        await ctx.respond(
-            f"Leaderboard channel bound to {channel.name}.", ephemeral=False
-        )
-        savecontext()
+    #     await ctx.respond(
+    #         f"Leaderboard channel bound to {channel.name}.", ephemeral=False
+    #     )
+    #     savecontext()
         
     @tasks.loop(seconds=LEADERBOARDUPDATERATE)
     async def updateleaderboards():
+        # print("leaderboardchannelmessages",context["leaderboardchannelmessages"])
+        if context["overridechannels"]["leaderboardchannel"] == 0:
+            return
         print("updating leaderboards")
-        print("leaderboardchannelmessages",context["leaderboardchannelmessages"])
         for logid in range(len(context["leaderboardchannelmessages"])):
             await updateleaderboard(logid)
+        print("leaderboards updated")
     async def updateleaderboard(logid):
         global context
         leaderboard_entry = context["leaderboardchannelmessages"][logid]
@@ -402,12 +408,12 @@ if DISCORDBOTLOGSTATS == "1":
             *[col for x in leaderboardcategorysshown.values() for col in x["columnsbound"]]
         ]))
      
-        print("leaderboardcategorys",leaderboardcategorys)
+        # print("leaderboardcategorys",leaderboardcategorys)
         # leaderboardcategorys = sorted(leaderboardcategorys, key=lambda x: list(leaderboardcategorysshown.keys()).index(x) if x in leaderboardcategorysshown else len(leaderboardcategorysshown))
         base_query = f"SELECT {','.join(leaderboardcategorys)} FROM {leaderboarddatabase}"
         query = f"{base_query} WHERE {wherestring}" if wherestring else base_query
 
-        print("Executing query:", query)
+        # print("Executing query:", query)
         c.execute(query, params)
         data = c.fetchall()
 
@@ -483,13 +489,14 @@ if DISCORDBOTLOGSTATS == "1":
             )
                 # first pull the category names, then send em through the calculator, 
             embed.add_field(
-                name=f" \u200b **{str(i+1)}. {name}**",
+                name=f" \u200b {str(i+1)}. ***{name}***",
                 value=f"{actualoutput}",
                 inline=False
             )
 
         # Update or send leaderboard message
-        channel = bot.get_channel(context["leaderboardchannelid"])
+        channel = bot.get_channel(context["overridechannels"]["leaderboardchannel"])
+
         if leaderboardid != 0:
             try:
                 message = await channel.fetch_message(leaderboardid)
@@ -629,9 +636,10 @@ async def help(
         embed.add_field(name="whois", value="Get somones aliases", inline=False)
         embed.add_field(name="togglejoinnotify", value="Toggle notifying on a player joining / leaving", inline=False)
         embed.add_field(name="bindloggingtocategory", value="Bind logging to a new category (use for first time init)", inline=False)
-        embed.add_field(name="bindleaderboardchannel", value="Bind a channel to the leaderboards", inline=False)
+        # embed.add_field(name="bindleaderboardchannel", value="Bind a channel to the leaderboards", inline=False)
         embed.add_field(name="rconchangeuserallowed", value="Toggle if a user is allowed to use RCON commands", inline=False)
-        embed.add_field(name="bindglobalchannel", value="Bind a global channel to the bot (for global messages from servers, like bans)", inline=False)
+        # embed.add_field(name="bindglobalchannel", value="Bind a global channel to the bot (for global messages from servers, like bans)", inline=False)
+        embed.add_field(name="bindchannel", value="Bind a channel to the bot for other functions, like leaderboards, globalmessages", inline=False)
         if SHOULDUSETHROWAI == "1":
             embed.add_field(name="thrownonrcon", value="Throw a player, after being persuasive", inline=False)
         await ctx.respond(embed=embed)
@@ -803,12 +811,44 @@ def listplayersoverride(data, serverid, statuscode):
     return f"```{data}```"
     
 
-@bot.slash_command(name="bindglobalchannel", description="Bind a global channel to the bot")
+# @bot.slash_command(name="bindglobalchannel", description="Bind a global channel to the bot")
+# async def bind_global_channel(
+#     ctx,
+#     channel: Option(
+#         discord.TextChannel, "The channel to bind to", required=True
+#     )):
+#     global context
+#     guild = ctx.guild
+#     if guild.id != context["activeguild"]:
+#         await ctx.respond("This guild is not the active guild.", ephemeral=False)
+#         return
+#     if ctx.author.id not in context["RCONallowedusers"]:
+#         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
+#         return
+#     if channel.id in context["serverchannelidlinks"].values():
+#         await ctx.respond("This channel is already bound to a server.", ephemeral=False)
+#         return
+#     context["overridechannels"]["globalchannel"] = channel.id
+#     savecontext()
+#     await ctx.respond(f"Global channel bound to {channel.name}.", ephemeral=False)
+
+
+@bot.slash_command(name="bindchannel", description="Bind a channel to the bot.")
 async def bind_global_channel(
     ctx,
+       channeltype: Option(
+        str,
+        "The type of channel to bind",
+        required=True,
+        choices=list(context["overridechannels"].keys()),
+    ),
     channel: Option(
         discord.TextChannel, "The channel to bind to", required=True
-    )):
+    ),
+ 
+        
+    
+    ):
     global context
     guild = ctx.guild
     if guild.id != context["activeguild"]:
@@ -820,9 +860,53 @@ async def bind_global_channel(
     if channel.id in context["serverchannelidlinks"].values():
         await ctx.respond("This channel is already bound to a server.", ephemeral=False)
         return
-    context["globalchannelid"] = channel.id
+    
+    if channeltype == "leaderboardchannel":
+        if context["overridechannels"]["leaderboardchannel"] == 0:
+            context["leaderboardchannelmessages"].append( {
+            "name": "Pilot kills",
+            "description": "Top 10 players with most pilot kills",
+            "color": 16740555,
+            "database": "playtime",
+            "orderby": "Total kills",
+            "categorys": {
+                "Total kills": {
+                    "columnsbound": [
+                        "pilotkills"
+                    ]
+                },
+                "Total score": {
+                    "columnsbound": [
+                        "scoregained"
+                    ]
+                },
+                "duration": {
+                    "format": "time",
+                    "columnsbound": [
+                        "duration"
+                    ]
+                },
+                "Score Per Hour": {
+                    "columnsbound": [
+                        "scoregained",
+                        "duration"
+                    ],
+                    "format": "XperY*3600",
+                    "calculation": "scoregained / duration"
+                }
+            },
+            "filters": {},
+            "merge": "name",
+            "maxshown": 10,
+            "id": 0
+        })
+        context["overridechannels"]["leaderboardchannel"] = channel.id
+    elif channel.id != context["overridechannels"]["leaderboardchannel"]:
+        for i in range(len(context["leaderboardchannelmessages"])):
+            context["leaderboardchannelmessages"][i]["id"] = 0
+    context["overridechannels"][channeltype] = channel.id
     savecontext()
-    await ctx.respond(f"Global channel bound to {channel.name}.", ephemeral=False)
+    await ctx.respond(f"Channel type {channeltype} bound to {channel.name}.", ephemeral=False)
 
 
 
@@ -1125,7 +1209,7 @@ def recieveflaskprintrequests():
     def printmessage():
         global messageflush, lastmessage, messagecounter, context
         data = request.get_json()
-
+        addtomessageflush = True
         if data["password"] != SERVERPASS and SERVERPASS != "*":
             print("invalid password used on printmessage")
             return {"message": "invalid password"}
@@ -1153,7 +1237,21 @@ def recieveflaskprintrequests():
         newmessage["type"] = data["type"]
         newmessage["timestamp"] = data["timestamp"]
         newmessage["globalmessage"] = data["globalmessage"] if "globalmessage" in data.keys() else False
-        
+        newmessage["overridechannel"] = data["overridechannel"] if data["overridechannel"] != "None" else None
+        if newmessage["overridechannel"] is not None:
+            newmessage["globalmessage"] = True
+        elif newmessage["globalmessage"] == True:
+            newmessage["overridechannel"] = "globalchannel"
+        if newmessage["overridechannel"] and newmessage["overridechannel"] not in context["overridechannels"].keys():
+            print("invalid override channel, valid channels are", context["overridechannels"].keys(), "not", newmessage["overridechannel"])
+            newmessage["overridechannel"] = None
+            newmessage["globalmessage"] = False
+            addtomessageflush = False
+        elif newmessage["globalmessage"] and newmessage["overridechannel"] not in context["overridechannels"].keys():
+            print("Override channel is not bound to a channel")
+            newmessage["overridechannel"] = None
+            newmessage["globalmessage"] = False
+            addtomessageflush = False
         newmessage["messagecontent"] = data["messagecontent"]
         if not newmessage["globalmessage"]:
             print("message request from", newmessage["serverid"], newmessage["servername"])
@@ -1168,7 +1266,9 @@ def recieveflaskprintrequests():
                 onplayerjoin(data["metadata"]["uid"],data["serverid"],data["player"])
             elif data["metadata"]["type"] == "disconnect":
                 onplayerleave(data["metadata"]["uid"],data["serverid"])
-        messageflush.append(newmessage)     
+        if addtomessageflush:
+            print(newmessage)
+            messageflush.append(newmessage)     
 
         messagecounter += 1
         lastmessage = time.time()
@@ -1239,8 +1339,9 @@ def get_ordinal(i): #Shamelessly stolen
         return 'th'
     else:
         return SUFFIXES.get(i % 10, 'th')
-def getmessagewidget(metadata,serverid):
-    output = ""
+def getmessagewidget(metadata,serverid,messagecontent,message):
+    global context
+    output = messagecontent
     if not metadata["type"]:
         pass
     elif metadata["type"] == "connect" and DISCORDBOTLOGSTATS == "1":
@@ -1260,6 +1361,8 @@ def getmessagewidget(metadata,serverid):
                 data2 = sum(list(map(lambda x: x[0]-x[1], data2)))
                 output += f" - {data2//3600}h {data2//60%60}m time playing"
             output += ")"
+    elif metadata["type"] == "command":
+        output = f"""> {context['serveridnamelinks'].get(serverid,'Unknown server').ljust(30)} {message['player']+":".ljust(20)} {message['messagecontent']}"""
         
             
         
@@ -1285,6 +1388,7 @@ def messageloop():
                     )
         except Exception as e:
             time.sleep(3)
+            traceback.print_exc()
             print("bot not ready", e)
         try:
             # check if any uncreated channels exist
@@ -1336,11 +1440,11 @@ def messageloop():
                 output = {}
                 messageflush = sorted(messageflush, key=lambda x: x["timestamp"])
                 for message in messageflush:
-                    messagewidget = getmessagewidget(message["metadata"],message["serverid"])
+                    messagewidget = getmessagewidget(message["metadata"],message["serverid"],message["messagecontent"],message)
                     if message["serverid"] not in output.keys() and not message["globalmessage"]:
                         output[message["serverid"]] = []
-                    elif message["globalmessage"] and context["globalchannelid"] not in output.keys():
-                        output[context["globalchannelid"]] = []
+                    elif message["globalmessage"] and context["overridechannels"][message["overridechannel"]] not in output.keys():
+                        output[context["overridechannels"][message["overridechannel"]]] = []
                     if ("\033[") in message["messagecontent"]:
                         print("colour codes found in message")
                         while "\033[" in message["messagecontent"]:
@@ -1354,34 +1458,34 @@ def messageloop():
                                 + message["messagecontent"][endpos + 1 :]
                             )
                     if message["type"] == 1:
-                        output[message["serverid"] if not message["globalmessage"] else context["globalchannelid"]].append(
-                            f"**{message['player']}**:  {message['messagecontent']} {messagewidget}"
+                        output[message["serverid"] if not message["globalmessage"] else context["overridechannels"][message["overridechannel"]]].append(
+                            f"**{message['player']}**: {messagewidget}"
                         )
-                        print(f"**{message['player']}**:  {message['messagecontent']}")
+                        print(f"**{message['player']}**:  {messagewidget}")
                     elif message["type"] == 2:
-                        output[message["serverid"] if not message["globalmessage"] else context["globalchannelid"]].append(
-                            f"""```{message["player"]} {message["messagecontent"]} {messagewidget}```"""
+                        output[message["serverid"] if not message["globalmessage"] else context["overridechannels"][message["overridechannel"]]].append(
+                            f"""```{message["player"]} {messagewidget}```"""
                         )
                         print(
                             (
-                                f"""{message["player"]} {message["messagecontent"]}"""
+                                f"""{message["player"]} {messagewidget}"""
                             )
                         )
                     elif message["type"] == 3:
-                        output[message["serverid"] if not message["globalmessage"] else context["globalchannelid"]].append(f"{message['messagecontent']} {messagewidget}")
-                        print(f"{message['messagecontent']}")
+                        output[message["serverid"] if not message["globalmessage"] else context["overridechannels"][message["overridechannel"]]].append(f"{messagewidget}")
+                        print(f"{messagewidget}")
                     elif message["type"] == 4:
-                        output[message["serverid"] if not message["globalmessage"] else context["globalchannelid"]].append(f"```{message['messagecontent']} {messagewidget}```")
-                        print(f"{message['messagecontent']}")
+                        output[message["serverid"] if not message["globalmessage"] else context["overridechannels"][message["overridechannel"]]].append(f"```{messagewidget}```")
+                        print(f"{messagewidget}")
 
                     else:
                         print("type of message unkown")
                     realprint("\033[0m", end="")
                 for serverid in output.keys():
-                    if serverid not in context["serverchannelidlinks"].keys() and serverid != context["globalchannelid"]:
+                    if serverid not in context["serverchannelidlinks"].keys() and serverid != context["overridechannels"][message["overridechannel"]]:
                         print("channel not in bots known channels")
                         continue
-                    channel = bot.get_channel(context["serverchannelidlinks"][serverid]) if serverid != context["globalchannelid"] else bot.get_channel(context["globalchannelid"])
+                    channel = bot.get_channel(context["serverchannelidlinks"][serverid]) if not message["globalmessage"] else bot.get_channel(context["overridechannels"][message["overridechannel"]])
                     if channel is None:
                         print("channel not found")
                         continue
@@ -1409,6 +1513,7 @@ def messageloop():
 
         except Exception as e:
             time.sleep(3)
+            traceback.print_exc()
             print("bot not ready", e)
         time.sleep(0.1)
 
@@ -2029,7 +2134,7 @@ def addmatchtodb(matchid,serverid,currentmap):
     matchids.append(matchid)
 
 def playerpolllog(data,serverid,statuscode):
-    print("playerpoll",serverid,statuscode)
+    # print("playerpoll",serverid,statuscode)
     Ithinktheplayerhasleft = 90
     global discordtotitanfall,playercontext,playerjoinlist,matchids
     # save who is playing on the specific server into playercontext.
@@ -2225,7 +2330,7 @@ def playerpoll():
                     for name, value2 in value.items():
                         for matchid,value3 in value2.items():
                             if value3[-1]["mostrecentsave"] == False:
-                                print("here")
+                                # print("here")
                                 savestats({"uid":uid,"name":name,"matchid":matchid,"endtype":4,"index":-1,"serverid":serverid})
                                 playercontext[serverid][uid][name][matchid][-1]["mostrecentsave"] = True
    

@@ -2,7 +2,7 @@ global function discordloggerinit //init mod
 global function discordlogextmessage //allows other mods to send messages
 global function discordlogmatchplayers //given a string, returns all players whose name includes said string
 global function discordlogcheck //check if a command should be run
-global function discordlogsendmessage //send a message to all players, accounting for them being dead (messages sent here have a chance of not being in order, if sent fast)
+global function discordlogsendmessage //send a message to all players, accounting for them being dead (messages sent here have a chance of not being in order, if sent fast) DISABLED
 global function stoprequests // stop sending requests till map change
 
 // to add your own function create a file called xyz.nut in the same place as this one
@@ -40,7 +40,8 @@ array <discordlogcommand functionref(discordlogcommand)> function getregisteredf
 		discordlogsendimage,
 		discordlogplayingpoll,
 		discordlogtoggleadmin,
-		getconvar
+		getconvar,
+		extmessagesendtester
 		]
 		 //add functions here, and they'll work with / commands (if they fill criteria above)
 }
@@ -73,6 +74,7 @@ struct outgoingmessage{
 	int timestamp
 	int typeofmsg // 1 = chat message, needs a playername. 2 = codeblock chat message, needs a playername. 3 and 4 are the same pattern, but do not need a playername.
 	bool globalmessage = false
+	string overridechannel = "None"
 	string metadata = "None"
 }
 struct {
@@ -222,7 +224,11 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	newmessage.timestamp = GetUnixTimestamp()
 	newmessage.typeofmsg = 1
 	if (newmessage.message[0] == 47 || newmessage.message[0] == 33){
-		return message
+		table meta
+		meta["type"] <- "command"
+		newmessage.metadata = EncodeJSON(meta)
+		newmessage.overridechannel = "commandlogchannel"
+		newmessage.typeofmsg = 3
 	}
 	Postmessages(newmessage)
 
@@ -231,10 +237,11 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 
     return message
 }
-void function discordlogextmessage(string message, bool formatascodeblock = false, bool globalmessage = false){
+void function discordlogextmessage(string message, bool formatascodeblock = false, bool globalmessage = false, string channel = "None"){
 	outgoingmessage newmessage
 	newmessage.message = message
 	newmessage.timestamp = GetUnixTimestamp()
+	newmessage.overridechannel = channel
 	newmessage.globalmessage = globalmessage
 	if (!formatascodeblock){
 		newmessage.typeofmsg = 3
@@ -264,6 +271,7 @@ void function Postmessages(outgoingmessage message){
 	params["type"] <- message.typeofmsg //yr
 	params["serverid"] <- serverdetails.serverid
 	params["metadata"] <- message.metadata
+	params["overridechannel"] <- message.overridechannel
 	if (message.playername != ""){
 	params["player"] <- message.playername}
 	params["globalmessage"] <- message.globalmessage
