@@ -1257,7 +1257,7 @@ def recieveflaskprintrequests():
         if not newmessage["globalmessage"]:
             print("message request from", newmessage["serverid"], newmessage["servername"])
         else:
-            print("global message request from", newmessage["serverid"], newmessage["servername"])
+            print("global message request from", newmessage["serverid"], newmessage["servername"],"True" if addtomessageflush else "False")
         newmessage["metadata"] = {"type": None}
         #print(list(data.keys()))
         if "metadata" in data.keys() and data["metadata"] != "None":
@@ -1365,7 +1365,7 @@ def getmessagewidget(metadata,serverid,messagecontent,message):
     elif metadata["type"] == "command":
         if DISCORDBOTLOGCOMMANDS != "1":
             return ""
-        output = f"""> {context['serveridnamelinks'].get(serverid,'Unknown server').ljust(30)} {message['player']+":".ljust(20)} {message['messagecontent']}"""
+        output = f"""> {context['serveridnamelinks'].get(serverid,'Unknown server').ljust(30)} {(message['player']+":").ljust(20)} {message['messagecontent']}"""
         
             
         
@@ -1405,8 +1405,8 @@ def messageloop():
                         and not addflag
                     ):
                         addflag = True
-                        print(message)
-                        print(list( context["serverchannelidlinks"].keys()),   message["serverid"])
+                        # print(message)
+                        # print(list( context["serverchannelidlinks"].keys()),   message["serverid"])
 
                         guild = bot.get_guild(context["activeguild"])
                         category = guild.get_channel(context["logging_cat_id"])
@@ -1445,11 +1445,12 @@ def messageloop():
                 for message in messageflush:
                     messagewidget = getmessagewidget(message["metadata"],message["serverid"],message["messagecontent"],message)
                     if messagewidget == "":
+                        # print("here")
                         continue
                     if message["serverid"] not in output.keys() and not message["globalmessage"]:
                         output[message["serverid"]] = []
-                    elif message["globalmessage"] and context["overridechannels"][message["overridechannel"]] not in output.keys():
-                        output[context["overridechannels"][message["overridechannel"]]] = []
+                    elif message["globalmessage"] and message["overridechannel"] not in output.keys():
+                        output[message["overridechannel"]] = []
                     if ("\033[") in message["messagecontent"]:
                         print("colour codes found in message")
                         while "\033[" in message["messagecontent"]:
@@ -1463,12 +1464,12 @@ def messageloop():
                                 + message["messagecontent"][endpos + 1 :]
                             )
                     if message["type"] == 1:
-                        output[message["serverid"] if not message["globalmessage"] else context["overridechannels"][message["overridechannel"]]].append(
+                        output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(
                             f"**{message['player']}**: {messagewidget}"
                         )
                         print(f"**{message['player']}**:  {messagewidget}")
                     elif message["type"] == 2:
-                        output[message["serverid"] if not message["globalmessage"] else context["overridechannels"][message["overridechannel"]]].append(
+                        output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(
                             f"""```{message["player"]} {messagewidget}```"""
                         )
                         print(
@@ -1477,20 +1478,22 @@ def messageloop():
                             )
                         )
                     elif message["type"] == 3:
-                        output[message["serverid"] if not message["globalmessage"] else context["overridechannels"][message["overridechannel"]]].append(f"{messagewidget}")
+                        output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(f"{messagewidget}")
                         print(f"{messagewidget}")
                     elif message["type"] == 4:
-                        output[message["serverid"] if not message["globalmessage"] else context["overridechannels"][message["overridechannel"]]].append(f"```{messagewidget}```")
+                        output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(f"```{messagewidget}```")
                         print(f"{messagewidget}")
 
                     else:
                         print("type of message unkown")
                     realprint("\033[0m", end="")
+                # print("output",json.dumps(output, indent=4))
                 for serverid in output.keys():
-                    if serverid not in context["serverchannelidlinks"].keys() and serverid != context["overridechannels"][message["overridechannel"]]:
+                    # print("sending to", serverid)
+                    if serverid not in context["serverchannelidlinks"].keys() and serverid not in context["overridechannels"].keys():
                         print("channel not in bots known channels")
                         continue
-                    channel = bot.get_channel(context["serverchannelidlinks"][serverid]) if not message["globalmessage"] else bot.get_channel(context["overridechannels"][message["overridechannel"]])
+                    channel = bot.get_channel(context["serverchannelidlinks"][serverid]) if  serverid in context["serverchannelidlinks"].keys() else bot.get_channel(context["overridechannels"][serverid])
                     if channel is None:
                         print("channel not found")
                         continue
