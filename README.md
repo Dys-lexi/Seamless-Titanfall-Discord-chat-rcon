@@ -199,14 +199,13 @@ A simpler example could be:
     "merge": "name",
 }
 ```
-name OPTIONAL - name of leaderboard, appears at top of embed
-description OPTIONAL - appears below name
-color OPTIONAL - hex colour in decimal, color of embed
-database REQUIRED - database to use (check tf2helper.db)
-orderby REQUIRED - What the data should be ordered by. can either be a column name in the sql table (eg pilotkills or duration) or a name of a category eg ("Kills Per Hour" or "Total kills")
-categorys REQUIRED - "CategoryName REQUIRED" : {"columnsbound": ["Sql Column1","Sql Column2"], "format OPTIONAL":"How data should be formatted (only "time", "XperY", "XperY*3600" exist atm)","calculation OPTIONAL":"Sql column1 OPERATOR Sql Column2}
-without a calcuation defined, only one column can be used. with one, any amount of columns can be used
-filters OPTIONAL - WHERE Sql Column IN values, and amount can be used
-merge REQUIRED - What Sql Column defines witch rows are grouped. eg "Uid" would group all rows with the same uid, adding all stats together. "map" would group everything on the same map together. only integer columns are added right now, string columns take the first instance. also controls the name of each category
-maxshown OPTIONAL - how many spots to display in leaderboard
-id OPTIONAL - set this to 0. is managed by the bot (is the messageid, so it knows what message to edit) not including defaults it to 0
+- name OPTIONAL - name of leaderboard, appears at top of embed
+- description OPTIONAL - appears below name
+- color OPTIONAL - hex colour in decimal, color of embed
+- database REQUIRED - database to use (check tf2helper.db)
+- orderby REQUIRED - What the data should be ordered by. can either be a column name in the sql table (eg pilotkills or duration) or a name of a category eg ("Kills Per Hour" or "Total kills")
+- categorys REQUIRED - "CategoryName REQUIRED" : {"columnsbound": ["Sql Column1","Sql Column2"], "format OPTIONAL":"How data should be formatted (only "time", "XperY", "XperY*3600" exist atm)","calculation OPTIONAL":"Sql column1 OPERATOR Sql Column2} without a calcuation defined, only one column can be used. with one, any amount of columns can be used
+- filters OPTIONAL - WHERE Sql Column IN values, and amount can be used
+- merge REQUIRED - What Sql Column defines witch rows are grouped. eg "Uid" would group all rows with the same uid, adding all stats together. "map" would group everything on the same map together. only integer columns are added right now, string columns take the first instance. also controls the name of each category
+- maxshown OPTIONAL - how many spots to display in leaderboard
+- id OPTIONAL - set this to 0. is managed by the bot (is the messageid, so it knows what message to edit) not including defaults it to 0
