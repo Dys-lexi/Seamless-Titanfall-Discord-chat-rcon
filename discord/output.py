@@ -1255,7 +1255,7 @@ def recieveflaskprintrequests():
         # takes input directly from (slightly modified) nutone (https://github.com/nutone-tf) code for this to work is not on the github repo, so probably don't try using it.
         global context
         data = request.get_json()
-        print(f"{data["attacker_name"]} killed {data["victim_name"]} with {data["attacker_current_weapon"]}")
+        print(f"{data['attacker_name']} killed {data['victim_name']} with {data['attacker_current_weapon']}")
         if data["password"] != SERVERPASS and SERVERPASS != "*":
             print("invalid password used on data")
             return {"message": "invalid password"}
