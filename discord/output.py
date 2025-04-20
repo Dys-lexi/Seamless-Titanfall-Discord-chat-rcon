@@ -17,7 +17,49 @@ from discord import Option
 
 import sqlite3
 
-
+def specifickilltrackerdb():
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS specifickilltracker (
+            id INTEGER PRIMARY KEY,
+            server_id               TEXT,
+            attacker_z              REAL,
+            attacker_x              REAL,
+            attacker_y              REAL,
+            victim_id               TEXT,
+            victim_name             TEXT,
+            victim_offhand_weapon_2 TEXT,
+            attacker_titan          TEXT,
+            map                     TEXT,
+            attacker_offhand_weapon_1 TEXT,
+            attacker_offhand_weapon_2 TEXT,
+            victim_offhand_weapon_1 TEXT,
+            attacker_weapon_3       TEXT,
+            attacker_name           TEXT,
+            match_id                TEXT,
+            victim_titan            TEXT,
+            distance                REAL,
+            victim_current_weapon   TEXT,
+            victim_z                REAL,
+            attacker_weapon_2       TEXT,
+            game_time               REAL,
+            attacker_current_weapon TEXT,
+            victim_weapon_3         TEXT,
+            attacker_id             TEXT,
+            game_mode               TEXT,
+            victim_x                REAL,
+            attacker_weapon_1       TEXT,
+            victim_weapon_1         TEXT,
+            victim_weapon_2         TEXT,
+            timeofkill              INTEGER,
+            cause_of_death          TEXT,
+            victim_y                REAL
+        )"""
+    )
+    tfdb.commit()
+    c.close()
+    tfdb.close()
 def matchid():
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
@@ -176,6 +218,7 @@ playtimedb()
 playeruidnamelink()
 joincounterdb()
 matchid()
+specifickilltrackerdb()
     
 
 if SHOULDUSEIMAGES == "1":
@@ -566,8 +609,9 @@ if DISCORDBOTLOGSTATS == "1":
                 await ctx.respond("No players found", ephemeral=False)
     
                 return
-            output = {"uid":output[0]}
-        player = data[0]
+            player = {"uid":output[0]}
+        else:
+            player = data[0]
         c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC",(player["uid"],))
         data = c.fetchall()
         data = [f"{x[0]}" for y,x in enumerate(data)]
@@ -1205,6 +1249,94 @@ def recieveflaskprintrequests():
             time.sleep(0.2)
         stoprequestsforserver[serverid] = False
         return {"texts": {}, "commands": {}, "time": "0"}
+
+    @app.route("/data", methods=["POST"])
+    def onkilldata():
+        # takes input directly from (slightly modified) nutone (https://github.com/nutone-tf) code for this to work is not on the github repo, so probably don't try using it.
+        global context
+        data = request.get_json()
+        print(f"{data["attacker_name"]} killed {data["victim_name"]} with {data["attacker_current_weapon"]}")
+        if data["password"] != SERVERPASS and SERVERPASS != "*":
+            print("invalid password used on data")
+            return {"message": "invalid password"}
+        specifickillbase = sqlite3.connect("./data/tf2helper.db")
+        c = specifickillbase.cursor()
+        c.execute(
+            """
+            INSERT INTO specifickilltracker (
+                server_id,
+                attacker_z,
+                attacker_x,
+                attacker_y,
+                victim_id,
+                victim_name,
+                victim_offhand_weapon_2,
+                attacker_titan,
+                map,
+                attacker_offhand_weapon_1,
+                attacker_offhand_weapon_2,
+                victim_offhand_weapon_1,
+                attacker_weapon_3,
+                attacker_name,
+                match_id,
+                victim_titan,
+                distance,
+                victim_current_weapon,
+                victim_z,
+                attacker_weapon_2,
+                game_time,
+                attacker_current_weapon,
+                victim_weapon_3,
+                attacker_id,
+                game_mode,
+                victim_x,
+                attacker_weapon_1,
+                victim_weapon_1,
+                victim_weapon_2,
+                timeofkill,
+                cause_of_death,
+                victim_y
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                data["server_id"],
+                data["attacker_z"],
+                data["attacker_x"],
+                data["attacker_y"],
+                data["victim_id"],
+                data["victim_name"],
+                data["victim_offhand_weapon_2"],
+                data["attacker_titan"],
+                data["map"],
+                data["attacker_offhand_weapon_1"],
+                data["attacker_offhand_weapon_2"],
+                data["victim_offhand_weapon_1"],
+                data["attacker_weapon_3"],
+                data["attacker_name"],
+                data["match_id"],
+                data["victim_titan"],
+                data["distance"],
+                data["victim_current_weapon"],
+                data["victim_z"],
+                data["attacker_weapon_2"],
+                data["game_time"],
+                data["attacker_current_weapon"],
+                data["victim_weapon_3"],
+                data["attacker_id"],
+                data["game_mode"],
+                data["victim_x"],
+                data["attacker_weapon_1"],
+                data["victim_weapon_1"],
+                data["victim_weapon_2"],
+                data["timeofkill"],
+                data["cause_of_death"],
+                data["victim_y"],
+            )
+        )
+        specifickillbase.commit()
+        c.close()
+        specifickillbase.close()
+        return {"message": "ok"}
 
     @app.route("/servermessagein", methods=["POST"])
     def printmessage():

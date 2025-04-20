@@ -120,6 +120,8 @@ table<string, string> MAP_NAME_TABLE = {
 
 
 void function discordloggerinit() {
+	serverdetails.matchid = GetUnixTimestamp()+"_" + GetConVarString("discordloggingserverid")
+	SetConVarString("discordloggingmatchid",serverdetails.matchid)
 	registeredfunctions.funcs = getregisteredfunctions()
 
 	#if SANCTIONAPI_ENABLED
@@ -150,7 +152,7 @@ void function discordloggerinit() {
 		serverdetails.Servername = GetConVarString("discordloggingservername")
 	}
 	serverdetails.serverid = GetConVarString("discordloggingserverid")
-	serverdetails.matchid = GetUnixTimestamp()+"_" + GetConVarString("discordloggingserverid")
+	
 	if (GetConVarInt("discordloggingserverid") == 0){
 		print("[DiscordLogger]Server ID not set, please set it in the console")
 	} else {
