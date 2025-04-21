@@ -368,9 +368,9 @@ if SANCTIONAPIBANKEY != "":
                 "PlayerName": player["name"]
             }
         if expiry:
-            sendjson[0]["Expire"] = expiry
+            sendjson["Expire"] = expiry
         if reason:
-            sendjson[0]["Reason"] = reason
+            sendjson["Reason"] = reason
         response = requests.post(
             url,
          
