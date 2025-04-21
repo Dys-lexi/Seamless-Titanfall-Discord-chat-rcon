@@ -14,6 +14,7 @@ from discord.ext import commands, tasks
 from datetime import datetime
 import discord
 from discord import Option
+import requests
 
 import sqlite3
 
@@ -212,6 +213,7 @@ SERVERPASS = os.getenv("DISCORD_BOT_PASSWORD", "*")
 LEADERBOARDUPDATERATE = int(os.getenv("DISCORD_BOT_LEADERBOARD_UPDATERATE", "300"))
 DISCORDBOTLOGCOMMANDS = os.getenv("DISCORD_BOT_LOG_COMMANDS", "0")
 SERVERNAMEISCHOICE = os.getenv("DISCORD_BOT_SERVERNAME_IS_CHOICE", "0")
+SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
 
 
 notifydb()
@@ -324,6 +326,77 @@ async def bind_logging_to_category(ctx, category_name: str):
         f"Logging channel created under category '{category_name}' with channel ID {context['logging_cat_id']}.",
         ephemeral=False,
     )
+if SANCTIONAPIBANKEY != "":
+    @bot.slash_command(
+        name="serverlesssanction",
+        description="Sanctions a offline player, without a server. try saying it 3 times fast",
+    )
+    async def serverlesssanction(
+        ctx,
+        playeroruid: Option(str, "Sanction a name or uid", required=True, choices=["uid", "name"]),
+        who: Option(str, "The playername/uid to sanction", required=True),
+        
+        sanctiontype: Option(
+            str, "The type of sanction to apply", choices=["mute", "ban"] ),
+        reason: Option(str, "The reason for the sanction", required=False) = None,
+        expiry: Option(str, "The expiry time of the sanction in format yyyy-mm-dd, omit is forever") = None,
+    ):
+        global context,messageflush
+        if ctx.author.id not in context["RCONallowedusers"]:
+            await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+            await ctx.respond("You are not allowed to use this command.", ephemeral=False)
+            return
+        matchingplayers = resolveplayeruidfromdb(who, playeroruid)
+        if len (matchingplayers) > 1:
+            multistring = "\n" + "\n".join(f"{i+1}) {p['name']}" for i, p in enumerate(matchingplayers[0:10]))
+            await ctx.respond(f"{len(matchingplayers)} players found, please be more specific: {multistring}", ephemeral=False)
+            return
+        elif len(matchingplayers) == 0:
+            await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+            await ctx.respond("No players found", ephemeral=False)
+            return
+        player = matchingplayers[0]
+        await ctx.defer()
+        url = f"http://{LOCALHOSTPATH}:3000/sanctions"
+        sendjson = {
+                "UID": player["uid"],
+                "Issuer": ctx.author.name,
+                "SanctionType": "1" if sanctiontype == "ban" else "0",
+                # "Expire": expiry,
+                "ipadd": "127.0.0.1",
+                # "Reason": reason,
+                "PlayerName": player["name"]
+            }
+        if expiry:
+            sendjson[0]["Expire"] = expiry
+        if reason:
+            sendjson[0]["Reason"] = reason
+        response = requests.post(
+            url,
+         
+            params=sendjson,
+               headers={"x-api-key": SANCTIONAPIBANKEY}
+        )
+        jsonresponse = response.json()
+        statuscode = response.status_code
+        if statuscode == 201 or statuscode == 200:
+            messageflush.append(
+                {
+                    "servername": "No server",
+                    "serverid": "-100",
+                    "type": 3,
+                    "timestamp": int(time.time()),
+                    "globalmessage": True,
+                    "overridechannel": "globalchannel",
+                    "messagecontent": f"New {sanctiontype} uploaded by {ctx.author.name} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry if expiry else ''} {'Reason: ' + reason if reason else ''}",
+                    "metadata": {
+                        "type": None
+                    },
+                }
+            )
+            pass
+
+        await ctx.respond(f"```{jsonresponse}```", ephemeral=False)
 if DISCORDBOTLOGSTATS == "1":
     # @bot.slash_command(
     #     name="getplayerhours",
@@ -702,6 +775,8 @@ async def help(
         embed.add_field(name="bindchannel", value="Bind a channel to the bot for other functions, like leaderboards, globalmessages", inline=False)
         if SHOULDUSETHROWAI == "1":
             embed.add_field(name="thrownonrcon", value="Throw a player, after being persuasive", inline=False)
+        if SANCTIONAPIBANKEY != "":
+            embed.add_field(name="serverlesssanction", value="Sanction a player without a server", inline=False)
         await ctx.respond(embed=embed)
     else:
         defaults = {"description": "No description available", "parameters": [], "rcon": False, "commandparaminputoverride": {}, "outputfunc": None, "regularconsolecommand": False}
@@ -1550,6 +1625,7 @@ def messageloop():
                         message["serverid"]
                         not in context["serverchannelidlinks"].keys()
                         and not addflag
+                        and message["serverid"] != "-100"
                     ):
                         addflag = True
                         # print(message)
@@ -1761,15 +1837,16 @@ def resolveplayeruidfromdb(name,uidnameforce = None):
         if len(data) == 0 and uidnameforce == "name":
             return []
         if len(data) == 0 or uidnameforce == "uid":
-            c.execute("SELECT playeruid, playername FROM uidnamelink WHERE playeruid = ?",(name,))
-            output = c.fetchone()
+            c.execute("SELECT playeruid, playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC", (name,))
+            output = c.fetchall()
             if not output:
                 tfdb.commit()
                 tfdb.close()
                 
     
                 return []
-            data = {"uid":output[0], "name":output[1]}
+
+            data = [{"name": x[1], "uid": x[0]} for x in output]
         players = []
         for x in data:
             if x["uid"] not in players:
