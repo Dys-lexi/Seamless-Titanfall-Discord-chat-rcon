@@ -211,6 +211,7 @@ DISCORDBOTLOGSTATS = os.getenv("DISCORD_BOT_LOG_STATS","1")
 SERVERPASS = os.getenv("DISCORD_BOT_PASSWORD", "*")
 LEADERBOARDUPDATERATE = int(os.getenv("DISCORD_BOT_LEADERBOARD_UPDATERATE", "300"))
 DISCORDBOTLOGCOMMANDS = os.getenv("DISCORD_BOT_LOG_COMMANDS", "0")
+SERVERNAMEISCHOICE = os.getenv("DISCORD_BOT_SERVERNAME_IS_CHOICE", "0")
 
 
 notifydb()
@@ -405,9 +406,11 @@ if DISCORDBOTLOGSTATS == "1":
         print("updating leaderboards")
         for logid in range(len(context["leaderboardchannelmessages"])):
             await updateleaderboard(logid)
+            await asyncio.sleep(3)
         print("leaderboards updated")
     async def updateleaderboard(logid):
         global context
+        now = int(time.time())
         leaderboard_entry = context["leaderboardchannelmessages"][logid]
 
         leaderboardname = leaderboard_entry.get("name", "Default Leaderboard")
@@ -432,18 +435,20 @@ if DISCORDBOTLOGSTATS == "1":
         # Build WHERE clause
         where_clauses = []
         params = []
+        if not isinstance(leaderboardfilters, str):
+            for key, values in leaderboardfilters.items():
+                if len(values) == 1:
+                    where_clauses.append(f"{key} = ?")
+                    params.append(values[0])
+                else:
+                    placeholders = ",".join(["?"] * len(values))
+                    where_clauses.append(f"{key} IN ({placeholders})")
+                    params.extend(values)
 
-        for key, values in leaderboardfilters.items():
-            if len(values) == 1:
-                where_clauses.append(f"{key} = ?")
-                params.append(values[0])
-            else:
-                placeholders = ",".join(["?"] * len(values))
-                where_clauses.append(f"{key} IN ({placeholders})")
-                params.extend(values)
-
-        wherestring = " AND ".join(where_clauses)
-
+            wherestring = " AND ".join(where_clauses)
+        else:
+            wherestring = eval(leaderboardfilters)
+        print("wherestring",wherestring)
         orderbyiscolumn = leaderboardorderby not in [x for x in leaderboardcategorysshown.keys()]
 
         leaderboardcategorys = list(set([
@@ -462,8 +467,9 @@ if DISCORDBOTLOGSTATS == "1":
         data = c.fetchall()
 
         if not data:
-            tfdb.close()
-            return
+            pass
+            # tfdb.close() (if this is uncommented, it will not update leaderboard if no data found, else it will display no data message)
+            # return
 
         # Group rows by the merge key
         output = {}
@@ -537,6 +543,12 @@ if DISCORDBOTLOGSTATS == "1":
                 value=f"{actualoutput}",
                 inline=False
             )
+        if not data:
+            embed.add_field(
+                name="Error",
+                value="No data found for this leaderboard",
+                inline=False,
+            )
 
         # Update or send leaderboard message
         channel = bot.get_channel(context["overridechannels"]["leaderboardchannel"])
@@ -546,7 +558,7 @@ if DISCORDBOTLOGSTATS == "1":
                 message = await channel.fetch_message(leaderboardid)
                 await message.edit(embed=embed)
             except discord.NotFound as e:
-                print("PANICKING",e)
+                print("Leaderboard message not found, resending a new one",e)
                 message = await channel.send(embed=embed)
                 context["leaderboardchannelmessages"][logid]["id"] = message.id
                 savecontext()
@@ -587,6 +599,7 @@ if DISCORDBOTLOGSTATS == "1":
         description="Get a player's Aliases",
     )
     async def whois(ctx,name: Option(str, "The playername/uid to Query")):
+        print("whois command from", ctx.author.id, "to", name)
         tfdb = sqlite3.connect("./data/tf2helper.db")
         c = tfdb.cursor()
         c.execute("SELECT playeruid, playername FROM uidnamelink")
@@ -594,11 +607,12 @@ if DISCORDBOTLOGSTATS == "1":
         if not data:
             tfdb.commit()
             tfdb.close()
+            asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
             await ctx.respond("No players in the database", ephemeral=False)
             return
         data = [{"name": x[1], "uid": x[0]} for x in data]
         data = sorted(data, key=lambda x: len(x["name"]))
-
+        data = sorted(data, key=lambda x: not x["name"].lower().startswith(name.lower()))
         data = [x for x in data if name.lower() in x["name"].lower()]
         if len(data) == 0:
             c.execute("SELECT playeruid FROM uidnamelink WHERE playeruid = ?",(name,))
@@ -606,6 +620,7 @@ if DISCORDBOTLOGSTATS == "1":
             if not output:
                 tfdb.commit()
                 tfdb.close()
+                asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
                 await ctx.respond("No players found", ephemeral=False)
     
                 return
@@ -613,16 +628,16 @@ if DISCORDBOTLOGSTATS == "1":
         else:
             player = data[0]
         c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC",(player["uid"],))
-        data = c.fetchall()
-        data = [f"{x[0]}" for y,x in enumerate(data)]
+        aliases = c.fetchall()
+        aliases = [f"{x[0]}" for y,x in enumerate(aliases)]
         tfdb.commit()
         tfdb.close()
         embed = discord.Embed(
-            title=f"Aliases for uid {player['uid']}",
+            title=f"Aliases for uid {player['uid']} ({len(data)} match{'es' if len(data) > 1 else ''} for '{name}')",
             color=0xff70cb,
             description=f"Most recent to oldest",
         )
-        for y,x in enumerate( data):
+        for y,x in enumerate( aliases):
             embed.add_field(name=f"Alias {y+1}:", value=f"\u200b {x}", inline=False)
         await ctx.respond(embed=embed, ephemeral=False)
         
@@ -1843,7 +1858,11 @@ def create_dynamic_command(command_name, description = None, rcon = False, param
         if not prequired:
             param_str += " = None"
         param_list.append(param_str)
-    servername_param = f'servername: Option(str, "The servername (omit for current channel\'s server)", required=False) = None' # ,choices=list(context["serveridnamelinks"].values())) = None
+    # SERVERNAMEISCHOICE
+    if SERVERNAMEISCHOICE == "1":
+        servername_param = f'servername: Option(str, "The servername (omit for current channel\'s server)", required=False ,choices=list(context["serveridnamelinks"].values())) = None'
+    else:
+        servername_param = f'servername: Option(str, "The servername (omit for current channel\'s server)", required=False) = None'
     param_list.append(servername_param)
     params_signature = ", ".join(param_list)
     # print(commandparaminputoverride)
@@ -1911,12 +1930,13 @@ if SHOULDUSETHROWAI == "1":
     async def getuid(
         ctx,
         playername: Option(str, "Who gets thrown"),
-        servername: Option(
-            str, "The servername (omit for current channel's server)", required=False
-        ) = None,
+        # servername: Option(
+        #     str, "The servername (omit for current channel's server)", required=False
+        # ) = None,
     ):
         
         global context, discordtotitanfall, lasttimethrown, aibotmessageresponses
+        servername = None
         messagehistory = []
         keyaireply = random.randint(1,10000000000000)
         aibotmessageresponses[keyaireply] = []
