@@ -58,6 +58,10 @@ def specifickilltrackerdb():
             victim_y                REAL
         )"""
     )
+    # alter table rename attacoer_id to playeruid
+    try:
+        c.execute("ALTER TABLE specifickilltracker RENAME COLUMN attacker_id TO playeruid")
+    except:pass
     tfdb.commit()
     c.close()
     tfdb.close()
@@ -529,7 +533,10 @@ if DISCORDBOTLOGSTATS == "1":
             leaderboardmerge,
             *[col for x in leaderboardcategorysshown.values() for col in x["columnsbound"]]
         ]))
-     
+        countadd = False
+        if "count" in leaderboardcategorys:
+            countadd = True
+            del(leaderboardcategorys[leaderboardcategorys.index("count")])
         # print("leaderboardcategorys",leaderboardcategorys)
         # leaderboardcategorys = sorted(leaderboardcategorys, key=lambda x: list(leaderboardcategorysshown.keys()).index(x) if x in leaderboardcategorysshown else len(leaderboardcategorysshown))
         base_query = f"SELECT {','.join(leaderboardcategorys)} FROM {leaderboarddatabase}"
@@ -543,6 +550,10 @@ if DISCORDBOTLOGSTATS == "1":
             pass
             # tfdb.close() (if this is uncommented, it will not update leaderboard if no data found, else it will display no data message)
             # return
+            
+        # add times appeared columns
+        if countadd:
+            leaderboardcategorys.append("count")
 
         # Group rows by the merge key
         output = {}
@@ -558,6 +569,9 @@ if DISCORDBOTLOGSTATS == "1":
             merged = {}
             for row in rows:
                 for idx, col_name in enumerate(leaderboardcategorys):
+                    if col_name == "count":
+                        merged[col_name] = len(rows)
+                        continue
                     val = row[idx]
                     if col_name not in merged:
                         merged[col_name] = val
@@ -567,7 +581,7 @@ if DISCORDBOTLOGSTATS == "1":
                         elif isinstance(val, str):
                             continue  # Keep the first string
             actualoutput[key] = merged
-
+        print(actualoutput)
         # Sort results
         actualoutput = sorted(actualoutput.items(), key=lambda x: x[1][leaderboardorderby] if orderbyiscolumn else (  x[1][leaderboardcategorysshown[leaderboardorderby]["columnsbound"][0]] if len (leaderboardcategorysshown[leaderboardorderby]["columnsbound"]) == 1 else eval(leaderboardcategorysshown[leaderboardorderby]["calculation"], {}, x[1])), reverse=True)
 
@@ -1377,7 +1391,7 @@ def recieveflaskprintrequests():
                 game_time,
                 attacker_current_weapon,
                 victim_weapon_3,
-                attacker_id,
+                playeruid,
                 game_mode,
                 victim_x,
                 attacker_weapon_1,

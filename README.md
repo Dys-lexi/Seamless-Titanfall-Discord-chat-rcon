@@ -25,6 +25,7 @@ discordlog:
       - DISCORD_BOT_LOG_STATS=1 # log player's time played, and some basic stats
       - DISCORD_BOT_LEADERBOARD_UPDATERATE=300 # how often leaderboards update
       - DISCORD_BOT_LOG_COMMANDS=1 #log command usage. needs bindchannel for commands to be set. (commands are messages beginning with ! or /)
+      - DISCORD_BOT_SERVERNAME_IS_CHOICE=0 #determines when specifiying a servername in a command if it's a choice, or an entered string.
     volumes:
       - ./discord/data:/app/data:rw
     restart: always
