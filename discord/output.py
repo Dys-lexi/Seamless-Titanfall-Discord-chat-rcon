@@ -24,7 +24,7 @@ def specifickilltrackerdb():
     c.execute(
         """CREATE TABLE IF NOT EXISTS specifickilltracker (
             id INTEGER PRIMARY KEY,
-            server_id               TEXT,
+            serverid               TEXT,
             attacker_z              REAL,
             attacker_x              REAL,
             attacker_y              REAL,
@@ -60,7 +60,7 @@ def specifickilltrackerdb():
     )
     # alter table rename attacoer_id to playeruid
     try:
-        c.execute("ALTER TABLE specifickilltracker RENAME COLUMN attacker_id TO playeruid")
+        c.execute("ALTER TABLE specifickilltracker RENAME COLUMN server_id TO serverid")
     except:pass
     tfdb.commit()
     c.close()
@@ -581,7 +581,7 @@ if DISCORDBOTLOGSTATS == "1":
                         elif isinstance(val, str):
                             continue  # Keep the first string
             actualoutput[key] = merged
-        print(actualoutput)
+        # print(actualoutput)
         # Sort results
         actualoutput = sorted(actualoutput.items(), key=lambda x: x[1][leaderboardorderby] if orderbyiscolumn else (  x[1][leaderboardcategorysshown[leaderboardorderby]["columnsbound"][0]] if len (leaderboardcategorysshown[leaderboardorderby]["columnsbound"]) == 1 else eval(leaderboardcategorysshown[leaderboardorderby]["calculation"], {}, x[1])), reverse=True)
 
@@ -1368,7 +1368,7 @@ def recieveflaskprintrequests():
         c.execute(
             """
             INSERT INTO specifickilltracker (
-                server_id,
+                serverid,
                 attacker_z,
                 attacker_x,
                 attacker_y,
