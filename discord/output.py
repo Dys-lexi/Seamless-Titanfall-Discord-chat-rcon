@@ -200,7 +200,8 @@ def print(*message, end="\n"):
 print("running discord logger bot")
 lastrestart = 0
 messagecounter = 0
-SLEEPTIME_ON_FAILED_COMMAND = 2.5
+SLEEPTIME_ON_FAILED_COMMAND = 2.5 #for when you are running multiple versions of the bot (like a dev version). if one bot cannot fulfill the command,
+# the other bot that can has time too, instead of the first responding with failure
 intents = discord.Intents.default()
 intents.message_content = True
 intents.messages = True
@@ -686,6 +687,7 @@ if DISCORDBOTLOGSTATS == "1":
         description="Get a player's Aliases",
     )
     async def whois(ctx,name: Option(str, "The playername/uid to Query")):
+        MAXALIASESSHOWN=22
         print("whois command from", ctx.author.id, "to", name)
         tfdb = sqlite3.connect("./data/tf2helper.db")
         c = tfdb.cursor()
@@ -697,11 +699,12 @@ if DISCORDBOTLOGSTATS == "1":
             asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
             await ctx.respond("No players in the database", ephemeral=False)
             return
-        data = [{"name": x[1], "uid": x[0]} for x in data]
-        data = sorted(data, key=lambda x: len(x["name"]))
+        unsortedata = [{"name": x[1], "uid": x[0]} for x in data]
+        data = sorted(unsortedata, key=lambda x: len(x["name"]))
         data = sorted(data, key=lambda x: not x["name"].lower().startswith(name.lower()))
-        data = [x for x in data if name.lower() in x["name"].lower()]
-        if len(data) == 0:
+        filtereddata = [x for x in data if name.lower() in x["name"].lower()]
+        unsortedata = [x for x in unsortedata if name.lower() in x["name"].lower()]
+        if len(filtereddata) == 0:
             c.execute("SELECT playeruid FROM uidnamelink WHERE playeruid = ?",(name,))
             output = c.fetchone()
             if not output:
@@ -713,19 +716,28 @@ if DISCORDBOTLOGSTATS == "1":
                 return
             player = {"uid":output[0]}
         else:
-            player = data[0]
+            player = filtereddata[0]
         c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC",(player["uid"],))
         aliases = c.fetchall()
         aliases = [f"{x[0]}" for y,x in enumerate(aliases)]
         tfdb.commit()
         tfdb.close()
+        alsomatching = {}
+        for entry in unsortedata:
+            if entry["uid"] == player["uid"]:continue
+            alsomatching[entry["uid"]] = entry["name"]
         embed = discord.Embed(
-            title=f"Aliases for uid {player['uid']} ({len(data)} match{'es' if len(data) > 1 else ''} for '{name}')",
+            title=f"Aliases for uid {player['uid']} ({len(data)} match{'es' if len(alsomatching.keys()) > 1 else ''} for '{name}')",
             color=0xff70cb,
             description=f"Most recent to oldest",
         )
-        for y,x in enumerate( aliases):
+        for y,x in enumerate( aliases[0:MAXALIASESSHOWN]):
             embed.add_field(name=f"Alias {y+1}:", value=f"\u200b {x}", inline=False)
+        if len(aliases) > MAXALIASESSHOWN:
+            embed.add_field(name=f"{len(aliases) - MAXALIASESSHOWN} more alias{'es' if len(aliases) - MAXALIASESSHOWN > 1 else ''}",value=f"({', '.join(list(map(lambda x: f'*{x}*',aliases[MAXALIASESSHOWN:])))})")
+        if len(alsomatching.keys()) > 0:
+            embed.add_field(name=f"The {len(alsomatching.keys())} other match{'es are:' if len(alsomatching.keys()) > 1 else ' is:'}",value=f"({', '.join(list(map(lambda x: f'*{x}*',list(alsomatching.values())[0:20])))}) {'**only first 20 shown**' if len(alsomatching.keys()) > 20 else ''}")
+            
         await ctx.respond(embed=embed, ephemeral=False)
         
         # await ctx.respond(data, ephemeral=False)
