@@ -11,7 +11,7 @@ from discord.commands import Option
 from flask import Flask, jsonify, request
 from waitress import serve
 from discord.ext import commands, tasks
-from datetime import datetime
+from datetime import datetime, timedelta,timezone
 import discord
 from discord import Option
 import requests
@@ -483,7 +483,7 @@ if DISCORDBOTLOGSTATS == "1":
         print("updating leaderboards")
         for logid in range(len(context["leaderboardchannelmessages"])):
             await updateleaderboard(logid)
-            await asyncio.sleep(3)
+            await asyncio.sleep(6)
         print("leaderboards updated")
     async def updateleaderboard(logid):
         global context
@@ -591,7 +591,7 @@ if DISCORDBOTLOGSTATS == "1":
             c.execute("SELECT playername, playeruid FROM uidnamelink ORDER BY id")
             namemap = {uid: name for name, uid in c.fetchall()}
             for uid, rowdata in actualoutput:
-                displayname = namemap.get(uid, f"UID: {uid}")
+                displayname = namemap.get(int(uid), f"UID: {uid}")
                 displayoutput.append((displayname, rowdata))
         else:
             displayoutput = actualoutput
@@ -1012,7 +1012,7 @@ async def bind_global_channel(
     
     if channeltype == "leaderboardchannel":
         if context["overridechannels"]["leaderboardchannel"] == 0:
-            context["leaderboardchannelmessages"].append( {
+            context["leaderboardchannelmessages"].extend([ {
             "name": "Pilot kills",
             "description": "Top 10 players with most pilot kills",
             "color": 16740555,
@@ -1048,7 +1048,25 @@ async def bind_global_channel(
             "merge": "name",
             "maxshown": 10,
             "id": 0
-        })
+        },
+                   {
+            "name": "Frag grenade kills",
+            "description": "frag kills in last week",
+            "color": 16740555,
+            "database": "specifickilltracker",
+            "orderby": "Frag kills",
+            "categorys": {
+                "Frag kills": {
+                    "columnsbound": [
+                        "count"
+                    ]
+                }
+            },
+            "filters": "f'cause_of_death = \"mp_weapon_frag_grenade\" AND timeofkill > {int((datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0).weekday())).timestamp())}'",
+            "merge": "name",
+            "maxshown": 10,
+            "id": 0
+        }])
         context["overridechannels"]["leaderboardchannel"] = channel.id
     elif channel.id != context["overridechannels"]["leaderboardchannel"]:
         for i in range(len(context["leaderboardchannelmessages"])):
