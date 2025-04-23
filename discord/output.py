@@ -702,9 +702,9 @@ if DISCORDBOTLOGSTATS == "1":
         unsortedata = [{"name": x[1], "uid": x[0]} for x in data]
         data = sorted(unsortedata, key=lambda x: len(x["name"]))
         data = sorted(data, key=lambda x: not x["name"].lower().startswith(name.lower()))
-        filtereddata = [x for x in data if name.lower() in x["name"].lower()]
+        data = [x for x in data if name.lower() in x["name"].lower()]
         unsortedata = [x for x in unsortedata if name.lower() in x["name"].lower()]
-        if len(filtereddata) == 0:
+        if len(data) == 0:
             c.execute("SELECT playeruid FROM uidnamelink WHERE playeruid = ?",(name,))
             output = c.fetchone()
             if not output:
@@ -716,7 +716,7 @@ if DISCORDBOTLOGSTATS == "1":
                 return
             player = {"uid":output[0]}
         else:
-            player = filtereddata[0]
+            player = data[0]
         c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC",(player["uid"],))
         aliases = c.fetchall()
         aliases = [f"{x[0]}" for y,x in enumerate(aliases)]
@@ -727,7 +727,7 @@ if DISCORDBOTLOGSTATS == "1":
             if entry["uid"] == player["uid"]:continue
             alsomatching[entry["uid"]] = entry["name"]
         embed = discord.Embed(
-            title=f"Aliases for uid {player['uid']} ({len(data)} match{'es' if len(alsomatching.keys()) > 1 else ''} for '{name}')",
+            title=f"Aliases for uid {player['uid']} ({len(alsomatching.keys()) + 1} match{'es' if len(alsomatching.keys()) > 1 else ''} for '{name}')",
             color=0xff70cb,
             description=f"Most recent to oldest",
         )
