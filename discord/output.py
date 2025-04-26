@@ -58,10 +58,6 @@ def specifickilltrackerdb():
             victim_y                REAL
         )"""
     )
-    # alter table rename attacoer_id to playeruid
-    try:
-        c.execute("ALTER TABLE specifickilltracker RENAME COLUMN server_id TO serverid")
-    except:pass
     tfdb.commit()
     c.close()
     tfdb.close()
@@ -94,21 +90,6 @@ def notifydb():
 def joincounterdb():
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
-
-    # Check if the table exists before doing anything
-    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='joincounter'")
-    table_exists = c.fetchone() is not None
-
-    # If table exists, check for old column name and rename it
-    if table_exists:
-        c.execute("PRAGMA table_info(joincounter)")
-        columns = [row[1] for row in c.fetchall()]
-
-        if "uid" in columns and "playeruid" not in columns:
-            c.execute("ALTER TABLE joincounter RENAME COLUMN uid TO playeruid")
-            print("Renamed column 'uid' to 'playeruid'")
-
-    # Now ensure the correct table structure
     c.execute(
         """CREATE TABLE IF NOT EXISTS joincounter (
             playeruid INTEGER,
@@ -143,17 +124,7 @@ def playtimedb():
             timecounter INTEGER
             )"""
     )
-    # add column duration IF NOT EXISTS
-    c.execute(
-        "PRAGMA table_info(playtime)"
-    )
-    columns = [row[1] for row in c.fetchall()]
-    if "timecounter" not in columns:
-        c.execute("ALTER TABLE playtime ADD COLUMN timecounter INTEGER")
-        print("added column timecounter to playtime")
-    if "matchid" not in columns:
-        c.execute("ALTER TABLE playtime ADD COLUMN matchid STRING")
-        print("added column matchid to playtime")
+
     tfdb.commit()
     tfdb.close()
 def playeruidnamelink():
@@ -163,9 +134,15 @@ def playeruidnamelink():
         """CREATE TABLE IF NOT EXISTS uidnamelink (
             id INTEGER PRIMARY KEY,
             playeruid INTEGER,
-            playername TEXT
+            playername TEXT,
+            lastseenunix INTEGER,
+            firstseenunix INTEGER
             )"""
     )
+    try:
+        c.execute("ALTER TABLE uidnamelink ADD COLUMN firstseenunix INTEGER")
+        c.execute("ALTER TABLE uidnamelink ADD COLUMN lastseenunix INTEGER") 
+    except:pass
     tfdb.commit()
     tfdb.close()
 
@@ -1718,17 +1695,17 @@ def messageloop():
                         output[message["serverid"]] = []
                     elif message["globalmessage"] and message["overridechannel"] not in output.keys():
                         output[message["overridechannel"]] = []
-                    if ("\033[") in message["messagecontent"]:
+                    if ("\033[") in messagewidget:
                         print("colour codes found in message")
-                        while "\033[" in message["messagecontent"]:
-                            startpos = message["messagecontent"].index("\033[")
+                        while "\033[" in messagewidget:
+                            startpos = messagewidget.index("\033[")
                             endpos = (
-                                message["messagecontent"][startpos:].index("m")
+                                messagewidget[startpos:].index("m")
                                 + startpos
                             )
-                            message["messagecontent"] = (
-                                message["messagecontent"][:startpos]
-                                + message["messagecontent"][endpos + 1 :]
+                            messagewidget = (
+                                messagewidget[:startpos]
+                                + messagewidget[endpos + 1 :]
                             )
                     if message["type"] == 1:
                         output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(
@@ -2215,18 +2192,28 @@ playercontext = {}
 matchids = []
 playerjoinlist = {}
 
-def checkandaddtouidnamelink(uid,playername):
+def checkandaddtouidnamelink(uid, playername):
     global playercontext
+    now = int(time.time())
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
-    c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
-    playernames = c.fetchall()
-    if playernames:
-        playernames = [x[0] for x in playernames]
-    if playername not in playernames or not playernames:
-        c.execute("INSERT INTO uidnamelink (playeruid,playername) VALUES (?,?)",(uid,playername))
-        tfdb.commit()
+    c.execute(
+        "SELECT id, playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
+    row = c.fetchone()
+    if row:
+        last_id, last_name = row
+        if playername == last_name:
+            c.execute(
+                "UPDATE uidnamelink SET lastseenunix = ? WHERE id = ?",(now, last_id))
+        else:
+            c.execute(
+                "INSERT INTO uidnamelink (playeruid, playername, firstseenunix, lastseenunix) VALUES (?, ?, ?, ?)",(uid, playername, now, now))
+    else:
+        c.execute(
+            "INSERT INTO uidnamelink (playeruid, playername, firstseenunix, lastseenunix) VALUES (?, ?, ?, ?)",(uid, playername, now, now))
+    tfdb.commit()
     tfdb.close()
+
 
 def onplayerjoin(uid,serverid,nameof = False):
     global context,messageflushnotify,playerjoinlist
@@ -2241,7 +2228,8 @@ def onplayerjoin(uid,serverid,nameof = False):
     if playernames:
         playernames = [x[0] for x in playernames]
     if nameof not in playernames or not playernames:
-        c.execute("INSERT INTO uidnamelink (playeruid,playername) VALUES (?,?)",(uid,nameof))
+        # c.execute("INSERT INTO uidnamelink (playeruid,playername) VALUES (?,?)",(uid,nameof))
+        checkandaddtouidnamelink(uid,nameof)
         tfdb.commit()
     if nameof:
         playername = nameof
@@ -2332,7 +2320,8 @@ def savestats(saveinfo):
         if playernames:
             playernames = [x[0] for x in playernames]
         if playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"] not in playernames or not playernames:
-            c.execute("INSERT INTO uidnamelink (playeruid,playername) VALUES (?,?)",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"]))
+            # c.execute("INSERT INTO uidnamelink (playeruid,playername) VALUES (?,?)",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"]))
+            checkandaddtouidnamelink(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"])
         if playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"] != 0:
             c.execute("UPDATE playtime SET leftatunix = ?, endtype = ?, scoregained = ?, titankills = ?, pilotkills = ?, deaths = ?, duration = ? WHERE id = ?",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"]))
             lastrowid = playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"]
