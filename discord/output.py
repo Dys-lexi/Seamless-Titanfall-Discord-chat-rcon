@@ -18,6 +18,8 @@ import requests
 
 import sqlite3
 
+
+
 def specifickilltrackerdb():
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
@@ -196,6 +198,33 @@ LEADERBOARDUPDATERATE = int(os.getenv("DISCORD_BOT_LEADERBOARD_UPDATERATE", "300
 DISCORDBOTLOGCOMMANDS = os.getenv("DISCORD_BOT_LOG_COMMANDS", "0")
 SERVERNAMEISCHOICE = os.getenv("DISCORD_BOT_SERVERNAME_IS_CHOICE", "0")
 SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
+MAP_NAME_TABLE = {
+    "mp_angel_city": "Angel City",
+    "mp_black_water_canal": "Black Water Canal",
+    "mp_coliseum": "Coliseum",
+    "mp_coliseum_column": "Pillars",
+    "mp_colony02": "Colony",
+    "mp_complex3": "Complex",
+    "mp_crashsite3": "Crash Site",
+    "mp_drydock": "Drydock",
+    "mp_eden": "Eden",
+    "mp_forwardbase_kodai": "Forwardbase Kodai",
+    "mp_glitch": "Glitch",
+    "mp_grave": "Boomtown",
+    "mp_homestead": "Homestead",
+    "mp_lf_deck": "Deck",
+    "mp_lf_meadow": "Meadow",
+    "mp_lf_stacks": "Stacks",
+    "mp_lf_township": "Township",
+    "mp_lf_traffic": "Traffic",
+    "mp_lf_uma": "UMA",
+    "mp_relic02": "Relic",
+    "mp_rise": "Rise",
+    "mp_thaw": "Exoplanet",
+    "mp_wargames": "Wargames",
+    "mp_mirror_city": "Mirror City",
+    "mp_brick": "BRICK",
+}
 
 
 notifydb()
@@ -482,6 +511,7 @@ if DISCORDBOTLOGSTATS == "1":
         indexoverride = leaderboard_entry.get("nameindex", -1)
 
         nameoverride = False
+        serveroverride = False
         
         if  isinstance(leaderboardmerge, str):
             leaderboardmerge = [leaderboardmerge]
@@ -490,6 +520,10 @@ if DISCORDBOTLOGSTATS == "1":
             if leaderboardmerge[i] == "name":
                 leaderboardmerge[i] = "playeruid"
                 nameoverride = True
+        for i,value in enumerate(leaderboardmerge):
+            if leaderboardmerge[i] == "server":
+                leaderboardmerge[i] = "serverid"
+                serveroverride = True       
 
         tfdb = sqlite3.connect("./data/tf2helper.db")
         c = tfdb.cursor()
@@ -587,14 +621,16 @@ if DISCORDBOTLOGSTATS == "1":
         # print("b",leaderboardorderby)
         # print("c",leaderboardcategorysshown[leaderboardorderby]["columnsbound"])
         actualoutput = sorted(actualoutput.items(), key=lambda x: x[1][leaderboardorderby] if orderbyiscolumn else (  x[1][leaderboardcategorysshown[leaderboardorderby]["columnsbound"][0]] if len (leaderboardcategorysshown[leaderboardorderby]["columnsbound"]) == 1 else eval(leaderboardcategorysshown[leaderboardorderby]["calculation"], {}, x[1])), reverse=True)
-
+        def swopper(itemname):
+            global context
+            return str(namemap.get(int(itemname), context["serveridnamelinks"].get(str(itemname),itemname)))
         displayoutput = []
         if nameoverride:
             c.execute("SELECT playername, playeruid FROM uidnamelink ORDER BY id")
             namemap = {uid: name for name, uid in c.fetchall()}
             for uid, rowdata in actualoutput:
                 uid = uid.split(SEPERATOR)#horrible jank
-                displayname = SEPERATOR.join(list(map(lambda uidd: str(namemap.get(int(uidd), uidd)),uid )))
+                displayname = SEPERATOR.join(list(map( swopper,uid )))
                 # print(displayname)
                 displayoutput.append((displayname, rowdata))
         else:
@@ -675,11 +711,15 @@ if DISCORDBOTLOGSTATS == "1":
                 return "0"
             else:
                 return f"{value*3600:.2f}{ calculation.split('/')[0].strip()[0].lower()}/{ calculation.split('/')[1].strip()[0].lower()}"
+        elif format == "server":
+            return str(context["serveridnamelinks"].get(str(value), value))
         elif format == "XperY":
             if value == 0:
                 return "0"
             else:
                 return f"{value:.2f}{ calculation.split('/')[0].strip()[0].lower()}/{ calculation.split('/')[1].strip()[0].lower()}"
+        elif format == "map":
+            return str(MAP_NAME_TABLE.get(value, value))
         return value
         
 
