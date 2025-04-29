@@ -465,6 +465,7 @@ if DISCORDBOTLOGSTATS == "1":
         print("leaderboards updated")
     async def updateleaderboard(logid):
         global context
+        SEPERATOR = "|"
         now = int(time.time())
         leaderboard_entry = context["leaderboardchannelmessages"][logid]
 
@@ -478,11 +479,17 @@ if DISCORDBOTLOGSTATS == "1":
         leaderboardmerge = leaderboard_entry["merge"]
         maxshown = leaderboard_entry.get("maxshown", 10)
         leaderboardid = leaderboard_entry.get("id", 0)
+        indexoverride = leaderboard_entry.get("nameindex", -1)
 
         nameoverride = False
-        if leaderboardmerge == "name":
-            leaderboardmerge = "playeruid"
-            nameoverride = True
+        
+        if  isinstance(leaderboardmerge, str):
+            leaderboardmerge = [leaderboardmerge]
+        # leaderboardmerge = sorted(leaderboardmerge, key = lambda x: x != "name") #jank to make name always come first no longer needed
+        for i,value in enumerate(leaderboardmerge):
+            if leaderboardmerge[i] == "name":
+                leaderboardmerge[i] = "playeruid"
+                nameoverride = True
 
         tfdb = sqlite3.connect("./data/tf2helper.db")
         c = tfdb.cursor()
@@ -508,9 +515,10 @@ if DISCORDBOTLOGSTATS == "1":
 
         leaderboardcategorys = list(set([
             *( [leaderboardorderby] if orderbyiscolumn else [] ),
-            leaderboardmerge,
+            *leaderboardmerge,
             *[col for x in leaderboardcategorysshown.values() for col in x["columnsbound"]]
         ]))
+        # print("leaderboardcats",leaderboardcategorys)
         countadd = False
         if "count" in leaderboardcategorys:
             countadd = True
@@ -535,11 +543,26 @@ if DISCORDBOTLOGSTATS == "1":
 
         # Group rows by the merge key
         output = {}
-        merge_index = leaderboardcategorys.index(leaderboardmerge)
+        mergeindexes = []
+        for i in leaderboardmerge:
+            mergeindexes.append(leaderboardcategorys.index(i))
 
+        # for row in data:
+        #     mergekeys = []
+        #     for key in mergeindexes:
+        #         mergekeys.append(row[mergeindexes])
+        #     # recursion time
+        #     output.setdefault(merge_key, []).append(row)
+        
+ 
+                
+        output = {}    
         for row in data:
-            merge_key = row[merge_index]
-            output.setdefault(merge_key, []).append(row)
+            output.setdefault(SEPERATOR.join(list(map(lambda x: str(row[x]),mergeindexes))), []).append(row)
+        # print("output",list(output.keys()))
+
+                
+                  
 
         # Merge data per player
         actualoutput = {}
@@ -560,16 +583,19 @@ if DISCORDBOTLOGSTATS == "1":
                             continue  # Keep the first string
             actualoutput[key] = merged
         # print(actualoutput)
-        # Sort results
+        # print("a",leaderboardcategorysshown)
+        # print("b",leaderboardorderby)
+        # print("c",leaderboardcategorysshown[leaderboardorderby]["columnsbound"])
         actualoutput = sorted(actualoutput.items(), key=lambda x: x[1][leaderboardorderby] if orderbyiscolumn else (  x[1][leaderboardcategorysshown[leaderboardorderby]["columnsbound"][0]] if len (leaderboardcategorysshown[leaderboardorderby]["columnsbound"]) == 1 else eval(leaderboardcategorysshown[leaderboardorderby]["calculation"], {}, x[1])), reverse=True)
 
-        # Name override lookup if needed
         displayoutput = []
         if nameoverride:
             c.execute("SELECT playername, playeruid FROM uidnamelink ORDER BY id")
             namemap = {uid: name for name, uid in c.fetchall()}
             for uid, rowdata in actualoutput:
-                displayname = namemap.get(int(uid), f"UID: {uid}")
+                uid = uid.split(SEPERATOR)#horrible jank
+                displayname = SEPERATOR.join(list(map(lambda uidd: str(namemap.get(int(uidd), uidd)),uid )))
+                # print(displayname)
                 displayoutput.append((displayname, rowdata))
         else:
             displayoutput = actualoutput
@@ -604,7 +630,7 @@ if DISCORDBOTLOGSTATS == "1":
             )
                 # first pull the category names, then send em through the calculator, 
             embed.add_field(
-                name=f" \u200b {str(i+1)}. ***{name}***",
+                name=f" \u200b {str(i+1)}. ***{name.split(SEPERATOR)[indexoverride]}***",
                 value=f"{actualoutput}",
                 inline=False
             )
@@ -2044,7 +2070,7 @@ if SHOULDUSETHROWAI == "1":
             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
             await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
             return
-        if ctx.author.id in lasttimethrown["passes"].keys() and lasttimethrown["passes"][ctx.author.id] > time.time() - 120:
+        if ctx.author.id in lasttimethrown["passes"].keys() and lasttimethrown["passes"][ctx.author.id] > time.time() - 60:
             print("has been allowed recently")
             await ctx.defer(ephemeral=False)
             await  returncommandfeedback(*sendrconcommand(serverid, f"!throw {playername}"), ctx)   
@@ -2078,7 +2104,7 @@ if SHOULDUSETHROWAI == "1":
 - Only send one message at a time, and wait for response (it can take a while, ai is hard).
 - messages that are being processed are marked by a 🟢
 - if you fail, you must wait a short while before asking again.
-- if you succeed, you are allowed to freely use the command for 120 seconds''')
+- if you succeed, you are allowed to freely use the command for 60 seconds''')
         while count < 5 and (time.time() - start_time < 15 * 60):
             def check(m):
                 return m.author.id == ctx.author.id and m.channel.id == threade.id
@@ -2100,7 +2126,7 @@ The users history of using this command, from oldest to newest is:
             prompt = f'''<SYSTEM MESSAGE>
 You are a AI model, choosing one of three choices, "allow_request", "deny_request" and "more_information_needed". You should also give a reason for your choice.
 To inform your choices, you are given an array of user messages, in chronological order, formatted ["username: messagecontent",...], as such, you should place most importance on the later user past messages.
-The user is asking to use a command on a titanfall 2 sever. this command throws a targeted player into the air, in the game Titanfall 2. Your role is to be skeptical that the user needs to use this command, due to the fact that it can be seen as unfair or even unfun by the targeted player.
+The user is asking to use a command on a titanfall 2 sever. this command throws a targeted player into the air, in the game Titanfall 2. Your role is to be skeptical that the user needs to use this command, due to the fact that it can be seen as unfair or even unfun by the targeted player(s).
 If the user has a reason that you deem would bring value however, don't hesitate to press the "allow_request button". This will allow the command to be executed.
 If you believe the user might make a good case to deserve using the command, with good reasoning, press "more_information_needed".
 If you believe the user is trying to mislead you, is undeserving, is too rude, is trying to get a competitive advantage, or simply have the feeling of being powerful, press "deny_request".
@@ -2115,14 +2141,15 @@ For example:
 
 "{{"reason":"You make a interesting point, however your points are not fully explained. could you expand upon why you think this would be comedic?","button":"more_information_needed","reasononeword":"incomplete"}}"
 
-Lastly:
+Some more information:
 If you do not come to a conclusion after 5 messages from the user, the request will be denied.
 KEEP RESPONSE BELOW 2000 CHARACTERS
-The player that is targeted is "{playername}" (if this is "all", the user is attempting to throw EVERYONE. make this request need a VERY strong line of reasoning, however still intend to clear it up in 5 messages. (DO NOT BE AFRAID TO QUERY MORE INFORMATION)
+The player that is targeted is "{playername}" (if this is "all", the user is attempting to throw EVERYONE ON THE SERVER. make this request need a VERY strong line of reasoning due to the EXTREME IMPACT this will have, however still intend to clear it up in 5 messages. (DO NOT BE AFRAID TO QUERY MORE INFORMATION)
 The player that used this command is "{ctx.author.nick if ctx.author.nick is not None else ctx.author.display_name}"
 {"The last time the user tried to use this command was: " + str(int(time.time()-lasttimethrown["specificusers"][ctx.author.id][-1]["timestamp"])) + " seconds ago, and you responded " + lasttimethrown["specificusers"][ctx.author.id][-1]["button"] +" due to " + lasttimethrown["specificusers"][ctx.author.id][-1]["one_word_reason"]if ctx.author.id in lasttimethrown["specificusers"].keys() else "This is the first time the user has tried to use this command. (since bot restart)"}
 {historyinfo} 
-base your leniance on this info too.
+base your leniance on this info too - if you have allowed the request a lot in the past hour, do you really need to allow more? You may need to enquire about this.
+Lastly:
 Here are the users message, after this system prompt ends.
 
 after that array will be an array of your responses to these messages. this will be one shorter by 1, as a placeholder for your current message.
@@ -2179,7 +2206,8 @@ your past responses:
             aibotmessageresponses[keyaireply].append((output))
             print("done, responding")
         except Exception as e:
-            print(e)
+            print("ai crashed, error is:",e)
+            traceback.print_exc()
             output = {"button":"deny_request","reason":"ai broken. "+ str(e),"reasononeword":"broken"}
             aibotmessageresponses[keyaireply].append(output)
         asyncio.run_coroutine_threadsafe(aireplytouser(message,output),bot.loop)
