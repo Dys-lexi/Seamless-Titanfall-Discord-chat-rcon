@@ -496,7 +496,7 @@ if DISCORDBOTLOGSTATS == "1":
         global context
         SEPERATOR = "|"
         now = int(time.time())
-        leaderboard_entry = context["leaderboardchannelmessages"][logid]
+        leaderboard_entry = context["leaderboardchannelmessages"][logid].copy()
 
         leaderboardname = leaderboard_entry.get("name", "Default Leaderboard")
         leaderboarddescription = leaderboard_entry.get("description", "no desc")
@@ -515,6 +515,7 @@ if DISCORDBOTLOGSTATS == "1":
         
         if  isinstance(leaderboardmerge, str):
             leaderboardmerge = [leaderboardmerge]
+        leaderboardmerge = list(leaderboardmerge)
         # leaderboardmerge = sorted(leaderboardmerge, key = lambda x: x != "name") #jank to make name always come first no longer needed
         for i,value in enumerate(leaderboardmerge):
             if leaderboardmerge[i] == "name":
