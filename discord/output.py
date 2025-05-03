@@ -555,9 +555,9 @@ if DISCORDBOTLOGSTATS == "1":
         ]))
         # print("leaderboardcats",leaderboardcategorys)
         countadd = False
-        if "count" in leaderboardcategorys:
+        if "matchcount" in leaderboardcategorys:
             countadd = True
-            del(leaderboardcategorys[leaderboardcategorys.index("count")])
+            del(leaderboardcategorys[leaderboardcategorys.index("matchcount")])
         # print("leaderboardcategorys",leaderboardcategorys)
         # leaderboardcategorys = sorted(leaderboardcategorys, key=lambda x: list(leaderboardcategorysshown.keys()).index(x) if x in leaderboardcategorysshown else len(leaderboardcategorysshown))
         base_query = f"SELECT {','.join(leaderboardcategorys)} FROM {leaderboarddatabase}"
@@ -574,7 +574,7 @@ if DISCORDBOTLOGSTATS == "1":
             
         # add times appeared columns
         if countadd:
-            leaderboardcategorys.append("count")
+            leaderboardcategorys.append("matchcount")
 
         # Group rows by the merge key
         output = {}
@@ -1114,7 +1114,7 @@ async def bind_global_channel(
             "categorys": {
                 "Frag kills": {
                     "columnsbound": [
-                        "count"
+                        "matchcount"
                     ]
                 }
             },
