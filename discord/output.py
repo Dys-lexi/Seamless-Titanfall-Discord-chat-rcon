@@ -18,6 +18,92 @@ import requests
 
 import sqlite3
 
+WEAPON_NAMES = {
+  "mp_weapon_rspn101": "R-201 **** Carbine",
+  "mp_weapon_rspn101_og": "R-101 Carbine",
+  "mp_weapon_hemlock": "Hemlock BF-R",
+  "mp_weapon_vinson": "V-47 Flatline",
+  "mp_weapon_g2": "G2A5",
+  "mp_weapon_car": "CAR",
+  "mp_weapon_alternator_smg": "Alternator",
+  "mp_weapon_hemlok_smg": "Volt",
+  "mp_weapon_r97": "R-97",
+  "mp_weapon_lmg": "Spitfire",
+  "mp_weapon_lstar": "L-STAR",
+  "mp_weapon_esaw": "Devotion",
+  "mp_weapon_sniper": "Kraber",
+  "mp_weapon_doubletake": "Double Take",
+  "mp_weapon_dmr": "Longbow DMR",
+  "mp_weapon_shotgun": "EVA-8 Auto",
+  "mp_weapon_mastiff": "Mastiff",
+  "mp_weapon_smr": "Sidewinder SMR",
+  "mp_weapon_epg": "EPG",
+  "mp_weapon_softball": "Softball",
+  "mp_weapon_pulse_lmg": "EM-4 Cold War",
+  "mp_weapon_semipistol": "P2016",
+  "mp_weapon_autopistol": "RE-45 Auto",
+  "mp_weapon_wingman": "B3 Wingman",
+  "mp_weapon_wingman_n": "Wingman Elite",
+  "mp_weapon_shotgun_pistol": "Mozambique",
+  "mp_weapon_smart_pistol": "Smart Pistol",
+  "mp_weapon_defender": "Charge Rifle",
+  "mp_weapon_mgl": "MGL",
+  "mp_weapon_arc_launcher": "LG-97 Thunderbolt",
+  "mp_weapon_rocket_launcher": "Archer",
+  "mp_weapon_frag_grenade": "Frag Grenade",
+  "mp_weapon_grenade_emp": "Arc Grenade",
+  "mp_weapon_thermite_grenade": "Firestar",
+  "mp_weapon_grenade_gravity": "Gravity Star",
+  "mp_weapon_grenade_electric_smoke": "Electric Smoke",
+  "mp_weapon_satchel": "Satchel",
+  "mp_ability_cloak": "Cloak",
+  "mp_weapon_grenade_sonar": "Pulse Blade",
+  "mp_ability_grapple": "Grapple",
+  "mp_ability_heal": "Stim",
+  "mp_weapon_deployable_cover": "A-Wall",
+  "mp_ability_shifter": "Phase Shift",
+  "mp_ability_holopilot": "Holopilot",
+  "mp_titanability_smoke": "Ability Electric Smoke",
+  "mp_titanability_electric_smoke": "Global Electric Smoke",
+  "mp_titanability_nuke_eject": "Nuke Ejection",
+  "mp_titanweapon_rocketeer_rocketstream": "Quad Rocket",
+  "mp_titanweapon_particle_accelerator": "Splitter Rifle",
+  "mp_titanweapon_laser_lite": "Laser Shot",
+  "mp_titanability_laser_trip": "Tripwire",
+  "mp_titanweapon_vortex_shield_ion": "Vortex Shield",
+  "mp_titancore_laser_cannon": "Laser Core",
+  "mp_titanweapon_meteor": "Thermite Launcher",
+  "mp_titanweapon_flame_wall": "Flame Wall",
+  "mp_titanability_slow_trap": "Incendiary Trap",
+  "mp_titanweapon_heat_shield": "Thermal Shield",
+  "mp_titancore_flame_wave": "Flame Core",
+  "mp_titanweapon_sniper": "Plasma Railgun",
+  "mp_titanweapon_dumbfire_rockets": "Cluster Missile",
+  "mp_titanability_hover": "VTOL Hover",
+  "mp_titanability_tether_trap": "Tether Trap",
+  "mp_titancore_flight_core": "Flight Core",
+  "mp_titanweapon_leadwall": "Leadwall",
+  "mp_titanweapon_arc_wave": "Arc Wave",
+  "mp_titanability_phase_dash": "Phase Dash",
+  "mp_titanability_basic_block": "Sword Block",
+  "mp_titancore_shift_core": "Sword Core",
+  "mp_titanweapon_sticky_40mm": "40MM Tracker cannon",
+  "mp_titanweapon_tracker_rockets": "Tracking Rockets",
+  "mp_titanability_sonar_pulse": "Sonar Pulse",
+  "mp_titanability_particle_wall": "Particle Wall",
+  "mp_titancore_salvo_core": "Salvo Core",
+  "mp_titanweapon_predator_cannon": "Predator Cannon",
+  "mp_titanability_power_shot": "Power Shot",
+  "mp_titanability_ammo_swap": "Mode Switch",
+  "mp_titanability_gun_shield": "Gun Shield",
+  "mp_titancore_siege_mode": "Smart Core",
+  "mp_titanweapon_xo16_vanguard": "XO-16",
+  "mp_titanweapon_salvo_rockets": "Rocket Salvo",
+  "mp_titanweapon_shoulder_rockets": "Multi Target Missiles",
+  "mp_titanability_rearm": "Rearm",
+  "mp_titanweapon_stun_laser": "Energy Siphon",
+  "mp_titancore_upgrade": "Upgrade Core"
+}
 
 
 def specifickilltrackerdb():
@@ -160,7 +246,7 @@ lastmessage = 0
 Ijuststarted = time.time()
 
 
-log_file = "logs.txt"
+log_file = "logs"
 if not os.path.exists("./data/" + log_file):
     with open("./data/" + log_file, "w") as f:
         f.write("")
@@ -515,7 +601,9 @@ if DISCORDBOTLOGSTATS == "1":
         
         if  isinstance(leaderboardmerge, str):
             leaderboardmerge = [leaderboardmerge]
+       
         leaderboardmerge = list(leaderboardmerge)
+        oldleaderboardmerge = leaderboardmerge.copy()
         # leaderboardmerge = sorted(leaderboardmerge, key = lambda x: x != "name") #jank to make name always come first no longer needed
         for i,value in enumerate(leaderboardmerge):
             if leaderboardmerge[i] == "name":
@@ -663,11 +751,13 @@ if DISCORDBOTLOGSTATS == "1":
                 output[catname] = value
                 
             actualoutput = "> \u200b \u200b \u200b " + " ".join(
-                [f"{category}: **{value}**" for category, value in zip(leaderboardcategorysshown, output.values())]
+                [f"{category}: **{value}**" for category, value in list(filter(lambda x: x[0] != oldleaderboardmerge[indexoverride], zip(leaderboardcategorysshown, output.values())))]
             )
                 # first pull the category names, then send em through the calculator, 
+            # print(list(leaderboardcategorysshown.keys()), name.split(SEPERATOR)[indexoverride],oldleaderboardmerge[indexoverride])
+            # print(list(zip(leaderboardcategorysshown, output.values())))
             embed.add_field(
-                name=f" \u200b {str(i+1)}. ***{name.split(SEPERATOR)[indexoverride]}***",
+                name=f" \u200b {str(i+1)}. ***{name.split(SEPERATOR)[indexoverride] if oldleaderboardmerge[indexoverride] not in leaderboardcategorysshown.keys() else list(output.values())[list(leaderboardcategorysshown.keys()).index(oldleaderboardmerge[indexoverride])]}***",
                 value=f"{actualoutput}",
                 inline=False
             )
@@ -714,6 +804,14 @@ if DISCORDBOTLOGSTATS == "1":
                 return f"{value*3600:.2f}{ calculation.split('/')[0].strip()[0].lower()}/{ calculation.split('/')[1].strip()[0].lower()}"
         elif format == "server":
             return str(context["serveridnamelinks"].get(str(value), value))
+        elif format == "hammertometres":
+            if value == 0:
+                return "0"
+            else:
+                return f"{value/52.5:.2f}m"
+        elif format == "gun":
+            # print("gun",value,list(WEAPON_NAMES.keys())[0])
+            return str(WEAPON_NAMES.get(value, value))
         elif format == "XperY":
             if value == 0:
                 return "0"
