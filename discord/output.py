@@ -605,7 +605,7 @@ if DISCORDBOTLOGSTATS == "1":
             merged = {}
             for row in rows:
                 for idx, col_name in enumerate(leaderboardcategorys):
-                    if col_name == "count":
+                    if col_name == "matchcount":
                         merged[col_name] = len(rows)
                         continue
                     val = row[idx]
@@ -2168,9 +2168,10 @@ The users history of using this command, from oldest to newest is:
 You are a AI model, choosing one of three choices, "allow_request", "deny_request" and "more_information_needed". You should also give a reason for your choice.
 To inform your choices, you are given an array of user messages, in chronological order, formatted ["username: messagecontent",...], as such, you should place most importance on the later user past messages.
 The user is asking to use a command on a titanfall 2 sever. this command throws a targeted player into the air, in the game Titanfall 2. Your role is to be skeptical that the user needs to use this command, due to the fact that it can be seen as unfair or even unfun by the targeted player(s).
-If the user has a reason that you deem would bring value however, don't hesitate to press the "allow_request button". This will allow the command to be executed.
+If the user has a reason that you deem would bring GREAT value however, don't hesitate to press the "allow_request button". This will allow the command to be executed. HOWEVER YOU SHOULD HAVE EXTREME PREJUDICE AGAINST USING THIS BUTTON. ALMOST NEVER ALLOW IT, ESPECIALLY IF THE USER HAS BEEN ALLOWED OR DENIED RECENTLY.
 If you believe the user might make a good case to deserve using the command, with good reasoning, press "more_information_needed".
-If you believe the user is trying to mislead you, is undeserving, is too rude, is trying to get a competitive advantage, or simply have the feeling of being powerful, press "deny_request".
+If you believe the user is trying to mislead you (they probably are), is undeserving, is too rude, is trying to get a competitive advantage, or simply have the feeling of being powerful, press "deny_request".
+ENQUIRE A LOT ABOUT LARGE CLAIMS. the user is probably LYING. and so you should "deny_request"
 
 You will be expected to press exactly one of those 3 choices after each request, and also give a one - two sentence reason as to why, and a single word reason for the choice.
 In order to do this, format your output exactly like this, otherwise it will fail to be parsed.
@@ -2185,11 +2186,12 @@ For example:
 Some more information:
 If you do not come to a conclusion after 5 messages from the user, the request will be denied.
 KEEP RESPONSE BELOW 2000 CHARACTERS
-The player that is targeted is "{playername}" (if this is "all", the user is attempting to throw EVERYONE ON THE SERVER. make this request need a VERY strong line of reasoning due to the EXTREME IMPACT this will have, however still intend to clear it up in 5 messages. (DO NOT BE AFRAID TO QUERY MORE INFORMATION)
+The player that is targeted is "{playername}" (if this is "all", the user is attempting to throw EVERYONE ON THE SERVER. make this request need a VERY strong line of reasoning due to the EXTREME IMPACT this will have. however still intend to clear it up in 5 messages. (do not be afraid to query more information) TO BE SAFE, ALWAYS DENY REQUESTS FOR "all".
 The player that used this command is "{ctx.author.nick if ctx.author.nick is not None else ctx.author.display_name}"
 {"The last time the user tried to use this command was: " + str(int(time.time()-lasttimethrown["specificusers"][ctx.author.id][-1]["timestamp"])) + " seconds ago, and you responded " + lasttimethrown["specificusers"][ctx.author.id][-1]["button"] +" due to " + lasttimethrown["specificusers"][ctx.author.id][-1]["one_word_reason"]if ctx.author.id in lasttimethrown["specificusers"].keys() else "This is the first time the user has tried to use this command. (since bot restart)"}
 {historyinfo} 
 base your leniance on this info too - if you have allowed the request a lot in the past hour, do you really need to allow more? You may need to enquire about this.
+if the user has been using the command a lot recently as well, they most likely do not deserve to use it again.
 Lastly:
 Here are the users message, after this system prompt ends.
 
