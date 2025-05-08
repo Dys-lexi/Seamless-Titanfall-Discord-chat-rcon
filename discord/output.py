@@ -19,7 +19,7 @@ import requests
 import sqlite3
 
 WEAPON_NAMES = {
-  "mp_weapon_rspn101": "R-201 **** Carbine",
+  "mp_weapon_rspn101": "R-201 Carbine",
   "mp_weapon_rspn101_og": "R-101 Carbine",
   "mp_weapon_hemlock": "Hemlock BF-R",
   "mp_weapon_vinson": "V-47 Flatline",
@@ -1864,6 +1864,8 @@ def messageloop():
                         print("colour codes found in message")
                         while "\033[" in messagewidget:
                             startpos = messagewidget.index("\033[")
+                            if "m" not in messagewidget[startpos:]:
+                                break
                             endpos = (
                                 messagewidget[startpos:].index("m")
                                 + startpos
