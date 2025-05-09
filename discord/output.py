@@ -1838,14 +1838,17 @@ def tf1readsend(serverid):
                     # print(inputstring[command["id"]])
                 client.run('sv_cheats','0')
             outputstring = client.run("autocvar_Lcommandreader")
-            clearup = client.run("autocvar_Lcommandreader",'""')
+            if "☻" in outputstring:
+                clearup = client.run("autocvar_Lcommandreader",'""')
                 
             discordtotitanfall[serverid]["lastheardfrom"] = int(time.time())
             
     except Exception as e:
         print("CORE BROKEY SOB",e)
+        outputstring = ""
         traceback.print_exc()
     if "☻" in outputstring:
+        print(outputstring)
         # print(outputstring)
         outputstring = "☻".join(outputstring.split("☻")[1:-1])
         outputstring = f"☻{outputstring}☻"
@@ -1853,9 +1856,9 @@ def tf1readsend(serverid):
         outputs = outputstring.split("☻X☻")
         for output in outputs:
             output = output.split("☻")[1:-1]
-            # print(output)
+            print(output)
             output = {"id":output[0],"command":output[1],"output":output[2],"commandtype":output[3]}
-            # print(output)
+            print(output)
             if output["commandtype"] == "chat_message":
                 # print("here")
                 messageflush.append({
@@ -1869,6 +1872,20 @@ def tf1readsend(serverid):
                     "servername" :context["serveridnamelinks"][serverid]
 
                 })
+            if output["commandtype"] == "connect_message":
+                # print("here")
+                messageflush.append({
+                    "timestamp": int(time.time()),
+                    "serverid": serverid,
+                    "type": 4,
+                    "globalmessage": False,
+                    "overridechannel": None,
+                    "messagecontent": output["command"],
+                    "metadata": {"type":None},
+                    "servername" :context["serveridnamelinks"][serverid]
+
+                })
+            
         # print("outputs",outputs)
 
     idlist = {}
