@@ -1,6 +1,6 @@
 # Seamless Titanfall <-> Discord chat relay, rcon, custom commands and leaderboards
 
-## Supports Both northstar and R1delta
+## Supports both Northstar and R1delta
 
 Message @dyslexi on discord for how to use this, as you'll probably need to be shown the ropes
 
