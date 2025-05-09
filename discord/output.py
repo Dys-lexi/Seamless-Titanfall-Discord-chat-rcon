@@ -15,7 +15,7 @@ from datetime import datetime, timedelta,timezone
 import discord
 from discord import Option
 import requests
-
+from rcon.source import Client
 import sqlite3
 
 WEAPON_NAMES = {
@@ -284,6 +284,7 @@ LEADERBOARDUPDATERATE = int(os.getenv("DISCORD_BOT_LEADERBOARD_UPDATERATE", "300
 DISCORDBOTLOGCOMMANDS = os.getenv("DISCORD_BOT_LOG_COMMANDS", "0")
 SERVERNAMEISCHOICE = os.getenv("DISCORD_BOT_SERVERNAME_IS_CHOICE", "0")
 SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
+TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass") 
 MAP_NAME_TABLE = {
     "mp_angel_city": "Angel City",
     "mp_black_water_canal": "Black Water Canal",
@@ -319,7 +320,15 @@ playeruidnamelink()
 joincounterdb()
 matchid()
 specifickilltrackerdb()
-    
+
+def savecontext():
+    global context
+    print("saving")
+    with open("./data/" + channel_file, "w") as f:
+        filteredcontext = context.copy()
+        del filteredcontext["commands"]
+        json.dump(filteredcontext, f, indent=4)
+
 
 if SHOULDUSEIMAGES == "1":
     print("Images enabled")
@@ -341,6 +350,7 @@ context = {
     "activeguild": 0,
     "serveridnamelinks": {},
     "serverchannelidlinks": {},
+    "istf1server": {},
     "RCONallowedusers": [],
     "overridechannels" : {
         "globalchannel":0,
@@ -366,6 +376,7 @@ else:
     context["logging_cat_id"] = 0
     context["activeguild"] = 0
     print("Channel file not found, using default channel ID 0.")
+savecontext()
 if os.path.exists("./data/" + command_file):
     with open("./data/" + command_file, "r") as f:
         context["commands"] = json.load(f)
@@ -1387,7 +1398,7 @@ async def on_message(message):
         ):
             await message.channel.send("Message too long, cannot send.")
             return
-        if message.content != "":
+        if message.content != "": #and not context["istf1server"].get(serverid,False):
             print(f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {message.content}")
             discordtotitanfall[serverid]["messages"].append(
                 {
@@ -1684,6 +1695,7 @@ def recieveflaskprintrequests():
 
         if  newmessage["serverid"] not in context["serveridnamelinks"]:
             context["serveridnamelinks"][newmessage["serverid"]] = newmessage["servername"]
+            context["istf1server"][newmessage["serverid"]] = False
             savecontext()
 
         if newmessage["serverid"] not in context["serverchannelidlinks"].keys():
@@ -1780,6 +1792,143 @@ def getmessagewidget(metadata,serverid,messagecontent,message):
     elif metadata["type"] == "disconnect":
         pass
     return output
+
+def filterquotes(inputstr):
+    inputstr = inputstr.replace('"',"'")
+    return "".join("".join(inputstr.split('"')).split("wqdwqqwdqwdqwdqw$"))
+
+def tf1readsend(serverid):
+    global discordtotitanfall,context
+    commands = {}
+    now = int(time.time()*100)
+    for command in list(discordtotitanfall[serverid]["commands"]):
+        command = {**command}
+        if command["command"][0] != "!":
+            commands[command["id"]] = {"type":"rcon","command":command["command"],"id":command["id"]}
+        # print(command)
+        command["command"] = command["command"][1:]
+        command["command"] = command["command"].split(" ")
+        if len(command["command"]) == 1:
+            command["command"].append("")
+        commands[command["id"]] = {"type":"rpc","command":command["command"][0],"id":command["id"],"args":command["command"][2:],"name":command["command"][1]}
+    # print("HERHE",discordtotitanfall[serverid]["messages"])
+    # print(discordtotitanfall)
+    messages = False
+    for message in discordtotitanfall[serverid]["messages"]:
+        messages = True
+        commands[message["id"]] = {"type":"msg","command":"sendmessage","id":message["id"],"args":"\x1b[38;5;105m"+message['content']}
+    if len(discordtotitanfall[serverid]["returnids"]["messages"].keys()) == 0 and messages:
+        discordtotitanfall[serverid]["returnids"]["messages"][now] = list(map(lambda x: x["id"],discordtotitanfall[serverid]["messages"]))
+    elif messages:
+        now = list(discordtotitanfall[serverid]["returnids"]["messages"].keys())[0]
+        discordtotitanfall[serverid]["returnids"]["messages"][list(discordtotitanfall[serverid]["returnids"]["messages"].keys())[0]]  = list(map(lambda x: x["id"],discordtotitanfall[serverid]["messages"])) 
+    # print(discordtotitanfall[serverid]["returnids"]["messages"])
+    inputstring = {}
+    # print("commands",commands)
+    try:
+        with Client(discordtotitanfall[serverid]["ip"].split(":")[0],  int(discordtotitanfall[serverid]["ip"].split(":")[1]), passwd=TF1RCONKEY,timeout=5) as client:
+            if len(commands) > 0:
+                print("sending messages and commands to tf1",commands)
+                client.run('sv_cheats','1')
+                for w, command in commands.items():
+                    quotationmark = '"'
+                    # print("BEEP BOOP",filterquotes("".join(command["args"])))
+                    print(("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }"{","+quotationmark+filterquotes(command["name"])+quotationmark if "name" in command.keys() else "" })'))
+                    inputstring[command["id"]] = client.run("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }"{","+quotationmark+filterquotes(command["name"])+quotationmark if "name" in command.keys() else "" })')
+                    # print(inputstring[command["id"]])
+                client.run('sv_cheats','0')
+            outputstring = client.run("autocvar_Lcommandreader")
+            clearup = client.run("autocvar_Lcommandreader",'""')
+                
+            discordtotitanfall[serverid]["lastheardfrom"] = int(time.time())
+            
+    except Exception as e:
+        print("CORE BROKEY SOB",e)
+        traceback.print_exc()
+    if "☻" in outputstring:
+        # print(outputstring)
+        outputstring = "☻".join(outputstring.split("☻")[1:-1])
+        outputstring = f"☻{outputstring}☻"
+        # print("outputstr",outputstring)
+        outputs = outputstring.split("☻X☻")
+        for output in outputs:
+            output = output.split("☻")[1:-1]
+            # print(output)
+            output = {"id":output[0],"command":output[1],"output":output[2],"commandtype":output[3]}
+            # print(output)
+            if output["commandtype"] == "chat_message":
+                # print("here")
+                messageflush.append({
+                    "timestamp": int(time.time()),
+                    "serverid": serverid,
+                    "type": 3,
+                    "globalmessage": False,
+                    "overridechannel": None,
+                    "messagecontent": output["command"],
+                    "metadata": {"type":None},
+                    "servername" :context["serveridnamelinks"][serverid]
+
+                })
+        # print("outputs",outputs)
+
+    idlist = {}
+    messagelist = {}
+    for index, commandid in enumerate(discordtotitanfall[serverid]["commands"]):
+        idlist[commandid["id"]] = index
+    for index, commandid in enumerate(discordtotitanfall[serverid]["messages"]):
+        messagelist[commandid["id"]] = index
+    messageflag = False
+    ids = []
+    
+    for key, value in inputstring.items():
+        if "OUTPUT<" in value and "/>ENDOUTPUT" in value:
+            value = "".join("".join(value.split("OUTPUT<")[1:]).split("/>ENDOUTPUT")[:-1])
+        print(value)
+        if  commands[key]["type"] == "msg" and messageflag:
+            continue
+        elif commands[key]["type"] == "msg":
+            messageflag = True
+            del discordtotitanfall[serverid]["returnids"]["messages"][now]
+            ids.append(commands[key]["id"])
+            discordtotitanfall[serverid]["messages"][messagelist[key]] = False
+            continue
+        print(key,"key")
+        discordtotitanfall[serverid]["returnids"]["commandsreturn"][str(key)] = {"output":value,"statuscode":0}
+        # discordtotitanfall[serverid]["returnids"]["commandsreturn"][str(key)]["output"] = value
+        # discordtotitanfall[serverid]["returnids"]["commandsreturn"][str(key)]["statuscode"] = "0"
+        discordtotitanfall[serverid]["commands"][idlist[key]] = "hot potato"
+    discordtotitanfall[serverid]["commands"] = list(filter(lambda x: x != "hot potato",discordtotitanfall[serverid]["commands"]))
+    discordtotitanfall[serverid]["messages"] = list(filter(lambda x: x,discordtotitanfall[serverid]["messages"]))
+    asyncio.run_coroutine_threadsafe(reactomessages(list(ids), serverid), bot.loop)
+
+# test if ; breaks things and ()
+def tf1relay():
+    global context
+    global discordtotitanfall
+    if TF1RCONKEY == "":
+        return
+    
+    print("Running tf1rcon support!")
+    # with Client('127.0.0.1', 37019, passwd='pass',timeout=5) as client:
+    #     response = client.run('sv_cheats','1')
+    #     response = client.run("script", 'Lrconcommand("sendmessage","WOQWOFKQFQWspace",34,"lexi")')
+        
+    # print(response,"woqdoqw")
+    servers = []
+    for server,value in context["istf1server"].items():
+        if value:
+            initdiscordtotitanfall(server)
+            servers.append(server)
+            discordtotitanfall[server]["ip"] = value
+            print(context["istf1server"],value,discordtotitanfall[server]["ip"].split(":")[0], discordtotitanfall[server]["ip"].split(":")[1])
+            # discordtotitanfall[server]["client"] = Client(discordtotitanfall[server]["ip"].split(":")[0], discordtotitanfall[server]["ip"].split(":")[1], passwd=TF1RCONKEY,timeout=1.5)
+    while True:
+        time.sleep(1)
+        for server in servers:
+            # print("meow",server)
+            tf1readsend(server)
+            # response = discordtotitanfall[server]["client"].run('sv_cheats1;script Lrconcommand("sendmessage","OWOWOOWOWOOW")')
+          
 
 def messageloop():
     global messageflush, lastmessage,discordtotitanfall, context,messageflushnotify
@@ -1915,6 +2064,7 @@ def messageloop():
                 messageflush = []
                 lastmessage = time.time()
             now = int(time.time()*100)
+            # WHAT ON EARTH IS THIS AND HOW ON EARTH DOES IT WORK
             for serverid in discordtotitanfall.keys():
                 iterator = 0
                 while iterator < len(discordtotitanfall[serverid]["returnids"]["messages"].keys()):
@@ -1924,7 +2074,7 @@ def messageloop():
                     iterator += 1
 
                     if int(key) < now-300:
-                        # print("running this")
+                        print("running this",value,serverid,key,now)
                         asyncio.run_coroutine_threadsafe(reactomessages(value, serverid, "🟡"), bot.loop)
                         del discordtotitanfall[serverid]["returnids"]["messages"][key]
                         iterator -= 1
@@ -1937,13 +2087,6 @@ def messageloop():
         time.sleep(0.1)
 
 
-def savecontext():
-    global context
-    print("saving")
-    with open("./data/" + channel_file, "w") as f:
-        filteredcontext = context.copy()
-        del filteredcontext["commands"]
-        json.dump(filteredcontext, f, indent=4)
 
 
 def initdiscordtotitanfall(serverid):
@@ -2753,7 +2896,7 @@ def playerpolllog(data,serverid,statuscode):
     
 
 def playerpoll():
-    global discordtotitanfall,playercontext
+    global discordtotitanfall,playercontext,context
     Ithinktheserverhascrashed = 180
     autosaveinterval = 120
     pinginterval = 10
@@ -2779,6 +2922,9 @@ def playerpoll():
        # poll time
         # I want to iterate through all servers, and ask them what they are up too.
         for serverid,data in discordtotitanfall.items():
+            # print(discordtotitanfall)
+            if context["istf1server"].get(serverid,False):
+                continue
             if time.time() - data["lastheardfrom"] > Ithinktheserverhascrashed:
                 pass
             else:
@@ -2895,6 +3041,7 @@ if DISCORDBOTLOGSTATS == "1":
     threading.Thread(target=playerpoll).start()
 threading.Thread(target=messageloop).start()
 threading.Thread(target=recieveflaskprintrequests).start()
+threading.Thread(target=tf1relay).start()
 
 
 
