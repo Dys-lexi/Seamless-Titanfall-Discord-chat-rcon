@@ -18,6 +18,8 @@ from discord import Option
 import requests
 from rcon.source import Client
 import sqlite3
+import re
+
 
 WEAPON_NAMES = {
   "mp_weapon_rspn101": "R-201 Carbine",
@@ -1796,9 +1798,11 @@ def getmessagewidget(metadata,serverid,messagecontent,message):
         pass
     return output
 
+
+
 def filterquotes(inputstr):
-    inputstr = inputstr.replace('"',"'")
-    return "".join("".join(inputstr.split('"')).split("wqdwqqwdqwdqwdqw$"))
+    return re.sub(r'(?<!\\)\\(?!\\)', r'\\\\', inputstr.replace('"', "'").replace("wqdwqqwdqwdqwdqw$", "").replace("\n", r"\n")) 
+
 
 def tf1readsend(serverid,checkstatus):
     global discordtotitanfall,context,reactedyellowtoo
@@ -1812,7 +1816,8 @@ def tf1readsend(serverid,checkstatus):
         # print(command)
         command["command"] = command["command"][1:]
         command["command"] = command["command"].split(" ")
-        commands[command["id"]] = {"type":"rpc","command":command["command"][0],"id":command["id"],"args":command["command"][1:],"name":command["command"][1]}
+        # print("COMMAND",command)
+        commands[command["id"]] = {"type":"rpc","command":command["command"][0],"id":command["id"],"args":command["command"][1:]}
     # print("HERHE",discordtotitanfall[serverid]["messages"])
     # print(discordtotitanfall)
     messages = False
