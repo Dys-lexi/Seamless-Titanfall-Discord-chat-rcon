@@ -1822,10 +1822,10 @@ def tf1readsend(serverid,checkstatus):
         if len(message["content"]) > 120:
             toolongmessages.append(message["id"])
         commands[message["id"]] = {"type":"msg","command":"sendmessage","id":message["id"],"args":str("\x1b[38;5;105m"+message['content'])[0:120]}
-    if len(discordtotitanfall[serverid]["returnids"]["messages"].keys()) == 0 and messages:# and discordtotitanfall[serverid]["serveronline"]:
+    if len(discordtotitanfall[serverid]["returnids"]["messages"].keys()) == 0 and messages and  discordtotitanfall[serverid]["lastheardfrom"] > int(time.time()) - 5:# and discordtotitanfall[serverid]["serveronline"]:
         discordtotitanfall[serverid]["returnids"]["messages"][now] = list(map(lambda x: x["id"],list(filter(lambda x: x["id"] not in reactedyellowtoo ,discordtotitanfall[serverid]["messages"]))))
         # print(discordtotitanfall[serverid]["returnids"]["messages"][now])
-    elif messages:# and discordtotitanfall[serverid]["serveronline"]:
+    elif messages and discordtotitanfall[serverid]["lastheardfrom"] > int(time.time()) - 5:# and discordtotitanfall[serverid]["serveronline"]:
         msgids = []
         searcher = list(discordtotitanfall[serverid]["returnids"]["messages"].keys())
         for search in searcher:
@@ -1849,7 +1849,8 @@ def tf1readsend(serverid,checkstatus):
                     # print("server not online")
                     discordtotitanfall[serverid]["serveronline"] = False
                     offlinethisloop = True
-                    # return False
+                    if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5:
+                        return False
             if len(commands) > 0:
                 print("sending messages and commands to tf1",commands)
                 client.run('sv_cheats','1')
@@ -2000,6 +2001,7 @@ def tf1relay():
         i += 1
         time.sleep(1)
         for server in servers:
+            # print("boop")
             # print("meow",server)
             if discordtotitanfall[server].get("serveronline",True) == True or i % 10 == 0:
                 # try:print((discordtotitanfall[server]["serveronline"]))
@@ -2157,7 +2159,7 @@ def messageloop():
                         if len(value) > 0:
                             reactedyellowtoo.extend(value)
                             reactedyellowtoo = reactedyellowtoo[-200:]
-                            # print("running this",value,serverid,key,now)
+                            print("running this",value,serverid,key,now)
                             asyncio.run_coroutine_threadsafe(reactomessages(value, serverid, "🟡"), bot.loop)
                         del discordtotitanfall[serverid]["returnids"]["messages"][key]
                         iterator -= 1
