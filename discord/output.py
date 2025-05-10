@@ -1,3 +1,4 @@
+# chat relay for tf|1 and tf|2 by dyslexi!
 import asyncio
 import json
 import os
@@ -1394,7 +1395,7 @@ async def on_message(message):
             len(
                 f"{message.author.nick if message.author.nick is not None else message.author.display_name}: [38;5;254m{message.content}"
             )
-            > 240222
+            > 240 - bool(context["istf1server"].get(serverid,False))*120
         ):
             await message.channel.send("Message too long, cannot send.")
             return
@@ -1805,21 +1806,23 @@ def tf1readsend(serverid,checkstatus):
         command = {**command}
         if command["command"][0] != "!":
             commands[command["id"]] = {"type":"rcon","command":command["command"],"id":command["id"]}
+            continue
         # print(command)
         command["command"] = command["command"][1:]
         command["command"] = command["command"].split(" ")
-        if len(command["command"]) == 1:
-            command["command"].append("")
-        commands[command["id"]] = {"type":"rpc","command":command["command"][0],"id":command["id"],"args":command["command"][2:],"name":command["command"][1]}
+        commands[command["id"]] = {"type":"rpc","command":command["command"][0],"id":command["id"],"args":command["command"][1:],"name":command["command"][1]}
     # print("HERHE",discordtotitanfall[serverid]["messages"])
     # print(discordtotitanfall)
     messages = False
+    toolongmessages = []
     for message in discordtotitanfall[serverid]["messages"]:
         messages = True
-        commands[message["id"]] = {"type":"msg","command":"sendmessage","id":message["id"],"args":"\x1b[38;5;105m"+message['content']}
-    if len(discordtotitanfall[serverid]["returnids"]["messages"].keys()) == 0 and messages:
+        if len(message["content"]) > 120:
+            toolongmessages.append(message["id"])
+        commands[message["id"]] = {"type":"msg","command":"sendmessage","id":message["id"],"args":str("\x1b[38;5;105m"+message['content'])[0:120]}
+    if len(discordtotitanfall[serverid]["returnids"]["messages"].keys()) == 0 and messages and discordtotitanfall[serverid]["serveronline"]:
         discordtotitanfall[serverid]["returnids"]["messages"][now] = list(map(lambda x: x["id"],discordtotitanfall[serverid]["messages"]))
-    elif messages:
+    elif messages and discordtotitanfall[serverid]["serveronline"]:
         msgids = []
         searcher = list(discordtotitanfall[serverid]["returnids"]["messages"].keys())
         for search in searcher:
@@ -1831,27 +1834,32 @@ def tf1readsend(serverid,checkstatus):
         # discordtotitanfall[serverid]["returnids"]["messages"][list(discordtotitanfall[serverid]["returnids"]["messages"].keys())[0]]  = list(map(lambda x: x["id"],discordtotitanfall[serverid]["messages"])) 
     # print(discordtotitanfall[serverid]["returnids"]["messages"])
     inputstring = {}
+    offlinethisloop = False
     # print("commands",commands)
     try:
         with Client(discordtotitanfall[serverid]["ip"].split(":")[0],  int(discordtotitanfall[serverid]["ip"].split(":")[1]), passwd=TF1RCONKEY,timeout=5) as client:
             if checkstatus:
                 status = client.run("status")
                 # print("statuscheck","not hibernating" not in status or "0 humans" in status,status)
-                if "not hibernating" not in status or "0 humans" in status:
+                if "not hibernating" not in status and "0 humans" in status:
                     print("server not online")
                     discordtotitanfall[serverid]["serveronline"] = False
-                    return False
+                    offlinethisloop = True
+                    # return False
             if len(commands) > 0:
                 print("sending messages and commands to tf1",commands)
                 client.run('sv_cheats','1')
                 for w, command in commands.items():
                     quotationmark = '"'
+                    if command["type"] == "rcon":
+                        inputstring[command["id"]] = client.run(*command["command"].split(" "))
+                        continue
                     # print("BEEP BOOP",filterquotes("".join(command["args"])))
-                    print(("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }"{","+quotationmark+filterquotes(command["name"])+quotationmark if "name" in command.keys() else "" })'))
-                    inputstring[command["id"]] = client.run("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }"{","+quotationmark+filterquotes(command["name"])+quotationmark if "name" in command.keys() else "" })')
+                    print("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")')
+                    inputstring[command["id"]] = client.run("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")')#{","+quotationmark+filterquotes(command["name"])+quotationmark if "name" in command.keys() else "" })')
                     # print(inputstring[command["id"]])
                 client.run('sv_cheats','0')
-            outputstring = client.run("autocvar_Lcommandreader")
+            outputstring = client.run("autocvar_Lcommandreader") 
             if "☻" in outputstring:
                 clearup = client.run("autocvar_Lcommandreader",'""')
                 
@@ -1921,15 +1929,19 @@ def tf1readsend(serverid,checkstatus):
         messagelist[commandid["id"]] = index
     messageflag = False
     ids = []
-    
+    senttoolongmessages =[]
     for key, value in inputstring.items():
         if "OUTPUT<" in value and "/>ENDOUTPUT" in value:
-            value = "".join("".join(value.split("OUTPUT<")[1:]).split("/>ENDOUTPUT")[:-1])
-        print(value)
+            value = "".join("".join(value.split("OUTPUT<")[1:]).split("/>ENDOUTPUT")[:-1])[0:500]
+        else:
+            value = value[0:1000]
+        print("valuwwwe",value)
         if  commands[key]["type"] == "msg" and (value != "sent!" or messageflag):
             continue
         elif commands[key]["type"] == "msg" and value == "sent!":
             # messageflag = True
+            if key in toolongmessages:
+                senttoolongmessages.append(key)
             # print("BOOP",key,discordtotitanfall[serverid]["returnids"]["messages"][now])
             try:
                 # del discordtotitanfall[serverid]["returnids"]["messages"][now]
@@ -1948,7 +1960,10 @@ def tf1readsend(serverid,checkstatus):
     discordtotitanfall[serverid]["commands"] = list(filter(lambda x: x != "hot potato",discordtotitanfall[serverid]["commands"]))
     discordtotitanfall[serverid]["messages"] = list(filter(lambda x: x,discordtotitanfall[serverid]["messages"]))
     asyncio.run_coroutine_threadsafe(reactomessages(list(ids), serverid), bot.loop)
-    discordtotitanfall[serverid]["serveronline"] = True
+    discordtotitanfall[serverid]["serveronline"] = not offlinethisloop
+    if senttoolongmessages:
+             asyncio.run_coroutine_threadsafe(reactomessages(senttoolongmessages, serverid,"✂️"), bot.loop)
+
     return True
     
 # test if ; breaks things and ()
@@ -1979,6 +1994,8 @@ def tf1relay():
         for server in servers:
             # print("meow",server)
             if discordtotitanfall[server].get("serveronline",True) == True or i % 10 == 0:
+                # try:print((discordtotitanfall[server]["serveronline"]))
+                # except:print(list(discordtotitanfall[server].keys()))
                 threading.Thread(target=tf1readsend, daemon=True, args=(server,i%10 == 0)).start()
 
   
