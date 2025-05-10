@@ -246,6 +246,8 @@ messageflushnotify = []
 lastmessage = 0
 Ijuststarted = time.time()
 
+reactedyellowtoo = []
+
 
 log_file = "logs"
 if not os.path.exists("./data/" + log_file):
@@ -1799,7 +1801,7 @@ def filterquotes(inputstr):
     return "".join("".join(inputstr.split('"')).split("wqdwqqwdqwdqwdqw$"))
 
 def tf1readsend(serverid,checkstatus):
-    global discordtotitanfall,context
+    global discordtotitanfall,context,reactedyellowtoo
     commands = {}
     now = int(time.time()*100)
     for command in list(discordtotitanfall[serverid]["commands"]):
@@ -1820,17 +1822,19 @@ def tf1readsend(serverid,checkstatus):
         if len(message["content"]) > 120:
             toolongmessages.append(message["id"])
         commands[message["id"]] = {"type":"msg","command":"sendmessage","id":message["id"],"args":str("\x1b[38;5;105m"+message['content'])[0:120]}
-    if len(discordtotitanfall[serverid]["returnids"]["messages"].keys()) == 0 and messages and discordtotitanfall[serverid]["serveronline"]:
-        discordtotitanfall[serverid]["returnids"]["messages"][now] = list(map(lambda x: x["id"],discordtotitanfall[serverid]["messages"]))
-    elif messages and discordtotitanfall[serverid]["serveronline"]:
+    if len(discordtotitanfall[serverid]["returnids"]["messages"].keys()) == 0 and messages:# and discordtotitanfall[serverid]["serveronline"]:
+        discordtotitanfall[serverid]["returnids"]["messages"][now] = list(map(lambda x: x["id"],list(filter(lambda x: x["id"] not in reactedyellowtoo ,discordtotitanfall[serverid]["messages"]))))
+        # print(discordtotitanfall[serverid]["returnids"]["messages"][now])
+    elif messages:# and discordtotitanfall[serverid]["serveronline"]:
         msgids = []
         searcher = list(discordtotitanfall[serverid]["returnids"]["messages"].keys())
         for search in searcher:
             for msgid in discordtotitanfall[serverid]["returnids"]["messages"][search]:
                 msgids.append(msgid)
         for newmsgid in discordtotitanfall[serverid]["messages"]:
-            if newmsgid["id"] not in msgids:
+            if newmsgid["id"] not in msgids and  newmsgid["id"] not in reactedyellowtoo:
                 discordtotitanfall[serverid]["returnids"]["messages"].setdefault(now,[]).append(newmsgid["id"])
+    
         # discordtotitanfall[serverid]["returnids"]["messages"][list(discordtotitanfall[serverid]["returnids"]["messages"].keys())[0]]  = list(map(lambda x: x["id"],discordtotitanfall[serverid]["messages"])) 
     # print(discordtotitanfall[serverid]["returnids"]["messages"])
     inputstring = {}
@@ -1842,7 +1846,7 @@ def tf1readsend(serverid,checkstatus):
                 status = client.run("status")
                 # print("statuscheck","not hibernating" not in status or "0 humans" in status,status)
                 if "not hibernating" not in status and "0 humans" in status:
-                    print("server not online")
+                    # print("server not online")
                     discordtotitanfall[serverid]["serveronline"] = False
                     offlinethisloop = True
                     # return False
@@ -1860,18 +1864,22 @@ def tf1readsend(serverid,checkstatus):
                     # print(inputstring[command["id"]])
                 client.run('sv_cheats','0')
             outputstring = client.run("autocvar_Lcommandreader") 
+            # print("out",outputstring)
             if "☻" in outputstring:
                 clearup = client.run("autocvar_Lcommandreader",'""')
                 
-            discordtotitanfall[serverid]["lastheardfrom"] = int(time.time()) + 10
+            
             
     except Exception as e:
-        print("CORE BROKEY SOB",e)
+        # print("CORE BROKEY SOB",e)
         outputstring = ""
         status = ""
         discordtotitanfall[serverid]["serveronline"] = False
         return False
         # traceback.print_exc()
+    else:
+        if not offlinethisloop:
+            discordtotitanfall[serverid]["lastheardfrom"] = int(time.time()) + 10
     try:
         if "☻" in outputstring:
             print(outputstring)
@@ -1935,7 +1943,7 @@ def tf1readsend(serverid,checkstatus):
             value = "".join("".join(value.split("OUTPUT<")[1:]).split("/>ENDOUTPUT")[:-1])[0:500]
         else:
             value = value[0:1000]
-        print("valuwwwe",value)
+        print("output from server",value)
         if  commands[key]["type"] == "msg" and (value != "sent!" or messageflag):
             continue
         elif commands[key]["type"] == "msg" and value == "sent!":
@@ -2003,7 +2011,7 @@ def tf1relay():
           
 
 def messageloop():
-    global messageflush, lastmessage,discordtotitanfall, context,messageflushnotify
+    global messageflush, lastmessage,discordtotitanfall, context,messageflushnotify,reactedyellowtoo
     addflag = False
     while True:
         try:
@@ -2146,8 +2154,11 @@ def messageloop():
                     iterator += 1
 
                     if int(key) < now-300:
-                        print("running this",value,serverid,key,now)
-                        asyncio.run_coroutine_threadsafe(reactomessages(value, serverid, "🟡"), bot.loop)
+                        if len(value) > 0:
+                            reactedyellowtoo.extend(value)
+                            reactedyellowtoo = reactedyellowtoo[-200:]
+                            # print("running this",value,serverid,key,now)
+                            asyncio.run_coroutine_threadsafe(reactomessages(value, serverid, "🟡"), bot.loop)
                         del discordtotitanfall[serverid]["returnids"]["messages"][key]
                         iterator -= 1
 
