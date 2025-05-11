@@ -15,6 +15,7 @@ from discord.ext import commands, tasks
 from datetime import datetime, timedelta,timezone
 import discord
 from discord import Option
+from discord import app_commands
 import requests
 from rcon.source import Client
 import sqlite3
@@ -108,6 +109,8 @@ WEAPON_NAMES = {
   "mp_titancore_upgrade": "Upgrade Core"
 }
 
+@app_commands.allowed_installs(guilds=True, users=True)
+@app_commands.allowed_contexts(guilds=True, dms=False, private_channels=True)
 
 def specifickilltrackerdb():
     tfdb = sqlite3.connect("./data/tf2helper.db")
