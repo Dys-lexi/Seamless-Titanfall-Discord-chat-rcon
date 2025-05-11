@@ -1390,7 +1390,7 @@ async def rcon_add_user(ctx, user: Option(discord.User, "The user to add")):
     global context
     # return
     # check if the user is an admin on the discord
-    if user.id in context["RCONallowedusers"]:
+    if ctx.author.guild_permissions.administrator and user.id in context["RCONallowedusers"]:
         context["RCONallowedusers"].remove(user.id)
         savecontext()
         await ctx.respond(
