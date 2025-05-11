@@ -152,6 +152,35 @@ def specifickilltrackerdb():
     tfdb.commit()
     c.close()
     tfdb.close()
+def matchidtf1():
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS matchidtf1 (
+            matchid STRING,
+            serverid INTEGER,
+            map STRING,
+            time INTEGER,
+            PRIMARY KEY (matchid, serverid)
+            )"""
+    )
+    tfdb.commit()
+    tfdb.close()
+def tf1matchplayers():
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS matchid (
+            matchid STRING,
+            serverid INTEGER,
+            playername STRING,
+            playerip INTEGER,
+            PRIMARY KEY (playername, playerip)
+            )"""
+    )
+    tfdb.commit()
+    tfdb.close()
+
 def matchid():
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
@@ -1846,7 +1875,7 @@ def tf1readsend(serverid,checkstatus):
     offlinethisloop = False
     # print("commands",commands)
     try:
-        with Client(discordtotitanfall[serverid]["ip"].split(":")[0],  int(discordtotitanfall[serverid]["ip"].split(":")[1]), passwd=TF1RCONKEY,timeout=5) as client:
+        with Client(discordtotitanfall[serverid]["ip"].split(":")[0],  int(discordtotitanfall[serverid]["ip"].split(":")[1]), passwd=TF1RCONKEY,timeout=2) as client:
             if checkstatus:
                 status = client.run("status")
                 # print("statuscheck","not hibernating" not in status or "0 humans" in status,status)
@@ -1862,7 +1891,9 @@ def tf1readsend(serverid,checkstatus):
                 for w, command in commands.items():
                     quotationmark = '"'
                     if command["type"] == "rcon":
+                        # print("beep boop")
                         inputstring[command["id"]] = client.run(*command["command"].split(" "))
+                        # print("I managed it!")
                         continue
                     # print("BEEP BOOP",filterquotes("".join(command["args"])))
                     print("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")')
@@ -1881,11 +1912,12 @@ def tf1readsend(serverid,checkstatus):
         outputstring = ""
         status = ""
         discordtotitanfall[serverid]["serveronline"] = False
-        return False
+        # return False
         # traceback.print_exc()
     else:
         if not offlinethisloop:
             discordtotitanfall[serverid]["lastheardfrom"] = int(time.time()) + 10
+    # print("I got here!")
     try:
         if "☻" in outputstring:
             print(outputstring)
@@ -1943,13 +1975,14 @@ def tf1readsend(serverid,checkstatus):
         messagelist[commandid["id"]] = index
     messageflag = False
     ids = []
+    # print(discordtotitanfall[serverid]["commands"])
     senttoolongmessages =[]
     for key, value in inputstring.items():
         if "OUTPUT<" in value and "/>ENDOUTPUT" in value:
             value = "".join("".join(value.split("OUTPUT<")[1:]).split("/>ENDOUTPUT")[:-1])[0:500]
         else:
             value = value[0:1000]
-        print("output from server",value)
+        # print("output from server",value)
         if  commands[key]["type"] == "msg" and (value != "sent!" or messageflag):
             continue
         elif commands[key]["type"] == "msg" and value == "sent!":
@@ -1970,7 +2003,11 @@ def tf1readsend(serverid,checkstatus):
         discordtotitanfall[serverid]["returnids"]["commandsreturn"][str(key)] = {"output":value,"statuscode":0}
         # discordtotitanfall[serverid]["returnids"]["commandsreturn"][str(key)]["output"] = value
         # discordtotitanfall[serverid]["returnids"]["commandsreturn"][str(key)]["statuscode"] = "0"
-        discordtotitanfall[serverid]["commands"][idlist[key]] = "hot potato"
+        # print(discordtotitanfall[serverid]["commands"])
+        try:
+            discordtotitanfall[serverid]["commands"][idlist[key]] = "hot potato"
+        except:
+            print("race condition probably")
     discordtotitanfall[serverid]["commands"] = list(filter(lambda x: x != "hot potato",discordtotitanfall[serverid]["commands"]))
     discordtotitanfall[serverid]["messages"] = list(filter(lambda x: x,discordtotitanfall[serverid]["messages"]))
     asyncio.run_coroutine_threadsafe(reactomessages(list(ids), serverid), bot.loop)
