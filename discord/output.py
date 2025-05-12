@@ -152,30 +152,53 @@ def specifickilltrackerdb():
     tfdb.commit()
     c.close()
     tfdb.close()
-def matchidtf1():
+# def matchidtf1():
+#     tfdb = sqlite3.connect("./data/tf2helper.db")
+#     c = tfdb.cursor()
+#     c.execute(
+#         """CREATE TABLE IF NOT EXISTS matchidtf1 (
+#             matchid STRING,
+#             serverid INTEGER,
+#             map STRING,
+#             time INTEGER,
+#             PRIMARY KEY (matchid, serverid)
+#             )"""
+#     )
+#     tfdb.commit()
+#     tfdb.close()
+def tf1matchplayers():
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
+    c.execute("DROP TABLE IF EXISTS matchtf1")
     c.execute(
-        """CREATE TABLE IF NOT EXISTS matchidtf1 (
+        """CREATE TABLE IF NOT EXISTS matchtf1 (
             matchid STRING,
             serverid INTEGER,
             map STRING,
             time INTEGER,
-            PRIMARY KEY (matchid, serverid)
+            playername STRING,
+            playerip INTEGER,
+            PRIMARY KEY (playername, playerip)
             )"""
     )
     tfdb.commit()
     tfdb.close()
-def tf1matchplayers():
+
+def bantf1():
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
+    # banid is because the bot automatically bans new names / ips
     c.execute(
-        """CREATE TABLE IF NOT EXISTS matchid (
-            matchid STRING,
-            serverid INTEGER,
+        """CREATE TABLE IF NOT EXISTS banstf1 (
+            id INTEGER PRIMARY KEY,
+            banid INTEGER,
+            ismute INTEGER, 
+            banstart INTEGER,
+            banend INTEGER,
+            playerip STRING,
             playername STRING,
-            playerip INTEGER,
-            PRIMARY KEY (playername, playerip)
+            reason STRING,
+            banuploader STRING
             )"""
     )
     tfdb.commit()
@@ -318,7 +341,7 @@ LEADERBOARDUPDATERATE = int(os.getenv("DISCORD_BOT_LEADERBOARD_UPDATERATE", "300
 DISCORDBOTLOGCOMMANDS = os.getenv("DISCORD_BOT_LOG_COMMANDS", "0")
 SERVERNAMEISCHOICE = os.getenv("DISCORD_BOT_SERVERNAME_IS_CHOICE", "0")
 SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
-TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass") 
+TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "") 
 MAP_NAME_TABLE = {
     "mp_angel_city": "Angel City",
     "mp_black_water_canal": "Black Water Canal",
@@ -354,7 +377,9 @@ playeruidnamelink()
 joincounterdb()
 matchid()
 specifickilltrackerdb()
-
+bantf1()
+tf1matchplayers()
+# matchidtf1()
 def savecontext():
     global context
     print("saving")
@@ -918,11 +943,14 @@ if DISCORDBOTLOGSTATS == "1":
             color=0xff70cb,
             description=f"Most recent to oldest",
         )
+        # print("LEN",len(aliases))
         for y,x in enumerate( aliases[0:MAXALIASESSHOWN]):
             embed.add_field(name=f"Alias {y+1}:", value=f"\u200b {x}", inline=False)
         if len(aliases) > MAXALIASESSHOWN:
+            # print(f"({', '.join(list(map(lambda x: f'*{x}*',aliases[MAXALIASESSHOWN:])))})")
             embed.add_field(name=f"{len(aliases) - MAXALIASESSHOWN} more alias{'es' if len(aliases) - MAXALIASESSHOWN > 1 else ''}",value=f"({', '.join(list(map(lambda x: f'*{x}*',aliases[MAXALIASESSHOWN:])))})")
         if len(alsomatching.keys()) > 0:
+            # print(f"({', '.join(list(map(lambda x: f'*{x}*',list(alsomatching.values())[0:20])))}) {'**only first 20 shown**' if len(alsomatching.keys()) > 20 else ''}")
             embed.add_field(name=f"The {len(alsomatching.keys())} other match{'es are:' if len(alsomatching.keys()) > 1 else ' is:'}",value=f"({', '.join(list(map(lambda x: f'*{x}*',list(alsomatching.values())[0:20])))}) {'**only first 20 shown**' if len(alsomatching.keys()) > 20 else ''}")
             
         await ctx.respond(embed=embed, ephemeral=False)
@@ -1390,7 +1418,7 @@ async def rcon_add_user(ctx, user: Option(discord.User, "The user to add")):
     global context
     # return
     # check if the user is an admin on the discord
-    if user.id in context["RCONallowedusers"]:
+    if user.id in context["RCONallowedusers"] and ctx.author.guild_permissions.administrator:
         context["RCONallowedusers"].remove(user.id)
         savecontext()
         await ctx.respond(
@@ -1832,6 +1860,120 @@ def getmessagewidget(metadata,serverid,messagecontent,message):
 def filterquotes(inputstr):
     return re.sub(r'(?<!\\)\\(?!\\)', r'\\\\', inputstr.replace('"', "'").replace("wqdwqqwdqwdqwdqw$", "").replace("\n", r"\n")) 
 
+def bansystem(statusoutput):
+    pass
+# if TF1RCONKEY != "":
+#     @bot.slash_command(
+#         name="tf1ban",
+#         description="ban and mute somone in a tf1 server",
+#     )
+#     async def serverlesssanction(
+#         ctx,
+#         # playeroruid: Option(str, "Sanction a name or uid", required=True, choices=["uid", "name"]),
+#         who: Option(str, "The playername to sanction", required=True),
+        
+#         sanctiontype: Option(
+#             str, "The type of sanction to apply", choices=["mute", "ban"] ),
+#         reason: Option(str, "The reason for the sanction", required=False) = None,
+#         expiry: Option(str, "The expiry time of the sanction in format yyyy-mm-dd, omit is forever") = None,
+#     ):
+#         global context,messageflush
+#         if ctx.author.id not in context["RCONallowedusers"]:
+#             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+#             await ctx.respond("You are not allowed to use this command.", ephemeral=False)
+#             return
+#         matchingplayers = resolveplayeruidfromdb(who, playeroruid)
+#         if len (matchingplayers) > 1:
+#             multistring = "\n" + "\n".join(f"{i+1}) {p['name']}" for i, p in enumerate(matchingplayers[0:10]))
+#             await ctx.respond(f"{len(matchingplayers)} players found, please be more specific: {multistring}", ephemeral=False)
+#             return
+#         elif len(matchingplayers) == 0:
+#             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+#             await ctx.respond("No players found", ephemeral=False)
+#             return
+#         player = matchingplayers[0]
+#         await ctx.defer()
+#         url = f"http://{LOCALHOSTPATH}:3000/sanctions"
+#         sendjson = {
+#                 "UID": player["uid"],
+#                 "Issuer": ctx.author.name,
+#                 "SanctionType": "1" if sanctiontype == "ban" else "0",
+#                 # "Expire": expiry,
+#                 "ipadd": "127.0.0.1",
+#                 # "Reason": reason,
+#                 "PlayerName": player["name"]
+#             }
+#         if expiry:
+#             sendjson["Expire"] = expiry
+#         if reason:
+#             sendjson["Reason"] = reason
+#         response = requests.post(
+#             url,
+         
+#             params=sendjson,
+#                headers={"x-api-key": SANCTIONAPIBANKEY}
+#         )
+#         jsonresponse = response.json()
+#         statuscode = response.status_code
+#         if statuscode == 201 or statuscode == 200:
+#             messageflush.append(
+#                 {
+#                     "servername": "No server",
+#                     "serverid": "-100",
+#                     "type": 3,
+#                     "timestamp": int(time.time()),
+#                     "globalmessage": True,
+#                     "overridechannel": "globalchannel",
+#                     "messagecontent": f"New {sanctiontype} uploaded by {ctx.author.name} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry if expiry else ''} {'Reason: ' + reason if reason else ''}",
+#                     "metadata": {
+#                         "type": None
+#                     },
+#                 }
+#             )
+#             pass
+
+#         await ctx.respond(f"```{jsonresponse}```", ephemeral=False)
+tf1servercontext ={}
+
+# def tf1savecontexttosql():
+#     global tf1servercontext
+
+# def tf1statusinterp(status,serverid,matchid):
+#     global tf1servercontext
+#     currentmap, players = interpstatus(status)
+#     # setdefault(now,[])
+#     now = int(time.time())
+#     # for player in players:
+#     #     tf1servercontext.setdefault(player["name"],{})
+#     #     tf1servercontext[currentmap].setdefault(player["ip"],{})
+#     #     tf1servercontex[currentmap][player["ip"]].setdefault(player["name"],{"timejoined":now})
+#     #     tf1servercontext[currentmap][player["ip"]][player["name"]]["timepoll"] = now
+
+
+        
+
+
+
+# def interpstatus(log):
+#     m = re.search(r"map\s*:\s*(\S+)", log)
+#     map_name = m.group(1) if m else None
+#     players = []
+#     for line in log.splitlines():
+#         if "#" in line and '"' in line:
+#             m1 = re.search(r'#\s*(\d+)\s+\d+\s+"([^"]+)"', line)
+#             if not m1:
+#                 continue
+#             userid, name = m1.group(1), m1.group(2)
+#             m2 = re.search(r'(\d{1,3}(?:\.\d{1,3}){3})(?=\[)', line)
+#             ip = m2.group(1) if m2 else None
+
+#             players.append({
+#                 "userid": userid,
+#                 "name": name,
+#                 "ip": ip
+#             })
+
+#     return map_name, players
 
 def tf1readsend(serverid,checkstatus):
     global discordtotitanfall,context,reactedyellowtoo
@@ -1885,6 +2027,10 @@ def tf1readsend(serverid,checkstatus):
                     offlinethisloop = True
                     if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5:
                         return False
+                else:
+                    pass
+                    # matchid = client.run("autocvar_matchid") 
+                    # tf1statusinterp(status,serverid,matchid)
             if len(commands) > 0:
                 print("sending messages and commands to tf1",commands)
                 client.run('sv_cheats','1')
@@ -1982,7 +2128,7 @@ def tf1readsend(serverid,checkstatus):
             value = "".join("".join(value.split("OUTPUT<")[1:]).split("/>ENDOUTPUT")[:-1])[0:500]
         else:
             value = value[0:1000]
-        # print("output from server",value)
+        print("output from server",value)
         if  commands[key]["type"] == "msg" and (value != "sent!" or messageflag):
             continue
         elif commands[key]["type"] == "msg" and value == "sent!":
@@ -2643,7 +2789,7 @@ def checkandaddtouidnamelink(uid, playername):
     row = c.fetchone()
     if row:
         last_id, last_name = row
-        if playername == last_name:
+        if str(playername) == str(last_name):
             c.execute(
                 "UPDATE uidnamelink SET lastseenunix = ? WHERE id = ?",(now, last_id))
         else:

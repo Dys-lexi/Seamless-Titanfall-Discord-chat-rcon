@@ -30,6 +30,7 @@ discordlog:
       - DISCORD_BOT_LEADERBOARD_UPDATERATE=300 # how often leaderboards update
       - DISCORD_BOT_LOG_COMMANDS=1 #log command usage. needs bindchannel for commands to be set. (commands are messages beginning with ! or /)
       - DISCORD_BOT_SERVERNAME_IS_CHOICE=0 #determines when specifiying a servername in a command if it's a choice, or an entered string.
+      - TF1_RCON_PASSWORD="" #RCON Password for tf1 chat relay. when blank, completly disables relay
     volumes:
       - ./discord/data:/app/data:rw
     restart: always
