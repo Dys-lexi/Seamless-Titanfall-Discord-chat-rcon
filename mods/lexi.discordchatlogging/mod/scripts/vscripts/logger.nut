@@ -227,7 +227,9 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
         {
 	string newmessage = ""
 	int playerteam = message.player.GetTeam()
-        if( playerteam <= 1 )
+	if( playerteam <= 0 )
+	newmessage = "TEAM_SPECTATOR"
+        if( playerteam == 1 )
         newmessage = "TEAM_UNASSIGNED"
         if( playerteam == 2 )
         newmessage = "TEAM_MILITIA"
