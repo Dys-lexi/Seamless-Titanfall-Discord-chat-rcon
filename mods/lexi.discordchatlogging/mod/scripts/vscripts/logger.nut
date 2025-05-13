@@ -220,8 +220,24 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
     // string playername = message.player.GetPlayerName()
 	// string messagecontent = message.message
 	// print(serverdetails.Servername)
+	string teamnewmessage = message.player.GetPlayerName()
+    if( message.isTeam )
+    {
+	int playerteam = message.player.GetTeam()
+	if( playerteam <= 0 )
+	teamnewmessage = "spec"
+    if( playerteam == 1 )
+    teamnewmessage = "none"
+    if( playerteam == 2 )
+    teamnewmessage = "mil"
+    if( playerteam == 3 )
+    teamnewmessage = "imc"
+    if( playerteam >= 4 )
+    teamnewmessage = "both"
+	teamnewmessage = "[TEAM (" + teamnewmessage + ")]" + message.player.GetPlayerName()
+	}
 	outgoingmessage newmessage
-	newmessage.playername = message.player.GetPlayerName()
+	newmessage.playername = teamnewmessage
 	newmessage.message = message.message
 	newmessage.timestamp = GetUnixTimestamp()
 	newmessage.typeofmsg = 1
@@ -312,7 +328,10 @@ void function Onmapchange(){
 	outgoingmessage newmessage
 	// string LocalizedMapName = Localize( "#STATS_NOT_APPLICABLE" )
 	newmessage.playername = ""
+	if( GetMapName() in MAP_NAME_TABLE )
 	newmessage.message = "Map changed to " + MAP_NAME_TABLE[GetMapName()]
+        else
+	newmessage.message = "Map changed to " + GetMapName()
 	// print(newmessage.message)
 	newmessage.timestamp = GetUnixTimestamp()
 	newmessage.typeofmsg = 2
