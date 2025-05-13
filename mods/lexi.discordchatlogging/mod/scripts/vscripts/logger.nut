@@ -1,3 +1,4 @@
+untyped
 global function discordloggerinit //init mod
 global function discordlogextmessage //allows other mods to send messages
 global function discordlogmatchplayers //given a string, returns all players whose name includes said string
