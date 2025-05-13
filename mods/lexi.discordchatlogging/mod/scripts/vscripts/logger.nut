@@ -85,6 +85,7 @@ struct {
 	string password
 	string currentlyplaying = ""
 	string matchid
+	bool showchatprefix
 } serverdetails
 
 
@@ -143,6 +144,7 @@ void function discordloggerinit() {
 	// print(currentTime)
 	// serverdetails.currentlyplaying = GetConVarString("discordlogpreviousroundplayers")
 	serverdetails.Requestpath = GetConVarString("discordlogginghttpServer")
+	serverdetails.showchatprefix = GetConVarBool("discordlogshowteamchatprefix")
 	serverdetails.password = GetConVarString("discordloggingserverpassword")
 	print("[DiscordLogger]Servername: "+GetConVarString("discordloggingservername"))
 	print("[DiscordLogger]Requestpath: "+serverdetails.Requestpath)
@@ -221,7 +223,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	// string messagecontent = message.message
 	// print(serverdetails.Servername)
 	string teamnewmessage = message.player.GetPlayerName()
-    if( message.isTeam )
+    if( message.isTeam && serverdetails.showchatprefix )
     {
 	int playerteam = message.player.GetTeam()
 	if( playerteam <= 0 )
@@ -661,4 +663,3 @@ void function runcommand(string command,string validation) {
 // 	check.commandcheck[validation] <- EncodeJSON(playerlist)
 
 // }
-

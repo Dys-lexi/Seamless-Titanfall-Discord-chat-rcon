@@ -341,7 +341,7 @@ LEADERBOARDUPDATERATE = int(os.getenv("DISCORD_BOT_LEADERBOARD_UPDATERATE", "300
 DISCORDBOTLOGCOMMANDS = os.getenv("DISCORD_BOT_LOG_COMMANDS", "0")
 SERVERNAMEISCHOICE = os.getenv("DISCORD_BOT_SERVERNAME_IS_CHOICE", "0")
 SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
-TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "") 
+TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass") 
 MAP_NAME_TABLE = {
     "mp_angel_city": "Angel City",
     "mp_black_water_canal": "Black Water Canal",
@@ -1978,7 +1978,7 @@ tf1servercontext ={}
 def tf1readsend(serverid,checkstatus):
     global discordtotitanfall,context,reactedyellowtoo
     commands = {}
-    now = int(time.time()*100)
+    now = int((time.time()+8)*100) # increased by 8 seconds, to increase the time it takes for a yellow dot to be reacted
     for command in list(discordtotitanfall[serverid]["commands"]):
         command = {**command}
         if command["command"][0] != "!":
@@ -2128,7 +2128,7 @@ def tf1readsend(serverid,checkstatus):
             value = "".join("".join(value.split("OUTPUT<")[1:]).split("/>ENDOUTPUT")[:-1])[0:500]
         else:
             value = value[0:1000]
-        print("output from server",value)
+        print("output from server:",value)
         if  commands[key]["type"] == "msg" and (value != "sent!" or messageflag):
             continue
         elif commands[key]["type"] == "msg" and value == "sent!":

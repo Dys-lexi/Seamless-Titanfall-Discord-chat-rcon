@@ -50,6 +50,10 @@
         {
             "Name":"discordloggingmatchid",
             "DefaultValue": "0" // match id, don't touch!
+        },
+        {
+            "Name":"discordlogshowteamchatprefix",
+            "DefaultValue": "1"
         }
     ],
     "Scripts": [
