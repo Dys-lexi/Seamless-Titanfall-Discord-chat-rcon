@@ -235,7 +235,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
         newmessage = "TEAM_IMC"
         if( playerteam >= 4 )
         newmessage = "TEAM_BOTH"
-        if( newmessage != playername )
+        if( newmessage != message.player.GetPlayerName() )
         newmessage.playername = message.player.GetPlayerName() + "(Team [" + newmessage + "])"
 	else
 	newmessage.playername = message.player.GetPlayerName() + "(Team)"
