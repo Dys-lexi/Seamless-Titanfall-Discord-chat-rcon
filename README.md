@@ -4,7 +4,7 @@
 
 Message @dyslexi on discord for how to use this, as you'll probably need to be shown the ropes
 
-THE MOD HERE IS ONLY FOR TITANFALL 2 (the titanfall one version is here[https://github.com/Dys-lexi/R1deltachatcommands])
+THE MOD HERE IS ONLY FOR TITANFALL 2 (the titanfall one version is [here](https://github.com/Dys-lexi/R1deltachatcommands))
 
 A mod / discord bot that relays titanfall messages to discord, discord messages to titanfall, allows rcon to send console commands to titanfall, custom commands that you can create - (a few come already with the mod) and leaderboards
 
