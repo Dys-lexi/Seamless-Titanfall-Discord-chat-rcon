@@ -53,7 +53,7 @@
         },
         {
             "Name":"discordlogshowteamchatprefix",
-            "DefaultValue": "1"
+            "DefaultValue": "0"
         }
     ],
     "Scripts": [

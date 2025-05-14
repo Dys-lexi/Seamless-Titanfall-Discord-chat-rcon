@@ -238,6 +238,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
     teamnewmessage = "both"
 	teamnewmessage = "[TEAM (" + teamnewmessage + ")]" + message.player.GetPlayerName()
 	}
+	print(teamnewmessage)
 	outgoingmessage newmessage
 	newmessage.playername = teamnewmessage
 	newmessage.message = message.message
