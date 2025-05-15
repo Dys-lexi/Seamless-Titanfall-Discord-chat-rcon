@@ -227,15 +227,15 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
     {
 	int playerteam = message.player.GetTeam()
 	if( playerteam <= 0 )
-	teamnewmessage = "spec"
+	teamnewmessage = "Spec"
     if( playerteam == 1 )
-    teamnewmessage = "none"
+    teamnewmessage = "None"
     if( playerteam == 2 )
-    teamnewmessage = "mil"
+    teamnewmessage = "IMC"
     if( playerteam == 3 )
-    teamnewmessage = "imc"
+    teamnewmessage = "Militia"
     if( playerteam >= 4 )
-    teamnewmessage = "both"
+    teamnewmessage = "Both"
 	teamnewmessage = "[TEAM (" + teamnewmessage + ")]" + message.player.GetPlayerName()
 	}
 	print(teamnewmessage)
