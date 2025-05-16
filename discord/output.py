@@ -338,7 +338,7 @@ DISCORDBOTAIUSED = os.getenv("DISCORD_BOT_AI_USED","deepseek-r1")
 DISCORDBOTLOGSTATS = os.getenv("DISCORD_BOT_LOG_STATS","1")
 SERVERPASS = os.getenv("DISCORD_BOT_PASSWORD", "*")
 LEADERBOARDUPDATERATE = int(os.getenv("DISCORD_BOT_LEADERBOARD_UPDATERATE", "300"))
-DISCORDBOTLOGCOMMANDS = os.getenv("DISCORD_BOT_LOG_COMMANDS", "0")
+DISCORDBOTLOGCOMMANDS = os.getenv("DISCORD_BOT_LOG_COMMANDS", "1")
 SERVERNAMEISCHOICE = os.getenv("DISCORD_BOT_SERVERNAME_IS_CHOICE", "0")
 SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
 TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass") 
@@ -1848,9 +1848,11 @@ def getmessagewidget(metadata,serverid,messagecontent,message):
         if DISCORDBOTLOGCOMMANDS != "1":
             return ""
         output = f"""> {context['serveridnamelinks'].get(serverid,'Unknown server').ljust(30)} {(message['player']+":").ljust(20)} {message['messagecontent']}"""
-        
-            
-        
+    elif metadata["type"] == "tf1command":
+        if DISCORDBOTLOGCOMMANDS != "1":
+            return ""
+        output = f"""> {context['serveridnamelinks'].get(serverid,'Unknown server').ljust(50)} {message['messagecontent']}"""  
+    
     elif metadata["type"] == "disconnect":
         pass
     return output
@@ -2093,6 +2095,19 @@ def tf1readsend(serverid,checkstatus):
                         "servername" :context["serveridnamelinks"][serverid]
 
                     })
+                if output["commandtype"] == "command_message":
+                    print("here")
+                    messageflush.append({
+                        "timestamp": int(time.time()),
+                        "serverid": serverid,
+                        "type": 3,
+                        "globalmessage": True,
+                        "overridechannel": "commandlogchannel",
+                        "messagecontent": output["command"],
+                        "metadata": {"type":"tf1command"},
+                        "servername" :context["serveridnamelinks"][serverid]
+
+                    })
                 if output["commandtype"] == "connect_message":
                     # print("here")
                     messageflush.append({
@@ -2125,7 +2140,7 @@ def tf1readsend(serverid,checkstatus):
     senttoolongmessages =[]
     for key, value in inputstring.items():
         if "OUTPUT<" in value and "/>ENDOUTPUT" in value:
-            value = "".join("".join(value.split("OUTPUT<")[1:]).split("/>ENDOUTPUT")[:-1])[0:500]
+            value = "".join("".join("".join(value.split("BEGINMAINOUT")[1:]).split("OUTPUT<")[1:]).split("/>ENDOUTPUT")[:-1])[0:500]
         else:
             value = value[0:1000]
         print("output from server:",value)
@@ -2143,6 +2158,7 @@ def tf1readsend(serverid,checkstatus):
                     del discordtotitanfall[serverid]["returnids"]["messages"][now]
             except Exception as e:print("crash while deleting key",e)
             ids.append(commands[key]["id"])
+            print("HEREEEE SENT IT I THINK MABYE")
             discordtotitanfall[serverid]["messages"][messagelist[key]] = False
             continue
         # print(key,"key")
