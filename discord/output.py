@@ -14,7 +14,7 @@ from waitress import serve
 from discord.ext import commands, tasks
 from datetime import datetime, timedelta,timezone
 import discord
-from discord import Option
+from discord import Option, OptionChoice
 import requests
 from rcon.source import Client
 import sqlite3
@@ -1145,6 +1145,7 @@ def listplayersoverride(data, serverid, statuscode):
         for key, value in data.items():
             if key == "meta":
                 formattedata["meta"]["map"] = value[0]
+                value[1] = int(value[1])
                 formattedata["meta"]["time"] = f"{value[1]//60}m {value[1]%60}s"
                 # formattedata["meta"]["time"] = f"<t:{int(time.time()+value[1])}:R>"
                 continue
@@ -2017,6 +2018,7 @@ def tf1readsend(serverid,checkstatus):
     # print(discordtotitanfall[serverid]["returnids"]["messages"])
     inputstring = {}
     offlinethisloop = False
+    # shouldnotreturn = discordtotitanfall[serverid]["serveronline"]
     # print("commands",commands)
     try:
         with Client(discordtotitanfall[serverid]["ip"].split(":")[0],  int(discordtotitanfall[serverid]["ip"].split(":")[1]), passwd=TF1RCONKEY,timeout=2) as client:
@@ -2139,11 +2141,24 @@ def tf1readsend(serverid,checkstatus):
     # print(discordtotitanfall[serverid]["commands"])
     senttoolongmessages =[]
     for key, value in inputstring.items():
+        origval = value
+        funcprint = None
+        # print("rawout",value)
         if "OUTPUT<" in value and "/>ENDOUTPUT" in value:
             value = "".join("".join("".join(value.split("BEGINMAINOUT")[1:]).split("OUTPUT<")[1:]).split("/>ENDOUTPUT")[:-1])[0:500]
+            value = value.replace("☻",'"')
+            oldoldvalue = value
+            value = getjson(value)
+            
         else:
-            value = value[0:1000]
-        print("output from server:",value)
+            value = value[0:800]
+        if "FUNCRETURN<" in origval and "/>FUNCRETURN" in origval:
+            funcprint = "".join("".join("".join(origval.split("BEGINMAINOUT")[:1]).split("FUNCRETURN<")[1:]).split("/>FUNCRETURN")[:-1])[0:500]
+            if len(funcprint) == 0:
+                funcprint = None
+        # print("BEEP BOOOOP","".join("".join("".join(origval.split("BEGINMAINOUT")[:1]).split("FUNCRETURN<")[1:]).split("/>FUNCRETURN")[:-1])[0:500])
+        print("output from server:",value,funcprint)
+        # print("funcout",funcprint)
         if  commands[key]["type"] == "msg" and (value != "sent!" or messageflag):
             continue
         elif commands[key]["type"] == "msg" and value == "sent!":
@@ -2158,11 +2173,15 @@ def tf1readsend(serverid,checkstatus):
                     del discordtotitanfall[serverid]["returnids"]["messages"][now]
             except Exception as e:print("crash while deleting key",e)
             ids.append(commands[key]["id"])
-            print("HEREEEE SENT IT I THINK MABYE")
+            # print("HEREEEE SENT IT I THINK MABYE")
             discordtotitanfall[serverid]["messages"][messagelist[key]] = False
             continue
         # print(key,"key")
-        discordtotitanfall[serverid]["returnids"]["commandsreturn"][str(key)] = {"output":value,"statuscode":0}
+        funcoutput =  {"output":value,"statuscode":200}
+        if funcprint and oldoldvalue == value: 
+            funcoutput["output"]["funcprint"] = funcprint
+        
+        discordtotitanfall[serverid]["returnids"]["commandsreturn"][str(key)] = funcoutput
         # discordtotitanfall[serverid]["returnids"]["commandsreturn"][str(key)]["output"] = value
         # discordtotitanfall[serverid]["returnids"]["commandsreturn"][str(key)]["statuscode"] = "0"
         # print(discordtotitanfall[serverid]["commands"])
