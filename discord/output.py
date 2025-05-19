@@ -2098,7 +2098,7 @@ def tf1readsend(serverid,checkstatus):
 
                     })
                 if output["commandtype"] == "command_message":
-                    print("here")
+                    # print("here")
                     messageflush.append({
                         "timestamp": int(time.time()),
                         "serverid": serverid,
@@ -2145,10 +2145,14 @@ def tf1readsend(serverid,checkstatus):
         funcprint = None
         # print("rawout",value)
         if "OUTPUT<" in value and "/>ENDOUTPUT" in value:
-            value = "".join("".join("".join(value.split("BEGINMAINOUT")[1:]).split("OUTPUT<")[1:]).split("/>ENDOUTPUT")[:-1])[0:500]
+            value = "".join("".join("".join(value.split("BEGINMAINOUT")[1:]).split("OUTPUT<")[1:]).split("/>ENDOUTPUT")[:-1])
             value = value.replace("☻",'"')
             oldoldvalue = value
             value = getjson(value)
+            if isinstance(value, str):
+                value = value[0:800]
+            elif isinstance(value, bool):
+                value = str(value)
             
         else:
             value = value[0:800]
@@ -2177,9 +2181,13 @@ def tf1readsend(serverid,checkstatus):
             discordtotitanfall[serverid]["messages"][messagelist[key]] = False
             continue
         # print(key,"key")
-        funcoutput =  {"output":value,"statuscode":200}
-        if funcprint and oldoldvalue == value: 
+        if funcprint and not isinstance(value,dict): 
+            funcoutput =  {"output":{"output":value},"statuscode":200}
+        # if funcprint and not isinstance(value,dict): 
+            # print("HERE")
             funcoutput["output"]["funcprint"] = funcprint
+        else:
+            funcoutput =  {"output":value,"statuscode":200}
         
         discordtotitanfall[serverid]["returnids"]["commandsreturn"][str(key)] = funcoutput
         # discordtotitanfall[serverid]["returnids"]["commandsreturn"][str(key)]["output"] = value
@@ -2305,14 +2313,18 @@ def messageloop():
                 # )
                 output = {}
                 messageflush = sorted(messageflush, key=lambda x: x["timestamp"])
+                # print(messageflush)
                 for message in messageflush:
+                    # print("MESSAGE",message)
                     messagewidget = getmessagewidget(message["metadata"],message["serverid"],message["messagecontent"],message)
                     if messagewidget == "":
                         # print("here")
                         continue
                     if message["serverid"] not in output.keys() and not message["globalmessage"]:
+                        # print("a")
                         output[message["serverid"]] = []
                     elif message["globalmessage"] and message["overridechannel"] not in output.keys():
+                        # print("b")
                         output[message["overridechannel"]] = []
                     if ("\033[") in messagewidget:
                         print("colour codes found in message")
@@ -2329,11 +2341,13 @@ def messageloop():
                                 + messagewidget[endpos + 1 :]
                             )
                     if message["type"] == 1:
+                        # print("c")
                         output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(
                             f"**{message['player']}**: {messagewidget}"
                         )
                         print(f"**{message['player']}**:  {messagewidget}")
                     elif message["type"] == 2:
+                        # print("d")
                         output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(
                             f"""```{message["player"]} {messagewidget}```"""
                         )
@@ -2343,9 +2357,11 @@ def messageloop():
                             )
                         )
                     elif message["type"] == 3:
+                        # print("e")
                         output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(f"{messagewidget}")
                         print(f"{messagewidget}")
                     elif message["type"] == 4:
+                        # print("f")
                         output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(f"```{messagewidget}```")
                         print(f"{messagewidget}")
 
@@ -2603,6 +2619,7 @@ def create_dynamic_command(command_name, description = None, rcon = False, param
     func_code = f'''
 @bot.slash_command(name="{command_name}", description="{description}")
 async def {command_name}(ctx, {params_signature}):
+    global messageflush, context
     if {rcon} and not checkrconallowed(ctx.author):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
@@ -2617,13 +2634,24 @@ async def {command_name}(ctx, {params_signature}):
     await ctx.defer()
     command = {command_expr}
     print("Expression:",command)
+    messageflush.append({{
+        "timestamp": int(time.time()),
+        "serverid": serverid,
+        "type": 3,
+        "globalmessage": True,
+        "overridechannel": "commandlogchannel",
+        "messagecontent": command,
+        "metadata": {{"type":"command"}},
+        "servername" :context["serveridnamelinks"][serverid],
+        "player":  f"`BOT COMMAND` sent by {{ctx.author.name}}"
+    }})
     await returncommandfeedback(*sendrconcommand(serverid, command), ctx, {outputfunc_expr})
 '''
 
-    env = globals().copy()
-    local_vars = {}
-    exec(func_code, env, local_vars)
-    return local_vars[command_name]
+    exec(func_code, globals())
+    return globals()[command_name]
+
+
 
 
 for command_name, command_info in context["commands"].items():
