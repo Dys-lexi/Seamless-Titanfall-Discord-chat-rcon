@@ -19,6 +19,38 @@ import requests
 from rcon.source import Client
 import sqlite3
 import re
+import aiohttp
+
+model_dict = {
+    '$"models/humans/pilots/pilot_medium_geist_m.mdl"': "pilots/grapple_cropped.png",
+    '$"models/humans/pilots/pilot_medium_geist_f.mdl"': "pilots/grapple_cropped.png",
+    '$"models/titans/medium/titan_medium_ajax.mdl"': "titans/iont.png",
+    '$"models/titans/heavy/titan_heavy_ogre.mdl"': "titans/scorcht.png",
+    '$"models/titans/light/titan_light_raptor.mdl"': "titans/northstart.png",
+    '$"models/titans/light/titan_light_locust.mdl"': "titans/ronint.png",
+    '$"models/titans/medium/titan_medium_wraith.mdl"': "titans/tonet.png",
+    '$"models/humans/pilots/pilot_heavy_drex_f.mdl"': "pilots/cloak_cropped.png",
+    '$"models/humans/pilots/pilot_heavy_drex_m.mdl"': "pilots/cloak_cropped.png",
+    '$"models/titans/heavy/titan_heavy_deadbolt.mdl"': "titans/legiont.png",
+    '$"models/titans/medium/titan_medium_vanguard.mdl"': "titans/monarcht.png",
+    '$"models/titans/medium/titan_medium_ion_prime.mdl"': "titans/iont.png",
+    '$"models/titans/heavy/titan_heavy_scorch_prime.mdl"': "titans/scorcht.png",
+    '$"models/titans/light/titan_light_northstar_prime.mdl"': "titans/northstart.png",
+    '$"models/titans/light/titan_light_ronin_prime.mdl"': "titans/ronint.png",
+    '$"models/titans/medium/titan_medium_tone_prime.mdl"': "titans/tonet.png",
+    '$"models/titans/heavy/titan_heavy_legion_prime.mdl"': "titans/legiont.png",
+    '$"models/humans/pilots/pilot_heavy_roog_m.mdl"': "pilots/a-wall_cropped.png",
+    '$"models/humans/pilots/pilot_heavy_roog_f.mdl"': "pilots/a-wall_cropped.png",
+    '$"models/humans/pilots/pilot_medium_reaper_m.mdl"': "pilots/pulse_cropped.png",
+    '$"models/humans/pilots/pilot_medium_reaper_f.mdl"': "pilots/pulse_cropped.png",
+    '$"models/humans/pilots/pilot_light_jester_m.mdl"': "pilots/stim_cropped.png",
+    '$"models/humans/pilots/pilot_light_jester_f.mdl"': "pilots/stim_cropped.png",
+    '$"models/humans/pilots/pilot_light_ged_m.mdl"': "pilots/phase_cropped.png",
+    '$"models/humans/pilots/pilot_light_ged_f.mdl"': "pilots/phase_cropped.png",
+    '$"models/humans/pilots/pilot_medium_stalker_m.mdl"': "pilots/holo_cropped.png",
+    '$"models/humans/pilots/pilot_medium_stalker_f.mdl"': "pilots/holo_cropped.png",
+    "unknown": "unknown/unkownpfp.png"
+}
 
 
 WEAPON_NAMES = {
@@ -342,6 +374,8 @@ DISCORDBOTLOGCOMMANDS = os.getenv("DISCORD_BOT_LOG_COMMANDS", "1")
 SERVERNAMEISCHOICE = os.getenv("DISCORD_BOT_SERVERNAME_IS_CHOICE", "0")
 SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
 TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass") 
+USEDYNAMICPFPS = os.getenv("USE_DYNAMIC_PFPS","1")
+PFPROUTE = os.getenv("PFP_ROUTE","https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/")
 MAP_NAME_TABLE = {
     "mp_angel_city": "Angel City",
     "mp_black_water_canal": "Black Water Canal",
@@ -1438,7 +1472,7 @@ async def rcon_add_user(ctx, user: Option(discord.User, "The user to add")):
 @bot.event
 async def on_message(message):
     global  context, discordtotitanfall
-    if message.author == bot.user:
+    if message.author == bot.user or message.webhook_id is not None:
         return
     if message.channel.id in context["serverchannelidlinks"].values():
         print("discord message recieved")
@@ -1826,6 +1860,12 @@ def get_ordinal(i): #Shamelessly stolen
 def getmessagewidget(metadata,serverid,messagecontent,message):
     global context
     output = messagecontent
+    player = message.get("player","Unknown player")
+
+    print(metadata)
+    if metadata.get("teamtype","not team") != "not team":
+        player = f"{metadata.get('teamtype','not team')} {player}"
+
     if not metadata["type"]:
         pass
     elif metadata["type"] == "connect" and DISCORDBOTLOGSTATS == "1":
@@ -1847,16 +1887,16 @@ def getmessagewidget(metadata,serverid,messagecontent,message):
             output += ")"
     elif metadata["type"] == "command":
         if DISCORDBOTLOGCOMMANDS != "1":
-            return ""
+            return "",player
         output = f"""> {context['serveridnamelinks'].get(serverid,'Unknown server').ljust(30)} {(message['player']+":").ljust(20)} {message['messagecontent']}"""
     elif metadata["type"] == "tf1command":
         if DISCORDBOTLOGCOMMANDS != "1":
-            return ""
+            return "",player
         output = f"""> {context['serveridnamelinks'].get(serverid,'Unknown server').ljust(50)} {message['messagecontent']}"""  
     
     elif metadata["type"] == "disconnect":
         pass
-    return output
+    return output,player
 
 
 
@@ -2316,7 +2356,7 @@ def messageloop():
                 # print(messageflush)
                 for message in messageflush:
                     # print("MESSAGE",message)
-                    messagewidget = getmessagewidget(message["metadata"],message["serverid"],message["messagecontent"],message)
+                    messagewidget,message["player"] = getmessagewidget(message["metadata"],message["serverid"],message["messagecontent"],message)
                     if messagewidget == "":
                         # print("here")
                         continue
@@ -2340,33 +2380,37 @@ def messageloop():
                                 messagewidget[:startpos]
                                 + messagewidget[endpos + 1 :]
                             )
+                    if message["metadata"]["type"] == "usermessagepfp" and USEDYNAMICPFPS == "1":
+                        messageadders = {"pfp":message["metadata"].get("pfp",None),"name":message.get("player",None),"type":message["metadata"]["type"],"uid":message["metadata"].get("uid",None)}
+                        message["type"] = 3
+                    else: messageadders = {"type":message["metadata"]["type"]}
                     if message["type"] == 1:
                         # print("c")
                         output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(
-                            f"**{message['player']}**: {messagewidget}"
+                            {"message": f"**{message['player']}**: {messagewidget}",**messageadders}
                         )
                         print(f"**{message['player']}**:  {messagewidget}")
                     elif message["type"] == 2:
                         # print("d")
                         output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(
-                            f"""```{message["player"]} {messagewidget}```"""
+                            {"message": f"""```{message["player"]} {messagewidget}```""",**messageadders}
                         )
-                        print(
-                            (
-                                f"""{message["player"]} {messagewidget}"""
-                            )
-                        )
+                        print(f"""{message["player"]} {messagewidget}""")
                     elif message["type"] == 3:
                         # print("e")
-                        output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(f"{messagewidget}")
+                        output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(
+                            {"message": f"{messagewidget}",**messageadders}
+                        )
                         print(f"{messagewidget}")
                     elif message["type"] == 4:
                         # print("f")
-                        output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(f"```{messagewidget}```")
+                        output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(
+                            {"message": f"```{messagewidget}```",**messageadders}
+                        )
                         print(f"{messagewidget}")
-
                     else:
                         print("type of message unkown")
+                        continue
                     realprint("\033[0m", end="")
                 # print("output",json.dumps(output, indent=4))
                 for serverid in output.keys():
@@ -2378,10 +2422,18 @@ def messageloop():
                     if channel is None:
                         print("channel not found")
                         continue
+                    # # to save my sanity, I'm going to throw the order out for pfp messages, so I can group them and make them a wee bit more compact, if somone is REALLY sending a lot of messages 
+                    userpfpmessages ={}
+                    for message in list(filter(lambda x: x["type"] == "usermessagepfp" and USEDYNAMICPFPS == "1",output[serverid])):
+                        if not message["pfp"] or not message["name"] or not message["uid"]:
+                            print("VERY BIG ERROR, PLEASE LOOK INTO IT",message)
+                            continue
+                        userpfpmessages.setdefault(message["name"],{"messages":[],"pfp":message["pfp"],"uid":message["uid"]})
+                        userpfpmessages[message["name"]]["messages"].append(message["message"])
+               
+                    asyncio.run_coroutine_threadsafe(sendpfpmessages(channel,userpfpmessages,serverid),bot.loop)
 
-                    asyncio.run_coroutine_threadsafe(
-                    channel.send(discord.utils.escape_mentions("\n".join(output[serverid]))), bot.loop
-                )
+                    asyncio.run_coroutine_threadsafe(channel.send(discord.utils.escape_mentions("\n".join(list(map(lambda x: x["message"],list(filter(lambda x: x["type"] != "usermessagepfp" or USEDYNAMICPFPS != "1",output[serverid]))))))), bot.loop)
                 messageflush = []
                 lastmessage = time.time()
             now = int(time.time()*100)
@@ -2411,6 +2463,81 @@ def messageloop():
         time.sleep(0.1)
 
 
+# name_dict = {
+#     '$"models/humans/pilots/pilot_medium_geist_m.mdl"': "grapple",
+#     '$"models/humans/pilots/pilot_medium_geist_f.mdl"': "grapple",
+#     '$"models/titans/medium/titan_medium_ajax.mdl"': "ion",
+#     '$"models/titans/heavy/titan_heavy_ogre.mdl"': "scorch",
+#     '$"models/titans/light/titan_light_raptor.mdl"': "northstar",
+#     '$"models/titans/light/titan_light_locust.mdl"': "ronin",
+#     '$"models/titans/medium/titan_medium_wraith.mdl"': "tone",
+#     '$"models/humans/pilots/pilot_heavy_drex_f.mdl"': "cloak",
+#     '$"models/titans/heavy/titan_heavy_deadbolt.mdl"': "legion",
+#     '$"models/titans/medium/titan_medium_vanguard.mdl"': "monarch",
+#     '$"models/titans/medium/titan_medium_ion_prime.mdl"': "ion prime",
+#     '$"models/titans/heavy/titan_heavy_scorch_prime.mdl"': "scorch",
+#     '$"models/titans/light/titan_light_northstar_prime.mdl"': "northstar",
+#     '$"models/titans/light/titan_light_ronin_prime.mdl"': "ronin",
+#     '$"models/titans/medium/titan_medium_tone_prime.mdl"': "tone",
+#     '$"models/titans/heavy/titan_heavy_legion_prime.mdl"': "legion",
+#     '$"models/humans/pilots/pilot_heavy_roog_m.mdl"': "awall",
+#     '$"models/humans/pilots/pilot_heavy_roog_f.mdl"': "awall",
+#     '$"models/humans/pilots/pilot_medium_reaper_m.mdl"': "pulse",
+#     '$"models/humans/pilots/pilot_medium_reaper_f.mdl"': "pulse",
+#     '$"models/humans/pilots/pilot_light_jester_m.mdl"': "stim",
+#     '$"models/humans/pilots/pilot_light_jester_f.mdl"': "stim",
+#     '$"models/humans/pilots/pilot_light_ged_m.mdl"': "phase",
+#     '$"models/humans/pilots/pilot_light_ged_f.mdl"': "phase",
+#     '$"models/humans/pilots/pilot_medium_stalker_m.mdl"': "holo",
+#     '$"models/humans/pilots/pilot_medium_stalker_f.mdl"': "holo",
+#     "unknown": "unknown/unkownpfp.png"
+# }
+
+pilotstates = {}
+# PFPROUTE
+async def sendpfpmessages(channel,userpfpmessages,serverid):
+    global pilotstates
+    try:
+        if not userpfpmessages:
+            return
+
+        webhooks = await channel.webhooks()
+        webhook = None
+        webhook2 = None
+        for wh in webhooks:
+            if wh.name == "ChatBridge":
+                webhook = wh
+            if wh.name == "ChatBridge2":
+                webhook2 = wh
+        # print(userpfpmessages)
+        if webhook is None:
+            webhook = await channel.create_webhook(name="ChatBridge")
+        if webhook2 is None:
+            webhook2 = await channel.create_webhook(name="ChatBridge2")
+        actualwebhooks = {"ChatBridge":webhook,"ChatBridge2":webhook2}
+        for username, value in userpfpmessages.items():
+            # print("Sending as:", username)
+            # print("Message:", "\n".join(value["messages"]))
+            adder = ""
+            pilotstates.setdefault(serverid,{"uid":-1,"model":None,"webhook":"ChatBridge"})
+            if pilotstates[serverid]["uid"] == value["uid"] and str(value["pfp"]) != pilotstates[serverid]["model"]:
+                if pilotstates[serverid]["webhook"] == "ChatBridge":
+                    pilotstates[serverid]["webhook"] = "ChatBridge2"
+                else:
+                    pilotstates[serverid]["webhook"] = "ChatBridge"
+   
+            pilotstates[serverid] = {"uid":value["uid"],"model":str(value["pfp"]),"webhook":pilotstates[serverid]["webhook"]}
+            # print("here")
+            async with aiohttp.ClientSession() as session:
+                print(pilotstates[serverid])
+                await actualwebhooks[pilotstates[serverid]["webhook"]].send(
+                    "\n".join(value["messages"]),#+" "+pilotstates[serverid]["webhook"],
+                    username=f"{username}{adder}",
+                    avatar_url=f'{PFPROUTE}{model_dict.get(str(value["pfp"]),"unknown/unkownpfp.png")}'
+                )
+    except Exception as e:
+        print("WEBHOOK CRASH",e)
+        traceback.print_exc()
 
 
 def initdiscordtotitanfall(serverid):

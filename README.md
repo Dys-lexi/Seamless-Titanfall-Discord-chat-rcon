@@ -33,6 +33,8 @@ discordlog:
       - DISCORD_BOT_LOG_COMMANDS=1 #log command usage. needs bindchannel for commands to be set. (commands are messages beginning with ! or /)
       - DISCORD_BOT_SERVERNAME_IS_CHOICE=0 #determines when specifiying a servername in a command if it's a choice, or an entered string.
       - TF1_RCON_PASSWORD="" #RCON Password for tf1 chat relay. when blank, completly disables relay
+      - USE_DYNAMIC_PFPS="1" #FANCY new way of chat bridging.
+      - PFP_ROUTE="https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/" #Url used for pfps
     volumes:
       - ./discord/data:/app/data:rw
     restart: always

@@ -223,34 +223,42 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	// string messagecontent = message.message
 	// print(serverdetails.Servername)
 	string teamnewmessage = message.player.GetPlayerName()
+	string teammessage = "not team"
     if( message.isTeam && serverdetails.showchatprefix )
     {
 	int playerteam = message.player.GetTeam()
 	if( playerteam <= 0 )
-	teamnewmessage = "Spec"
+	teammessage = "Spec"
     if( playerteam == 1 )
-    teamnewmessage = "None"
+    teammessage = "None"
     if( playerteam == 2 )
-    teamnewmessage = "IMC"
+    teammessage = "IMC"
     if( playerteam == 3 )
-    teamnewmessage = "Militia"
+    teammessage = "Militia"
     if( playerteam >= 4 )
-    teamnewmessage = "Both"
-	teamnewmessage = "[TEAM (" + teamnewmessage + ")]" + message.player.GetPlayerName()
+    teammessage = "Both"
+	teammessage = "[TEAM (" + teammessage + ")]"
 	}
-	print(teamnewmessage)
+	print(teammessage)
 	outgoingmessage newmessage
 	newmessage.playername = teamnewmessage
 	newmessage.message = message.message
 	newmessage.timestamp = GetUnixTimestamp()
 	newmessage.typeofmsg = 1
+	table meta
+	meta["pfp"] <- message.player.GetModelName() + ""
+	meta["teamtype"] <- teammessage
+	meta["type"] <- "usermessagepfp"
+	meta["uid"] <- message.player.GetUID()
 	if (newmessage.message[0] == 47 || newmessage.message[0] == 33){
-		table meta
+		
 		meta["type"] <- "command"
-		newmessage.metadata = EncodeJSON(meta)
+		
+		
 		newmessage.overridechannel = "commandlogchannel"
 		newmessage.typeofmsg = 3
 	}
+	newmessage.metadata = EncodeJSON(meta)
 	Postmessages(newmessage)
 
 
