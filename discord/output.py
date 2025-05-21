@@ -2083,7 +2083,7 @@ def tf1readsend(serverid,checkstatus):
             if checkstatus:
                 status = client.run("status")
                 # print("statuscheck","not hibernating" not in status or "0 humans" in status,status)
-                if "not hibernating" not in status and "0 humans" in status:
+                if "not hibernating" not in status or "0 humans" in status:
                     # print("server not online")
                     discordtotitanfall[serverid]["serveronline"] = False
                     offlinethisloop = True
@@ -2128,7 +2128,7 @@ def tf1readsend(serverid,checkstatus):
     # print("I got here!")
     try:
         if "☻" in outputstring:
-            print(outputstring)
+            # print(outputstring)
             # print(outputstring)
             outputstring = "☻".join(outputstring.split("☻")[1:-1])
             outputstring = f"☻{outputstring}☻"
@@ -2139,7 +2139,7 @@ def tf1readsend(serverid,checkstatus):
                 if output[0] == "":
                     del output[0]
                 
-                print(output)
+                # print(output)
                 output = {"id":output[0],"command":output[1],"output":output[2],"commandtype":output[3]}
                 print(output)
                 if output["commandtype"] == "chat_message":
@@ -2155,10 +2155,11 @@ def tf1readsend(serverid,checkstatus):
                         "servername" :context["serveridnamelinks"][serverid]
 
                     })
+                # print(output["commandtype"])
                 if output["commandtype"] == "usermessagepfp":
                     
                     outputjson = getjson(output["output"].replace("♥",'"'))
-                    print("here",json.dumps(outputjson,indent = 4))
+                    # print("here",json.dumps(outputjson,indent = 4))
                     messageflush.append({
                         "timestamp": int(time.time()),
                         "serverid": serverid,
