@@ -49,6 +49,24 @@ model_dict = {
     '$"models/humans/pilots/pilot_light_ged_f.mdl"': "pilots/phase_cropped.png",
     '$"models/humans/pilots/pilot_medium_stalker_m.mdl"': "pilots/holo_cropped.png",
     '$"models/humans/pilots/pilot_medium_stalker_f.mdl"': "pilots/holo_cropped.png",
+    "true models/titans/atlas/atlas_titan.mdl": "titanfall1/titans/atlas_militia_cropped.png",
+    "false models/titans/atlas/atlas_titan.mdl": "titanfall1/titans/atlas_imc_cropped.png",
+    "true models/titans/ogre/ogre_titan.mdl": "titanfall1/titans/ogre_militia_cropped.png",
+    "false models/titans/ogre/ogre_titan.mdl": "titanfall1/titans/ogre_imc_cropped.png",
+    "true models/titans/stryder/stryder_titan.mdl": "titanfall1/titans/stryder_militia_cropped.png",
+    "false models/titans/stryder/stryder_titan.mdl": "titanfall1/titans/stryder_imc_cropped.png",
+    "false models/humans/pilot/female_br/pilot_female_br.mdl": "titanfall1/pilots/f_br_imc_cropped.png",
+    "true models/humans/pilot/female_br/pilot_female_br.mdl": "titanfall1/pilots/f_br_militia_cropped.png",
+    "false models/Humans/mcor_pilot/male_br/mcor_pilot_male_br.mdl": "titanfall1/pilots/m_br_imc_cropped.png",
+    "true models/Humans/mcor_pilot/male_br/mcor_pilot_male_br.mdl": "titanfall1/pilots/m_br_militia_cropped.png",
+    "false models/humans/pilot/female_cq/pilot_female_cq.mdl": "titanfall1/pilots/f_cq_imc_cropped.png",
+    "true models/humans/pilot/female_cq/pilot_female_cq.mdl": "titanfall1/pilots/f_cq_militia_cropped.png",
+    "false models/humans/mcor_pilot/male_cq/mcor_pilot_male_cq.mdl": "titanfall1/pilots/m_cq_imc_cropped.png",
+    "true models/humans/mcor_pilot/male_cq/mcor_pilot_male_cq.mdl": "titanfall1/pilots/m_cq_militia_cropped.png",
+    "false models/humans/pilot/female_dm/pilot_female_dm.mdl": "titanfall1/pilots/f_dm_imc_cropped.png",
+    "true models/humans/pilot/female_dm/pilot_female_dm.mdl": "titanfall1/pilots/f_dm_militia_cropped.png",
+    "false models/humans/mcor_pilot/male_dm/mcor_pilot_male_dm.mdl": "titanfall1/pilots/m_dm_imc_cropped.png",
+    "true models/humans/mcor_pilot/male_dm/mcor_pilot_male_dm.mdl": "titanfall1/pilots/m_dm_militia_cropped.png",
     "unknown": "unknown/unkownpfp.png"
 }
 
@@ -1500,7 +1518,7 @@ async def on_message(message):
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": message.id,
-                    "content": f"{message.author.nick if message.author.nick is not None else message.author.display_name}: [38;5;254m{message.content}",
+                    "content": f"{message.author.nick if message.author.nick is not None else message.author.display_name}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}[38;5;254m{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}",
                 }
             )
         if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 45: #server crash (likely)
@@ -2137,6 +2155,22 @@ def tf1readsend(serverid,checkstatus):
                         "servername" :context["serveridnamelinks"][serverid]
 
                     })
+                if output["commandtype"] == "usermessagepfp":
+                    
+                    outputjson = getjson(output["output"].replace("♥",'"'))
+                    print("here",json.dumps(outputjson,indent = 4))
+                    messageflush.append({
+                        "timestamp": int(time.time()),
+                        "serverid": serverid,
+                        "player": outputjson["name"],
+                        "type": 1,
+                        "globalmessage": False,
+                        "overridechannel": None,
+                        "messagecontent": output["command"],
+                        "metadata": {**outputjson,"type":output["commandtype"]},
+                        "servername" :context["serveridnamelinks"][serverid]
+
+                    })
                 if output["commandtype"] == "command_message":
                     # print("here")
                     messageflush.append({
@@ -2527,7 +2561,7 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
             pilotstates[serverid] = {"uid":value["uid"],"model":str(value["pfp"]),"webhook":pilotstates[serverid]["webhook"]}
             # print("here")
             async with aiohttp.ClientSession() as session:
-                print(pilotstates[serverid])
+                # print(pilotstates[serverid])
                 await actualwebhooks[pilotstates[serverid]["webhook"]].send(
                     "\n".join(value["messages"]),#+" "+pilotstates[serverid]["webhook"],
                     username=f"{username}",
