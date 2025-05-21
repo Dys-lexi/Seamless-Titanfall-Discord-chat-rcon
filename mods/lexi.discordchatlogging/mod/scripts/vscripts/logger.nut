@@ -88,6 +88,9 @@ struct {
 	bool showchatprefix
 } serverdetails
 
+struct {
+	table playermodels
+} lastmodels
 
 // maps shamelessly stolen fvnk
 
@@ -166,6 +169,7 @@ void function discordloggerinit() {
 	// AddCallback_GameStateEnter(eGameState.PickLoadout, Onmapchange);
     AddCallback_GameStateEnter(eGameState.Prematch, Onmapchange);
 	AddCallback_GameStateEnter(9,stoprequests);
+	AddCallback_OnPlayerKilled(playerstabbedmodelsaver)
 
 	if (GetConVarInt("discordloggingallowreturnmessages")) {
 		thread DiscordClientMessageinloop()
@@ -196,6 +200,7 @@ void function LogConnect( entity player )
 	newmessage.metadata = EncodeJSON(meta)
 	newmessage.typeofmsg = 2
 	Postmessages(newmessage)
+	lastmodels.playermodels[player.GetUID()] <- player.GetModelName() + ""
 
 }
 void function LogDC( entity player )
@@ -215,6 +220,12 @@ void function LogDC( entity player )
 	newmessage.typeofmsg = 2
 	Postmessages(newmessage)
 
+}
+
+void function playerstabbedmodelsaver( entity player, entity attacker, var damageInfo) {
+	// table newmodel
+	// newmodel["pfp"] <- player.GetModelName() + ""
+	lastmodels.playermodels[player.GetUID()] <- player.GetModelName() + ""
 }
 
 ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
@@ -246,7 +257,18 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	newmessage.timestamp = GetUnixTimestamp()
 	newmessage.typeofmsg = 1
 	table meta
-	meta["pfp"] <- message.player.GetModelName() + ""
+	if (IsAlive(message.player)){
+	meta["pfp"] <- message.player.GetModelName() + ""}
+	else{
+		// array<string> knownuids = expect array<string>(TableKeysToArray(lastmodels.playermodels))
+		// if (knownuids.contains(message.player.GetUID())){
+		print("PFP PFP FPF"+lastmodels.playermodels[message.player.GetUID()] + "")
+		meta["pfp"] <- lastmodels["playermodels"][message.player.GetUID()]
+		// // }
+		// else{
+		// 	meta["pfp"] <- "I don't know"
+		// }
+	}
 	meta["teamtype"] <- teammessage
 	meta["type"] <- "usermessagepfp"
 	meta["uid"] <- message.player.GetUID()

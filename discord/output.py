@@ -973,7 +973,7 @@ if DISCORDBOTLOGSTATS == "1":
             if entry["uid"] == player["uid"]:continue
             alsomatching[entry["uid"]] = entry["name"]
         embed = discord.Embed(
-            title=f"Aliases for uid {player['uid']} ({len(alsomatching.keys()) + 1} match{'es' if len(alsomatching.keys()) > 1 else ''} for '{name}')",
+            title=f"Aliases for uid {player['uid']} ({len(alsomatching.keys()) + 1} match{'es' if len(alsomatching.keys()) > 0 else ''} for '{name}')",
             color=0xff70cb,
             description=f"Most recent to oldest",
         )
@@ -2518,21 +2518,19 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
         for username, value in userpfpmessages.items():
             # print("Sending as:", username)
             # print("Message:", "\n".join(value["messages"]))
-            adder = ""
             pilotstates.setdefault(serverid,{"uid":-1,"model":None,"webhook":"ChatBridge"})
             if pilotstates[serverid]["uid"] == value["uid"] and str(value["pfp"]) != pilotstates[serverid]["model"]:
                 if pilotstates[serverid]["webhook"] == "ChatBridge":
                     pilotstates[serverid]["webhook"] = "ChatBridge2"
                 else:
                     pilotstates[serverid]["webhook"] = "ChatBridge"
-   
             pilotstates[serverid] = {"uid":value["uid"],"model":str(value["pfp"]),"webhook":pilotstates[serverid]["webhook"]}
             # print("here")
             async with aiohttp.ClientSession() as session:
                 print(pilotstates[serverid])
                 await actualwebhooks[pilotstates[serverid]["webhook"]].send(
                     "\n".join(value["messages"]),#+" "+pilotstates[serverid]["webhook"],
-                    username=f"{username}{adder}",
+                    username=f"{username}",
                     avatar_url=f'{PFPROUTE}{model_dict.get(str(value["pfp"]),"unknown/unkownpfp.png")}'
                 )
     except Exception as e:
