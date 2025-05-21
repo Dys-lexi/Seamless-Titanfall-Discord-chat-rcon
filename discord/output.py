@@ -57,15 +57,15 @@ model_dict = {
     "false models/titans/stryder/stryder_titan.mdl": "titanfall1/titans/stryder_imc_cropped.png",
     "false models/humans/pilot/female_br/pilot_female_br.mdl": "titanfall1/pilots/f_br_imc_cropped.png",
     "true models/humans/pilot/female_br/pilot_female_br.mdl": "titanfall1/pilots/f_br_militia_cropped.png",
-    "false models/Humans/mcor_pilot/male_br/mcor_pilot_male_br.mdl": "titanfall1/pilots/m_br_imc_cropped.png",
+    "false models/Humans/imc_pilot/male_br/imc_pilot_male_br.mdl": "titanfall1/pilots/m_br_imc_cropped.png",
     "true models/Humans/mcor_pilot/male_br/mcor_pilot_male_br.mdl": "titanfall1/pilots/m_br_militia_cropped.png",
     "false models/humans/pilot/female_cq/pilot_female_cq.mdl": "titanfall1/pilots/f_cq_imc_cropped.png",
     "true models/humans/pilot/female_cq/pilot_female_cq.mdl": "titanfall1/pilots/f_cq_militia_cropped.png",
-    "false models/humans/mcor_pilot/male_cq/mcor_pilot_male_cq.mdl": "titanfall1/pilots/m_cq_imc_cropped.png",
+    "false models/humans/imc_pilot/male_cq/imc_pilot_male_cq.mdl": "titanfall1/pilots/m_cq_imc_cropped.png",
     "true models/humans/mcor_pilot/male_cq/mcor_pilot_male_cq.mdl": "titanfall1/pilots/m_cq_militia_cropped.png",
     "false models/humans/pilot/female_dm/pilot_female_dm.mdl": "titanfall1/pilots/f_dm_imc_cropped.png",
     "true models/humans/pilot/female_dm/pilot_female_dm.mdl": "titanfall1/pilots/f_dm_militia_cropped.png",
-    "false models/humans/mcor_pilot/male_dm/mcor_pilot_male_dm.mdl": "titanfall1/pilots/m_dm_imc_cropped.png",
+    "false models/humans/imc_pilot/male_dm/imc_pilot_male_dm.mdl": "titanfall1/pilots/m_dm_imc_cropped.png",
     "true models/humans/mcor_pilot/male_dm/mcor_pilot_male_dm.mdl": "titanfall1/pilots/m_dm_militia_cropped.png",
     "unknown": "unknown/unkownpfp.png"
 }
@@ -2083,7 +2083,7 @@ def tf1readsend(serverid,checkstatus):
             if checkstatus:
                 status = client.run("status")
                 # print("statuscheck","not hibernating" not in status or "0 humans" in status,status)
-                if "not hibernating" not in status or "0 humans" in status:
+                if "not hibernating" not in status and "0 humans" in status:
                     # print("server not online")
                     discordtotitanfall[serverid]["serveronline"] = False
                     offlinethisloop = True
