@@ -474,10 +474,8 @@ context = {
     "commands": {},
     "wordfilter":{
         "banwords":[
-            "UNUSED ATM"
         ],
         "notifybadwords":[
-
         ]
     }
 }
@@ -2518,30 +2516,30 @@ def checkifbad(message):
     wordfilter = context.get("wordfilter", {})
     banwords = wordfilter.get("banwords", [])
     notifywords = wordfilter.get("notifybadwords", [])
-
-    def checknono(words,lowered):
+    def checknono(words, text):
         for word in words:
             if word.startswith("/") and word.endswith("/") and len(word) > 2:
                 try:
                     pattern = re.compile(word[1:-1], re.IGNORECASE)
-                    if pattern.search(lowered):
+                    if pattern.search(text):
                         return True
                 except re.error:
                     continue
             else:
-                if word.lower() in lowered:
+                if word.lower() in text:
                     return True
         return False
-
-    if checknono(banwords,lowered):
+    if checknono(banwords, lowered):
         return 2
-    elif checknono(notifywords,lowered):
+    elif checknono(notifywords, lowered):
         return 1
-    elif message.get("name",False):
-        if checknono(banwords, message["name"].lower()):
+    if message.get("name"):
+        name_lowered = message["name"].lower()
+        if checknono(banwords, name_lowered):
             return 2
-        elif  checknono(notifywords, message["name"].lower()):
+        elif checknono(notifywords, name_lowered):
             return 1
+
     return 0
 
 async def outputmsg(channel, output, serverid, USEDYNAMICPFPS):
@@ -2651,13 +2649,15 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
                     pilotstates[serverid]["webhook"] = "ChatBridge"
             pilotstates[serverid] = {"uid":value["uid"],"model":str(value["pfp"]),"webhook":pilotstates[serverid]["webhook"]}
             # print("here")
-            pfp = model_dict.get(str(value["pfp"]),"unknown/confused.png")
-            if pfp == "unknown/confused.png" and (str(value["pfp"].startswith("true")) or str(value["pfp"].startswith("false"))):
+            pfp = model_dict.get(str(value["pfp"]),"unknown/confused.jpg")
+            if pfp == "unknown/confused.jpg" and (str(value["pfp"].startswith("true")) or str(value["pfp"].startswith("false"))):
                 print("FALLING BACK TO GUESSING")
-                for model, value in model_dict.items():
+                for model, valuew in model_dict.items():
                     if str(value["pfp"])[6:] in model:
-                        pfp = value
-            # print("SENDING PFP MESSAGE","\n".join(value["messages"]),f'{PFPROUTE}{pfp}')
+                        print("setting pfp too",pfp)
+                        pfp = valuew
+                        break
+            # print("SENDING PFP MESSAGE","\n".join(list(map(lambda x: x["message"],value["messages"]))),f'{PFPROUTE}{pfp}')
             
             async with aiohttp.ClientSession() as session:
                 # print(pilotstates[serverid])
