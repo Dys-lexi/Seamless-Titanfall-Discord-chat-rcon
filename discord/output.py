@@ -67,7 +67,8 @@ model_dict = {
     "true models/humans/pilot/female_dm/pilot_female_dm.mdl": "titanfall1/pilots/f_dm_militia_cropped.png",
     "false models/humans/imc_pilot/male_dm/imc_pilot_male_dm.mdl": "titanfall1/pilots/m_dm_imc_cropped.png",
     "true models/humans/mcor_pilot/male_dm/mcor_pilot_male_dm.mdl": "titanfall1/pilots/m_dm_militia_cropped.png",
-    "unknown": "unknown/unkownpfp.png"
+    "unknown": "unknown/unkownpfp.png",
+    "confused": "unknown/confused.jpg"
 }
 
 
@@ -467,9 +468,18 @@ context = {
         "globalchannel":0,
         "commandlogchannel":0,
         "leaderboardchannel":0,
+        "wordfilternotifychannel":0
     },
     "leaderboardchannelmessages": [],
     "commands": {},
+    "wordfilter":{
+        "banwords":[
+            "UNUSED ATM"
+        ],
+        "notifybadwords":[
+
+        ]
+    }
 }
 serverchannels = []
 if not os.path.exists("./data"):
@@ -2039,7 +2049,7 @@ tf1servercontext ={}
 def tf1readsend(serverid,checkstatus):
     global discordtotitanfall,context,reactedyellowtoo
     commands = {}
-    now = int((time.time()+8)*100) # increased by 8 seconds, to increase the time it takes for a yellow dot to be reacted
+    now = int((time.time())*100) # increased by 8 seconds, to increase the time it takes for a yellow dot to be reacted
     for command in list(discordtotitanfall[serverid]["commands"]):
         command = {**command}
         if command["command"][0] != "!":
@@ -2060,6 +2070,7 @@ def tf1readsend(serverid,checkstatus):
             toolongmessages.append(message["id"])
         commands[message["id"]] = {"type":"msg","command":"sendmessage","id":message["id"],"args":str("\x1b[38;5;105m"+message['content'])[0:120]}
     if len(discordtotitanfall[serverid]["returnids"]["messages"].keys()) == 0 and messages and  discordtotitanfall[serverid]["lastheardfrom"] > int(time.time()) - 5:# and discordtotitanfall[serverid]["serveronline"]:
+        print("RETURNIDS",discordtotitanfall[serverid]["returnids"]["messages"])
         discordtotitanfall[serverid]["returnids"]["messages"][now] = list(map(lambda x: x["id"],list(filter(lambda x: x["id"] not in reactedyellowtoo ,discordtotitanfall[serverid]["messages"]))))
         # print(discordtotitanfall[serverid]["returnids"]["messages"][now])
     elif messages and discordtotitanfall[serverid]["lastheardfrom"] > int(time.time()) - 5:# and discordtotitanfall[serverid]["serveronline"]:
@@ -2071,7 +2082,7 @@ def tf1readsend(serverid,checkstatus):
         for newmsgid in discordtotitanfall[serverid]["messages"]:
             if newmsgid["id"] not in msgids and  newmsgid["id"] not in reactedyellowtoo:
                 discordtotitanfall[serverid]["returnids"]["messages"].setdefault(now,[]).append(newmsgid["id"])
-    
+        print("RETURNIDS",discordtotitanfall[serverid]["returnids"]["messages"])
         # discordtotitanfall[serverid]["returnids"]["messages"][list(discordtotitanfall[serverid]["returnids"]["messages"].keys())[0]]  = list(map(lambda x: x["id"],discordtotitanfall[serverid]["messages"])) 
     # print(discordtotitanfall[serverid]["returnids"]["messages"])
     inputstring = {}
@@ -2300,7 +2311,7 @@ def tf1relay():
             initdiscordtotitanfall(server)
             servers.append(server)
             discordtotitanfall[server]["ip"] = value
-            print(context["istf1server"],value,discordtotitanfall[server]["ip"].split(":")[0], discordtotitanfall[server]["ip"].split(":")[1])
+            # print(context["istf1server"],value,discordtotitanfall[server]["ip"].split(":")[0], discordtotitanfall[server]["ip"].split(":")[1])
             # discordtotitanfall[server]["client"] = Client(discordtotitanfall[server]["ip"].split(":")[0], discordtotitanfall[server]["ip"].split(":")[1], passwd=TF1RCONKEY,timeout=1.5)
     i = 0
     while True:
@@ -2449,6 +2460,10 @@ def messageloop():
                     realprint("\033[0m", end="")
                 # print("output",json.dumps(output, indent=4))
                 for serverid in output.keys():
+                    for key,message in enumerate(output[serverid]):
+                        isbad = checkifbad(message)
+                        if isbad:
+                            output[serverid][key]["isbad"] = isbad
                     # print("sending to", serverid)
                     if serverid not in context["serverchannelidlinks"].keys() and serverid not in context["overridechannels"].keys():
                         print("channel not in bots known channels")
@@ -2464,11 +2479,11 @@ def messageloop():
                             print("VERY BIG ERROR, PLEASE LOOK INTO IT",message)
                             continue
                         userpfpmessages.setdefault(message["name"],{"messages":[],"pfp":message["pfp"],"uid":message["uid"]})
-                        userpfpmessages[message["name"]]["messages"].append(message["message"])
+                        userpfpmessages[message["name"]]["messages"].append({"message":message["message"],"isbad":message.get("isbad",0)})
                
                     asyncio.run_coroutine_threadsafe(sendpfpmessages(channel,userpfpmessages,serverid),bot.loop)
 
-                    asyncio.run_coroutine_threadsafe(channel.send(discord.utils.escape_mentions("\n".join(list(map(lambda x: x["message"],list(filter(lambda x: x["type"] != "usermessagepfp" or USEDYNAMICPFPS != "1",output[serverid]))))))), bot.loop)
+                    asyncio.run_coroutine_threadsafe(outputmsg(channel, output, serverid, USEDYNAMICPFPS), bot.loop )
                 messageflush = []
                 lastmessage = time.time()
             now = int(time.time()*100)
@@ -2497,6 +2512,81 @@ def messageloop():
             print("bot not ready", e)
         time.sleep(0.1)
 
+def checkifbad(message):
+    global context
+    lowered = message["message"].lower()
+    wordfilter = context.get("wordfilter", {})
+    banwords = wordfilter.get("banwords", [])
+    notifywords = wordfilter.get("notifybadwords", [])
+
+    def checknono(words,lowered):
+        for word in words:
+            if word.startswith("/") and word.endswith("/") and len(word) > 2:
+                try:
+                    pattern = re.compile(word[1:-1], re.IGNORECASE)
+                    if pattern.search(lowered):
+                        return True
+                except re.error:
+                    continue
+            else:
+                if word.lower() in lowered:
+                    return True
+        return False
+
+    if checknono(banwords,lowered):
+        return 2
+    elif checknono(notifywords,lowered):
+        return 1
+    elif message.get("name",False):
+        if checknono(banwords, message["name"].lower()):
+            return 2
+        elif  checknono(notifywords, message["name"].lower()):
+            return 1
+    return 0
+
+async def outputmsg(channel, output, serverid, USEDYNAMICPFPS):
+    global context
+
+    content = discord.utils.escape_mentions(
+        "\n".join(
+            x["message"]
+            for x in output[serverid]
+            if x["type"] != "usermessagepfp" or USEDYNAMICPFPS != "1"
+        )
+    )
+
+    message = await channel.send(content)
+    print(f"Sent message ID: {message.id}")
+
+    
+    await checkfilters(output[serverid], message)
+
+
+async def checkfilters(messages, message):
+    global context
+    print(messages)
+    message_link = f"https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}"
+    notify_channel_id = context["overridechannels"].get("wordfilternotifychannel")
+    notify_channel = bot.get_channel(notify_channel_id) if notify_channel_id else None
+
+    if not notify_channel:
+        return
+
+    bad_msg = next((x for x in messages if x.get("isbad", 0) == 2), None)
+    if bad_msg:
+        await notify_channel.send(
+            discord.utils.escape_mentions(f""">>> **Ban word found**
+Message: "{bad_msg['message']}"
+Message Link: {message_link}""")
+        )
+
+    notify_msg = next((x for x in messages if x.get("isbad", 0) == 1), None)
+    if notify_msg:
+        await notify_channel.send(
+            discord.utils.escape_mentions(f""">>> **Filtered word found**
+Message: "{notify_msg['message']}"
+Message Link: {message_link}""")
+        )
 
 # name_dict = {
 #     '$"models/humans/pilots/pilot_medium_geist_m.mdl"': "grapple",
@@ -2561,17 +2651,26 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
                     pilotstates[serverid]["webhook"] = "ChatBridge"
             pilotstates[serverid] = {"uid":value["uid"],"model":str(value["pfp"]),"webhook":pilotstates[serverid]["webhook"]}
             # print("here")
+            pfp = model_dict.get(str(value["pfp"]),"unknown/confused.png")
+            if pfp == "unknown/confused.png" and (str(value["pfp"].startswith("true")) or str(value["pfp"].startswith("false"))):
+                print("FALLING BACK TO GUESSING")
+                for model, value in model_dict.items():
+                    if str(value["pfp"])[6:] in model:
+                        pfp = value
+            # print("SENDING PFP MESSAGE","\n".join(value["messages"]),f'{PFPROUTE}{pfp}')
+            
             async with aiohttp.ClientSession() as session:
                 # print(pilotstates[serverid])
-                await actualwebhooks[pilotstates[serverid]["webhook"]].send(
-                    "\n".join(value["messages"]),#+" "+pilotstates[serverid]["webhook"],
+                message = await actualwebhooks[pilotstates[serverid]["webhook"]].send(
+                    "\n".join(list(map(lambda x: x["message"],value["messages"]))),#+" "+pilotstates[serverid]["webhook"],
                     username=f"{username}",
-                    avatar_url=f'{PFPROUTE}{model_dict.get(str(value["pfp"]),"unknown/unkownpfp.png")}'
+                    avatar_url=f'{PFPROUTE}{pfp}',
+                    wait = True
                 )
+            await checkfilters(list(map(lambda x: {"isbad":x["isbad"],"message":f"{username}: {x['message']}"},value["messages"])),message)
     except Exception as e:
         print("WEBHOOK CRASH",e)
         traceback.print_exc()
-
 
 def initdiscordtotitanfall(serverid):
     global discordtotitanfall
