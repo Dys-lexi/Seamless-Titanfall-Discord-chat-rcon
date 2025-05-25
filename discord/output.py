@@ -395,6 +395,7 @@ SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
 TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass") 
 USEDYNAMICPFPS = os.getenv("USE_DYNAMIC_PFPS","1")
 PFPROUTE = os.getenv("PFP_ROUTE","https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/")
+FILTERNAMESINMESSAGES = os.getenv("FILTER_NAMES_IN_MESSAGES","usermessagepfp,chat_message,command,tf1command")
 MAP_NAME_TABLE = {
     "mp_angel_city": "Angel City",
     "mp_black_water_canal": "Black Water Canal",
@@ -1521,12 +1522,18 @@ async def on_message(message):
         ):
             await message.channel.send("Message too long, cannot send.")
             return
+        # dotreacted = None
+        # if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 45:
+        #     dotreacted = "🔴"
+        # elif discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5:
+        #     dotreacted = "🟡" 
         if message.content != "": #and not context["istf1server"].get(serverid,False):
             print(f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {message.content}")
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": message.id,
                     "content": f"{message.author.nick if message.author.nick is not None else message.author.display_name}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}[38;5;254m{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}",
+                    # "dotreacted": dotreacted
                 }
             )
         if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 45: #server crash (likely)
@@ -2045,8 +2052,10 @@ tf1servercontext ={}
 #     return map_name, players
 
 def tf1readsend(serverid,checkstatus):
+    # don't even bother trying to send anything or read anything if the server is offline!
     global discordtotitanfall,context,reactedyellowtoo
     commands = {}
+    offlinethisloop = False
     now = int((time.time())*100) # increased by 8 seconds, to increase the time it takes for a yellow dot to be reacted
     for command in list(discordtotitanfall[serverid]["commands"]):
         command = {**command}
@@ -2058,53 +2067,81 @@ def tf1readsend(serverid,checkstatus):
         command["command"] = command["command"].split(" ")
         # print("COMMAND",command)
         commands[command["id"]] = {"type":"rpc","command":command["command"][0],"id":command["id"],"args":command["command"][1:]}
-    # print("HERHE",discordtotitanfall[serverid]["messages"])
-    # print(discordtotitanfall)
-    messages = False
-    toolongmessages = []
-    for message in discordtotitanfall[serverid]["messages"]:
-        messages = True
-        if len(message["content"]) > 120:
-            toolongmessages.append(message["id"])
-        commands[message["id"]] = {"type":"msg","command":"sendmessage","id":message["id"],"args":str("\x1b[38;5;105m"+message['content'])[0:120]}
-    if len(discordtotitanfall[serverid]["returnids"]["messages"].keys()) == 0 and messages and  discordtotitanfall[serverid]["lastheardfrom"] > int(time.time()) - 5:# and discordtotitanfall[serverid]["serveronline"]:
-        print("RETURNIDS",discordtotitanfall[serverid]["returnids"]["messages"])
-        discordtotitanfall[serverid]["returnids"]["messages"][now] = list(map(lambda x: x["id"],list(filter(lambda x: x["id"] not in reactedyellowtoo ,discordtotitanfall[serverid]["messages"]))))
-        # print(discordtotitanfall[serverid]["returnids"]["messages"][now])
-    elif messages and discordtotitanfall[serverid]["lastheardfrom"] > int(time.time()) - 5:# and discordtotitanfall[serverid]["serveronline"]:
-        msgids = []
-        searcher = list(discordtotitanfall[serverid]["returnids"]["messages"].keys())
-        for search in searcher:
-            for msgid in discordtotitanfall[serverid]["returnids"]["messages"][search]:
-                msgids.append(msgid)
-        for newmsgid in discordtotitanfall[serverid]["messages"]:
-            if newmsgid["id"] not in msgids and  newmsgid["id"] not in reactedyellowtoo:
-                discordtotitanfall[serverid]["returnids"]["messages"].setdefault(now,[]).append(newmsgid["id"])
-        print("RETURNIDS",discordtotitanfall[serverid]["returnids"]["messages"])
-        # discordtotitanfall[serverid]["returnids"]["messages"][list(discordtotitanfall[serverid]["returnids"]["messages"].keys())[0]]  = list(map(lambda x: x["id"],discordtotitanfall[serverid]["messages"])) 
-    # print(discordtotitanfall[serverid]["returnids"]["messages"])
     inputstring = {}
-    offlinethisloop = False
-    # shouldnotreturn = discordtotitanfall[serverid]["serveronline"]
-    # print("commands",commands)
+    if discordtotitanfall[serverid]["lastheardfrom"] > int(time.time()) - 6:
+    # if discordtotitanfall[serverid].get("serveronline",False):
+    
+
+
+        # print("HERHE",discordtotitanfall[serverid]["messages"])
+        # print(discordtotitanfall)
+        messages = False
+        toolongmessages = []
+        for message in discordtotitanfall[serverid]["messages"]:
+            messages = True
+            if str(message["id"]) in discordtotitanfall[serverid]["returnids"]["messages"].keys():
+                continue   #TRADEOFF HERE. EITHER I SEND IT EACH RCON CALL (and don't update the timestamp) OR I do what I do here and only send it once, wait untill yellow dot cleaner comes, then send again.
+            if len(message["content"]) > 120:
+                toolongmessages.append(message["id"])
+            commands[message["id"]] = {"type":"msg","command":"sendmessage","id":message["id"],"args":str("\x1b[38;5;105m"+message['content'])[0:120]}
+        if len(discordtotitanfall[serverid]["returnids"]["messages"].keys()) != -1 and messages:# and discordtotitanfall[serverid]["serveronline"]:
+            
+            for messageid in list(map(lambda x: str(x["id"]),list(filter(lambda x: True ,discordtotitanfall[serverid]["messages"])))):
+                discordtotitanfall[serverid]["returnids"]["messages"].setdefault(messageid,[now])
+            print("RETURNIDS",discordtotitanfall[serverid]["returnids"]["messages"])
+            # discordtotitanfall[serverid]["returnids"]["messages"][now] = list(map(lambda x: x["id"],list(filter(lambda x: x["id"] not in reactedyellowtoo ,discordtotitanfall[serverid]["messages"]))))
+        # I don't recall why I needed this grouping system. hence, I am removing it.
+        # what if a message is sent, and it fails? oh that's why I had it isn't it.
+            # print(discordtotitanfall[serverid]["returnids"]["messages"][now])
+        # elif messages:# and discordtotitanfall[serverid]["serveronline"]:
+        #     msgids = []
+        #     searcher = list(discordtotitanfall[serverid]["returnids"]["messages"].keys())
+        #     for search in searcher:
+        #         for msgid in discordtotitanfall[serverid]["returnids"]["messages"][search]:
+        #             msgids.append(msgid)
+        #     for newmsgid in discordtotitanfall[serverid]["messages"]:
+        #         if newmsgid["id"] not in msgids and  newmsgid["id"] not in reactedyellowtoo:
+        #             discordtotitanfall[serverid]["returnids"]["messages"].setdefault(now,[]).append(newmsgid["id"])
+        #     print("RETURNIDS",discordtotitanfall[serverid]["returnids"]["messages"])
+            # discordtotitanfall[serverid]["returnids"]["messages"][list(discordtotitanfall[serverid]["returnids"]["messages"].keys())[0]]  = list(map(lambda x: x["id"],discordtotitanfall[serverid]["messages"])) 
+        # print(discordtotitanfall[serverid]["returnids"]["messages"])
+        
+        # shouldnotreturn = discordtotitanfall[serverid]["serveronline"]
+        # print("commands",commands)
     try:
         with Client(discordtotitanfall[serverid]["ip"].split(":")[0],  int(discordtotitanfall[serverid]["ip"].split(":")[1]), passwd=TF1RCONKEY,timeout=2) as client:
+            
+            if checkstatus or len(commands) > 0:
+                client.run('sv_cheats','1')
             if checkstatus:
-                status = client.run("status")
-                # print("statuscheck","not hibernating" not in status or "0 humans" in status,status)
-                if "not hibernating" not in status and "0 humans" in status:
-                    # print("server not online")
-                    discordtotitanfall[serverid]["serveronline"] = False
+                # playingpollidentity
+                statusoutput = client.run("script",'Lrconcommand("playingpollidentity")')
+                # print(statusoutput)
+                if "OUTPUT<" in statusoutput and "/>ENDOUTPUT" in statusoutput:
+                    statusoutput = "".join("".join("".join(statusoutput.split("BEGINMAINOUT")[1:]).split("OUTPUT<")[1:]).split("/>ENDOUTPUT")[:-1])
+                    statusoutput = statusoutput.replace("☻",'"')
+                    statusoutput = getjson(statusoutput)
+                # print((statusoutput))
+                peopleonserver = len(statusoutput.keys()) -1
+                discordtotitanfall[serverid]["serveronline"] = bool (len(statusoutput.keys()) -1)
+                if not discordtotitanfall[serverid]["serveronline"]:
                     offlinethisloop = True
-                    if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5:
-                        return False
-                else:
-                    pass
+                    return
+                # status = client.run("status")
+                # # print("statuscheck","not hibernating" not in status or "0 humans" in status,status)
+                # if "not hibernating" not in status and "0 humans" in status:
+                #     # print("server not online")
+                #     discordtotitanfall[serverid]["serveronline"] = False
+                #     offlinethisloop = True
+                #     if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5:
+                #         return False
+                # else:
+                #     pass
                     # matchid = client.run("autocvar_matchid") 
                     # tf1statusinterp(status,serverid,matchid)
             if len(commands) > 0:
                 print("sending messages and commands to tf1",commands)
-                client.run('sv_cheats','1')
+
                 for w, command in commands.items():
                     quotationmark = '"'
                     if command["type"] == "rcon":
@@ -2116,6 +2153,7 @@ def tf1readsend(serverid,checkstatus):
                     print("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")')
                     inputstring[command["id"]] = client.run("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")')#{","+quotationmark+filterquotes(command["name"])+quotationmark if "name" in command.keys() else "" })')
                     # print(inputstring[command["id"]])
+            if checkstatus or len(commands) > 0:
                 client.run('sv_cheats','0')
             outputstring = client.run("autocvar_Lcommandreader") 
             # print("out",outputstring)
@@ -2125,7 +2163,7 @@ def tf1readsend(serverid,checkstatus):
             
             
     except Exception as e:
-        # print("CORE BROKEY SOB",e)
+        print("CORE BROKEY SOB",e)
         outputstring = ""
         status = ""
         discordtotitanfall[serverid]["serveronline"] = False
@@ -2133,7 +2171,7 @@ def tf1readsend(serverid,checkstatus):
         # traceback.print_exc()
     else:
         if not offlinethisloop:
-            discordtotitanfall[serverid]["lastheardfrom"] = int(time.time()) + 10
+            discordtotitanfall[serverid]["lastheardfrom"] = int(time.time())
     # print("I got here!")
     try:
         if "☻" in outputstring:
@@ -2203,7 +2241,7 @@ def tf1readsend(serverid,checkstatus):
                         "globalmessage": False,
                         "overridechannel": None,
                         "messagecontent": output["command"],
-                        "metadata": {"type":None},
+                        "metadata": {"type":"connecttf1"},
                         "servername" :context["serveridnamelinks"][serverid]
 
                     })
@@ -2256,9 +2294,9 @@ def tf1readsend(serverid,checkstatus):
             # print("BOOP",key,discordtotitanfall[serverid]["returnids"]["messages"][now])
             try:
                 # del discordtotitanfall[serverid]["returnids"]["messages"][now]
-                del discordtotitanfall[serverid]["returnids"]["messages"][now][discordtotitanfall[serverid]["returnids"]["messages"][now].index(key)]
-                if len(discordtotitanfall[serverid]["returnids"]["messages"][now]) == 0:
-                    del discordtotitanfall[serverid]["returnids"]["messages"][now]
+                del discordtotitanfall[serverid]["returnids"]["messages"][str(key)]#[discordtotitanfall[serverid]["returnids"]["messages"][now].index(key)]
+                # if len(discordtotitanfall[serverid]["returnids"]["messages"][now]) == 0:
+                    # del discordtotitanfall[serverid]["returnids"]["messages"][now]
             except Exception as e:print("crash while deleting key",e)
             ids.append(commands[key]["id"])
             # print("HEREEEE SENT IT I THINK MABYE")
@@ -2460,8 +2498,9 @@ def messageloop():
                 for serverid in output.keys():
                     for key,message in enumerate(output[serverid]):
                         isbad = checkifbad(message)
-                        if isbad:
+                        if isbad[0]:
                             output[serverid][key]["isbad"] = isbad
+                    # print("OUTPUT",output)
                     # print("sending to", serverid)
                     if serverid not in context["serverchannelidlinks"].keys() and serverid not in context["overridechannels"].keys():
                         print("channel not in bots known channels")
@@ -2477,7 +2516,7 @@ def messageloop():
                             print("VERY BIG ERROR, PLEASE LOOK INTO IT",message)
                             continue
                         userpfpmessages.setdefault(message["name"],{"messages":[],"pfp":message["pfp"],"uid":message["uid"]})
-                        userpfpmessages[message["name"]]["messages"].append({"message":message["message"],"isbad":message.get("isbad",0)})
+                        userpfpmessages[message["name"]]["messages"].append({"message":message["message"],"isbad":message.get("isbad",[0,0])})
                
                     asyncio.run_coroutine_threadsafe(sendpfpmessages(channel,userpfpmessages,serverid),bot.loop)
 
@@ -2494,14 +2533,23 @@ def messageloop():
                     # print("key",key)
                     iterator += 1
 
-                    if int(key) < now-300:
+                    if type(key) == int and int(key) < now-300:
                         if len(value) > 0:
                             reactedyellowtoo.extend(value)
                             reactedyellowtoo = reactedyellowtoo[-200:]
-                            print("running this",value,serverid,key,now)
+                            # print("running this",value,serverid,key,now)
                             asyncio.run_coroutine_threadsafe(reactomessages(value, serverid, "🟡"), bot.loop)
                         del discordtotitanfall[serverid]["returnids"]["messages"][key]
                         iterator -= 1
+                    elif type(key) == str and value[0]  < now - 300:
+                        reactedyellowtoo.extend(value)
+                        reactedyellowtoo = reactedyellowtoo[-200:]
+                        # print("running this2",value,serverid,key,now)
+                        asyncio.run_coroutine_threadsafe(reactomessages([key], serverid, "🟡"), bot.loop)
+                        del discordtotitanfall[serverid]["returnids"]["messages"][key]
+                        iterator -= 1
+                    # print(type(key) == str,value[0] - (now - 300))
+
 
 
         except Exception as e:
@@ -2512,6 +2560,8 @@ def messageloop():
 
 def checkifbad(message):
     global context
+    if message["type"] not in FILTERNAMESINMESSAGES.split(","):
+        return [0,0]
     lowered = message["message"].lower()
     wordfilter = context.get("wordfilter", {})
     banwords = wordfilter.get("banwords", [])
@@ -2522,25 +2572,29 @@ def checkifbad(message):
                 try:
                     pattern = re.compile(word[1:-1], re.IGNORECASE)
                     if pattern.search(text):
-                        return True
+                        return word
                 except re.error:
                     continue
             else:
                 if word.lower() in text:
-                    return True
+                    return word
         return False
     if checknono(banwords, lowered):
-        return 2
+        # print("here")
+        return [2,checknono(banwords, lowered)]
     elif checknono(notifywords, lowered):
-        return 1
+        # print("here2",checknono(notifywords, lowered))
+        return [1,checknono(notifywords, lowered)]
     if message.get("name"):
         name_lowered = message["name"].lower()
         if checknono(banwords, name_lowered):
-            return 2
+            # print("here3")
+            return [2,checknono(banwords, name_lowered)]
         elif checknono(notifywords, name_lowered):
-            return 1
+            # print("here4")
+            return [1,checknono(notifywords, name_lowered)]
 
-    return 0
+    return [0,0]
 
 async def outputmsg(channel, output, serverid, USEDYNAMICPFPS):
     global context
@@ -2570,19 +2624,22 @@ async def checkfilters(messages, message):
     if not notify_channel:
         return
 
-    bad_msg = next((x for x in messages if x.get("isbad", 0) == 2), None)
+    bad_msg = next((x for x in messages if x.get("isbad", [0,0])[0] == 2), None)
     if bad_msg:
         await notify_channel.send(
             discord.utils.escape_mentions(f""">>> **Ban word found**
 Message: "{bad_msg['message']}"
+Found pattern: "{bad_msg['isbad'][1]}"
 Message Link: {message_link}""")
         )
 
-    notify_msg = next((x for x in messages if x.get("isbad", 0) == 1), None)
+    notify_msg = next((x for x in messages if x.get("isbad", [0.0])[0] == 1), None)
     if notify_msg:
+        # print("NOTIFY",notify_msg)
         await notify_channel.send(
             discord.utils.escape_mentions(f""">>> **Filtered word found**
 Message: "{notify_msg['message']}"
+Found pattern: "{notify_msg['isbad'][1]}"
 Message Link: {message_link}""")
         )
 
