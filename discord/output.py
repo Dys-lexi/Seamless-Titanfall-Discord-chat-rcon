@@ -2049,8 +2049,8 @@ def getmessagewidget(metadata,serverid,messagecontent,message):
 
     print("metadata",metadata)
     if metadata.get("teamtype","not team") != "not team":
-        player = f"{metadata.get('teamtype','not team')} {player}"
-    if metadata.get("isalive","unknown") != "unknown" and  metadata.get("isalive","unknown"):
+        player = f"{player} {metadata.get('teamtype','not team')}"
+    if metadata.get("isalive","unknown") != "unknown" and not metadata.get("isalive","unknown"):
         player = f"{player} [DEAD]"
         
     if not metadata["type"]:
