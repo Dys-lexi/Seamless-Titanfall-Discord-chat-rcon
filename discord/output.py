@@ -645,7 +645,8 @@ if DISCORDBOTLOGSTATS == "1":
             for logid in range(len(context["leaderboardchannelmessages"])):
                 if "name" in context["leaderboardchannelmessages"][logid]["merge"]:
                     output[logid] = await updateleaderboard(logid,specificuidsearch = str(player[0]["uid"]),compact = True)
-                    colour = output[logid]["title"]["color"]
+                    if output[logid]:
+                        colour = output[logid]["title"]["color"]
         else:
             for logid in range(len(context["leaderboardchannelmessages"])):
                 if "name" in context["leaderboardchannelmessages"][logid]["merge"] and context["leaderboardchannelmessages"][logid]["name"] == leaderboard:
@@ -673,6 +674,8 @@ if DISCORDBOTLOGSTATS == "1":
             description="all leaderboards!",
         )
         for entry in output.values():
+            if not entry:
+                continue
             # print(json.dumps(entry))
             embed.add_field(
                 name=entry["title"]["title"],
@@ -1083,89 +1086,89 @@ if DISCORDBOTLOGSTATS == "1":
 
 
 
-@bot.slash_command(
-    name="whois",
-    description="Get a player's Aliases",
-)
-async def whois(ctx, name: Option(str, "The playername/uid to Query")):
-    MAXALIASESSHOWN = 22
-    print("whois command from", ctx.author.id, "to", name)
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
-    c.execute("SELECT playeruid, playername FROM uidnamelink")
-    data = c.fetchall()
-    
-    if not data:
-        tfdb.commit()
-        tfdb.close()
-        asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-        await ctx.respond("No players in the database", ephemeral=False)
-        return
-
-    unsortedata = [{"name": x[1], "uid": x[0]} for x in data]
-    data = sorted(unsortedata, key=lambda x: len(x["name"]))
-    data = sorted(data, key=lambda x: not x["name"].lower().startswith(name.lower()))
-    data = [x for x in data if name.lower() in x["name"].lower()]
-    unsortedata = [x for x in unsortedata if name.lower() in x["name"].lower()]
-
-    if len(data) == 0:
-        c.execute("SELECT playeruid FROM uidnamelink WHERE playeruid = ?", (name,))
-        output = c.fetchone()
-        if not output:
+    @bot.slash_command(
+        name="whois",
+        description="Get a player's Aliases",
+    )
+    async def whois(ctx, name: Option(str, "The playername/uid to Query")):
+        MAXALIASESSHOWN = 22
+        print("whois command from", ctx.author.id, "to", name)
+        tfdb = sqlite3.connect("./data/tf2helper.db")
+        c = tfdb.cursor()
+        c.execute("SELECT playeruid, playername FROM uidnamelink")
+        data = c.fetchall()
+        
+        if not data:
             tfdb.commit()
             tfdb.close()
             asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-            await ctx.respond("No players found", ephemeral=False)
+            await ctx.respond("No players in the database", ephemeral=False)
             return
-        player = {"uid": output[0]}
-    else:
-        player = data[0]
 
-    c.execute("""
-        SELECT playername, firstseenunix, lastseenunix 
-        FROM uidnamelink 
-        WHERE playeruid = ? 
-        ORDER BY id DESC
-    """, (player["uid"],))
-    aliases_raw = c.fetchall()
+        unsortedata = [{"name": x[1], "uid": x[0]} for x in data]
+        data = sorted(unsortedata, key=lambda x: len(x["name"]))
+        data = sorted(data, key=lambda x: not x["name"].lower().startswith(name.lower()))
+        data = [x for x in data if name.lower() in x["name"].lower()]
+        unsortedata = [x for x in unsortedata if name.lower() in x["name"].lower()]
 
-    aliases = []
-    for name, first, last in aliases_raw:
-        first_str = f"<t:{first}:R>" if first else "unknown"
-        last_str = f"<t:{last}:R>" if last else "unknown"
-        aliases.append(f"{name} *(first seen: {first_str}, last seen: {last_str})*")
+        if len(data) == 0:
+            c.execute("SELECT playeruid FROM uidnamelink WHERE playeruid = ?", (name,))
+            output = c.fetchone()
+            if not output:
+                tfdb.commit()
+                tfdb.close()
+                asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+                await ctx.respond("No players found", ephemeral=False)
+                return
+            player = {"uid": output[0]}
+        else:
+            player = data[0]
 
-    tfdb.commit()
-    tfdb.close()
+        c.execute("""
+            SELECT playername, firstseenunix, lastseenunix 
+            FROM uidnamelink 
+            WHERE playeruid = ? 
+            ORDER BY id DESC
+        """, (player["uid"],))
+        aliases_raw = c.fetchall()
 
-    alsomatching = {}
-    for entry in unsortedata:
-        if entry["uid"] == player["uid"]:
-            continue
-        alsomatching[entry["uid"]] = entry["name"]
+        aliases = []
+        for name, first, last in aliases_raw:
+            first_str = f"<t:{first}:R>" if first else "unknown"
+            last_str = f"<t:{last}:R>" if last else "unknown"
+            aliases.append(f"{name} *(first seen: {first_str}, last seen: {last_str})*")
 
-    embed = discord.Embed(
-        title=f"Aliases for uid {player['uid']} ({len(alsomatching.keys()) + 1} match{'es' if len(alsomatching.keys()) > 0 else ''} for '{name}')",
-        color=0xff70cb,
-        description="Most recent to oldest",
-    )
+        tfdb.commit()
+        tfdb.close()
 
-    for y, x in enumerate(aliases[0:MAXALIASESSHOWN]):
-        embed.add_field(name=f"Alias {y+1}:", value=f"\u200b {x}", inline=False)
+        alsomatching = {}
+        for entry in unsortedata:
+            if entry["uid"] == player["uid"]:
+                continue
+            alsomatching[entry["uid"]] = entry["name"]
 
-    if len(aliases) > MAXALIASESSHOWN:
-        embed.add_field(
-            name=f"{len(aliases) - MAXALIASESSHOWN} more alias{'es' if len(aliases) - MAXALIASESSHOWN > 1 else ''}",
-            value=f"({', '.join(list(map(lambda x: f'*{x}*', aliases[MAXALIASESSHOWN:])))})"
+        embed = discord.Embed(
+            title=f"Aliases for uid {player['uid']} ({len(alsomatching.keys()) + 1} match{'es' if len(alsomatching.keys()) > 0 else ''} for '{name}')",
+            color=0xff70cb,
+            description="Most recent to oldest",
         )
 
-    if len(alsomatching.keys()) > 0:
-        embed.add_field(
-            name=f"The {len(alsomatching.keys())} other match{'es are:' if len(alsomatching.keys()) > 1 else ' is:'}",
-            value=f"({', '.join(list(map(lambda x: f'*{x}*', list(alsomatching.values())[0:20])))}) {'**only first 20 shown**' if len(alsomatching.keys()) > 20 else ''}"
-        )
+        for y, x in enumerate(aliases[0:MAXALIASESSHOWN]):
+            embed.add_field(name=f"Alias {y+1}:", value=f"\u200b {x}", inline=False)
 
-    await ctx.respond(embed=embed, ephemeral=False)
+        if len(aliases) > MAXALIASESSHOWN:
+            embed.add_field(
+                name=f"{len(aliases) - MAXALIASESSHOWN} more alias{'es' if len(aliases) - MAXALIASESSHOWN > 1 else ''}",
+                value=f"({', '.join(list(map(lambda x: f'*{x}*', aliases[MAXALIASESSHOWN:])))})"
+            )
+
+        if len(alsomatching.keys()) > 0:
+            embed.add_field(
+                name=f"The {len(alsomatching.keys())} other match{'es are:' if len(alsomatching.keys()) > 1 else ' is:'}",
+                value=f"({', '.join(list(map(lambda x: f'*{x}*', list(alsomatching.values())[0:20])))}) {'**only first 20 shown**' if len(alsomatching.keys()) > 20 else ''}"
+            )
+
+        await ctx.respond(embed=embed, ephemeral=False)
 
         # await ctx.respond(data, ephemeral=False)
     @bot.slash_command(
