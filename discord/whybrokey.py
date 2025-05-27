@@ -459,7 +459,7 @@ stoprequestsforserver = {}
 discordtotitanfall = {}
 # Load channel ID from file
 context = {
-        "wordfilter":{
+       "wordfilter":{
         "banwords":[
         ],
         "notifybadwords":[
@@ -479,7 +479,7 @@ context = {
     },
     "leaderboardchannelmessages": [],
     "commands": {}
-
+ 
 }
 serverchannels = []
 if not os.path.exists("./data"):
@@ -576,8 +576,9 @@ if SANCTIONAPIBANKEY != "":
             await ctx.respond("You are not allowed to use this command.", ephemeral=False)
             return
         matchingplayers = resolveplayeruidfromdb(who, playeroruid,True)
+        print(matchingplayers)
         if len (matchingplayers) > 1:
-            multistring = "\n" + "\n".join(f"{i+1}) {p['name']} uid: {p['uid']}" for i, p in enumerate(matchingplayers[0:10]))
+            multistring = "\n" + "\n".join(f"{i+1}) {p['name']}" for i, p in enumerate(matchingplayers[0:10]))
             await ctx.respond(f"{len(matchingplayers)} players found, please be more specific: {multistring}", ephemeral=False)
             return
         elif len(matchingplayers) == 0:
@@ -636,51 +637,13 @@ if DISCORDBOTLOGSTATS == "1":
             str, "Witch leaderboard, omit for all, more specific data when not ommitted", choices=list(map(lambda x:x["name"],list(filter(lambda x:"name" in x["merge"] ,context["leaderboardchannelmessages"]))))
         ) = None
     ):
+        asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         player = resolveplayeruidfromdb(playername,None,True)
         if not player:
-            await ctx.respond(f"{playername}player not found", ephemeral=False)
+            await ctx.respond(f"{playername}This channel is already bound to a server.", ephemeral=False)
+        print(player)
         if leaderboard is None:
-            output = {}
-            colour = 0
-            for logid in range(len(context["leaderboardchannelmessages"])):
-                if "name" in context["leaderboardchannelmessages"][logid]["merge"]:
-                    output[logid] = await updateleaderboard(logid,specificuidsearch = str(player[0]["uid"]),compact = True)
-                    colour = output[logid]["title"]["color"]
-        else:
-            for logid in range(len(context["leaderboardchannelmessages"])):
-                if "name" in context["leaderboardchannelmessages"][logid]["merge"] and context["leaderboardchannelmessages"][logid]["name"] == leaderboard:
-                    output = await updateleaderboard(logid, str(player[0]["uid"]),False,11)
-            # print("OUTPUT",output)
-            if not output:
-                await ctx.respond(f"Leaderboard data not found, or {player[0]['name']} is not in the chosen leaderboard", ephemeral=False)
-                return
-            embed = discord.Embed(
-                    title=output["title"]["title"],
-                    color=output["title"]["color"],
-                    description=output["title"]["description"],
-                )
-            for field in output["rows"]:
-                embed.add_field(
-                    name=field["name"],
-                    value=field["value"],
-                    inline=field["inline"]
-            )
-            message = await ctx.respond(f"leaderboard for **{player[0]['name']}**", embed=embed, ephemeral=False)
-            return
-        embed = discord.Embed(
-            title=f"leaderboards for **{player[0]['name']}**",
-            color=colour,
-            description="all leaderboards!",
-        )
-        for entry in output.values():
-            # print(json.dumps(entry))
-            embed.add_field(
-                name=entry["title"]["title"],
-                    value=entry["rows"][0]["value"],
-                    inline=False
-            )
-        # print(output)
-        message = await ctx.respond(embed=embed ,ephemeral=False)
+            leaderboardinfo = updateleaderboard(logid,specificuidsearch = str(player[0]["uid"]),compact = False)
     # @bot.slash_command(
     #     name="getplayerhours",
     #     description="Get a player's playtime",
@@ -764,7 +727,7 @@ if DISCORDBOTLOGSTATS == "1":
             await updateleaderboard(logid)
             await asyncio.sleep(6)
         print("leaderboards updated")
-    async def updateleaderboard(logid,specificuidsearch = False,compact = False,maxshownoverride = 5):
+    async def updateleaderboard(logid):
         global context
         SEPERATOR = "|"
         now = int(time.time())
@@ -815,13 +778,11 @@ if DISCORDBOTLOGSTATS == "1":
                     placeholders = ",".join(["?"] * len(values))
                     where_clauses.append(f"{key} IN ({placeholders})")
                     params.extend(values)
-
-            wherestring = " AND ".join(where_clauses)
+            where_clauses.append("playeruid != 2284657812")
+            wherestring = " AND ".join(where_clauses) 
         else:
             wherestring = eval(leaderboardfilters)
-        if not specificuidsearch:
-            print("Updating leaderboard:",leaderboardname)
-        print("wherestring",wherestring,where_clauses)
+        print("wherestring",wherestring)
         orderbyiscolumn = leaderboardorderby not in [x for x in leaderboardcategorysshown.keys()]
 
         leaderboardcategorys = list(set([
@@ -902,14 +863,13 @@ if DISCORDBOTLOGSTATS == "1":
             global context
             return str(namemap.get(int(itemname), context["serveridnamelinks"].get(str(itemname),itemname)))
         displayoutput = []
-        nameuidmap = []
         if nameoverride:
             c.execute("SELECT playername, playeruid FROM uidnamelink ORDER BY id")
             namemap = {uid: name for name, uid in c.fetchall()}
             for uid, rowdata in actualoutput:
                 uid = uid.split(SEPERATOR)#horrible jank
                 displayname = SEPERATOR.join(list(map( swopper,uid )))
-                nameuidmap.append(uid[0])
+                # print(displayname)
                 displayoutput.append((displayname, rowdata))
         else:
             displayoutput = actualoutput
@@ -917,68 +877,16 @@ if DISCORDBOTLOGSTATS == "1":
         tfdb.close()
 
         # Build embed
-        if not specificuidsearch:
-            embed = discord.Embed(
-                title=f"{leaderboardname}",
-                color=leaderboarddcolor,
-                description=f"{leaderboarddescription} **{len(displayoutput)} Entrys**"
-            )
-
+        embed = discord.Embed(
+            title=f"{leaderboardname}",
+            color=leaderboarddcolor,
+            description=leaderboarddescription,
+        )
         # print(leaderboardcategorysshown)
         # print("displayout",displayoutput)
-        # print([nameuidmap[0]],[specificuidsearch])
-        ioffset = 0
-        entrycount = len(displayoutput)
-        if specificuidsearch:
-            if specificuidsearch not in nameuidmap:
-                return False
-            playerindex = nameuidmap.index(specificuidsearch)
-            if compact:
-                ioffset = playerindex
-                displayoutput = displayoutput[playerindex:playerindex+1]
-            else:
-                n = maxshownoverride
-                half = n // 2 
-                length = len(displayoutput)
-                if length <= n:
-                    window = displayoutput
-                else:
-             
-                    start = playerindex - half
-                    end   = playerindex + half + 1 
-                    
-                    if start < 0:
-                        end += -start
-                        start = 0
-
-                    if end > length:
-                        start -= (end - length)
-                        end = length
-                    start = max(0, start)
-                    end = min(length, end)
-
-                    window = displayoutput[start:end]
-                # print("STARTEND",start,end)
-                ioffset = start
-                displayoutput = window
-                maxshown = n
-        fakembed = {"rows":[]}
-        if not compact:
-            fakembed["title"] = {
-                "title":f"{leaderboardname}",
-                "color":leaderboarddcolor,
-                "description":f"{leaderboarddescription} **{(entrycount)} Entrys**"
-            }
-        else:
-            fakembed["title"] = {
-                    "title":f"{leaderboardname} ***Position: {playerindex+1}***",
-                    "color":leaderboarddcolor,
-                    "description":leaderboarddescription
-                }
         for i, (name, data) in enumerate(displayoutput):
             if i >= maxshown:
                 break
-            ioffsetted = i + ioffset
             output = {}
             for catname,category in leaderboardcategorysshown.items():
                 # print("catname",catname)
@@ -997,39 +905,22 @@ if DISCORDBOTLOGSTATS == "1":
                 # first pull the category names, then send em through the calculator, 
             # print(list(leaderboardcategorysshown.keys()), name.split(SEPERATOR)[indexoverride],oldleaderboardmerge[indexoverride])
             # print(list(zip(leaderboardcategorysshown, output.values())))
-            
-
-
-            
-            if not specificuidsearch:
-                embed.add_field(
-                    name=f" \u200b {str(ioffsetted+1)}. ***{name.split(SEPERATOR)[indexoverride] if oldleaderboardmerge[indexoverride] not in leaderboardcategorysshown.keys() else list(output.values())[list(leaderboardcategorysshown.keys()).index(oldleaderboardmerge[indexoverride])]}***",
-                    value=f"{actualoutput}",
-                    inline=False
+            embed.add_field(
+                name=f" \u200b {str(i+1)}. ***{name.split(SEPERATOR)[indexoverride] if oldleaderboardmerge[indexoverride] not in leaderboardcategorysshown.keys() else list(output.values())[list(leaderboardcategorysshown.keys()).index(oldleaderboardmerge[indexoverride])]}***",
+                value=f"{actualoutput}",
+                inline=False
             )
-            else:
-                fakembed["rows"].append({
-                "name":f" \u200b {str(ioffsetted+1)}. **{'*' if playerindex != ioffsetted else ''}{name.split(SEPERATOR)[indexoverride] if oldleaderboardmerge[indexoverride] not in leaderboardcategorysshown.keys() else list(output.values())[list(leaderboardcategorysshown.keys()).index(oldleaderboardmerge[indexoverride])]}{'*' if playerindex != ioffsetted else ''}**",
-                "value": actualoutput,
-                "inline": False
-            })
         if not data:
-            fakembed["rows"].append({
-                "name":  "Error",
-                "value": "No data found for this leaderboard",
-                "inline": False
-            })
-            if not specificuidsearch:
-                embed.add_field(
-                    name="Error",
-                    value="No data found for this leaderboard",
-                    inline=False,
-                )
+            embed.add_field(
+                name="Error",
+                value="No data found for this leaderboard",
+                inline=False,
+            )
 
         # Update or send leaderboard message
         channel = bot.get_channel(context["overridechannels"]["leaderboardchannel"])
 
-        if leaderboardid != 0 and not specificuidsearch:
+        if leaderboardid != 0:
             try:
                 message = await channel.fetch_message(leaderboardid)
                 await message.edit(embed=embed)
@@ -1038,12 +929,11 @@ if DISCORDBOTLOGSTATS == "1":
                 message = await channel.send(embed=embed)
                 context["leaderboardchannelmessages"][logid]["id"] = message.id
                 savecontext()
-        elif not specificuidsearch:
+        else:
             message = await channel.send(embed=embed)
             context["leaderboardchannelmessages"][logid]["id"] = message.id
             savecontext()
-        else:
-            return fakembed
+
         
     def modifyvalue(value, format, calculation=None):
         if format is None:
@@ -1083,90 +973,67 @@ if DISCORDBOTLOGSTATS == "1":
 
 
 
-@bot.slash_command(
-    name="whois",
-    description="Get a player's Aliases",
-)
-async def whois(ctx, name: Option(str, "The playername/uid to Query")):
-    MAXALIASESSHOWN = 22
-    print("whois command from", ctx.author.id, "to", name)
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
-    c.execute("SELECT playeruid, playername FROM uidnamelink")
-    data = c.fetchall()
-    
-    if not data:
-        tfdb.commit()
-        tfdb.close()
-        asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-        await ctx.respond("No players in the database", ephemeral=False)
-        return
-
-    unsortedata = [{"name": x[1], "uid": x[0]} for x in data]
-    data = sorted(unsortedata, key=lambda x: len(x["name"]))
-    data = sorted(data, key=lambda x: not x["name"].lower().startswith(name.lower()))
-    data = [x for x in data if name.lower() in x["name"].lower()]
-    unsortedata = [x for x in unsortedata if name.lower() in x["name"].lower()]
-
-    if len(data) == 0:
-        c.execute("SELECT playeruid FROM uidnamelink WHERE playeruid = ?", (name,))
-        output = c.fetchone()
-        if not output:
+    @bot.slash_command(
+        name="whois",
+        description="Get a player's Aliases",
+    )
+    async def whois(ctx,name: Option(str, "The playername/uid to Query")):
+        MAXALIASESSHOWN=22
+        print("whois command from", ctx.author.id, "to", name)
+        tfdb = sqlite3.connect("./data/tf2helper.db")
+        c = tfdb.cursor()
+        c.execute("SELECT playeruid, playername FROM uidnamelink")
+        data = c.fetchall()
+        if not data:
             tfdb.commit()
             tfdb.close()
             asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-            await ctx.respond("No players found", ephemeral=False)
+            await ctx.respond("No players in the database", ephemeral=False)
             return
-        player = {"uid": output[0]}
-    else:
-        player = data[0]
-
-    c.execute("""
-        SELECT playername, firstseenunix, lastseenunix 
-        FROM uidnamelink 
-        WHERE playeruid = ? 
-        ORDER BY id DESC
-    """, (player["uid"],))
-    aliases_raw = c.fetchall()
-
-    aliases = []
-    for name, first, last in aliases_raw:
-        first_str = f"<t:{first}:R>" if first else "unknown"
-        last_str = f"<t:{last}:R>" if last else "unknown"
-        aliases.append(f"{name} *(first seen: {first_str}, last seen: {last_str})*")
-
-    tfdb.commit()
-    tfdb.close()
-
-    alsomatching = {}
-    for entry in unsortedata:
-        if entry["uid"] == player["uid"]:
-            continue
-        alsomatching[entry["uid"]] = entry["name"]
-
-    embed = discord.Embed(
-        title=f"Aliases for uid {player['uid']} ({len(alsomatching.keys()) + 1} match{'es' if len(alsomatching.keys()) > 0 else ''} for '{name}')",
-        color=0xff70cb,
-        description="Most recent to oldest",
-    )
-
-    for y, x in enumerate(aliases[0:MAXALIASESSHOWN]):
-        embed.add_field(name=f"Alias {y+1}:", value=f"\u200b {x}", inline=False)
-
-    if len(aliases) > MAXALIASESSHOWN:
-        embed.add_field(
-            name=f"{len(aliases) - MAXALIASESSHOWN} more alias{'es' if len(aliases) - MAXALIASESSHOWN > 1 else ''}",
-            value=f"({', '.join(list(map(lambda x: f'*{x}*', aliases[MAXALIASESSHOWN:])))})"
+        unsortedata = [{"name": x[1], "uid": x[0]} for x in data]
+        data = sorted(unsortedata, key=lambda x: len(x["name"]))
+        data = sorted(data, key=lambda x: not x["name"].lower().startswith(name.lower()))
+        data = [x for x in data if name.lower() in x["name"].lower()]
+        unsortedata = [x for x in unsortedata if name.lower() in x["name"].lower()]
+        if len(data) == 0:
+            c.execute("SELECT playeruid FROM uidnamelink WHERE playeruid = ?",(name,))
+            output = c.fetchone()
+            if not output:
+                tfdb.commit()
+                tfdb.close()
+                asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+                await ctx.respond("No players found", ephemeral=False)
+    
+                return
+            player = {"uid":output[0]}
+        else:
+            player = data[0]
+        c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC",(player["uid"],))
+        aliases = c.fetchall()
+        aliases = [f"{x[0]}" for y,x in enumerate(aliases)]
+        tfdb.commit()
+        tfdb.close()
+        alsomatching = {}
+        for entry in unsortedata:
+            if entry["uid"] == player["uid"]:continue
+            alsomatching[entry["uid"]] = entry["name"]
+        embed = discord.Embed(
+            title=f"Aliases for uid {player['uid']} ({len(alsomatching.keys()) + 1} match{'es' if len(alsomatching.keys()) > 0 else ''} for '{name}')",
+            color=0xff70cb,
+            description=f"Most recent to oldest",
         )
-
-    if len(alsomatching.keys()) > 0:
-        embed.add_field(
-            name=f"The {len(alsomatching.keys())} other match{'es are:' if len(alsomatching.keys()) > 1 else ' is:'}",
-            value=f"({', '.join(list(map(lambda x: f'*{x}*', list(alsomatching.values())[0:20])))}) {'**only first 20 shown**' if len(alsomatching.keys()) > 20 else ''}"
-        )
-
-    await ctx.respond(embed=embed, ephemeral=False)
-
+        # print("LEN",len(aliases))
+        for y,x in enumerate( aliases[0:MAXALIASESSHOWN]):
+            embed.add_field(name=f"Alias {y+1}:", value=f"\u200b {x}", inline=False)
+        if len(aliases) > MAXALIASESSHOWN:
+            # print(f"({', '.join(list(map(lambda x: f'*{x}*',aliases[MAXALIASESSHOWN:])))})")
+            embed.add_field(name=f"{len(aliases) - MAXALIASESSHOWN} more alias{'es' if len(aliases) - MAXALIASESSHOWN > 1 else ''}",value=f"({', '.join(list(map(lambda x: f'*{x}*',aliases[MAXALIASESSHOWN:])))})")
+        if len(alsomatching.keys()) > 0:
+            # print(f"({', '.join(list(map(lambda x: f'*{x}*',list(alsomatching.values())[0:20])))}) {'**only first 20 shown**' if len(alsomatching.keys()) > 20 else ''}")
+            embed.add_field(name=f"The {len(alsomatching.keys())} other match{'es are:' if len(alsomatching.keys()) > 1 else ' is:'}",value=f"({', '.join(list(map(lambda x: f'*{x}*',list(alsomatching.values())[0:20])))}) {'**only first 20 shown**' if len(alsomatching.keys()) > 20 else ''}")
+            
+        await ctx.respond(embed=embed, ephemeral=False)
+        
         # await ctx.respond(data, ephemeral=False)
     @bot.slash_command(
         name="togglejoinnotify",
@@ -1220,7 +1087,6 @@ async def help(
         for key in context["commands"].keys():
             embed.add_field(name=key, value=context["commands"][key]["description"], inline=False)
         embed.add_field(name="whois", value="Get somones aliases", inline=False)
-        embed.add_field(name="leaderboards", value="Get the leaderboards for a specific player", inline=False)
         embed.add_field(name="togglejoinnotify", value="Toggle notifying on a player joining / leaving", inline=False)
         embed.add_field(name="bindloggingtocategory", value="Bind logging to a new category (use for first time init)", inline=False)
         # embed.add_field(name="bindleaderboardchannel", value="Bind a channel to the leaderboards", inline=False)
@@ -2047,12 +1913,10 @@ def getmessagewidget(metadata,serverid,messagecontent,message):
     output = messagecontent
     player = message.get("player","Unknown player")
 
-    print("metadata",metadata)
+    print(metadata)
     if metadata.get("teamtype","not team") != "not team":
-        player = f"{metadata.get('teamtype','not team')} {player}"
-    if metadata.get("isalive","unknown") != "unknown" and  metadata.get("isalive","unknown"):
-        player = f"{player} [DEAD]"
-        
+        player = f"{player} {metadata.get('teamtype','not team')}"
+
     if not metadata["type"]:
         pass
     elif metadata["type"] == "connect" and DISCORDBOTLOGSTATS == "1":
@@ -2945,7 +2809,7 @@ def defaultoverride(data, serverid, statuscode):
             embed.add_field(name=f"> {key}:", value=f"```json\n{json.dumps(value,indent=4)}```", inline=False)
     return embed
 
-def resolveplayeruidfromdb(name,uidnameforce = None,oneuidpermatch = False):
+def resolveplayeruidfromdb(name,uidnameforce = None):
         tfdb = sqlite3.connect("./data/tf2helper.db")
         c = tfdb.cursor()
         c.execute("SELECT playeruid, playername FROM uidnamelink")
@@ -2973,18 +2837,15 @@ def resolveplayeruidfromdb(name,uidnameforce = None,oneuidpermatch = False):
 
             data = [{"name": x[1], "uid": x[0]} for x in output]
         players = []
-        uids = []
         for x in data:
-            if not oneuidpermatch or x["uid"] not in uids:
+            if x["uid"] not in players:
                 players.append(x)
-                uids.append(x["uid"])
 
         tfdb.commit()
         tfdb.close()
-
         if len(players) == 0:
             return []
-        return  sorted(players, key=lambda x: len(x["name"]))
+        return players
         
 
 async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride, iscommandnotmessage = True,logthiscommand = True):

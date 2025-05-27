@@ -271,6 +271,8 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	}
 	meta["teamtype"] <- teammessage
 	meta["type"] <- "usermessagepfp"
+	if (serverdetails.showchatprefix){
+	meta["isalive"] <- IsAlive(message.player)}
 	meta["uid"] <- message.player.GetUID()
 	if (newmessage.message[0] == 47 || newmessage.message[0] == 33){
 		
