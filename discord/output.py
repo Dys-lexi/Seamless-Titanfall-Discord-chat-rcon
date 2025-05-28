@@ -8,7 +8,7 @@ import random
 import traceback
 from discord.commands import Option
 
-# import inspect
+import inspect
 from flask import Flask, jsonify, request
 from waitress import serve
 from discord.ext import commands, tasks
@@ -369,7 +369,7 @@ def print(*message, end="\n"):
                 + str(message)
                 + "\n"
             )
-    realprint(f"{message}", end=end)
+    realprint(f"[{inspect.currentframe().f_back.f_lineno}] {message}", end=end)
 print("running discord logger bot")
 lastrestart = 0
 messagecounter = 0
@@ -388,7 +388,7 @@ LOCALHOSTPATH = os.getenv("DISCORD_BOT_LOCALHOST_PATH","localhost")
 DISCORDBOTAIUSED = os.getenv("DISCORD_BOT_AI_USED","deepseek-r1")
 DISCORDBOTLOGSTATS = os.getenv("DISCORD_BOT_LOG_STATS","1")
 SERVERPASS = os.getenv("DISCORD_BOT_PASSWORD", "*")
-LEADERBOARDUPDATERATE = int(os.getenv("DISCORD_BOT_LEADERBOARD_UPDATERATE", "300"))
+LEADERBOARDUPDATERATE = int(os.getenv("DISCORD_BOT_LEADERBOARD_UPDATERATE", "500"))
 DISCORDBOTLOGCOMMANDS = os.getenv("DISCORD_BOT_LOG_COMMANDS", "1")
 SERVERNAMEISCHOICE = os.getenv("DISCORD_BOT_SERVERNAME_IS_CHOICE", "0")
 SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
@@ -824,7 +824,7 @@ if DISCORDBOTLOGSTATS == "1":
             wherestring = eval(leaderboardfilters)
         if not specificuidsearch:
             print("Updating leaderboard:",leaderboardname)
-        print("wherestring",wherestring,where_clauses)
+        # print("wherestring",wherestring,where_clauses)
         orderbyiscolumn = leaderboardorderby not in [x for x in leaderboardcategorysshown.keys()]
 
         leaderboardcategorys = list(set([
@@ -1808,7 +1808,7 @@ def recieveflaskprintrequests():
                     # print("true")
                     discordtotitanfall[serverid]["returnids"]["commands"][now] = sendingcommandsids                
                 # print(json.dumps(discordtotitanfall, indent=4))
-                print("sending messages and commands to titanfall", texts, sendingcommands)
+                # print("sending messages and commands to titanfall", texts, sendingcommands)
                 # print({a: b for a, b in zip(texts, textvalidation)})
                 # print((texts), (textvalidation))
                 return {
@@ -2048,9 +2048,9 @@ def get_ordinal(i): #Shamelessly stolen
 def getmessagewidget(metadata,serverid,messagecontent,message):
     global context
     output = messagecontent
-    player = message.get("player","Unknown player")
+    player = str(message.get("player","Unknown player"))
 
-    print("metadata",metadata)
+    # print("metadata",metadata)
     if metadata.get("teamtype","not team") != "not team":
         player = f"{player} {metadata.get('teamtype','not team')}"
     if metadata.get("isalive","unknown") != "unknown" and not metadata.get("isalive","unknown"):
@@ -2595,7 +2595,7 @@ def messageloop():
                 # print(messageflush)
                 for message in messageflush:
                     # print("MESSAGE",message)
-                    messagewidget,message["player"] = getmessagewidget(message["metadata"],message["serverid"],message["messagecontent"],message)
+                    messagewidget,playername = getmessagewidget(message["metadata"],message["serverid"],message["messagecontent"],message)
                     if messagewidget == "":
                         # print("here")
                         continue
@@ -2619,43 +2619,46 @@ def messageloop():
                                 messagewidget[:startpos]
                                 + messagewidget[endpos + 1 :]
                             )
+                    
+                    messageadders = {"pfp":message["metadata"].get("pfp",None),"name":playername,"type":message["metadata"]["type"],"uid":message["metadata"].get("uid",None),"originalname":str(message.get("player",False))}
                     if message["metadata"]["type"] == "usermessagepfp" and USEDYNAMICPFPS == "1":
-                        messageadders = {"pfp":message["metadata"].get("pfp",None),"name":message.get("player",None),"type":message["metadata"]["type"],"uid":message["metadata"].get("uid",None)}
                         message["type"] = 3
-                    else: messageadders = {"type":message["metadata"]["type"]}
+                    # else: messageadders = {"type":message["metadata"]["type"]}
                     if message["type"] == 1:
                         # print("c")
                         output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(
-                            {"message": f"**{message['player']}**: {messagewidget}",**messageadders}
+                            {"message": f"**{playername}**: {messagewidget}",**messageadders,"messagecontent":messagewidget}
                         )
-                        print(f"**{message['player']}**:  {messagewidget}")
+                        # print(f"**{playername}**:  {messagewidget}")
                     elif message["type"] == 2:
                         # print("d")
                         output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(
-                            {"message": f"""```{message["player"]} {messagewidget}```""",**messageadders}
+                            {"message": f"""```{playername} {messagewidget}```""",**messageadders,"messagecontent":messagewidget}
                         )
-                        print(f"""{message["player"]} {messagewidget}""")
+                        # print(f"""{playername} {messagewidget}""")
                     elif message["type"] == 3:
                         # print("e")
                         output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(
-                            {"message": f"{messagewidget}",**messageadders}
+                            {"message": f"{messagewidget}",**messageadders,"messagecontent":messagewidget}
                         )
-                        print(f"{messagewidget}")
+                        # print(f"{messagewidget}")
                     elif message["type"] == 4:
                         # print("f")
                         output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(
-                            {"message": f"```{messagewidget}```",**messageadders}
+                            {"message": f"```{messagewidget}```",**messageadders,"messagecontent":messagewidget}
                         )
-                        print(f"{messagewidget}")
+                        # print(f"{messagewidget}")
                     else:
                         print("type of message unkown")
                         continue
                     realprint("\033[0m", end="")
-                # print("output",json.dumps(output, indent=4))
+                if output:
+                    print("sending output",json.dumps(output, indent=4))
                 for serverid in output.keys():
                     for key,message in enumerate(output[serverid]):
                         isbad = checkifbad(message)
                         if isbad[0]:
+                            print("horrible message found")
                             output[serverid][key]["isbad"] = isbad
                     # print("OUTPUT",output)
                     # print("sending to", serverid)
@@ -2672,11 +2675,11 @@ def messageloop():
                         if not message["pfp"] or not message["name"] or not message["uid"]:
                             print("VERY BIG ERROR, PLEASE LOOK INTO IT",message)
                             continue
-                        userpfpmessages.setdefault(message["name"],{"messages":[],"pfp":message["pfp"],"uid":message["uid"]})
-                        userpfpmessages[message["name"]]["messages"].append({"message":message["message"],"isbad":message.get("isbad",[0,0])})
+                        userpfpmessages.setdefault(message["name"],{"messages":[],"pfp":message["pfp"],"uid":message["uid"],"originalname":message["originalname"]})
+                        userpfpmessages[message["name"]]["messages"].append({"message":message["message"],"isbad":message.get("isbad",[0,0]),"messagecontent":message["messagecontent"]})
                
                     asyncio.run_coroutine_threadsafe(sendpfpmessages(channel,userpfpmessages,serverid),bot.loop)
-
+                
                     asyncio.run_coroutine_threadsafe(outputmsg(channel, output, serverid, USEDYNAMICPFPS), bot.loop )
                 messageflush = []
                 lastmessage = time.time()
@@ -2743,6 +2746,7 @@ def checkifbad(message):
         # print("here2",checknono(notifywords, lowered))
         return [1,checknono(notifywords, lowered)]
     if message.get("name"):
+        # print("MESSAGENAME",message["name"])
         name_lowered = message["name"].lower()
         if checknono(banwords, name_lowered):
             # print("here3")
@@ -2763,42 +2767,77 @@ async def outputmsg(channel, output, serverid, USEDYNAMICPFPS):
             if x["type"] != "usermessagepfp" or USEDYNAMICPFPS != "1"
         )
     )
+    if not content:
+        return
 
     message = await channel.send(content)
-    print(f"Sent message ID: {message.id}")
-
-    
+    # print(f"Sent message ID: {message.id}")
+    # print("OUTPUT",output[serverid])
     await checkfilters(output[serverid], message)
 
 
 async def checkfilters(messages, message):
-    global context
-    print(messages)
-    message_link = f"https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}"
-    notify_channel_id = context["overridechannels"].get("wordfilternotifychannel")
-    notify_channel = bot.get_channel(notify_channel_id) if notify_channel_id else None
+    try:
+        global context
+        # print(messages)
+        message_link = f"https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}"
+        notify_channel_id = context["overridechannels"].get("wordfilternotifychannel")
+        notify_channel = bot.get_channel(notify_channel_id) if notify_channel_id else None
 
-    if not notify_channel:
-        return
+        if not notify_channel:
+            return
 
-    bad_msg = next((x for x in messages if x.get("isbad", [0,0])[0] == 2), None)
-    if bad_msg:
-        await notify_channel.send(
-            discord.utils.escape_mentions(f""">>> **Ban word found**
-Message: "{bad_msg['message']}"
-Found pattern: "{bad_msg['isbad'][1]}"
-Message Link: {message_link}""")
-        )
+        bad_msg = next((x for x in messages if x.get("isbad", [0,0])[0] == 2), None)
+        if bad_msg:
+            print("BAN MESSAGE FOUND",json.dumps(bad_msg,indent = 4))
+            if bad_msg["originalname"] and bad_msg.get("uid",False) and bad_msg["messagecontent"]:
+                await notify_channel.send(
+                discord.utils.escape_mentions(f""">>> **Ban word found**
+    Sent by: **{bad_msg['originalname']}**
+    UID: **{bad_msg['uid']}**
+    Message: "{bad_msg['messagecontent']}"
+    Found pattern: "{bad_msg['isbad'][1]}"
+    Message Link: {message_link}""")
+            )
+            else:
 
-    notify_msg = next((x for x in messages if x.get("isbad", [0.0])[0] == 1), None)
-    if notify_msg:
-        # print("NOTIFY",notify_msg)
-        await notify_channel.send(
-            discord.utils.escape_mentions(f""">>> **Filtered word found**
-Message: "{notify_msg['message']}"
-Found pattern: "{notify_msg['isbad'][1]}"
-Message Link: {message_link}""")
-        )
+                await notify_channel.send(
+                    discord.utils.escape_mentions(f""">>> **Ban word found**
+    Message: "{bad_msg['message']}"
+    Found pattern: "{bad_msg['isbad'][1]}"
+    Message Link: {message_link}""")
+                )
+
+        notify_msg = next((x for x in messages if x.get("isbad", [0.0])[0] == 1), None)
+        # print("HERE")
+        if notify_msg:
+            print("NOTIFY MESSAGE FOUND",json.dumps(notify_msg,indent = 4))
+            # print("HERE2")
+            if notify_msg["originalname"] and notify_msg.get("uid",False) and notify_msg["messagecontent"]:
+                # print("HERE3")
+                await notify_channel.send(
+                discord.utils.escape_mentions(f""">>> **Filtered word found**
+    Sent by: **{notify_msg['originalname']}**
+    UID: **{notify_msg['uid']}**
+    Message: "{notify_msg['messagecontent']}"
+    Found pattern: "{notify_msg['isbad'][1]}"
+    Message Link: {message_link}""")
+            )
+            else:
+                # print("HERE4")
+
+            # print("NOTIFY",notify_msg)
+                await notify_channel.send(
+                    discord.utils.escape_mentions(f""">>> **Filtered word found**
+    Message: "{notify_msg['message']}"
+    Found pattern: "{notify_msg['isbad'][1]}"
+    Message Link: {message_link}""")
+                )
+            # print("HERE5")
+    except Exception as e:
+        print("ERROR",e)
+        traceback.print_exc()
+        
 
 # name_dict = {
 #     '$"models/humans/pilots/pilot_medium_geist_m.mdl"': "grapple",
@@ -2881,7 +2920,7 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
                     avatar_url=f'{PFPROUTE}{pfp}',
                     wait = True
                 )
-            await checkfilters(list(map(lambda x: {"isbad":x["isbad"],"message":f"{username}: {x['message']}"},value["messages"])),message)
+            await checkfilters(list(map(lambda x: {"isbad":x["isbad"],"messagecontent":x["messagecontent"],"message":f"{username}: {x['message']}","originalname":value["originalname"],"uid":value["uid"]},value["messages"])),message)
     except Exception as e:
         print("WEBHOOK CRASH",e)
         traceback.print_exc()
@@ -3437,7 +3476,7 @@ def savestats(saveinfo):
     # 3 is server crash
     # 4 is tempory save
     global playercontext
-    print("saving",saveinfo)
+    print("saving playerinfo",saveinfo)
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
     try:
