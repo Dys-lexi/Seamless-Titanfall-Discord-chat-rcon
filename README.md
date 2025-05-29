@@ -222,3 +222,11 @@ A simpler example could be:
 - merge REQUIRED - What Sql Column defines witch rows are grouped. eg "Uid" would group all rows with the same uid, adding all stats together. "map" would group everything on the same map together. only integer columns are added right now, string columns take the first instance. also controls the name of each category
 - maxshown OPTIONAL - how many spots to display in leaderboard
 - id OPTIONAL - set this to 0. is managed by the bot (is the messageid, so it knows what message to edit) not including defaults it to 0
+
+### induvidual kill tracking
+you'll need this mod on the server:
+https://github.com/Dys-lexi/nutone-server
+
+(it's nutone but ever so slightly changed)
+
+set the url to the discordbot in the mod.json, make sure log stats is on (a env var for bot), and done! (it's probably not that simple idk)

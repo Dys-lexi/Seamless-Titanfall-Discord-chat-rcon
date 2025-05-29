@@ -584,7 +584,7 @@ void function DiscordClientMessageinloop()
 			string text = expect string(key)
 			print("[DiscordLogger] MESSAGE "+text)
 			check.textcheck.append(validation)
-			thread discordlogsendmessage("\x1b[38;5;105m"+text)
+			thread discordlogsendmessage(text)
 			// foreach (entity player in GetPlayerArray()) {
 			// 	Chat_PrivateMessage(player,player,"\x1b[38;5;105m"+text,false)
 			// }

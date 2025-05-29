@@ -20,146 +20,25 @@ from rcon.source import Client
 import sqlite3
 import re
 import aiohttp
+from defs import *
 
-model_dict = {
-    '$"models/humans/pilots/pilot_medium_geist_m.mdl"': "pilots/grapple_cropped.png",
-    '$"models/humans/pilots/pilot_medium_geist_f.mdl"': "pilots/grapple_cropped.png",
-    '$"models/titans/medium/titan_medium_ajax.mdl"': "titans/iont.png",
-    '$"models/titans/heavy/titan_heavy_ogre.mdl"': "titans/scorcht.png",
-    '$"models/titans/light/titan_light_raptor.mdl"': "titans/northstart.png",
-    '$"models/titans/light/titan_light_locust.mdl"': "titans/ronint.png",
-    '$"models/titans/medium/titan_medium_wraith.mdl"': "titans/tonet.png",
-    '$"models/humans/pilots/pilot_heavy_drex_f.mdl"': "pilots/cloak_cropped.png",
-    '$"models/humans/pilots/pilot_heavy_drex_m.mdl"': "pilots/cloak_cropped.png",
-    '$"models/titans/heavy/titan_heavy_deadbolt.mdl"': "titans/legiont.png",
-    '$"models/titans/medium/titan_medium_vanguard.mdl"': "titans/monarcht.png",
-    '$"models/titans/medium/titan_medium_ion_prime.mdl"': "titans/iont.png",
-    '$"models/titans/heavy/titan_heavy_scorch_prime.mdl"': "titans/scorcht.png",
-    '$"models/titans/light/titan_light_northstar_prime.mdl"': "titans/northstart.png",
-    '$"models/titans/light/titan_light_ronin_prime.mdl"': "titans/ronint.png",
-    '$"models/titans/medium/titan_medium_tone_prime.mdl"': "titans/tonet.png",
-    '$"models/titans/heavy/titan_heavy_legion_prime.mdl"': "titans/legiont.png",
-    '$"models/humans/pilots/pilot_heavy_roog_m.mdl"': "pilots/a-wall_cropped.png",
-    '$"models/humans/pilots/pilot_heavy_roog_f.mdl"': "pilots/a-wall_cropped.png",
-    '$"models/humans/pilots/pilot_medium_reaper_m.mdl"': "pilots/pulse_cropped.png",
-    '$"models/humans/pilots/pilot_medium_reaper_f.mdl"': "pilots/pulse_cropped.png",
-    '$"models/humans/pilots/pilot_light_jester_m.mdl"': "pilots/stim_cropped.png",
-    '$"models/humans/pilots/pilot_light_jester_f.mdl"': "pilots/stim_cropped.png",
-    '$"models/humans/pilots/pilot_light_ged_m.mdl"': "pilots/phase_cropped.png",
-    '$"models/humans/pilots/pilot_light_ged_f.mdl"': "pilots/phase_cropped.png",
-    '$"models/humans/pilots/pilot_medium_stalker_m.mdl"': "pilots/holo_cropped.png",
-    '$"models/humans/pilots/pilot_medium_stalker_f.mdl"': "pilots/holo_cropped.png",
-    "true models/titans/atlas/atlas_titan.mdl": "titanfall1/titans/atlas_militia_cropped.png",
-    "false models/titans/atlas/atlas_titan.mdl": "titanfall1/titans/atlas_imc_cropped.png",
-    "true models/titans/ogre/ogre_titan.mdl": "titanfall1/titans/ogre_militia_cropped.png",
-    "false models/titans/ogre/ogre_titan.mdl": "titanfall1/titans/ogre_imc_cropped.png",
-    "true models/titans/stryder/stryder_titan.mdl": "titanfall1/titans/stryder_militia_cropped.png",
-    "false models/titans/stryder/stryder_titan.mdl": "titanfall1/titans/stryder_imc_cropped.png",
-    "false models/humans/pilot/female_br/pilot_female_br.mdl": "titanfall1/pilots/f_br_imc_cropped.png",
-    "true models/humans/pilot/female_br/pilot_female_br.mdl": "titanfall1/pilots/f_br_militia_cropped.png",
-    "false models/Humans/imc_pilot/male_br/imc_pilot_male_br.mdl": "titanfall1/pilots/m_br_imc_cropped.png",
-    "true models/Humans/mcor_pilot/male_br/mcor_pilot_male_br.mdl": "titanfall1/pilots/m_br_militia_cropped.png",
-    "false models/humans/pilot/female_cq/pilot_female_cq.mdl": "titanfall1/pilots/f_cq_imc_cropped.png",
-    "true models/humans/pilot/female_cq/pilot_female_cq.mdl": "titanfall1/pilots/f_cq_militia_cropped.png",
-    "false models/humans/imc_pilot/male_cq/imc_pilot_male_cq.mdl": "titanfall1/pilots/m_cq_imc_cropped.png",
-    "true models/humans/mcor_pilot/male_cq/mcor_pilot_male_cq.mdl": "titanfall1/pilots/m_cq_militia_cropped.png",
-    "false models/humans/pilot/female_dm/pilot_female_dm.mdl": "titanfall1/pilots/f_dm_imc_cropped.png",
-    "true models/humans/pilot/female_dm/pilot_female_dm.mdl": "titanfall1/pilots/f_dm_militia_cropped.png",
-    "false models/humans/imc_pilot/male_dm/imc_pilot_male_dm.mdl": "titanfall1/pilots/m_dm_imc_cropped.png",
-    "true models/humans/mcor_pilot/male_dm/mcor_pilot_male_dm.mdl": "titanfall1/pilots/m_dm_militia_cropped.png",
-    "unknown": "unknown/unkownpfp.png",
-    "confused": "unknown/confused.jpg"
-}
-
-
-WEAPON_NAMES = {
-  "mp_weapon_rspn101": "R-201 Carbine",
-  "mp_weapon_rspn101_og": "R-101 Carbine",
-  "mp_weapon_hemlock": "Hemlock BF-R",
-  "mp_weapon_vinson": "V-47 Flatline",
-  "mp_weapon_g2": "G2A5",
-  "mp_weapon_car": "CAR",
-  "mp_weapon_alternator_smg": "Alternator",
-  "mp_weapon_hemlok_smg": "Volt",
-  "mp_weapon_r97": "R-97",
-  "mp_weapon_lmg": "Spitfire",
-  "mp_weapon_lstar": "L-STAR",
-  "mp_weapon_esaw": "Devotion",
-  "mp_weapon_sniper": "Kraber",
-  "mp_weapon_doubletake": "Double Take",
-  "mp_weapon_dmr": "Longbow DMR",
-  "mp_weapon_shotgun": "EVA-8 Auto",
-  "mp_weapon_mastiff": "Mastiff",
-  "mp_weapon_smr": "Sidewinder SMR",
-  "mp_weapon_epg": "EPG",
-  "mp_weapon_softball": "Softball",
-  "mp_weapon_pulse_lmg": "EM-4 Cold War",
-  "mp_weapon_semipistol": "P2016",
-  "mp_weapon_autopistol": "RE-45 Auto",
-  "mp_weapon_wingman": "B3 Wingman",
-  "mp_weapon_wingman_n": "Wingman Elite",
-  "mp_weapon_shotgun_pistol": "Mozambique",
-  "mp_weapon_smart_pistol": "Smart Pistol",
-  "mp_weapon_defender": "Charge Rifle",
-  "mp_weapon_mgl": "MGL",
-  "mp_weapon_arc_launcher": "LG-97 Thunderbolt",
-  "mp_weapon_rocket_launcher": "Archer",
-  "mp_weapon_frag_grenade": "Frag Grenade",
-  "mp_weapon_grenade_emp": "Arc Grenade",
-  "mp_weapon_thermite_grenade": "Firestar",
-  "mp_weapon_grenade_gravity": "Gravity Star",
-  "mp_weapon_grenade_electric_smoke": "Electric Smoke",
-  "mp_weapon_satchel": "Satchel",
-  "mp_ability_cloak": "Cloak",
-  "mp_weapon_grenade_sonar": "Pulse Blade",
-  "mp_ability_grapple": "Grapple",
-  "mp_ability_heal": "Stim",
-  "mp_weapon_deployable_cover": "A-Wall",
-  "mp_ability_shifter": "Phase Shift",
-  "mp_ability_holopilot": "Holopilot",
-  "mp_titanability_smoke": "Ability Electric Smoke",
-  "mp_titanability_electric_smoke": "Global Electric Smoke",
-  "mp_titanability_nuke_eject": "Nuke Ejection",
-  "mp_titanweapon_rocketeer_rocketstream": "Quad Rocket",
-  "mp_titanweapon_particle_accelerator": "Splitter Rifle",
-  "mp_titanweapon_laser_lite": "Laser Shot",
-  "mp_titanability_laser_trip": "Tripwire",
-  "mp_titanweapon_vortex_shield_ion": "Vortex Shield",
-  "mp_titancore_laser_cannon": "Laser Core",
-  "mp_titanweapon_meteor": "Thermite Launcher",
-  "mp_titanweapon_flame_wall": "Flame Wall",
-  "mp_titanability_slow_trap": "Incendiary Trap",
-  "mp_titanweapon_heat_shield": "Thermal Shield",
-  "mp_titancore_flame_wave": "Flame Core",
-  "mp_titanweapon_sniper": "Plasma Railgun",
-  "mp_titanweapon_dumbfire_rockets": "Cluster Missile",
-  "mp_titanability_hover": "VTOL Hover",
-  "mp_titanability_tether_trap": "Tether Trap",
-  "mp_titancore_flight_core": "Flight Core",
-  "mp_titanweapon_leadwall": "Leadwall",
-  "mp_titanweapon_arc_wave": "Arc Wave",
-  "mp_titanability_phase_dash": "Phase Dash",
-  "mp_titanability_basic_block": "Sword Block",
-  "mp_titancore_shift_core": "Sword Core",
-  "mp_titanweapon_sticky_40mm": "40MM Tracker cannon",
-  "mp_titanweapon_tracker_rockets": "Tracking Rockets",
-  "mp_titanability_sonar_pulse": "Sonar Pulse",
-  "mp_titanability_particle_wall": "Particle Wall",
-  "mp_titancore_salvo_core": "Salvo Core",
-  "mp_titanweapon_predator_cannon": "Predator Cannon",
-  "mp_titanability_power_shot": "Power Shot",
-  "mp_titanability_ammo_swap": "Mode Switch",
-  "mp_titanability_gun_shield": "Gun Shield",
-  "mp_titancore_siege_mode": "Smart Core",
-  "mp_titanweapon_xo16_vanguard": "XO-16",
-  "mp_titanweapon_salvo_rockets": "Rocket Salvo",
-  "mp_titanweapon_shoulder_rockets": "Multi Target Missiles",
-  "mp_titanability_rearm": "Rearm",
-  "mp_titanweapon_stun_laser": "Energy Siphon",
-  "mp_titancore_upgrade": "Upgrade Core"
-}
-
-
+def discorduidinfodb():
+    global colourslink
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    # c.execute("DROP TABLE IF EXISTS discorduiddata")
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS discorduiddata (
+            discorduid INTEGER PRIMARY KEY,
+            chosencolour STRING
+            )"""
+    )
+    c.execute("SELECT discorduid, chosencolour FROM discorduiddata")
+    output = c.fetchall()
+    colourslink = {x[0]:eval(x[1]) if x[1] != "reset" else RGBCOLOUR  for x in output}
+    print("COLOURSLINK",colourslink) 
+    tfdb.commit()
+    tfdb.close()
 def specifickilltrackerdb():
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
@@ -396,43 +275,13 @@ TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass")
 USEDYNAMICPFPS = os.getenv("USE_DYNAMIC_PFPS","1")
 PFPROUTE = os.getenv("PFP_ROUTE","https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/")
 FILTERNAMESINMESSAGES = os.getenv("FILTER_NAMES_IN_MESSAGES","usermessagepfp,chat_message,command,tf1command")
-MAP_NAME_TABLE = {
-    "mp_angel_city": "Angel City",
-    "mp_black_water_canal": "Black Water Canal",
-    "mp_coliseum": "Coliseum",
-    "mp_coliseum_column": "Pillars",
-    "mp_colony02": "Colony",
-    "mp_complex3": "Complex",
-    "mp_crashsite3": "Crash Site",
-    "mp_drydock": "Drydock",
-    "mp_eden": "Eden",
-    "mp_forwardbase_kodai": "Forwardbase Kodai",
-    "mp_glitch": "Glitch",
-    "mp_grave": "Boomtown",
-    "mp_homestead": "Homestead",
-    "mp_lf_deck": "Deck",
-    "mp_lf_meadow": "Meadow",
-    "mp_lf_stacks": "Stacks",
-    "mp_lf_township": "Township",
-    "mp_lf_traffic": "Traffic",
-    "mp_lf_uma": "UMA",
-    "mp_relic02": "Relic",
-    "mp_rise": "Rise",
-    "mp_thaw": "Exoplanet",
-    "mp_wargames": "Wargames",
-    "mp_mirror_city": "Mirror City",
-    "mp_brick": "BRICK",
-}
+ANSICOLOUR = "\x1b[38;5;105m"
+RGBCOLOUR = (135, 135, 255)
 
 
-notifydb()
-playtimedb()
-playeruidnamelink()
-joincounterdb()
-matchid()
-specifickilltrackerdb()
-bantf1()
-tf1matchplayers()
+
+# bantf1()
+# tf1matchplayers()
 # matchidtf1()
 def savecontext():
     global context
@@ -457,6 +306,7 @@ if TOKEN == 0:
     print("NO TOKEN FOUND")
 stoprequestsforserver = {}
 discordtotitanfall = {}
+colourslink = {}
 # Load channel ID from file
 context = {
         "wordfilter":{
@@ -481,6 +331,13 @@ context = {
     "commands": {}
 
 }
+notifydb()
+playtimedb()
+playeruidnamelink()
+joincounterdb()
+matchid()
+discorduidinfodb()
+specifickilltrackerdb()
 serverchannels = []
 if not os.path.exists("./data"):
     os.makedirs("./data")
@@ -1230,6 +1087,7 @@ async def help(
         embed.add_field(name="rconchangeuserallowed", value="Toggle if a user is allowed to use RCON commands", inline=False)
         # embed.add_field(name="bindglobalchannel", value="Bind a global channel to the bot (for global messages from servers, like bans)", inline=False)
         embed.add_field(name="bindchannel", value="Bind a channel to the bot for other functions, like leaderboards, globalmessages", inline=False)
+        embed.add_field(name="tf2chatcolour",value="put in a hex colour eg: #ff30cb, to colour your tf2 name")
         if SHOULDUSETHROWAI == "1":
             embed.add_field(name="thrownonrcon", value="Throw a player, after being persuasive", inline=False)
         if SANCTIONAPIBANKEY != "":
@@ -1649,7 +1507,145 @@ async def rcon_add_user(ctx, user: Option(discord.User, "The user to add")):
         await ctx.respond(
             "Only administrators can add users to the RCON whitelist.", ephemeral=False
         )
+@bot.slash_command(
+    name="tf2chatcolour",
+    description="put in a hex colour eg: #ff30cb, to colour your tf2 name"
+)
+async def show_color(ctx, colour: Option(str, "Enter a hex color")):
+    global colourslink
+    if not re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour) and colour.lower() not in CSS_COLOURS.keys() and colour != "reset":
+        await ctx.respond("Please enter a **valid** hex color (e.g., `#1A2B3C`).", ephemeral=False)
+        return
+    if re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour):
+        r = int(colour[1:3], 16)
+        g = int(colour[3:5], 16)
+        b = int(colour[5:7], 16)
+        rgba = (r, g, b)
+    elif colour.lower()  in CSS_COLOURS.keys():
+        rgba = CSS_COLOURS[colour]
+    else:
+        rgba = "reset"
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    c.execute(
+        "INSERT OR REPLACE INTO discorduiddata (discorduid, chosencolour) VALUES (?, ?)",
+        (ctx.author.id, str(rgba))
+    )
 
+    tfdb.commit()
+    tfdb.close()
+    colourslink[ctx.author.id] = rgba
+    if rgba == "reset":
+        await ctx.respond(f"reset colour to default")
+        return
+    await ctx.respond(f"Set colour to {rgba}")
+
+# lifted straight from my chat colours thing
+def gradient(message,colours, maxlen):
+    """gradient colouring (Two colours)"""
+    # print(message)
+    # message = message.split(" ")
+    # if len(message) < 0:
+    #     return 0
+    # colours = []
+    # for i in message[::-1]:
+    #     if coloursheet.returncolour(i.lower()):
+    #         colours.append(coloursheet.returncolour(i.lower()))
+    #     else:
+    #         break
+    # actualmessage = " ".join(message[0 : -len(colours)]).replace(" ", "")
+    # strmessage = " ".join(message[0 : -len(colours)])
+    actualmessage = message.replace(" ", "")
+    if colours == []:
+        return 1
+    if len(colours) == 1:
+        colours.append(colour[0])
+    
+    # colours.reverse()
+    encodelength = 1
+    overcharlimit = True
+    outputmessage = []
+    differences = []
+    for i in range(len(colours) - 1):
+        differences.append(
+            (
+                colours[i + 1][0] - colours[i][0],
+                colours[i + 1][1] - colours[i][1],
+                colours[i + 1][2] - colours[i][2],
+            )
+        )
+    groupedletters = []
+    for i in range(len(colours) - 1):
+        groupedletters.append([])
+    for i in range(len(actualmessage)):
+        groupedletters[int(i / len(actualmessage) * (len(colours) - 1))].append(
+            actualmessage[i]
+        )
+    while overcharlimit:
+        counter = 0
+        messagecounter = 0
+        for i in range(len(groupedletters)):
+            counter2 = 0
+            letters = groupedletters[i]
+            for letter in letters:
+                while message[messagecounter] == " ":
+                    outputmessage.append(" ")
+                    messagecounter += 1
+                if counter % encodelength != 0:
+                    counter += 1
+                    counter2 += 1
+                    messagecounter += 1
+                    outputmessage.append(letter)
+                    continue
+                Colour = (
+                    colours[i][0]
+                    + int(differences[i][0] * (counter2) / (len(letters))),
+                    colours[i][1]
+                    + int(differences[i][1] * (counter2) / (len(letters))),
+                    colours[i][2]
+                    + int(differences[i][2] * (counter2) / (len(letters))),
+                )
+                outputmessage.append(rgb_to_ansi(Colour, 0) + letter)
+                counter += 1
+                counter2 += 1
+                messagecounter += 1
+        if len("".join(outputmessage)) > maxlen:
+            encodelength += 1
+            outputmessage = []
+        else:
+            overcharlimit = False
+        if encodelength > maxlen / 2:
+            return 2
+    return "".join(outputmessage)
+
+def rgb_to_ansi(value, vary=0):
+    """conversts an rgb code to an ansi string variance is random variance that is less prominent on brighter,less saturated colours"""
+    value = list(value)
+    # print(value)
+    a = max(value)
+    b = min(value)
+    if a - b < vary:
+        vary += (-50 + a - b) * 0.7
+        # print("vary",vary,a,b)
+        if vary < 0:
+            vary = 0
+    for i in range(len(value)):
+        offset = 0
+        value[i] = int(value[i])
+        if value[i] - int((value[i] / 255 + 0.3) * vary) < 0:
+            offset = int((value[i] / 255 + 0.3) * vary) - value[i]
+        elif value[i] + int((value[i] / 255 + 0.3) * vary) > 255:
+            offset = 255 - value[i] - int((value[i] / 255 + 0.3) * vary)
+        value[i] += random.randint(
+            int(-(value[i] / 255) * vary) + offset,
+            int((value[i] / 255) * vary) + offset,
+        )
+        if value[i] > 254:
+            value[i] = 254
+        elif value[i] < 1:
+            value[i] = 1
+    output = "[38;2;" + str(value[0]) + ";" + str(value[1]) + ";" + str(value[2]) + "m"
+    return output
 
 @bot.event
 async def on_message(message):
@@ -1671,23 +1667,25 @@ async def on_message(message):
         initdiscordtotitanfall(serverid)
         if (
             len(
-                f"{message.author.nick if message.author.nick is not None else message.author.display_name}: [38;5;254m{message.content}"
+                f"{ANSICOLOUR}{message.author.nick if message.author.nick is not None else message.author.display_name}: [38;5;254m{message.content}"
             )
-            > 240 - bool(context["istf1server"].get(serverid,False))*120
+            > 254 - bool(context["istf1server"].get(serverid,False))*130
         ):
             await message.channel.send("Message too long, cannot send.")
             return
+        authornick = gradient(message.author.nick if message.author.nick is not None else message.author.display_name,[RGBCOLOUR,colourslink.get(message.author.id,RGBCOLOUR)], 245 -len( f": [38;5;254m{message.content}")- bool(context["istf1server"].get(serverid,False))*130)
         # dotreacted = None
         # if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 45:
         #     dotreacted = "🔴"
         # elif discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5:
         #     dotreacted = "🟡" 
         if message.content != "": #and not context["istf1server"].get(serverid,False):
-            print(f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {message.content}")
+            print(f"{authornick}: [38;5;254m{message.content}\033[0m")
+            print(len(f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}[38;5;254m{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}"))
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": message.id,
-                    "content": f"{message.author.nick if message.author.nick is not None else message.author.display_name}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}[38;5;254m{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}",
+                    "content": f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}[38;5;254m{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}",
                     # "dotreacted": dotreacted
                 }
             )
@@ -1825,9 +1823,20 @@ def recieveflaskprintrequests():
     @app.route("/data", methods=["POST"])
     def onkilldata():
         # takes input directly from (slightly modified) nutone (https://github.com/nutone-tf) code for this to work is not on the github repo, so probably don't try using it.
-        global context
+        global context, messageflush
         data = request.get_json()
         print(f"{data['attacker_name']} killed {data['victim_name']} with {data['attacker_current_weapon']}")
+        # messageflush.append({
+        #     "timestamp": int(time.time()),
+        #     "serverid": data["server_id"],
+        #     "type": 3,
+        #     "globalmessage": False,
+        #     "overridechannel": None,
+        #     "messagecontent": f"{data['attacker_name']} killed {data['victim_name']} with {WEAPON_NAMES.get(data['attacker_current_weapon'],data['attacker_current_weapon'])}",
+        #     "metadata": {"type":"killfeed"},
+        #     "servername" :context["serveridnamelinks"][data["server_id"]]
+
+        #             })
         if data["password"] != SERVERPASS and SERVERPASS != "*":
             print("invalid password used on data")
             return {"message": "invalid password"}
@@ -2240,7 +2249,7 @@ def tf1readsend(serverid,checkstatus):
                 continue   #TRADEOFF HERE. EITHER I SEND IT EACH RCON CALL (and don't update the timestamp) OR I do what I do here and only send it once, wait untill yellow dot cleaner comes, then send again.
             if len(message["content"]) > 120:
                 toolongmessages.append(message["id"])
-            commands[message["id"]] = {"type":"msg","command":"sendmessage","id":message["id"],"args":str("\x1b[38;5;105m"+message['content'])[0:120]}
+            commands[message["id"]] = {"type":"msg","command":"sendmessage","id":message["id"],"args":str(message['content'])[0:120]}
         if len(discordtotitanfall[serverid]["returnids"]["messages"].keys()) != -1 and messages:# and discordtotitanfall[serverid]["serveronline"]:
             
             for messageid in list(map(lambda x: str(x["id"]),list(filter(lambda x: True ,discordtotitanfall[serverid]["messages"])))):
@@ -2594,6 +2603,9 @@ def messageloop():
                 messageflush = sorted(messageflush, key=lambda x: x["timestamp"])
                 # print(messageflush)
                 for message in messageflush:
+                    message.setdefault("globalmessage",False)
+                    message.setdefault("type",3)
+                    message.setdefault("overridechannel",None)
                     # print("MESSAGE",message)
                     messagewidget,playername = getmessagewidget(message["metadata"],message["serverid"],message["messagecontent"],message)
                     if messagewidget == "":
@@ -2902,10 +2914,10 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
                     pilotstates[serverid]["webhook"] = "ChatBridge"
             pilotstates[serverid] = {"uid":value["uid"],"model":str(value["pfp"]),"webhook":pilotstates[serverid]["webhook"]}
             # print("here")
-            pfp = model_dict.get(str(value["pfp"]),"unknown/confused.jpg")
+            pfp = MODEL_DICT.get(str(value["pfp"]),"unknown/confused.jpg")
             if pfp == "unknown/confused.jpg" and (str(value["pfp"].startswith("true")) or str(value["pfp"].startswith("false"))):
                 print("FALLING BACK TO GUESSING")
-                for model, valuew in model_dict.items():
+                for model, valuew in MODEL_DICT.items():
                     if str(value["pfp"])[6:] in model:
                         print("setting pfp too",pfp)
                         pfp = valuew
@@ -3400,7 +3412,7 @@ def onplayerjoin(uid,serverid,nameof = False):
         playername = nameof
     else:
         playername = f"Unknown user by uid {uid}"
-    print(f"{uid}{playername}",playerjoinlist)
+    # print(f"{uid}{playername}",playerjoinlist)
     if f"{uid}{playername}" in playerjoinlist.keys() and playerjoinlist[f"{uid}{playername}"]:
         print("already in list")
         return
@@ -3812,10 +3824,10 @@ async def createimage(message):
                     for i in range(len(ascii_art)):
                         if len(ascii_art[i]) == length:
                             # print(length)
-                            ascii_art[i] = ascii_art[i] + "\x1b[38;5;105m-" + (message.author.nick if message.author.nick is not None else message.author.display_name).replace(" ", "_")
+                            ascii_art[i] = ascii_art[i] + ANSICOLOUR + "-" + (message.author.nick if message.author.nick is not None else message.author.display_name).replace(" ", "_")
                             length = -1
                         elif len(ascii_art[i]) == secondshortest:
-                            ascii_art[i] = ascii_art[i] + "\x1b[38;5;105m-" + ("Image from discord").replace(" ", "_")
+                            ascii_art[i] = ascii_art[i] + ANSICOLOUR + "-" + ("Image from discord").replace(" ", "_")
                             secondshortest = -1
 
                   
