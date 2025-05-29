@@ -1673,7 +1673,7 @@ async def on_message(message):
         ):
             await message.channel.send("Message too long, cannot send.")
             return
-        authornick = gradient(message.author.nick if message.author.nick is not None else message.author.display_name,[RGBCOLOUR,colourslink.get(message.author.id,RGBCOLOUR)], 245 -len( f": [38;5;254m{message.content}")- bool(context["istf1server"].get(serverid,False))*130)
+        authornick = gradient(message.author.nick if message.author.nick is not None else message.author.display_name,[RGBCOLOUR,colourslink.get(message.author.id,RGBCOLOUR)], 254 -len( f": [38;5;254m{message.content}")- bool(context["istf1server"].get(serverid,False))*130)
         # dotreacted = None
         # if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 45:
         #     dotreacted = "🔴"
