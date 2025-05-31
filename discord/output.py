@@ -991,7 +991,7 @@ if DISCORDBOTLOGSTATS == "1":
         os.makedirs(CDN_DIR, exist_ok=True)
 
         # Gather available weapon images
-        weapon_images = [f for f in os.listdir(IMAGE_DIR) if f.startswith("mp_") and f.endswith(".png")]
+        weapon_images = [f for f in os.listdir(IMAGE_DIR) if (f.startswith("mp_") or f.startswith("melee_")) and f.endswith(".png")]
         weapon_names = [os.path.splitext(f)[0] for f in weapon_images]
 
         # Filter by specificweapon list
