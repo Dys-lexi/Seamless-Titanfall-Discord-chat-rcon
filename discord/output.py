@@ -5,11 +5,13 @@ import os
 import threading
 import time
 import random
+from PIL import Image, ImageDraw, ImageFont
 import traceback
 from discord.commands import Option
+from io import BytesIO
 
 import inspect
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request,send_from_directory
 from waitress import serve
 from discord.ext import commands, tasks
 from datetime import datetime, timedelta,timezone
@@ -68,7 +70,7 @@ def specifickilltrackerdb():
             game_time               REAL,
             attacker_current_weapon TEXT,
             victim_weapon_3         TEXT,
-            attacker_id             TEXT,
+            playeruid               TEXT,
             game_mode               TEXT,
             victim_x                REAL,
             attacker_weapon_1       TEXT,
@@ -267,7 +269,7 @@ LOCALHOSTPATH = os.getenv("DISCORD_BOT_LOCALHOST_PATH","localhost")
 DISCORDBOTAIUSED = os.getenv("DISCORD_BOT_AI_USED","deepseek-r1")
 DISCORDBOTLOGSTATS = os.getenv("DISCORD_BOT_LOG_STATS","1")
 SERVERPASS = os.getenv("DISCORD_BOT_PASSWORD", "*")
-LEADERBOARDUPDATERATE = int(os.getenv("DISCORD_BOT_LEADERBOARD_UPDATERATE", "500"))
+LEADERBOARDUPDATERATE = int(os.getenv("DISCORD_BOT_LEADERBOARD_UPDATERATE", "800"))
 DISCORDBOTLOGCOMMANDS = os.getenv("DISCORD_BOT_LOG_COMMANDS", "1")
 SERVERNAMEISCHOICE = os.getenv("DISCORD_BOT_SERVERNAME_IS_CHOICE", "0")
 SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
@@ -275,10 +277,15 @@ TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass")
 USEDYNAMICPFPS = os.getenv("USE_DYNAMIC_PFPS","1")
 PFPROUTE = os.getenv("PFP_ROUTE","https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/")
 FILTERNAMESINMESSAGES = os.getenv("FILTER_NAMES_IN_MESSAGES","usermessagepfp,chat_message,command,tf1command")
+SENDKILLFEED = os.getenv("SEND_KILL_FEED","0")
+OVERRIDEIPFORCDNLEADERBOARD = os.getenv("OVERRIDE_IP_FOR_CDN_LEADERBOARD","hidden")
 ANSICOLOUR = "\x1b[38;5;105m"
 RGBCOLOUR = (135, 135, 255)
-
-
+GLOBALIP = 0
+if OVERRIDEIPFORCDNLEADERBOARD == "use_actual_ip":
+    GLOBALIP ="http://"+requests.get('https://api.ipify.org').text+":34511"
+elif OVERRIDEIPFORCDNLEADERBOARD != "hidden":
+    GLOBALIP = OVERRIDEIPFORCDNLEADERBOARD
 
 # bantf1()
 # tf1matchplayers()
@@ -339,6 +346,7 @@ matchid()
 discorduidinfodb()
 specifickilltrackerdb()
 serverchannels = []
+pngcounter = random.randint(0,9)
 if not os.path.exists("./data"):
     os.makedirs("./data")
 channel_file = "channels.json"
@@ -490,7 +498,7 @@ if DISCORDBOTLOGSTATS == "1":
         ctx,
         playername: Option(str, "Who to get a leaderboard for"),
         leaderboard: Option(
-            str, "Witch leaderboard, omit for all, more specific data when not ommitted", choices=list(map(lambda x:x["name"],list(filter(lambda x:"name" in x["merge"] ,context["leaderboardchannelmessages"]))))
+            str, "Witch leaderboard, omit for all, more specific data when not ommitted", choices=list(map(lambda x:x["name"],list(filter(lambda x:"name" in x.get("merge","none") ,context["leaderboardchannelmessages"]))))
         ) = None
     ):
         player = resolveplayeruidfromdb(playername,None,True)
@@ -632,19 +640,80 @@ if DISCORDBOTLOGSTATS == "1":
 
         leaderboardname = leaderboard_entry.get("name", "Default Leaderboard")
         leaderboarddescription = leaderboard_entry.get("description", "no desc")
+        maxshown = leaderboard_entry.get("maxshown", 10)
         leaderboarddcolor = leaderboard_entry.get("color", 0xff70cb)
+        leaderboardid = leaderboard_entry.get("id", 0)
+        leaderboardcategorysshown = leaderboard_entry["categorys"]
+        if isinstance(leaderboardcategorysshown, list) and GLOBALIP != 0:
+            print("trying to update cdn leaderboard")
+            try:
+                # print("here")
+                getweaponspng(leaderboardcategorysshown,maxshown,5)
+                channel = bot.get_channel(context["overridechannels"]["leaderboardchannel"])
+                if leaderboardcategorysshown:
+                    image_name = "_".join(sorted(leaderboardcategorysshown)).upper() + ".png"
+                else:
+                    image_name = "ALL.png"
+
+                cdn_url = f"{GLOBALIP}/cdn/{pngcounter}{image_name}"
+
+                # Check if the image is available before continuing
+                image_available = True
+                async with aiohttp.ClientSession() as session:
+                    try:
+                        async with session.get(cdn_url) as response:
+                            if response.status != 200:
+                                image_available = False
+                    except:
+                        print("FAILED TO CONNECT TO CDN TO SEND LEADERBOARDIMAGE")
+                # print("here2")
+                embed = discord.Embed(title=leaderboardname)
+                if image_available:
+                    embed.set_image(url=cdn_url)
+
+                if leaderboardid != 0 and not specificuidsearch:
+                    try:
+                        old_message = await channel.fetch_message(leaderboardid)
+                        if image_available:
+                            # print("here3")
+                            await old_message.edit(embed=embed, content=None)
+                        else:
+                            # print("here4")
+                            await old_message.edit(content="⚠ Could not retrieve leaderboard image. Using last image.", embed=old_message.embeds[0] if old_message.embeds else None)
+                    except discord.NotFound as e:
+                        print("Leaderboard message not found, sending new one.", e, "ID", leaderboardid)
+                        new_message = await channel.send(embed=embed)
+                        context["leaderboardchannelmessages"][logid]["id"] = new_message.id
+                        savecontext()
+                
+                elif not specificuidsearch:
+                    # print("here5")
+                    if image_available:
+                        new_message = await channel.send(embed=embed)
+                        context["leaderboardchannelmessages"][logid]["id"] = new_message.id
+                        savecontext()
+                    else:
+                        await channel.send("Could not retrieve leaderboard image.")
+                return
+            except Exception as e:
+                traceback.print_exc()
+                return
+
+        elif  isinstance(leaderboardcategorysshown, list) :
+            print("skipping cdn leaderboard")
+            return
         leaderboarddatabase = leaderboard_entry["database"]
         leaderboardorderby = leaderboard_entry["orderby"]
-        leaderboardcategorysshown = leaderboard_entry["categorys"]
+
         leaderboardfilters = leaderboard_entry.get("filters", {})
         leaderboardmerge = leaderboard_entry["merge"]
-        maxshown = leaderboard_entry.get("maxshown", 10)
-        leaderboardid = leaderboard_entry.get("id", 0)
+
+
         indexoverride = leaderboard_entry.get("nameindex", -1)
 
         nameoverride = False
         serveroverride = False
-        
+
         if  isinstance(leaderboardmerge, str):
             leaderboardmerge = [leaderboardmerge]
        
@@ -894,7 +963,8 @@ if DISCORDBOTLOGSTATS == "1":
                 message = await channel.fetch_message(leaderboardid)
                 await message.edit(embed=embed)
             except discord.NotFound as e:
-                print("Leaderboard message not found, resending a new one",e)
+                print("[38;5;100mLeaderboard message not found, resending a new one",e,"ID",leaderboardid)
+                return
                 message = await channel.send(embed=embed)
                 context["leaderboardchannelmessages"][logid]["id"] = message.id
                 savecontext()
@@ -904,7 +974,136 @@ if DISCORDBOTLOGSTATS == "1":
             savecontext()
         else:
             return fakembed
+
+    def getweaponspng(specificweapon=False, max_players=10, COLUMNS=5):
+        global pngcounter
+        FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        FONT_SIZE = 16
+        LINE_SPACING = 10
+        GOLD = (255, 215, 0)
+        SILVER = (192, 192, 192)
+        BRONZE = (205, 127, 50)
+        DEFAULT_COLOR = (255, 255, 255)
+        IMAGE_DIR = "./gunimages"
+        CDN_DIR = "./data/cdn"
+
+        # Create the CDN directory if it doesn't exist
+        os.makedirs(CDN_DIR, exist_ok=True)
+
+        # Gather available weapon images
+        weapon_images = [f for f in os.listdir(IMAGE_DIR) if f.startswith("mp_") and f.endswith(".png")]
+        weapon_names = [os.path.splitext(f)[0] for f in weapon_images]
+
+        # Filter by specificweapon list
+        if specificweapon:
+            specific_set = set(specificweapon)
+            weapon_names = [w for w in weapon_names if w in specific_set]
+            if not weapon_names:
+                print("No matching weapon images found for the given list.")
+                return None
+
+        # Fetch kill data from DB
+        def fetch_kill_data():
+            conn = sqlite3.connect("./data/tf2helper.db")
+            c = conn.cursor()
+            c.execute("SELECT cause_of_death, playeruid FROM specifickilltracker")
+            rows = c.fetchall()
+            conn.close()
+            return rows
+
+        kill_data = fetch_kill_data()
+        weapon_kills = {}
+        for weapon, attacker in kill_data:
+            weapon_kills.setdefault(weapon, []).append(attacker)
+
+        def max_kill_count(attacker_list):
+            counts = {}
+            for attacker in attacker_list:
+                counts[attacker] = counts.get(attacker, 0) + 1
+            return max(counts.values(), default=0)
+
+        if not specificweapon:
+            weapon_names.sort(key=lambda w: max_kill_count(weapon_kills.get(w, [])), reverse=True)
+
+        try:
+            font = ImageFont.truetype(FONT_PATH, FONT_SIZE)
+        except (OSError, IOError):
+            font = ImageFont.load_default()
+
+        panels = []
+        for weapon in weapon_names:
+            img_path = os.path.join(IMAGE_DIR, weapon + ".png")
+            gun_img = Image.open(img_path)
+
+            counts = {}
+            if weapon in weapon_kills:
+                for attacker in weapon_kills[weapon]:
+                    counts[attacker] = counts.get(attacker, 0) + 1
+
+            sorted_players = sorted(counts.items(), key=lambda item: item[1], reverse=True)[:max_players]
+            num_display = len(sorted_players)
+            text_area_height = (FONT_SIZE + LINE_SPACING) * num_display + 10
+            panel_height = gun_img.height + text_area_height
+
+            panel = Image.new("RGBA", (gun_img.width, panel_height), (random.randint(0, 50), random.randint(0, 50), random.randint(0, 50), 80))
+            draw = ImageDraw.Draw(panel)
+            panel.paste(gun_img, (0, 0))
+
+            for i, (attacker, count) in enumerate(sorted_players):
+                try:
+                    name = resolveplayeruidfromdb(attacker, "uid", True)[0]["name"]
+                except:
+                    name = attacker
+                text = f"{name}: {count}"
+
+                color = (
+                    GOLD if i == 0 else
+                    SILVER if i == 1 else
+                    BRONZE if i == 2 else
+                    DEFAULT_COLOR
+                )
+
+                y = gun_img.height + i * (FONT_SIZE + LINE_SPACING) + 5
+                draw.text((5, y), text, font=font, fill=color)
+
+            panels.append(panel)
+
+        if not panels:
+            print("No panels to render.")
+            return None
+
+        panel_width = max(panel.width for panel in panels)
+        final_columns = min(COLUMNS, len(panels))
+        rows = (len(panels) + final_columns - 1) // final_columns
+
+        row_heights = []
+        for row in range(rows):
+            row_panels = panels[row * final_columns:(row + 1) * final_columns]
+            row_heights.append(max(p.height for p in row_panels))
+
+        canvas_width = final_columns * panel_width
+        canvas_height = sum(row_heights)
+        canvas = Image.new("RGBA", (canvas_width, canvas_height), (30, 30, 30, 0))
+
+        y_offset = 0
+        for row in range(rows):
+            row_panels = panels[row * final_columns:(row + 1) * final_columns]
+            for col, panel in enumerate(row_panels):
+                x = col * panel_width
+                canvas.paste(panel, (x, y_offset))
+            y_offset += row_heights[row]
+
+        # Determine filename
+        if specificweapon:
+            base_name = "_".join(sorted(weapon_names)).upper()
+        else:
+            base_name = "ALL"
+        pngcounter = (pngcounter + 1) % 9
+        file_path = os.path.join(CDN_DIR, str(pngcounter) + base_name +".png")
         
+        # Save to disk
+        canvas.save(file_path, format="PNG")
+
     def modifyvalue(value, format, calculation=None):
         if format is None:
             return value
@@ -949,6 +1148,7 @@ if DISCORDBOTLOGSTATS == "1":
     )
     async def whois(ctx, name: Option(str, "The playername/uid to Query")):
         MAXALIASESSHOWN = 22
+        originalname = name
         print("whois command from", ctx.author.id, "to", name)
         tfdb = sqlite3.connect("./data/tf2helper.db")
         c = tfdb.cursor()
@@ -1005,7 +1205,7 @@ if DISCORDBOTLOGSTATS == "1":
             alsomatching[entry["uid"]] = entry["name"]
 
         embed = discord.Embed(
-            title=f"Aliases for uid {player['uid']} ({len(alsomatching.keys()) + 1} match{'es' if len(alsomatching.keys()) > 0 else ''} for '{name}')",
+            title=f"Aliases for uid {player['uid']} ({len(alsomatching.keys()) + 1} match{'es' if len(alsomatching.keys()) > 0 else ''} for '{originalname}')",
             color=0xff70cb,
             description="Most recent to oldest",
         )
@@ -1087,7 +1287,7 @@ async def help(
         embed.add_field(name="rconchangeuserallowed", value="Toggle if a user is allowed to use RCON commands", inline=False)
         # embed.add_field(name="bindglobalchannel", value="Bind a global channel to the bot (for global messages from servers, like bans)", inline=False)
         embed.add_field(name="bindchannel", value="Bind a channel to the bot for other functions, like leaderboards, globalmessages", inline=False)
-        embed.add_field(name="tf2chatcolour",value="put in a hex colour eg: #ff30cb, to colour your tf2 name")
+        embed.add_field(name="tf2chatcolour",value="put in a hex colour eg: '#ff30cb', or a normal colour eg: 'red' to colour your tf2 name")
         if SHOULDUSETHROWAI == "1":
             embed.add_field(name="thrownonrcon", value="Throw a player, after being persuasive", inline=False)
         if SANCTIONAPIBANKEY != "":
@@ -1368,7 +1568,15 @@ async def bind_global_channel(
             "merge": "name",
             "maxshown": 10,
             "id": 0
-        }])
+        },
+        {
+            "name": "All weapon kills",
+            "categorys": [],
+            "color": 16740555,
+            "id": 0,
+            "maxshown":3
+        }
+        ])
         context["overridechannels"]["leaderboardchannel"] = channel.id
     elif channel.id != context["overridechannels"]["leaderboardchannel"]:
         for i in range(len(context["leaderboardchannelmessages"])):
@@ -1509,12 +1717,12 @@ async def rcon_add_user(ctx, user: Option(discord.User, "The user to add")):
         )
 @bot.slash_command(
     name="tf2chatcolour",
-    description="put in a hex colour eg: #ff30cb, to colour your tf2 name"
+    description="put in a hex colour eg: '#ff30cb', or a normal colour eg: 'red' to colour your tf2 name"
 )
 async def show_color(ctx, colour: Option(str, "Enter a hex color")):
     global colourslink
     if not re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour) and colour.lower() not in CSS_COLOURS.keys() and colour != "reset":
-        await ctx.respond("Please enter a **valid** hex color (e.g., `#1A2B3C`).", ephemeral=False)
+        await ctx.respond("Please enter a **valid** hex color (e.g: '#1A2B3C'), or a valid normal colour, (e.g: 'red')", ephemeral=False)
         return
     if re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour):
         r = int(colour[1:3], 16)
@@ -1534,10 +1742,12 @@ async def show_color(ctx, colour: Option(str, "Enter a hex color")):
 
     tfdb.commit()
     tfdb.close()
-    colourslink[ctx.author.id] = rgba
+    
     if rgba == "reset":
+        colourslink[ctx.author.id] = RGBCOLOUR
         await ctx.respond(f"reset colour to default")
         return
+    colourslink[ctx.author.id] = rgba
     await ctx.respond(f"Set colour to {rgba}")
 
 # lifted straight from my chat colours thing
@@ -1728,7 +1938,16 @@ def recieveflaskprintrequests():
             output["servers"][key] = value["lastheardfrom"]
         return output
             
-
+    @app.route("/cdn/<filename>", methods=["GET"])
+    def get_cdn_image(filename):
+        if not filename.lower().endswith(".png"):
+            abort(400, "Only .png files are allowed")
+        cdn_path = os.path.join(".", "data", "cdn")
+        file_path = os.path.join(cdn_path, filename)
+        if not os.path.exists(file_path):
+            print("error fetching cdn leaderboard",filename)
+            return send_from_directory("./data","bunny.png")
+        return send_from_directory(cdn_path, filename)
 
     @app.route("/stoprequests", methods=["POST"])
     def stoprequests():
@@ -2247,9 +2466,9 @@ def tf1readsend(serverid,checkstatus):
             messages = True
             if str(message["id"]) in discordtotitanfall[serverid]["returnids"]["messages"].keys():
                 continue   #TRADEOFF HERE. EITHER I SEND IT EACH RCON CALL (and don't update the timestamp) OR I do what I do here and only send it once, wait untill yellow dot cleaner comes, then send again.
-            if len(message["content"]) > 120:
+            if len(message["content"]) > 130:
                 toolongmessages.append(message["id"])
-            commands[message["id"]] = {"type":"msg","command":"sendmessage","id":message["id"],"args":str(message['content'])[0:120]}
+            commands[message["id"]] = {"type":"msg","command":"sendmessage","id":message["id"],"args":str(message['content'])[0:130]}
         if len(discordtotitanfall[serverid]["returnids"]["messages"].keys()) != -1 and messages:# and discordtotitanfall[serverid]["serveronline"]:
             
             for messageid in list(map(lambda x: str(x["id"]),list(filter(lambda x: True ,discordtotitanfall[serverid]["messages"])))):

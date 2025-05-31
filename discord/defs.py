@@ -53,7 +53,7 @@ MODEL_DICT = {
 WEAPON_NAMES = {
   "mp_weapon_rspn101": "R-201 Carbine",
   "mp_weapon_rspn101_og": "R-101 Carbine",
-  "mp_weapon_hemlock": "Hemlock BF-R",
+  "mp_weapon_hemlok": "Hemlock BF-R",
   "mp_weapon_vinson": "V-47 Flatline",
   "mp_weapon_g2": "G2A5",
   "mp_weapon_car": "CAR",
