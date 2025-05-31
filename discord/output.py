@@ -667,7 +667,7 @@ if DISCORDBOTLOGSTATS == "1":
                     except:
                         print("FAILED TO CONNECT TO CDN TO SEND LEADERBOARDIMAGE")
                 # print("here2")
-                embed = discord.Embed(title=leaderboardname)
+                embed = discord.Embed(title=leaderboardname,color=leaderboarddcolor,description =leaderboarddescription )
                 if image_available:
                     embed.set_image(url=cdn_url)
 
@@ -977,7 +977,7 @@ if DISCORDBOTLOGSTATS == "1":
 
     def getweaponspng(specificweapon=False, max_players=10, COLUMNS=5):
         global pngcounter
-        FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        FONT_PATH = "./fonts/DejaVuSans-Bold.ttf"
         FONT_SIZE = 16
         LINE_SPACING = 10
         GOLD = (255, 215, 0)
@@ -1574,6 +1574,7 @@ async def bind_global_channel(
             "categorys": [],
             "color": 16740555,
             "id": 0,
+            "description": "top 3 kills with all guns"
             "maxshown":3
         }
         ])
