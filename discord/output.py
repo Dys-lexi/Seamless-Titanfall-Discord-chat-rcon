@@ -11,7 +11,7 @@ from discord.commands import Option
 from io import BytesIO
 
 import inspect
-from flask import Flask, jsonify, request,send_from_directory
+from flask import Flask, jsonify, request,send_from_directory,send_file
 from waitress import serve
 from discord.ext import commands, tasks
 from datetime import datetime, timedelta,timezone
@@ -347,6 +347,7 @@ discorduidinfodb()
 specifickilltrackerdb()
 serverchannels = []
 pngcounter = random.randint(0,9)
+imagescdn = {}
 if not os.path.exists("./data"):
     os.makedirs("./data")
 channel_file = "channels.json"
@@ -648,20 +649,19 @@ if DISCORDBOTLOGSTATS == "1":
             print("trying to update cdn leaderboard")
             try:
                 # print("here")
-                getweaponspng(leaderboardcategorysshown,maxshown,5)
+                timestamp = getweaponspng(leaderboardcategorysshown,maxshown,5)
                 channel = bot.get_channel(context["overridechannels"]["leaderboardchannel"])
-                if leaderboardcategorysshown:
-                    image_name = "_".join(sorted(leaderboardcategorysshown)).upper() + ".png"
-                else:
-                    image_name = "ALL.png"
-
-                cdn_url = f"{GLOBALIP}/cdn/{pngcounter}{image_name}"
+                # if leaderboardcategorysshown:
+                #     image_name = "_".join(sorted(leaderboardcategorysshown)).upper() + ".png"
+                # else:
+                #     image_name = "ALL.png"
+                cdn_url = f"{GLOBALIP}/cdn/{timestamp}"
 
                 # Check if the image is available before continuing
                 image_available = True
                 async with aiohttp.ClientSession() as session:
                     try:
-                        async with session.get(cdn_url) as response:
+                        async with session.get(cdn_url+"TEST") as response:
                             if response.status != 200:
                                 image_available = False
                     except:
@@ -976,7 +976,7 @@ if DISCORDBOTLOGSTATS == "1":
             return fakembed
 
     def getweaponspng(specificweapon=False, max_players=10, COLUMNS=5):
-        global pngcounter
+        global imagescdn
         FONT_PATH = "./fonts/DejaVuSans-Bold.ttf"
         FONT_SIZE = 16
         LINE_SPACING = 10
@@ -1098,11 +1098,16 @@ if DISCORDBOTLOGSTATS == "1":
             base_name = "_".join(sorted(weapon_names)).upper()
         else:
             base_name = "ALL"
-        pngcounter = (pngcounter + 1) % 9
-        file_path = os.path.join(CDN_DIR, str(pngcounter) + base_name +".png")
-        
+        # pngcounter = (pngcounter + 1) % 9
+        # file_path = os.path.join(CDN_DIR, str(pngcounter) + base_name +".png")
+        imagetimestamp = int(time.time()*100)
+        img_bytes = BytesIO()
+        canvas.save(img_bytes, format="PNG")
+        img_bytes.seek(0) 
+        imagescdn[imagetimestamp] = img_bytes
+        return imagetimestamp
         # Save to disk
-        canvas.save(file_path, format="PNG")
+        # canvas.save(file_path, format="PNG")
 
     def modifyvalue(value, format, calculation=None):
         if format is None:
@@ -1574,7 +1579,7 @@ async def bind_global_channel(
             "categorys": [],
             "color": 16740555,
             "id": 0,
-            "description": "top 3 kills with all guns"
+            "description": "top 3 kills with all guns",
             "maxshown":3
         }
         ])
@@ -1941,14 +1946,34 @@ def recieveflaskprintrequests():
             
     @app.route("/cdn/<filename>", methods=["GET"])
     def get_cdn_image(filename):
-        if not filename.lower().endswith(".png"):
-            abort(400, "Only .png files are allowed")
-        cdn_path = os.path.join(".", "data", "cdn")
-        file_path = os.path.join(cdn_path, filename)
-        if not os.path.exists(file_path):
-            print("error fetching cdn leaderboard",filename)
+        global imagescdn
+        # print("retrieving")
+        istest = False
+        try:
+            filename = int(filename)
+        except:
+            # print(filename[0:-4])
+            if filename[-4:] == "TEST":
+                filename = filename[0:-4]
+                istest = True
+            else:
+                print("Only ints are allowed",filename)
+                return send_from_directory("./data","bunny.png") 
+
+        if int(filename) not in imagescdn:
+            print("Error getting image", filename,list(imagescdn.keys()))
             return send_from_directory("./data","bunny.png")
-        return send_from_directory(cdn_path, filename)
+        elif istest:
+            # print("test sucsess")
+            return {"message": "Image might exist"}, 200 
+        image_data = imagescdn[filename]
+        image_data.seek(0)  
+        cloned = BytesIO(image_data.read())  
+        cloned.seek(0)
+        # del imagescdn[filename]
+        if len(imagescdn.keys()) > 10:
+            del imagescdn[list(imagescdn.keys())[0]]
+        return send_file(cloned, mimetype="image/png")
 
     @app.route("/stoprequests", methods=["POST"])
     def stoprequests():
