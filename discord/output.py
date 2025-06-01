@@ -44,6 +44,8 @@ def discorduidinfodb():
 def specifickilltrackerdb():
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
+    
+    # Create the table if it doesn't exist
     c.execute(
         """CREATE TABLE IF NOT EXISTS specifickilltracker (
             id INTEGER PRIMARY KEY,
@@ -78,9 +80,17 @@ def specifickilltrackerdb():
             victim_weapon_2         TEXT,
             timeofkill              INTEGER,
             cause_of_death          TEXT,
-            victim_y                REAL
+            victim_y                REAL,
+            weapon_mods             TEXT
         )"""
     )
+    
+    c.execute("PRAGMA table_info(specifickilltracker)")
+    columns = [row[1] for row in c.fetchall()]
+    
+    if "weapon_mods" not in columns:
+        c.execute("ALTER TABLE specifickilltracker ADD COLUMN weapon_mods TEXT DEFAULT ''")
+    
     tfdb.commit()
     c.close()
     tfdb.close()
@@ -278,7 +288,7 @@ USEDYNAMICPFPS = os.getenv("USE_DYNAMIC_PFPS","1")
 PFPROUTE = os.getenv("PFP_ROUTE","https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/")
 FILTERNAMESINMESSAGES = os.getenv("FILTER_NAMES_IN_MESSAGES","usermessagepfp,chat_message,command,tf1command")
 SENDKILLFEED = os.getenv("SEND_KILL_FEED","0")
-OVERRIDEIPFORCDNLEADERBOARD = os.getenv("OVERRIDE_IP_FOR_CDN_LEADERBOARD","hidden")
+OVERRIDEIPFORCDNLEADERBOARD = os.getenv("OVERRIDE_IP_FOR_CDN_LEADERBOARD","use_actual_ip")
 ANSICOLOUR = "\x1b[38;5;105m"
 RGBCOLOUR = (135, 135, 255)
 GLOBALIP = 0
@@ -649,7 +659,7 @@ if DISCORDBOTLOGSTATS == "1":
             print("trying to update cdn leaderboard")
             try:
                 # print("here")
-                timestamp = getweaponspng(leaderboardcategorysshown,maxshown,5)
+                timestamp = getweaponspng(leaderboardcategorysshown,maxshown,False)
                 channel = bot.get_channel(context["overridechannels"]["leaderboardchannel"])
                 # if leaderboardcategorysshown:
                 #     image_name = "_".join(sorted(leaderboardcategorysshown)).upper() + ".png"
@@ -693,7 +703,8 @@ if DISCORDBOTLOGSTATS == "1":
                         context["leaderboardchannelmessages"][logid]["id"] = new_message.id
                         savecontext()
                     else:
-                        await channel.send("Could not retrieve leaderboard image.")
+                        new_message = await channel.send("Could not retrieve leaderboard image.")
+                        context["leaderboardchannelmessages"][logid]["id"] = new_message.id
                 return
             except Exception as e:
                 traceback.print_exc()
@@ -974,8 +985,21 @@ if DISCORDBOTLOGSTATS == "1":
             savecontext()
         else:
             return fakembed
+    def sqrt_ceil(n):
+        if n < 0:
+            raise ValueError("Cannot take the square root of a negative number.")
+        x = n
+        y = (x + 1) / 2
+        while abs(x - y) > 0.00001:
+            x = y
+            y = (x + n / x) / 2
+        int_part = int(y)
+        if y > int_part:
+            return int_part + 1
+        else:
+            return int_part
 
-    def getweaponspng(specificweapon=False, max_players=10, COLUMNS=5):
+    def getweaponspng(specificweapon=False, max_players=10, COLUMNS=False):
         global imagescdn
         FONT_PATH = "./fonts/DejaVuSans-Bold.ttf"
         FONT_SIZE = 16
@@ -986,12 +1010,21 @@ if DISCORDBOTLOGSTATS == "1":
         DEFAULT_COLOR = (255, 255, 255)
         IMAGE_DIR = "./gunimages"
         CDN_DIR = "./data/cdn"
+        if not specificweapon:
+            specificweapon = []
+        if "GUNS" in specificweapon:
+            specificweapon.extend(GUNS)
+        if "ABILITYS" in specificweapon:
+            specificweapon.extend(ABILITYS)
 
         # Create the CDN directory if it doesn't exist
         os.makedirs(CDN_DIR, exist_ok=True)
 
         # Gather available weapon images
-        weapon_images = [f for f in os.listdir(IMAGE_DIR) if (f.startswith("mp_") or f.startswith("melee_")) and f.endswith(".png")]
+        if not specificweapon:
+            weapon_images = [f for f in os.listdir(IMAGE_DIR) if (f.startswith("mp_") or f.startswith("melee_")) and f.endswith(".png")]
+        else:
+            weapon_images = [f for f in os.listdir(IMAGE_DIR) if f.endswith(".png")]
         weapon_names = [os.path.splitext(f)[0] for f in weapon_images]
 
         # Filter by specificweapon list
@@ -1031,23 +1064,52 @@ if DISCORDBOTLOGSTATS == "1":
             font = ImageFont.load_default()
 
         panels = []
+        images = {}
+        maxheight = 0
+        maxwidth = 256
+        if not COLUMNS:
+            COLUMNS = sqrt_ceil(len(weapon_names))
         for weapon in weapon_names:
             img_path = os.path.join(IMAGE_DIR, weapon + ".png")
             gun_img = Image.open(img_path)
+            images[weapon] = gun_img
+            if gun_img.width > maxwidth:
+                maxwidth = gun_img.width
+            if gun_img.height > maxheight:
+                maxheight = gun_img.height
+        for weapon in weapon_names:
 
             counts = {}
             if weapon in weapon_kills:
                 for attacker in weapon_kills[weapon]:
                     counts[attacker] = counts.get(attacker, 0) + 1
+            if len(counts) == 0:
+                continue
 
             sorted_players = sorted(counts.items(), key=lambda item: item[1], reverse=True)[:max_players]
             num_display = len(sorted_players)
             text_area_height = (FONT_SIZE + LINE_SPACING) * num_display + 10
-            panel_height = gun_img.height + text_area_height
+            panel_height = maxheight + text_area_height
 
-            panel = Image.new("RGBA", (gun_img.width, panel_height), (random.randint(0, 50), random.randint(0, 50), random.randint(0, 50), 80))
+            panel = Image.new("RGBA", (maxwidth, panel_height), (random.randint(0, 50), random.randint(0, 50), random.randint(0, 50), 80))
             draw = ImageDraw.Draw(panel)
-            panel.paste(gun_img, (0, 0))
+            gun_img = images[weapon]
+            center_x = (maxwidth - gun_img.width) // 2
+            panel.paste(gun_img, (center_x, 0))
+
+            # Stretch leftmost column to the left
+            if center_x > 0:
+                left_column = gun_img.crop((0, 0, 1, gun_img.height))
+                left_color = left_column.resize((center_x, gun_img.height))
+                panel.paste(left_color, (0, 0))
+
+            # Stretch rightmost column to the right
+            right_fill_width = maxwidth - center_x - gun_img.width
+            if right_fill_width > 0:
+                right_column = gun_img.crop((gun_img.width - 1, 0, gun_img.width, gun_img.height))
+                right_color = right_column.resize((right_fill_width, gun_img.height))
+                panel.paste(right_color, (center_x + gun_img.width, 0))
+
 
             for i, (attacker, count) in enumerate(sorted_players):
                 try:
@@ -1063,7 +1125,7 @@ if DISCORDBOTLOGSTATS == "1":
                     DEFAULT_COLOR
                 )
 
-                y = gun_img.height + i * (FONT_SIZE + LINE_SPACING) + 5
+                y = maxheight + i * (FONT_SIZE + LINE_SPACING) + 5
                 draw.text((5, y), text, font=font, fill=color)
 
             panels.append(panel)
@@ -2064,7 +2126,24 @@ def recieveflaskprintrequests():
             time.sleep(0.2)
         stoprequestsforserver[serverid] = False
         return {"texts": {}, "commands": {}, "time": "0"}
-
+    @app.route("/players/<playeruid>",methods=["GET"])
+    def getplayerstats(playeruid):
+        specifickillbase = sqlite3.connect("./data/tf2helper.db")
+        c = specifickillbase.cursor()
+        try:
+            output = resolveplayeruidfromdb(playeruid,None,True)[0]
+            name = output["name"]
+            playeruid = str(output["uid"])
+        except:
+            name = "unknown"
+        print(name)
+        output = {"name":name,"uid":playeruid,"total":{}}
+        c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ?",(playeruid,))
+        output["total"]["deaths"] = len(c.fetchall())
+        c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ?",(playeruid,))
+        output["total"]["kills"] = len(c.fetchall())
+        print("getting killdata for",name,playeruid,output)
+        return output
     @app.route("/data", methods=["POST"])
     def onkilldata():
         # takes input directly from (slightly modified) nutone (https://github.com/nutone-tf) code for this to work is not on the github repo, so probably don't try using it.
@@ -2121,8 +2200,9 @@ def recieveflaskprintrequests():
                 victim_weapon_2,
                 timeofkill,
                 cause_of_death,
-                victim_y
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                victim_y,
+                weapon_mods
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data["server_id"],
@@ -2157,6 +2237,7 @@ def recieveflaskprintrequests():
                 data["timeofkill"],
                 data["cause_of_death"],
                 data["victim_y"],
+                " ".join(data.get("modsused",[]))
             )
         )
         specifickillbase.commit()
@@ -3283,7 +3364,7 @@ def resolveplayeruidfromdb(name,uidnameforce = None,oneuidpermatch = False):
 
         if len(players) == 0:
             return []
-        return  sorted(players, key=lambda x: len(x["name"]))
+        return  sorted(players, key=lambda x: len(x["name"])-x["name"].startswith(name)*50)
         
 
 async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride, iscommandnotmessage = True,logthiscommand = True):
