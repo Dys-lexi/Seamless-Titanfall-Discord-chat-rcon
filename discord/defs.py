@@ -4,8 +4,8 @@ MODEL_DICT = {
     '$"models/humans/pilots/pilot_medium_geist_f.mdl"': "pilots/grapple_cropped.png",
     '$"models/titans/medium/titan_medium_ajax.mdl"': "titans/iont.png",
     '$"models/titans/heavy/titan_heavy_ogre.mdl"': "titans/scorcht.png",
-    '$"models/titans/light/titan_light_raptor.mdl"': "titans/northstar_icon.png",
-    '$"models/titans/light/titan_light_locust.mdl"': "titans/ronin_icon.png",
+    '$"models/titans/light/titan_light_raptor.mdl"': "titans/northstart.png",
+    '$"models/titans/light/titan_light_locust.mdl"': "titans/ronint.png",
     '$"models/titans/medium/titan_medium_wraith.mdl"': "titans/tonet.png",
     '$"models/humans/pilots/pilot_heavy_drex_f.mdl"': "pilots/cloak_cropped.png",
     '$"models/humans/pilots/pilot_heavy_drex_m.mdl"': "pilots/cloak_cropped.png",
@@ -13,8 +13,8 @@ MODEL_DICT = {
     '$"models/titans/medium/titan_medium_vanguard.mdl"': "titans/monarcht.png",
     '$"models/titans/medium/titan_medium_ion_prime.mdl"': "titans/iont.png",
     '$"models/titans/heavy/titan_heavy_scorch_prime.mdl"': "titans/scorcht.png",
-    '$"models/titans/light/titan_light_northstar_prime.mdl"': "titans/northstar_icon.png",
-    '$"models/titans/light/titan_light_ronin_prime.mdl"': "titans/ronin_icon.png",
+    '$"models/titans/light/titan_light_northstar_prime.mdl"': "titans/northstart.png",
+    '$"models/titans/light/titan_light_ronin_prime.mdl"': "titans/ronint.png",
     '$"models/titans/medium/titan_medium_tone_prime.mdl"': "titans/tonet.png",
     '$"models/titans/heavy/titan_heavy_legion_prime.mdl"': "titans/legiont.png",
     '$"models/humans/pilots/pilot_heavy_roog_m.mdl"': "pilots/a-wall_cropped.png",
@@ -366,9 +366,7 @@ GUNS = [
     "mp_weapon_temp",
     "mp_weapon_vinson",
     "mp_weapon_wingman",
-    "mp_weapon_wingman_n",
-    "titan_triple_threat",
-    "wpn_arc_cannon"
+    "mp_weapon_wingman_n"
 ]
 
 ABILITYS = [
@@ -423,6 +421,7 @@ ABILITYS = [
     "mp_weapon_grenade_sonar",
     "mp_weapon_satchel",
     "mp_weapon_thermite_grenade",
+    "mp_titanweapon_shoulder_rockets",
     "superior",
     "ticks",
     "weirdhand"

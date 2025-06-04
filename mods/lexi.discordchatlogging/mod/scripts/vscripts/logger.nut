@@ -250,7 +250,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
     teammessage = "Both"
 	teammessage = "[TEAM (" + teammessage + ")]"
 	}
-	print(teammessage)
+	// print(teammessage)
 	outgoingmessage newmessage
 	newmessage.playername = teamnewmessage
 	newmessage.message = message.message
@@ -262,8 +262,9 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	else{
 		// array<string> knownuids = expect array<string>(TableKeysToArray(lastmodels.playermodels))
 		// if (knownuids.contains(message.player.GetUID())){
-		print("PFP PFP FPF"+lastmodels.playermodels[message.player.GetUID()] + "")
-		meta["pfp"] <- lastmodels["playermodels"][message.player.GetUID()]
+		// print("PFP PFP FPF"+lastmodels.playermodels[message.player.GetUID()] + "")
+		 if ( message.player.GetUID() in lastmodels["playermodels"] ){
+		meta["pfp"] <- lastmodels["playermodels"][message.player.GetUID()]}
 		// // }
 		// else{
 		// 	meta["pfp"] <- "I don't know"

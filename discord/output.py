@@ -37,7 +37,7 @@ def discorduidinfodb():
     )
     c.execute("SELECT discorduid, chosencolour FROM discorduiddata")
     output = c.fetchall()
-    colourslink = {x[0]:eval(x[1]) if x[1] != "reset" else RGBCOLOUR  for x in output}
+    colourslink = {x[0]:list(map(lambda y: eval(y), x[1].split("|"))) if x[1] != "reset" else RGBCOLOUR  for x in output}
     print("COLOURSLINK",colourslink) 
     tfdb.commit()
     tfdb.close()
@@ -85,11 +85,11 @@ def specifickilltrackerdb():
         )"""
     )
     
-    c.execute("PRAGMA table_info(specifickilltracker)")
-    columns = [row[1] for row in c.fetchall()]
+    # c.execute("PRAGMA table_info(specifickilltracker)")
+    # columns = [row[1] for row in c.fetchall()]
     
-    if "weapon_mods" not in columns:
-        c.execute("ALTER TABLE specifickilltracker ADD COLUMN weapon_mods TEXT DEFAULT ''")
+    # if "weapon_mods" not in columns:
+    #     c.execute("ALTER TABLE specifickilltracker ADD COLUMN weapon_mods TEXT DEFAULT ''")
     
     tfdb.commit()
     c.close()
@@ -503,8 +503,16 @@ if SANCTIONAPIBANKEY != "":
 
         await ctx.respond(f"```{jsonresponse}```", ephemeral=False)
 if DISCORDBOTLOGSTATS == "1":
-
-    @bot.slash_command(name="leaderboards", description="Gets lederboards for a player")
+    # @bot.slash_command(name="gunleaderboard",description="Gets leaderboards for a gun")
+    # async def retrieveleaderboardgun(
+    #     ctx,
+    #     Gun: Option(str, "What gun?" choices = list(WEAPON_NAMES.keys())),
+    #     # leaderboard: Option(
+    #     #     str, "Witch leaderboard, omit for all, more specific data when not ommitted", choices=list(map(lambda x:x["name"],list(filter(lambda x:"name" in x.get("merge","none") ,context["leaderboardchannelmessages"]))))
+    #     # ) = None
+    # ):
+    #     pass
+    @bot.slash_command(name="leaderboards", description="Gets leaderboards for a player")
     async def retrieveleaderboard(
         ctx,
         playername: Option(str, "Who to get a leaderboard for"),
@@ -516,16 +524,17 @@ if DISCORDBOTLOGSTATS == "1":
         if not player:
             await ctx.respond(f"{playername}player not found", ephemeral=False)
         if leaderboard is None:
+            await ctx.defer()
             output = {}
             colour = 0
             for logid in range(len(context["leaderboardchannelmessages"])):
-                if "name" in context["leaderboardchannelmessages"][logid]["merge"]:
+                if "name" in context["leaderboardchannelmessages"][logid].get("merge",""):
                     output[logid] = await updateleaderboard(logid,specificuidsearch = str(player[0]["uid"]),compact = True)
                     if output[logid]:
                         colour = output[logid]["title"]["color"]
         else:
             for logid in range(len(context["leaderboardchannelmessages"])):
-                if "name" in context["leaderboardchannelmessages"][logid]["merge"] and context["leaderboardchannelmessages"][logid]["name"] == leaderboard:
+                if "name" in context["leaderboardchannelmessages"][logid].get("merge","") and context["leaderboardchannelmessages"][logid].get("name","") == leaderboard:
                     output = await updateleaderboard(logid, str(player[0]["uid"]),False,11)
             # print("OUTPUT",output)
             if not output:
@@ -666,6 +675,11 @@ if DISCORDBOTLOGSTATS == "1":
                 # else:
                 #     image_name = "ALL.png"
                 cdn_url = f"{GLOBALIP}/cdn/{timestamp}"
+
+                if not timestamp:
+                    old_message = await channel.fetch_message(leaderboardid)
+                    await old_message.edit(content="⚠ Could not retrieve leaderboard image. Using last image.", embed=old_message.embeds[0] if old_message.embeds else None)
+                    return
 
                 # Check if the image is available before continuing
                 image_available = True
@@ -999,6 +1013,8 @@ if DISCORDBOTLOGSTATS == "1":
         else:
             return int_part
 
+
+
     def getweaponspng(specificweapon=False, max_players=10, COLUMNS=False):
         global imagescdn
         FONT_PATH = "./fonts/DejaVuSans-Bold.ttf"
@@ -1010,6 +1026,7 @@ if DISCORDBOTLOGSTATS == "1":
         DEFAULT_COLOR = (255, 255, 255)
         IMAGE_DIR = "./gunimages"
         CDN_DIR = "./data/cdn"
+        specificweapon = specificweapon.copy()
         if not specificweapon:
             specificweapon = []
         if "GUNS" in specificweapon:
@@ -1055,8 +1072,10 @@ if DISCORDBOTLOGSTATS == "1":
                 counts[attacker] = counts.get(attacker, 0) + 1
             return max(counts.values(), default=0)
 
-        if not specificweapon:
-            weapon_names.sort(key=lambda w: max_kill_count(weapon_kills.get(w, [])), reverse=True)
+        # if not specificweapon:
+        weapon_names.sort(key=lambda w: max_kill_count(weapon_kills.get(w, [])), reverse=True)
+        weapon_names = list(filter(lambda w: weapon_kills.get(w, False) != False, weapon_names))
+        
 
         try:
             font = ImageFont.truetype(FONT_PATH, FONT_SIZE)
@@ -1170,7 +1189,9 @@ if DISCORDBOTLOGSTATS == "1":
         return imagetimestamp
         # Save to disk
         # canvas.save(file_path, format="PNG")
+        
 
+    
     def modifyvalue(value, format, calculation=None):
         if format is None:
             return value
@@ -1206,8 +1227,6 @@ if DISCORDBOTLOGSTATS == "1":
             return str(MAP_NAME_TABLE.get(value, value))
         return value
         
-
-
 
     @bot.slash_command(
         name="whois",
@@ -1789,18 +1808,26 @@ async def rcon_add_user(ctx, user: Option(discord.User, "The user to add")):
 )
 async def show_color(ctx, colour: Option(str, "Enter a hex color")):
     global colourslink
-    if not re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour) and colour.lower() not in CSS_COLOURS.keys() and colour != "reset":
-        await ctx.respond("Please enter a **valid** hex color (e.g: '#1A2B3C'), or a valid normal colour, (e.g: 'red')", ephemeral=False)
-        return
-    if re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour):
-        r = int(colour[1:3], 16)
-        g = int(colour[3:5], 16)
-        b = int(colour[5:7], 16)
-        rgba = (r, g, b)
-    elif colour.lower()  in CSS_COLOURS.keys():
-        rgba = CSS_COLOURS[colour]
-    else:
-        rgba = "reset"
+    colourslist = []
+    colours = colour
+    for colour in colours.split(" "):
+        print(colour)
+        if not re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour) and colour.lower() not in CSS_COLOURS.keys() and colour != "reset":
+            await ctx.respond("Please enter a **valid** hex color (e.g: '#1A2B3C'), or a valid normal colour, (e.g: 'red')", ephemeral=False)
+            return
+        if re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour):
+            r = int(colour[1:3], 16)
+            g = int(colour[3:5], 16)
+            b = int(colour[5:7], 16)
+            rgba = (r, g, b)
+        elif colour.lower()  in CSS_COLOURS.keys():
+            rgba = CSS_COLOURS[colour]
+        else:
+            rgba = "reset"
+            break
+        colourslist.append(rgba)
+        rgba = "|".join(map(str, colourslist))
+
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
     c.execute(
@@ -1815,8 +1842,8 @@ async def show_color(ctx, colour: Option(str, "Enter a hex color")):
         colourslink[ctx.author.id] = RGBCOLOUR
         await ctx.respond(f"reset colour to default")
         return
-    colourslink[ctx.author.id] = rgba
-    await ctx.respond(f"Set colour to {rgba}")
+    colourslink[ctx.author.id] = colourslist
+    await ctx.respond(f"Set colour to {', '.join(map(str, colourslist))}")
 
 # lifted straight from my chat colours thing
 def gradient(message,colours, maxlen):
@@ -1951,7 +1978,7 @@ async def on_message(message):
         ):
             await message.channel.send("Message too long, cannot send.")
             return
-        authornick = gradient(message.author.nick if message.author.nick is not None else message.author.display_name,[RGBCOLOUR,colourslink.get(message.author.id,RGBCOLOUR)], 254 -len( f": [38;5;254m{message.content}")- bool(context["istf1server"].get(serverid,False))*130)
+        authornick = gradient(message.author.nick if message.author.nick is not None else message.author.display_name,[RGBCOLOUR,*colourslink.get(message.author.id,[RGBCOLOUR])], 254 -len( f": [38;5;254m{message.content}")- bool(context["istf1server"].get(serverid,False))*130)
         # dotreacted = None
         # if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 45:
         #     dotreacted = "🔴"
@@ -1959,7 +1986,7 @@ async def on_message(message):
         #     dotreacted = "🟡" 
         if message.content != "": #and not context["istf1server"].get(serverid,False):
             print(f"{authornick}: [38;5;254m{message.content}\033[0m")
-            print(len(f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}[38;5;254m{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}"))
+            # print(len(f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}[38;5;254m{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}"))
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": message.id,
@@ -2149,18 +2176,19 @@ def recieveflaskprintrequests():
         # takes input directly from (slightly modified) nutone (https://github.com/nutone-tf) code for this to work is not on the github repo, so probably don't try using it.
         global context, messageflush
         data = request.get_json()
-        print(f"{data['attacker_name']} killed {data['victim_name']} with {data['attacker_current_weapon']}")
-        # messageflush.append({
-        #     "timestamp": int(time.time()),
-        #     "serverid": data["server_id"],
-        #     "type": 3,
-        #     "globalmessage": False,
-        #     "overridechannel": None,
-        #     "messagecontent": f"{data['attacker_name']} killed {data['victim_name']} with {WEAPON_NAMES.get(data['attacker_current_weapon'],data['attacker_current_weapon'])}",
-        #     "metadata": {"type":"killfeed"},
-        #     "servername" :context["serveridnamelinks"][data["server_id"]]
+        print(f"{data['attacker_name']} killed {data['victim_name']} with {data['cause_of_death']}")
+        if SENDKILLFEED == "1":
+            messageflush.append({
+                "timestamp": int(time.time()),
+                "serverid": data["server_id"],
+                "type": 3,
+                "globalmessage": False,
+                "overridechannel": None,
+                "messagecontent": f"{data['attacker_name']} killed {data['victim_name']} with {WEAPON_NAMES.get(data['cause_of_death'],data['cause_of_death'])}",
+                "metadata": {"type":"killfeed"},
+                "servername" :context["serveridnamelinks"][data["server_id"]]
 
-        #             })
+                        })
         if data["password"] != SERVERPASS and SERVERPASS != "*":
             print("invalid password used on data")
             return {"message": "invalid password"}
@@ -3252,8 +3280,8 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
             
             async with aiohttp.ClientSession() as session:
                 # print(pilotstates[serverid])
-                message = await actualwebhooks[pilotstates[serverid]["webhook"]].send(
-                    "\n".join(list(map(lambda x: x["message"],value["messages"]))),#+" "+pilotstates[serverid]["webhook"],
+                message = await actualwebhooks[pilotstates[serverid]["webhook"]].send(discord.utils.escape_mentions(
+                    "\n".join(list(map(lambda x: x["message"],value["messages"])))),#+" "+pilotstates[serverid]["webhook"],
                     username=f"{username}",
                     avatar_url=f'{PFPROUTE}{pfp}',
                     wait = True
