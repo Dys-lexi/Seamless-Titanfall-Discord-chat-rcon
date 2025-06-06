@@ -668,7 +668,9 @@ if DISCORDBOTLOGSTATS == "1":
             print("trying to update cdn leaderboard")
             try:
                 # print("here")
-                timestamp = getweaponspng(leaderboardcategorysshown,maxshown,False)
+                # individual = leaderboard_entry.get("individual",{})
+                # leaderboardcategorysshown = {"CATEGORYS":leaderboardcategorysshown,**individual}
+                timestamp = await asyncio.to_thread(getweaponspng, leaderboardcategorysshown, maxshown, False)
                 channel = bot.get_channel(context["overridechannels"]["leaderboardchannel"])
                 # if leaderboardcategorysshown:
                 #     image_name = "_".join(sorted(leaderboardcategorysshown)).upper() + ".png"
@@ -676,10 +678,16 @@ if DISCORDBOTLOGSTATS == "1":
                 #     image_name = "ALL.png"
                 cdn_url = f"{GLOBALIP}/cdn/{timestamp}"
 
-                if not timestamp:
+                if not timestamp and leaderboardid != 0:
                     old_message = await channel.fetch_message(leaderboardid)
                     await old_message.edit(content="⚠ Could not retrieve leaderboard image. Using last image.", embed=old_message.embeds[0] if old_message.embeds else None)
                     return
+                elif not timestamp:
+                        new_message = await channel.send("Could not calculate leaderboard image for "+leaderboardname)
+                        context["leaderboardchannelmessages"][logid]["id"] = new_message.id
+                        savecontext()
+                        return
+
 
                 # Check if the image is available before continuing
                 image_available = True
@@ -719,6 +727,7 @@ if DISCORDBOTLOGSTATS == "1":
                     else:
                         new_message = await channel.send("Could not retrieve leaderboard image.")
                         context["leaderboardchannelmessages"][logid]["id"] = new_message.id
+                        savecontext()
                 return
             except Exception as e:
                 traceback.print_exc()
@@ -1017,6 +1026,8 @@ if DISCORDBOTLOGSTATS == "1":
 
     def getweaponspng(specificweapon=False, max_players=10, COLUMNS=False):
         global imagescdn
+        print("getting pngleaderboard")
+        now = int(time.time()*100)
         FONT_PATH = "./fonts/DejaVuSans-Bold.ttf"
         FONT_SIZE = 16
         LINE_SPACING = 10
@@ -1027,16 +1038,50 @@ if DISCORDBOTLOGSTATS == "1":
         IMAGE_DIR = "./gunimages"
         CDN_DIR = "./data/cdn"
         specificweapon = specificweapon.copy()
+        timecutoffs = {"main":0,"cutoff":86400*7}
         if not specificweapon:
             specificweapon = []
-        if "GUNS" in specificweapon:
-            specificweapon.extend(GUNS)
-        if "ABILITYS" in specificweapon:
-            specificweapon.extend(ABILITYS)
+        # if "GUNS" in specificweapon:
+        #     del specificweapon[specificweapon.index("GUNS")]
+        #     specificweapon.extend(GUNS)
+        # if "ABILITYS" in specificweapon:
+        #     del specificweapon[specificweapon.index("ABILITYS")]
+        #     specificweapon.extend(ABILITYS)
+        if "GRENADES" in specificweapon:
+            del specificweapon[specificweapon.index("GRENADES")]
+            specificweapon.extend(GRENADES)
+        if "DEATH_BY_MAP" in specificweapon:
+            del specificweapon[specificweapon.index("DEATH_BY_MAP")]
+            specificweapon.extend(DEATH_BY_MAP)
+        if "MISC_MISC" in specificweapon:
+            del specificweapon[specificweapon.index("MISC_MISC")]
+            specificweapon.extend(MISC_MISC)
+        if "MISC_TITAN" in specificweapon:
+            del specificweapon[specificweapon.index("MISC_TITAN")]
+            specificweapon.extend(MISC_TITAN)
+        if "MISC_PILOT" in specificweapon:
+            del specificweapon[specificweapon.index("MISC_PILOT")]
+            specificweapon.extend(MISC_PILOT)
+        if "CORES" in specificweapon:
+            del specificweapon[specificweapon.index("CORES")]
+            specificweapon.extend(CORES)
+        if "GUNS_TITAN" in specificweapon:
+            del specificweapon[specificweapon.index("GUNS_TITAN")]
+            specificweapon.extend(GUNS_TITAN)
+        if "GUNS_PILOT" in specificweapon:
+            del specificweapon[specificweapon.index("GUNS_PILOT")]
+            specificweapon.extend(GUNS_PILOT)
+        if "ABILITYS_TITAN" in specificweapon:
+            del specificweapon[specificweapon.index("ABILITYS_TITAN")]
+            specificweapon.extend(ABILITYS_TITAN)
+        if "ABILITYS_PILOT" in specificweapon:
+            del specificweapon[specificweapon.index("ABILITYS_PILOT")]
+            specificweapon.extend(ABILITYS_PILOT)
 
-        # Create the CDN directory if it doesn't exist
+        # if specificweapon.get("CATEGORYS",False):
+        #     del specificweapon["CATEGORYS"]
         os.makedirs(CDN_DIR, exist_ok=True)
-
+        # print(specificweapon)
         # Gather available weapon images
         if not specificweapon:
             weapon_images = [f for f in os.listdir(IMAGE_DIR) if (f.startswith("mp_") or f.startswith("melee_")) and f.endswith(".png")]
@@ -1046,25 +1091,46 @@ if DISCORDBOTLOGSTATS == "1":
 
         # Filter by specificweapon list
         if specificweapon:
-            specific_set = set(specificweapon)
-            weapon_names = [w for w in weapon_names if w in specific_set]
+            weapon_names = [w for w in weapon_names if w in list(map(lambda x: x["png_name"],specificweapon))]
             if not weapon_names:
                 print("No matching weapon images found for the given list.")
                 return None
 
         # Fetch kill data from DB
-        def fetch_kill_data():
+        def fetch_kill_data(timecutoff = 0):
+            timecutoff = int(time.time() - timecutoff)
             conn = sqlite3.connect("./data/tf2helper.db")
             c = conn.cursor()
-            c.execute("SELECT cause_of_death, playeruid FROM specifickilltracker")
+            c.execute("SELECT cause_of_death ,playeruid,weapon_mods FROM specifickilltracker WHERE timeofkill < ?",(timecutoff,))
             rows = c.fetchall()
             conn.close()
             return rows
+        weapon_kills = {"main":{},"cutoff":{}}
+        for name,cutoff in timecutoffs.items():
+            kill_data = fetch_kill_data(cutoff)
+            
+            for weapon, attacker, mods in kill_data:
+                weaponwithmods = " ".join([weapon,mods])
+                if weapon in list(map(lambda x: x["weapon_name"],specificweapon)):
+                    index = list(map(lambda x: x["weapon_name"],specificweapon)).index(weapon)
+                    # include, the mods in the kill data MUST include the mod in the def (default)
+                    # exact, the mods in the kill data MUST equal the mods in the def
+                    # exclude, there must be no common mods bettween mod list and def
+                    modswanted = (specificweapon[index].get("mods",[]))
+                    modsused = (mods.split(" "))
+                    if modsused == ['']:
+                        modsused = []
+                    modsfiltertype = specificweapon[index].get("modswanted","include")
+                    modsmatch = False
+                    # modsfiltertype = "exact"
+                    # print(modsfiltertype,modswanted,modsused, not modswanted,modsfiltertype == "include")
+                    if not (modsfiltertype == "include" and (not modswanted or list(filter(lambda x: x in modsused,modswanted)))) and not (modsfiltertype == "anyof" and len(set([*modswanted,*modsused])) < len([*modswanted,*modsused])) and not (modsfiltertype == "exclude" and len(set([*modswanted,*modsused])) == len([*modswanted,*modsused])) and not (modsfiltertype == "exact" and str(sorted(modswanted)) == str(sorted(modsused))):
+                        # print("continuing")
+                        continue
 
-        kill_data = fetch_kill_data()
-        weapon_kills = {}
-        for weapon, attacker in kill_data:
-            weapon_kills.setdefault(weapon, []).append(attacker)
+                    # print(list(map(lambda x: x["weapon_name"],specificweapon)).index(weapon))
+                    # print(specificweapon[specificweapon[list(map(lambda x: x["weapon_name"],specificweapon)).index(weapon)])
+                    weapon_kills[name].setdefault(specificweapon[index]["png_name"],[]).append(attacker)
 
         def max_kill_count(attacker_list):
             counts = {}
@@ -1073,8 +1139,8 @@ if DISCORDBOTLOGSTATS == "1":
             return max(counts.values(), default=0)
 
         # if not specificweapon:
-        weapon_names.sort(key=lambda w: max_kill_count(weapon_kills.get(w, [])), reverse=True)
-        weapon_names = list(filter(lambda w: weapon_kills.get(w, False) != False, weapon_names))
+        weapon_names.sort(key=lambda w: max_kill_count(weapon_kills["main"].get(w, [])), reverse=True)
+        weapon_names = list(filter(lambda w: weapon_kills["main"].get(w, False) != False, weapon_names))
         
 
         try:
@@ -1085,7 +1151,7 @@ if DISCORDBOTLOGSTATS == "1":
         panels = []
         images = {}
         maxheight = 0
-        maxwidth = 256
+        maxwidth = 300
         if not COLUMNS:
             COLUMNS = sqrt_ceil(len(weapon_names))
         for weapon in weapon_names:
@@ -1099,13 +1165,19 @@ if DISCORDBOTLOGSTATS == "1":
         for weapon in weapon_names:
 
             counts = {}
-            if weapon in weapon_kills:
-                for attacker in weapon_kills[weapon]:
-                    counts[attacker] = counts.get(attacker, 0) + 1
+            if weapon in weapon_kills["main"]:
+                for attacker in weapon_kills["main"][weapon]:
+                    counts.setdefault(attacker,{"kills":0,"killscutoff":0})
+                    counts[attacker]["kills"] = counts[attacker]["kills"] + 1
+            if weapon in weapon_kills["cutoff"]:
+                for attacker in weapon_kills["cutoff"][weapon]:
+                    counts[attacker]["killscutoff"] = counts[attacker]["killscutoff"] + 1
             if len(counts) == 0:
                 continue
 
-            sorted_players = sorted(counts.items(), key=lambda item: item[1], reverse=True)[:max_players]
+            sorted_players = sorted(counts.items(), key=lambda item: item[1]["kills"], reverse=True)[:max_players]
+            sorted_players_cutoff = sorted(counts.items(), key=lambda item: item[1]["killscutoff"], reverse=True)
+            sorted_players_cutoff = [item[0] for (item) in sorted_players_cutoff]
             num_display = len(sorted_players)
             text_area_height = (FONT_SIZE + LINE_SPACING) * num_display + 10
             panel_height = maxheight + text_area_height
@@ -1128,15 +1200,23 @@ if DISCORDBOTLOGSTATS == "1":
                 right_column = gun_img.crop((gun_img.width - 1, 0, gun_img.width, gun_img.height))
                 right_color = right_column.resize((right_fill_width, gun_img.height))
                 panel.paste(right_color, (center_x + gun_img.width, 0))
+            for i, (attacker, data) in enumerate(sorted_players):
+                count = data["kills"]
+                oldkills = data["killscutoff"]
 
-
-            for i, (attacker, count) in enumerate(sorted_players):
-                try:
-                    name = resolveplayeruidfromdb(attacker, "uid", True)[0]["name"]
-                except:
-                    name = attacker
-                text = f"{name}: {count}"
-
+                name = resolveplayeruidfromdb(attacker, "uid", True)[0]["name"] if resolveplayeruidfromdb(attacker, "uid", True) else attacker
+                delta_kills = count - oldkills
+                previous_index = sorted_players_cutoff.index(attacker)
+                delta = previous_index - i
+                if delta > 0:
+                    change_text = f"↑ {delta}"
+                    change_color = (0, 200, 0)
+                elif delta < 0:
+                    change_text = f"↓ {abs(delta)}"
+                    change_color = (200, 0, 0)
+                else:
+                    change_text = "–"
+                    change_color = (128, 128, 128)
                 color = (
                     GOLD if i == 0 else
                     SILVER if i == 1 else
@@ -1145,7 +1225,17 @@ if DISCORDBOTLOGSTATS == "1":
                 )
 
                 y = maxheight + i * (FONT_SIZE + LINE_SPACING) + 5
-                draw.text((5, y), text, font=font, fill=color)
+                x = 5  
+                base_text = f"{name}: {count}"
+                draw.text((x, y), base_text, font=font, fill=color)
+                x += draw.textlength(base_text, font=font)
+                if delta_kills:
+                    plus_text = f" +{delta_kills}"
+                    draw.text((x, y), plus_text, font=font, fill=(100, 100, 100))
+                arrow_x = maxwidth - draw.textlength(change_text, font=font) - 10
+                draw.text((arrow_x, y), change_text, font=font, fill=change_color)
+
+
 
             panels.append(panel)
 
@@ -1153,7 +1243,7 @@ if DISCORDBOTLOGSTATS == "1":
             print("No panels to render.")
             return None
 
-        panel_width = max(panel.width for panel in panels)
+        maxwidth = max(panel.width for panel in panels)
         final_columns = min(COLUMNS, len(panels))
         rows = (len(panels) + final_columns - 1) // final_columns
 
@@ -1162,7 +1252,7 @@ if DISCORDBOTLOGSTATS == "1":
             row_panels = panels[row * final_columns:(row + 1) * final_columns]
             row_heights.append(max(p.height for p in row_panels))
 
-        canvas_width = final_columns * panel_width
+        canvas_width = final_columns * maxwidth
         canvas_height = sum(row_heights)
         canvas = Image.new("RGBA", (canvas_width, canvas_height), (30, 30, 30, 0))
 
@@ -1170,7 +1260,7 @@ if DISCORDBOTLOGSTATS == "1":
         for row in range(rows):
             row_panels = panels[row * final_columns:(row + 1) * final_columns]
             for col, panel in enumerate(row_panels):
-                x = col * panel_width
+                x = col * maxwidth
                 canvas.paste(panel, (x, y_offset))
             y_offset += row_heights[row]
 
@@ -1186,6 +1276,7 @@ if DISCORDBOTLOGSTATS == "1":
         canvas.save(img_bytes, format="PNG")
         img_bytes.seek(0) 
         imagescdn[imagetimestamp] = img_bytes
+        print("calculated pngleaderboard in", (int(time.time()*100)-now)/100,"seconds")
         return imagetimestamp
         # Save to disk
         # canvas.save(file_path, format="PNG")
@@ -1373,7 +1464,7 @@ async def help(
         embed.add_field(name="rconchangeuserallowed", value="Toggle if a user is allowed to use RCON commands", inline=False)
         # embed.add_field(name="bindglobalchannel", value="Bind a global channel to the bot (for global messages from servers, like bans)", inline=False)
         embed.add_field(name="bindchannel", value="Bind a channel to the bot for other functions, like leaderboards, globalmessages", inline=False)
-        embed.add_field(name="tf2chatcolour",value="put in a hex colour eg: '#ff30cb', or a normal colour eg: 'red' to colour your tf2 name")
+        embed.add_field(name="tf2chatcolour",value="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your tf2 name, seperate multiple colours with spaces")
         if SHOULDUSETHROWAI == "1":
             embed.add_field(name="thrownonrcon", value="Throw a player, after being persuasive", inline=False)
         if SANCTIONAPIBANKEY != "":
@@ -1804,14 +1895,14 @@ async def rcon_add_user(ctx, user: Option(discord.User, "The user to add")):
         )
 @bot.slash_command(
     name="tf2chatcolour",
-    description="put in a hex colour eg: '#ff30cb', or a normal colour eg: 'red' to colour your tf2 name"
+    description="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your tf2 name"
 )
-async def show_color(ctx, colour: Option(str, "Enter a hex color")):
+async def show_color(ctx, colour: Option(str, "Enter a normal/hex color")):
     global colourslink
     colourslist = []
     colours = colour
     for colour in colours.split(" "):
-        print(colour)
+        # print(colour)
         if not re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour) and colour.lower() not in CSS_COLOURS.keys() and colour != "reset":
             await ctx.respond("Please enter a **valid** hex color (e.g: '#1A2B3C'), or a valid normal colour, (e.g: 'red')", ephemeral=False)
             return
@@ -1880,13 +1971,18 @@ def gradient(message,colours, maxlen):
             )
         )
     groupedletters = []
+    # coloursmatch = []
     for i in range(len(colours) - 1):
         groupedletters.append([])
+        # coloursmatch.append((colours[i],colours[i+1]))
     for i in range(len(actualmessage)):
         groupedletters[int(i / len(actualmessage) * (len(colours) - 1))].append(
             actualmessage[i]
         )
+    # print(groupedletters,coloursmatch)
+
     while overcharlimit:
+        # print("here")
         counter = 0
         messagecounter = 0
         for i in range(len(groupedletters)):
@@ -1902,6 +1998,7 @@ def gradient(message,colours, maxlen):
                     messagecounter += 1
                     outputmessage.append(letter)
                     continue
+                # print(colours[i])
                 Colour = (
                     colours[i][0]
                     + int(differences[i][0] * (counter2) / (len(letters))),
@@ -1978,14 +2075,22 @@ async def on_message(message):
         ):
             await message.channel.send("Message too long, cannot send.")
             return
-        authornick = gradient(message.author.nick if message.author.nick is not None else message.author.display_name,[RGBCOLOUR,*colourslink.get(message.author.id,[RGBCOLOUR])], 254 -len( f": [38;5;254m{message.content}")- bool(context["istf1server"].get(serverid,False))*130)
+        authornick = 2
+        counter = 0
+        while authornick == 2 and counter < len([RGBCOLOUR,*colourslink.get(message.author.id,[RGBCOLOUR])]):
+            # print(counter)
+            authornick = gradient(message.author.nick if message.author.nick is not None else message.author.display_name,[RGBCOLOUR,*colourslink.get(message.author.id,[RGBCOLOUR])[:len([RGBCOLOUR,*colourslink.get(message.author.id,[RGBCOLOUR])])-counter]], 254 -len( f": [38;5;254m{message.content}")- bool(context["istf1server"].get(serverid,False))*130)
+            counter +=1
+        if authornick == 2:
+            print("MESSAGE TOO LONG IN A WEIRD WAY, BIG PANIC")
+            authornick =f"{RGBCOLOUR}{message.author.nick if message.author.nick is not None else message.author.display_name}"
         # dotreacted = None
         # if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 45:
         #     dotreacted = "🔴"
         # elif discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5:
         #     dotreacted = "🟡" 
         if message.content != "": #and not context["istf1server"].get(serverid,False):
-            print(f"{authornick}: [38;5;254m{message.content}\033[0m")
+            print(len(f"{authornick}: [38;5;254m{message.content}"),f"{authornick}: [38;5;254m{message.content}\033[0m")
             # print(len(f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}[38;5;254m{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}"))
             discordtotitanfall[serverid]["messages"].append(
                 {
@@ -2062,6 +2167,7 @@ def recieveflaskprintrequests():
         # del imagescdn[filename]
         if len(imagescdn.keys()) > 10:
             del imagescdn[list(imagescdn.keys())[0]]
+        print("returning file",filename)
         return send_file(cloned, mimetype="image/png")
 
     @app.route("/stoprequests", methods=["POST"])
@@ -2176,7 +2282,7 @@ def recieveflaskprintrequests():
         # takes input directly from (slightly modified) nutone (https://github.com/nutone-tf) code for this to work is not on the github repo, so probably don't try using it.
         global context, messageflush
         data = request.get_json()
-        print(f"{data['attacker_name']} killed {data['victim_name']} with {data['cause_of_death']}")
+        print(f"{data['attacker_name']} killed {data['victim_name']} with {data['cause_of_death']} using mods {' '.join(data.get('modsused',[]))}")
         if SENDKILLFEED == "1":
             messageflush.append({
                 "timestamp": int(time.time()),

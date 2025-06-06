@@ -320,109 +320,688 @@ MAP_NAME_TABLE = {
     "mp_mirror_city": "Mirror City",
     "mp_brick": "BRICK",
 }
+GUNS_TITAN = [ {
+        "weapon_name": "mp_titanweapon_leadwall",
+        "png_name": "mp_titanweapon_leadwall",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_meteor",
+        "png_name": "mp_titanweapon_meteor",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_particle_accelerator",
+        "png_name": "mp_titanweapon_particle_accelerator",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_predator_cannon",
+        "png_name": "mp_titanweapon_predator_cannon",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_rocketeer_rocketstream",
+        "png_name": "mp_titanweapon_rocketeer_rocketstream",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_sniper",
+        "png_name": "mp_titanweapon_sniper",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_sticky_40mm",
+        "png_name": "mp_titanweapon_sticky_40mm",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_xo16_vanguard",
+        "png_name": "mp_titanweapon_xo16_vanguard",
+        "mods": [],
+        "modsfiltertype": "include"
+    }]
+GUNS_PILOT = [
+    {
+        "weapon_name": "arc tool",
+        "png_name": "arc tool",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "killed yourself",
+        "png_name": "killed yourself",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "melee_titan_sword",
+        "png_name": "melee_titan_sword",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+   
+    {
+        "weapon_name": "mp_weapon_alternator_smg",
+        "png_name": "mp_weapon_alternator_smg",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_arc_launcher",
+        "png_name": "mp_weapon_arc_launcher",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_autopistol",
+        "png_name": "mp_weapon_autopistol",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_car",
+        "png_name": "mp_weapon_car",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_defender",
+        "png_name": "mp_weapon_defender",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_dmr",
+        "png_name": "mp_weapon_dmr",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_doubletake",
+        "png_name": "mp_weapon_doubletake",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_epg",
+        "png_name": "mp_weapon_epg",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_esaw",
+        "png_name": "mp_weapon_esaw",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_g2",
+        "png_name": "mp_weapon_g2",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_hemlock",
+        "png_name": "mp_weapon_hemlock",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_hemlok",
+        "png_name": "mp_weapon_hemlok",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_hemlok_smg",
+        "png_name": "mp_weapon_hemlok_smg",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_lmg",
+        "png_name": "mp_weapon_lmg",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_lstar",
+        "png_name": "mp_weapon_lstar",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_mastiff",
+        "png_name": "mp_weapon_mastiff",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_mgl",
+        "png_name": "mp_weapon_mgl",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_pulse_lmg",
+        "png_name": "mp_weapon_pulse_lmg",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_r97",
+        "png_name": "mp_weapon_r97",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_rocket_launcher",
+        "png_name": "mp_weapon_rocket_launcher",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_rspn101",
+        "png_name": "mp_weapon_rspn101",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_rspn101_og",
+        "png_name": "mp_weapon_rspn101_og",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_semipistol",
+        "png_name": "mp_weapon_semipistol",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_shotgun",
+        "png_name": "mp_weapon_shotgun",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_shotgun_doublebarrel",
+        "png_name": "mp_weapon_shotgun_doublebarrel",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_shotgun_pistol",
+        "png_name": "mp_weapon_shotgun_pistol",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_smart_pistol",
+        "png_name": "mp_weapon_smart_pistol",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_smr",
+        "png_name": "mp_weapon_smr",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_sniper",
+        "png_name": "mp_weapon_sniper",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_softball",
+        "png_name": "mp_weapon_softball",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_temp",
+        "png_name": "mp_weapon_temp",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_vinson",
+        "png_name": "mp_weapon_vinson",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_wingman",
+        "png_name": "mp_weapon_wingman",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_wingman_n",
+        "png_name": "mp_weapon_wingman_n",
+        "mods": [],
+        "modsfiltertype": "include"
+    }
+]
+ABILITYS_TITAN = [
+        {
+    "weapon_name": "damagedef_fd_tether_trap",
+    "png_name": "tether_menu",
+    "mods": [],
+    "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_ability_shifter",
+        "png_name": "mp_ability_shifter",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanability_ammo_swap",
+        "png_name": "mp_titanability_ammo_swap",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanability_basic_block",
+        "png_name": "mp_titanability_basic_block",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanability_electric_smoke",
+        "png_name": "mp_titanability_electric_smoke",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanability_gun_shield",
+        "png_name": "mp_titanability_gun_shield",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanability_hover",
+        "png_name": "mp_titanability_hover",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanability_laser_trip",
+        "png_name": "mp_titanability_laser_trip",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanability_particle_wall",
+        "png_name": "mp_titanability_particle_wall",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanability_phase_dash",
+        "png_name": "mp_titanability_phase_dash",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanability_power_shot long",
+        "png_name": "mp_titanability_power_shot long",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanability_power_shot short",
+        "png_name": "mp_titanability_power_shot short",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanability_rearm t1",
+        "png_name": "mp_titanability_rearm t1",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanability_rearm",
+        "png_name": "mp_titanability_rearm",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanability_slow_trap",
+        "png_name": "mp_titanability_slow_trap",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanability_smoke maelstrom",
+        "png_name": "mp_titanability_smoke maelstrom",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanability_sonar_pulse",
+        "png_name": "mp_titanability_sonar_pulse",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+  
+    {
+        "weapon_name": "mp_titanability_tether_trap",
+        "png_name": "mp_titanability_tether_trap",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
 
-GUNS = [
-    "arc tool",
-    "killed yourself",
-    "melee_titan_sword",
-    "mp_titanweapon_leadwall",
-    "mp_titanweapon_meteor",
-    "mp_titanweapon_particle_accelerator",
-    "mp_titanweapon_predator_cannon",
-    "mp_titanweapon_rocketeer_rocketstream",
-    "mp_titanweapon_sniper",
-    "mp_titanweapon_sticky_40mm",
-    "mp_titanweapon_xo16_vanguard",
-    "mp_weapon_alternator_smg",
-    "mp_weapon_arc_launcher",
-    "mp_weapon_autopistol",
-    "mp_weapon_car",
-    "mp_weapon_defender",
-    "mp_weapon_dmr",
-    "mp_weapon_doubletake",
-    "mp_weapon_epg",
-    "mp_weapon_esaw",
-    "mp_weapon_g2",
-    "mp_weapon_hemlock",
-    "mp_weapon_hemlok",
-    "mp_weapon_hemlok_smg",
-    "mp_weapon_lmg",
-    "mp_weapon_lstar",
-    "mp_weapon_mastiff",
-    "mp_weapon_mgl",
-    "mp_weapon_pulse_lmg",
-    "mp_weapon_r97",
-    "mp_weapon_rocket_launcher",
-    "mp_weapon_rspn101",
-    "mp_weapon_rspn101_og",
-    "mp_weapon_semipistol",
-    "mp_weapon_shotgun",
-    "mp_weapon_shotgun_doublebarrel",
-    "mp_weapon_shotgun_pistol",
-    "mp_weapon_smart_pistol",
-    "mp_weapon_smr",
-    "mp_weapon_sniper",
-    "mp_weapon_softball",
-    "mp_weapon_temp",
-    "mp_weapon_vinson",
-    "mp_weapon_wingman",
-    "mp_weapon_wingman_n"
+
+
+
+    {
+        "weapon_name": "mp_titanweapon_arc_wave",
+        "png_name": "mp_titanweapon_arc_wave",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_dumbfire_rockets",
+        "png_name": "mp_titanweapon_dumbfire_rockets",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_flame_wall",
+        "png_name": "mp_titanweapon_flame_wall",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_heat_shield",
+        "png_name": "mp_titanweapon_heat_shield",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_laser_lite",
+        "png_name": "mp_titanweapon_laser_lite",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_salvo_rockets t1",
+        "png_name": "mp_titanweapon_salvo_rockets t1",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_salvo_rockets t2",
+        "png_name": "mp_titanweapon_salvo_rockets t2",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_salvo_rockets",
+        "png_name": "mp_titanweapon_salvo_rockets",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_stun_laser t1",
+        "png_name": "mp_titanweapon_stun_laser t1",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_stun_laser t2",
+        "png_name": "mp_titanweapon_stun_laser t2",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_stun_laser",
+        "png_name": "mp_titanweapon_stun_laser",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_tracker_rockets",
+        "png_name": "mp_titanweapon_tracker_rockets",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_vortex_shield_ion",
+        "png_name": "mp_titanweapon_vortex_shield_ion",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_titanweapon_xo16_vanguard t2",
+        "png_name": "mp_titanweapon_xo16_vanguard t2",
+        "mods": [],
+        "modsfiltertype": "include"
+    },   {
+        "weapon_name": "mp_titanweapon_shoulder_rockets",
+        "png_name": "mp_titanweapon_shoulder_rockets",
+        "mods": [],
+        "modsfiltertype": "include"
+    }
+]
+ABILITYS_PILOT = [
+    {
+        "weapon_name": "melee_pilot_emptyhanded",
+        "png_name": "melee_pilot_emptyhanded",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_ability_cloak",
+        "png_name": "mp_ability_cloak",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_ability_grapple",
+        "png_name": "mp_ability_grapple",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_ability_heal",
+        "png_name": "mp_ability_heal",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_ability_holopilot",
+        "png_name": "mp_ability_holopilot",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+   
+    {
+        "weapon_name": "mp_weapon_grenade_sonar",
+        "png_name": "mp_weapon_grenade_sonar",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_thermite_grenade",
+        "png_name": "mp_weapon_thermite_grenade",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+ 
+
+ 
+    {
+        "weapon_name": "ticks",
+        "png_name": "ticks",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+    "weapon_name": "mp_weapon_turretplasma",
+    "png_name": "boost_icon_titan_sentry",
+    "mods": [],
+    "modsfiltertype": "include"
+    }
+  
 ]
 
-ABILITYS = [
-    "melee_pilot_emptyhanded",
-    "mp_ability_cloak",
-    "mp_ability_grapple",
-    "mp_ability_heal",
-    "mp_ability_holopilot",
-    "mp_ability_shifter",
-    "mp_titanability_ammo_swap",
-    "mp_titanability_basic_block",
-    "mp_titanability_electric_smoke",
-    "mp_titanability_gun_shield",
-    "mp_titanability_hover",
-    "mp_titanability_laser_trip",
-    "mp_titanability_nuke_eject",
-    "mp_titanability_particle_wall",
-    "mp_titanability_phase_dash",
-    "mp_titanability_power_shot long",
-    "mp_titanability_power_shot short",
-    "mp_titanability_rearm t1",
-    "mp_titanability_rearm",
-    "mp_titanability_slow_trap",
-    "mp_titanability_smoke maelstrom",
-    "mp_titanability_sonar_pulse",
-    "mp_titanability_tether_trap fd",
-    "mp_titanability_tether_trap",
-    "mp_titancore_flame_wave",
-    "mp_titancore_flight_core",
-    "mp_titancore_laser_cannon",
-    "mp_titancore_salvo_core",
-    "mp_titancore_shift_core",
-    "mp_titancore_siege_mode",
-    "mp_titanweapon_arc_wave",
-    "mp_titanweapon_dumbfire_rockets",
-    "mp_titanweapon_flame_wall",
-    "mp_titanweapon_heat_shield",
-    "mp_titanweapon_laser_lite",
-    "mp_titanweapon_salvo_rockets t1",
-    "mp_titanweapon_salvo_rockets t2",
-    "mp_titanweapon_salvo_rockets",
-    "mp_titanweapon_stun_laser t1",
-    "mp_titanweapon_stun_laser t2",
-    "mp_titanweapon_stun_laser",
-    "mp_titanweapon_tracker_rockets",
-    "mp_titanweapon_vortex_shield_ion",
-    "mp_titanweapon_xo16_vanguard t2",
-    "mp_weapon_frag_grenade",
-    "mp_weapon_grenade_electric_smoke",
-    "mp_weapon_grenade_emp",
-    "mp_weapon_grenade_gravity",
-    "mp_weapon_grenade_sonar",
-    "mp_weapon_satchel",
-    "mp_weapon_thermite_grenade",
-    "mp_titanweapon_shoulder_rockets",
-    "superior",
-    "ticks",
-    "weirdhand"
+GRENADES = [
+    {
+        "weapon_name": "mp_weapon_satchel",
+        "png_name": "mp_weapon_satchel",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_thermite_grenade",
+        "png_name": "mp_weapon_thermite_grenade",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_frag_grenade",
+        "png_name": "mp_weapon_frag_grenade",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_grenade_electric_smoke",
+        "png_name": "mp_weapon_grenade_electric_smoke",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_grenade_emp",
+        "png_name": "mp_weapon_grenade_emp",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+    {
+        "weapon_name": "mp_weapon_grenade_gravity",
+        "png_name": "mp_weapon_grenade_gravity",
+        "mods": [],
+        "modsfiltertype": "include"
+    }
+]
+
+DEATH_BY_MAP = [
+
+]
+
+MISC_MISC = [
+        {
+    "weapon_name": "damagedef_suicide",
+    "png_name": "bunny",
+    "mods": [],
+    "modsfiltertype": "include"
+},    {
+    "weapon_name": "spectre_melee",
+    "png_name": "fd_icon_spectre",
+    "mods": [],
+    "modsfiltertype": "include"
+}
+
+]
+
+MISC_TITAN = [
+    {
+    "weapon_name": "damagedef_nuclear_core",
+    "png_name": "nuke_eject",
+    "mods": [],
+    "modsfiltertype": "include"
+},    {
+    "weapon_name": "damagedef_titan_fall",
+    "png_name": "titanfall_kit_bubbleshield",
+    "mods": [],
+    "modsfiltertype": "include"
+},
+    {
+    "weapon_name": "damagedef_titan_hotdrop",
+    "png_name": "titanfall_kit_warpfall",
+    "mods": [],
+    "modsfiltertype": "include"
+},
+    {
+    "weapon_name": "titan_execution",
+    "png_name": "execution_random",
+    "mods": [],
+    "modsfiltertype": "include"
+},
+    {
+    "weapon_name": "titan_explosion",
+    "png_name": "coop_emp_titan_square",
+    "mods": [],
+    "modsfiltertype": "include"
+}
+
+]
+
+MISC_PILOT = [
+    {
+    "weapon_name": "rodeo_battery_removal",
+    "png_name": "rodeo_icon_enemy_col",
+    "mods": [],
+    "modsfiltertype": "include"
+}, {
+    "weapon_name": "human_execution",
+    "png_name": "execution_backshot",
+    "mods": [],
+    "modsfiltertype": "include"
+}
+]
+
+CORES = [
+        {
+    "weapon_name": "mp_titanweapon_predator_cannon",
+    "png_name": "mp_titancore_siege_mode",
+    "mods": [
+        "Smart_Core"
+    ],
+    "modsfiltertype": "include"
+},
+    {
+        "weapon_name": "mp_titancore_shift_core",
+        "png_name": "mp_titancore_shift_core",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+        {
+        "weapon_name": "mp_titancore_salvo_core",
+        "png_name": "mp_titancore_salvo_core",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+        {
+        "weapon_name": "mp_titancore_laser_cannon",
+        "png_name": "mp_titancore_laser_cannon",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+        {
+        "weapon_name": "mp_titancore_flame_wave",
+        "png_name": "mp_titancore_flame_wave",
+        "mods": [],
+        "modsfiltertype": "include"
+    },
+        {
+        "weapon_name": "mp_titanweapon_flightcore_rockets",
+        "png_name": "mp_titanweapon_flightcore_rockets",
+        "mods": [],
+        "modsfiltertype": "include"
+    }
+
 ]
