@@ -3539,7 +3539,7 @@ def resolveplayeruidfromdb(name,uidnameforce = None,oneuidpermatch = False):
 
         if len(players) == 0:
             return []
-        return  sorted(players, key=lambda x: len(x["name"])-x["name"].startswith(name)*50)
+        return  sorted(players, key=lambda x: len(x["name"])-x["name"].lower().startswith(name.lower())*50)
         
 
 async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride, iscommandnotmessage = True,logthiscommand = True):
