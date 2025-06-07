@@ -931,7 +931,7 @@ MISC_TITAN = [
 },
     {
     "weapon_name": "damagedef_titan_hotdrop",
-    "png_name": "titanfall_kit_warpfall",
+    "png_name": "titanfall_kit_warpfall NOT ACTUALLY THIS",
     "mods": [],
     "modsfiltertype": "include"
 },

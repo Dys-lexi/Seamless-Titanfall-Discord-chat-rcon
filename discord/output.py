@@ -1003,6 +1003,7 @@ if DISCORDBOTLOGSTATS == "1":
                 context["leaderboardchannelmessages"][logid]["id"] = message.id
                 savecontext()
         elif not specificuidsearch:
+            print("[38;5;100mLeaderboard sobbing message really not found","ID",leaderboardid)
             message = await channel.send(embed=embed)
             context["leaderboardchannelmessages"][logid]["id"] = message.id
             savecontext()
@@ -1082,21 +1083,18 @@ if DISCORDBOTLOGSTATS == "1":
         #     del specificweapon["CATEGORYS"]
         os.makedirs(CDN_DIR, exist_ok=True)
         # print(specificweapon)
-        # Gather available weapon images
         if not specificweapon:
             weapon_images = [f for f in os.listdir(IMAGE_DIR) if (f.startswith("mp_") or f.startswith("melee_")) and f.endswith(".png")]
         else:
             weapon_images = [f for f in os.listdir(IMAGE_DIR) if f.endswith(".png")]
         weapon_names = [os.path.splitext(f)[0] for f in weapon_images]
 
-        # Filter by specificweapon list
         if specificweapon:
             weapon_names = [w for w in weapon_names if w in list(map(lambda x: x["png_name"],specificweapon))]
             if not weapon_names:
                 print("No matching weapon images found for the given list.")
                 return None
 
-        # Fetch kill data from DB
         def fetch_kill_data(timecutoff = 0):
             timecutoff = int(time.time() - timecutoff)
             conn = sqlite3.connect("./data/tf2helper.db")
@@ -1105,44 +1103,76 @@ if DISCORDBOTLOGSTATS == "1":
             rows = c.fetchall()
             conn.close()
             return rows
+        def bvsuggestedthistome(timecutoff = 0):
+            timecutoff = int(time.time() - timecutoff)
+            conn = sqlite3.connect("./data/tf2helper.db")
+            c = conn.cursor()
+            c.execute("SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount FROM specifickilltracker WHERE timeofkill < ? GROUP BY cause_of_death, playeruid, weapon_mods",(timecutoff,))
+            rows = c.fetchall()
+            conn.close()
+            return rows
+        # print("calculated pngleaderboard in", (int(time.time()*100)-now)/100,"seconds")
+        specificweaponsallowed = list(map(lambda x: x["weapon_name"],specificweapon))
         weapon_kills = {"main":{},"cutoff":{}}
         for name,cutoff in timecutoffs.items():
-            kill_data = fetch_kill_data(cutoff)
+            for weapon, killer, mods, stabcount in bvsuggestedthistome(cutoff):
+                if weapon not in specificweaponsallowed:
+                    continue
+                index = specificweaponsallowed.index(weapon)
+                modswanted = (specificweapon[index].get("mods",[]))
+                modsused = (mods.split(" "))
+                if modsused == ['']:
+                    modsused = []
+                modsfiltertype = specificweapon[index].get("modswanted","include")
+                if not (modsfiltertype == "include" and (not modswanted or list(filter(lambda x: x in modsused,modswanted)))) and not (modsfiltertype == "anyof" and len(set([*modswanted,*modsused])) < len([*modswanted,*modsused])) and not (modsfiltertype == "exclude" and len(set([*modswanted,*modsused])) == len([*modswanted,*modsused])) and not (modsfiltertype == "exact" and str(sorted(modswanted)) == str(sorted(modsused))):
+                    continue
+                weapon_kills[name].setdefault(specificweapon[index]["png_name"],{})
+                weapon_kills[name][specificweapon[index]["png_name"]].setdefault(killer,0)
+                weapon_kills[name][specificweapon[index]["png_name"]][killer] += stabcount
+
+        # weapon_kills = {"main":{},"cutoff":{}}
+        # for name,cutoff in timecutoffs.items():
+        #     kill_data = fetch_kill_data(cutoff)
             
-            for weapon, attacker, mods in kill_data:
-                weaponwithmods = " ".join([weapon,mods])
-                if weapon in list(map(lambda x: x["weapon_name"],specificweapon)):
-                    index = list(map(lambda x: x["weapon_name"],specificweapon)).index(weapon)
-                    # include, the mods in the kill data MUST include the mod in the def (default)
-                    # exact, the mods in the kill data MUST equal the mods in the def
-                    # exclude, there must be no common mods bettween mod list and def
-                    modswanted = (specificweapon[index].get("mods",[]))
-                    modsused = (mods.split(" "))
-                    if modsused == ['']:
-                        modsused = []
-                    modsfiltertype = specificweapon[index].get("modswanted","include")
-                    modsmatch = False
-                    # modsfiltertype = "exact"
-                    # print(modsfiltertype,modswanted,modsused, not modswanted,modsfiltertype == "include")
-                    if not (modsfiltertype == "include" and (not modswanted or list(filter(lambda x: x in modsused,modswanted)))) and not (modsfiltertype == "anyof" and len(set([*modswanted,*modsused])) < len([*modswanted,*modsused])) and not (modsfiltertype == "exclude" and len(set([*modswanted,*modsused])) == len([*modswanted,*modsused])) and not (modsfiltertype == "exact" and str(sorted(modswanted)) == str(sorted(modsused))):
-                        # print("continuing")
-                        continue
+        #     for weapon, attacker, mods in kill_data:
+        #         weaponwithmods = " ".join([weapon,mods])
+        #         if weapon in list(map(lambda x: x["weapon_name"],specificweapon)):
+        #             index = list(map(lambda x: x["weapon_name"],specificweapon)).index(weapon)
+        #             # include, the mods in the kill data MUST include the mod in the def (default)
+        #             # exact, the mods in the kill data MUST equal the mods in the def
+        #             # exclude, there must be no common mods bettween mod list and def
+        #             modswanted = (specificweapon[index].get("mods",[]))
+        #             modsused = (mods.split(" "))
+        #             if modsused == ['']:
+        #                 modsused = []
+        #             modsfiltertype = specificweapon[index].get("modswanted","include")
+        #             modsmatch = False
+        #             # modsfiltertype = "exact"
+        #             # print(modsfiltertype,modswanted,modsused, not modswanted,modsfiltertype == "include")
+        #             if not (modsfiltertype == "include" and (not modswanted or list(filter(lambda x: x in modsused,modswanted)))) and not (modsfiltertype == "anyof" and len(set([*modswanted,*modsused])) < len([*modswanted,*modsused])) and not (modsfiltertype == "exclude" and len(set([*modswanted,*modsused])) == len([*modswanted,*modsused])) and not (modsfiltertype == "exact" and str(sorted(modswanted)) == str(sorted(modsused))):
+        #                 # print("continuing")
+        #                 continue
 
-                    # print(list(map(lambda x: x["weapon_name"],specificweapon)).index(weapon))
-                    # print(specificweapon[specificweapon[list(map(lambda x: x["weapon_name"],specificweapon)).index(weapon)])
-                    weapon_kills[name].setdefault(specificweapon[index]["png_name"],[]).append(attacker)
+        #             # print(list(map(lambda x: x["weapon_name"],specificweapon)).index(weapon))
+        #             # print(specificweapon[specificweapon[list(map(lambda x: x["weapon_name"],specificweapon)).index(weapon)])
+        #             weapon_kills[name].setdefault(specificweapon[index]["png_name"],[]).append(attacker)
 
-        def max_kill_count(attacker_list):
-            counts = {}
-            for attacker in attacker_list:
-                counts[attacker] = counts.get(attacker, 0) + 1
-            return max(counts.values(), default=0)
+   
+        # def max_kill_count(attacker_list):
+        #     counts = {}
+        #     for attacker in attacker_list:
+        #         counts[attacker] = counts.get(attacker, 0) + 1
+        #     return max(counts.values(), default=0)
 
-        # if not specificweapon:
-        weapon_names.sort(key=lambda w: max_kill_count(weapon_kills["main"].get(w, [])), reverse=True)
-        weapon_names = list(filter(lambda w: weapon_kills["main"].get(w, False) != False, weapon_names))
+        # # if not specificweapon:
+        # weapon_names.sort(key=lambda w: max_kill_count(weapon_kills["main"].get(w, [])), reverse=True)
+        # weapon_names = list(filter(lambda w: weapon_kills["main"].get(w, False) != False, weapon_names))
         
 
+
+            # if not specificweapon:
+        weapon_names.sort(key=lambda w: max([0,*list(weapon_kills["main"].get(w, {}).values())]), reverse=True)
+        weapon_names = list(filter(lambda w: weapon_kills["main"].get(w, False) != False, weapon_names))
         try:
             font = ImageFont.truetype(FONT_PATH, FONT_SIZE)
         except (OSError, IOError):
@@ -1166,17 +1196,30 @@ if DISCORDBOTLOGSTATS == "1":
 
             counts = {}
             if weapon in weapon_kills["main"]:
-                for attacker in weapon_kills["main"][weapon]:
-                    counts.setdefault(attacker,{"kills":0,"killscutoff":0})
-                    counts[attacker]["kills"] = counts[attacker]["kills"] + 1
+                for attacker,murdercount in weapon_kills["main"][weapon].items():
+                    counts.setdefault(attacker,{"kills":murdercount,"killscutoff":0})
+                    
             if weapon in weapon_kills["cutoff"]:
-                for attacker in weapon_kills["cutoff"][weapon]:
-                    counts[attacker]["killscutoff"] = counts[attacker]["killscutoff"] + 1
+                for attacker,murdercount in weapon_kills["cutoff"][weapon].items():
+                    counts[attacker]["killscutoff"] = murdercount
             if len(counts) == 0:
                 continue
 
+            # counts = {}
+            # if weapon in weapon_kills["main"]:
+            #     for attacker in weapon_kills["main"][weapon]:
+            #         counts.setdefault(attacker,{"kills":0,"killscutoff":0})
+            #         counts[attacker]["kills"] = counts[attacker]["kills"] + 1
+            # if weapon in weapon_kills["cutoff"]:
+            #     for attacker in weapon_kills["cutoff"][weapon]:
+            #         counts[attacker]["killscutoff"] = counts[attacker]["killscutoff"] + 1
+            # if len(counts) == 0:
+            #     continue
+
             sorted_players = sorted(counts.items(), key=lambda item: item[1]["kills"], reverse=True)[:max_players]
             sorted_players_cutoff = sorted(counts.items(), key=lambda item: item[1]["killscutoff"], reverse=True)
+
+            
             sorted_players_cutoff = [item[0] for (item) in sorted_players_cutoff]
             num_display = len(sorted_players)
             text_area_height = (FONT_SIZE + LINE_SPACING) * num_display + 10
@@ -1264,7 +1307,6 @@ if DISCORDBOTLOGSTATS == "1":
                 canvas.paste(panel, (x, y_offset))
             y_offset += row_heights[row]
 
-        # Determine filename
         if specificweapon:
             base_name = "_".join(sorted(weapon_names)).upper()
         else:
@@ -1278,7 +1320,6 @@ if DISCORDBOTLOGSTATS == "1":
         imagescdn[imagetimestamp] = img_bytes
         print("calculated pngleaderboard in", (int(time.time()*100)-now)/100,"seconds")
         return imagetimestamp
-        # Save to disk
         # canvas.save(file_path, format="PNG")
         
 
