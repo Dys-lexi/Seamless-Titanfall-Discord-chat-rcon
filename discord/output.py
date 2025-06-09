@@ -3258,7 +3258,7 @@ def checkifbad(message):
     elif checknono(notifywords, lowered):
         # print("here2",checknono(notifywords, lowered))
         return [1,checknono(notifywords, lowered)]
-    if message.get("name"):
+    if message.get("name") and False:                    #disable name check 
         # print("MESSAGENAME",message["name"])
         name_lowered = message["name"].lower()
         if checknono(banwords, name_lowered):
