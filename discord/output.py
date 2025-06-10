@@ -18,11 +18,27 @@ from datetime import datetime, timedelta,timezone
 import discord
 from discord import Option, OptionChoice
 import requests
+import functools
 from rcon.source import Client
 import sqlite3
 import re
 import aiohttp
 from defs import *
+
+def creatediscordlinkdb():
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS discordlinkdata (
+            uid INTEGER PRIMARY KEY,
+            discordid INTEGER,
+            linktime INTEGER
+        )"""
+    )
+
+    tfdb.commit()
+    tfdb.close()
 
 def discorduidinfodb():
     global colourslink
@@ -288,7 +304,9 @@ USEDYNAMICPFPS = os.getenv("USE_DYNAMIC_PFPS","1")
 PFPROUTE = os.getenv("PFP_ROUTE","https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/")
 FILTERNAMESINMESSAGES = os.getenv("FILTER_NAMES_IN_MESSAGES","usermessagepfp,chat_message,command,tf1command")
 SENDKILLFEED = os.getenv("SEND_KILL_FEED","0")
-OVERRIDEIPFORCDNLEADERBOARD = os.getenv("OVERRIDE_IP_FOR_CDN_LEADERBOARD","use_actual_ip")
+OVERRIDEIPFORCDNLEADERBOARD = os.getenv("OVERRIDE_IP_FOR_CDN_LEADERBOARD","hidden")
+OVVERRIDEROLEREQUIRMENT = os.getenv("OVERRIDE_ROLE_REQUIREMENT","1")
+COOLPERKSROLEREQUIRMENTS = os.getenv("COOL_PERKS_REQUIREMENT","You need something or other to get this")
 ANSICOLOUR = "\x1b[38;5;105m"
 RGBCOLOUR = (135, 135, 255)
 GLOBALIP = 0
@@ -344,6 +362,10 @@ context = {
         "leaderboardchannel":0,
         "wordfilternotifychannel":0
     },
+    "overrideroles" :{
+        "rconrole" : 0,
+        "coolperksrole":0
+    },
     "leaderboardchannelmessages": [],
     "commands": {}
 
@@ -354,10 +376,12 @@ playeruidnamelink()
 joincounterdb()
 matchid()
 discorduidinfodb()
+creatediscordlinkdb()
 specifickilltrackerdb()
 serverchannels = []
 pngcounter = random.randint(0,9)
 imagescdn = {}
+accountlinker = {}
 if not os.path.exists("./data"):
     os.makedirs("./data")
 channel_file = "channels.json"
@@ -397,7 +421,6 @@ async def on_ready():
         serverchannels = category.channels
     if DISCORDBOTLOGSTATS == "1":
         updateleaderboards.start()
-
 
 
 @bot.slash_command(
@@ -447,7 +470,7 @@ if SANCTIONAPIBANKEY != "":
         expiry: Option(str, "The expiry time of the sanction in format yyyy-mm-dd, omit is forever") = None,
     ):
         global context,messageflush
-        if ctx.author.id not in context["RCONallowedusers"]:
+        if not checkrconallowed(ctx.author):
             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
             await ctx.respond("You are not allowed to use this command.", ephemeral=False)
             return
@@ -1502,9 +1525,11 @@ async def help(
         embed.add_field(name="togglejoinnotify", value="Toggle notifying on a player joining / leaving", inline=False)
         embed.add_field(name="bindloggingtocategory", value="Bind logging to a new category (use for first time init)", inline=False)
         # embed.add_field(name="bindleaderboardchannel", value="Bind a channel to the leaderboards", inline=False)
-        embed.add_field(name="rconchangeuserallowed", value="Toggle if a user is allowed to use RCON commands", inline=False)
+        embed.add_field(name="rconchangeuserallowed", value="Toggle if a user is allowed to use RCON commands in dms", inline=False)
         # embed.add_field(name="bindglobalchannel", value="Bind a global channel to the bot (for global messages from servers, like bans)", inline=False)
+        embed.add_field(name="bindrole", value="Bind a role to the bot for other functions, like perkroles and non administrator rcon", inline=False)
         embed.add_field(name="bindchannel", value="Bind a channel to the bot for other functions, like leaderboards, globalmessages", inline=False)
+        embed.add_field(name="linktf2account", value="link your tf2 account to your discord account", inline=False)
         embed.add_field(name="tf2chatcolour",value="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your tf2 name, seperate multiple colours with spaces")
         if SHOULDUSETHROWAI == "1":
             embed.add_field(name="thrownonrcon", value="Throw a player, after being persuasive", inline=False)
@@ -1702,6 +1727,31 @@ def listplayersoverride(data, serverid, statuscode):
 #     await ctx.respond(f"Global channel bound to {channel.name}.", ephemeral=False)
 
 
+@bot.slash_command(name="bindrole", description="Bind a role to the bot.")
+async def bind_global_role(
+    ctx,
+    roletype: Option(
+        str,
+        "The type of role to bind",
+        required=True,
+        choices=list(context["overrideroles"].keys()),
+    ),
+    role: Option(
+        discord.Role, "The role to bind to", required=True
+    ),
+    ):
+    global context
+    guild = ctx.guild
+    if guild.id != context["activeguild"]:
+        await ctx.respond("This guild is not the active guild.", ephemeral=False)
+        return
+    if not checkrconallowed(ctx.author):
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        await ctx.respond("You are not allowed to use this command.", ephemeral=False)
+        return
+    context["overrideroles"][roletype] = role.id
+    savecontext()
+    await ctx.respond(f"Role type {roletype} bound to {role.name}.", ephemeral=False)
 @bot.slash_command(name="bindchannel", description="Bind a channel to the bot.")
 async def bind_global_channel(
     ctx,
@@ -1715,7 +1765,6 @@ async def bind_global_channel(
         discord.TextChannel, "The channel to bind to", required=True
     ),
  
-        
     
     ):
     global context
@@ -1723,7 +1772,8 @@ async def bind_global_channel(
     if guild.id != context["activeguild"]:
         await ctx.respond("This guild is not the active guild.", ephemeral=False)
         return
-    if ctx.author.id not in context["RCONallowedusers"]:
+    if not checkrconallowed(ctx.author):
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
         return
     if channel.id in context["serverchannelidlinks"].values():
@@ -1914,7 +1964,7 @@ async def bind_global_channel(
 
 @bot.slash_command(
     name="rconchangeuserallowed",
-    description="toggle if a user is allowed to use RCON commands",
+    description="toggle if a user is allowed to use RCON commands in dms",
 )
 async def rcon_add_user(ctx, user: Option(discord.User, "The user to add")):
     global context
@@ -1935,6 +1985,18 @@ async def rcon_add_user(ctx, user: Option(discord.User, "The user to add")):
             "Only administrators can add users to the RCON whitelist.", ephemeral=False
         )
 @bot.slash_command(
+    name="linktf2account",
+    description="link your tf2 account to a discord account"
+)
+async def linktfaccount(ctx, tf2accountname: Option(str, "Enter your account name")):
+    global context, oaccountlinker
+    accounts = resolveplayeruidfromdb(tf2accountname,None,True)
+    accountlinker[accounts[0]["uid"]] = {"account":ctx.author.id,"name": accounts[0]["name"],"timerequested":int(time.time()+300),"randomnumber":random.randint(1000,10000),"ctx":ctx}
+    await ctx.respond(f"Trying to link {ctx.author.nick if hasattr(ctx.author, 'nick') and ctx.author.nick is not None else ctx.author.display_name} to account {accountlinker[accounts[0]['uid']]['name']} type '!{accountlinker[accounts[0]['uid']]['randomnumber']}' in any server chat to link in next 5 mins",ephemeral = False)
+    
+    
+
+@bot.slash_command(
     name="tf2chatcolour",
     description="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your tf2 name"
 )
@@ -1942,6 +2004,11 @@ async def show_color(ctx, colour: Option(str, "Enter a normal/hex color")):
     global colourslink
     colourslist = []
     colours = colour
+    if len (colours.split(" ")) > 1:
+        if not checkrconallowed(ctx.author,"coolperksrole"):
+            await asyncio.sleep (SLEEPTIME_ON_FAILED_COMMAND)
+            await ctx.respond(f"You do not have the coolperksrole, so cannot do multiple colours. to get it: {COOLPERKSROLEREQUIRMENTS}", ephemeral=False)
+            return
     for colour in colours.split(" "):
         # print(colour)
         if not re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour) and colour.lower() not in CSS_COLOURS.keys() and colour != "reset":
@@ -3133,7 +3200,7 @@ def messageloop():
                                 + messagewidget[endpos + 1 :]
                             )
                     
-                    messageadders = {"pfp":message["metadata"].get("pfp",None),"name":playername,"type":message["metadata"]["type"],"uid":message["metadata"].get("uid",None),"originalname":str(message.get("player",False))}
+                    messageadders = {"pfp":message["metadata"].get("pfp",None),"name":playername,"type":message["metadata"]["type"],"uid":message["metadata"].get("uid",None),"originalname":str(message.get("player",False)),"meta":message.get("metadata",{}),"originalmessage":message.get("messagecontent",False)}
                     if message["metadata"]["type"] == "usermessagepfp" and USEDYNAMICPFPS == "1":
                         message["type"] = 3
                     # else: messageadders = {"type":message["metadata"]["type"]}
@@ -3169,6 +3236,7 @@ def messageloop():
                     print("sending output",json.dumps(output, indent=4))
                 for serverid in output.keys():
                     for key,message in enumerate(output[serverid]):
+                        asyncio.run_coroutine_threadsafe(checkverify(message),bot.loop)
                         isbad = checkifbad(message)
                         if isbad[0]:
                             print("horrible message found")
@@ -3230,6 +3298,41 @@ def messageloop():
             traceback.print_exc()
             print("bot not ready", e)
         time.sleep(0.1)
+
+async def checkverify(message):
+    global accountlinker
+    if len(accountlinker.keys()) == 0:
+        return
+
+    uid = message.get("uid", None)
+    name = message.get("originalname", None)
+    content = message.get("originalmessage", None)
+    if not uid or not name or not content:
+        return
+    verify_data = accountlinker.get(uid, None)
+    if not verify_data:
+        return
+    if str(content).strip() == "!"+str(verify_data["randomnumber"]) and time.time() < verify_data["timerequested"]:
+        tfdb = sqlite3.connect("./data/tf2helper.db")
+        c = tfdb.cursor()
+
+        c.execute(
+            """INSERT INTO discordlinkdata (uid, discordid, linktime)
+               VALUES (?, ?, ?)
+               ON CONFLICT(uid) DO UPDATE SET discordid=excluded.discordid, linktime=excluded.linktime
+            """,
+            (uid, verify_data["account"], int(time.time()))
+        )
+
+        tfdb.commit()
+        tfdb.close()
+        await verify_data["ctx"].followup.send(
+    f"linked <@{verify_data['account']}> to  **{name}** (UID `{uid}`)"
+)
+
+        del accountlinker[uid]
+    
+    
 
 def checkifbad(message):
     global context
@@ -3596,11 +3699,12 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride,
         else:
             await reactomessages([ctx.id], serverid, "🔴"   )
 
-def checkrconallowed(author):
+def checkrconallowed(author,typeof = "rconrole"):
     global context
-    if author.id not in context["RCONallowedusers"]:
-        return False
-    return True
+    # if author.id not in context["RCONallowedusers"]:
+    #     return False
+    if ( typeof == "rconrole" and author.id in context["RCONallowedusers"]) or(hasattr(author, "roles") and (( typeof == "rconrole" and author.guild_permissions.administrator) or (typeof == "coolperksrole" and OVVERRIDEROLEREQUIRMENT == "1") or functools.reduce(lambda a, x: a or x in list(map (lambda w: w.id ,author.roles)) ,[context["overrideroles"][typeof]] if isinstance(context["overrideroles"][typeof], int) else context["overrideroles"][typeof] ,False))):
+        return True
 # command slop
 
 def create_dynamic_command(command_name, description = None, rcon = False, parameters = [], commandparaminputoverride = {}, outputfunc=None,regularconsolecommand=False):
@@ -3697,7 +3801,6 @@ if SHOULDUSETHROWAI == "1":
     print("ai throw enabled")
     lasttimethrown = {"specificusers":{},"globalcounter":0,"passes":{}}
     aibotmessageresponses = {}
-    import requests
     @bot.slash_command(name="thrownonrcon", description="non rcon throw command")
     async def getuid(
         ctx,
