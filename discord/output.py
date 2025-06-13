@@ -2028,7 +2028,7 @@ async def linktfaccount(ctx, tf2accountname: Option(str, "Enter your account nam
     name="tf2ingamechatcolour",
     description="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your tf2 name"
 )
-async def show_color(ctx, colour: Option(str, "Enter a normal/hex color, or 'reset' to reset")):
+async def show_color_what(ctx, colour: Option(str, "Enter a normal/hex color, or 'reset' to reset")):
     global colourslink
     colourslist = []
     colours = colour
@@ -2078,7 +2078,7 @@ async def show_color(ctx, colour: Option(str, "Enter a normal/hex color, or 'res
     name="discordtotf2chatcolour",
     description="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your tf2 name"
 )
-async def show_color(ctx, colour: Option(str, "Enter a normal/hex color, or 'reset' to reset")):
+async def show_color_why(ctx, colour: Option(str, "Enter a normal/hex color, or 'reset' to reset")):
     global colourslink
     colourslist = []
     colours = colour
