@@ -355,7 +355,6 @@ context = {
     "serveridnamelinks": {},
     "serverchannelidlinks": {},
     "istf1server": {},
-    "RCONallowedusers": [],
     "overridechannels" : {
         "globalchannel":0,
         "commandlogchannel":0,
@@ -365,6 +364,11 @@ context = {
     "overrideroles" :{
         "rconrole" : 0,
         "coolperksrole":0
+    },
+    "overriderolesuids" :
+    {
+        "rconrole":[],
+        "coolperksrole":[]
     },
     "leaderboardchannelmessages": [],
     "commands": {}
@@ -413,15 +417,31 @@ bot = discord.Bot(intents=intents)
 
 @bot.event
 async def on_ready():
+    global context
     print(f"{bot.user} has connected to Discord!")
     if context["logging_cat_id"] != 0:
         # get all channels in the category and store in serverchannels
         guild = bot.get_guild(context["activeguild"])
         category = guild.get_channel(context["logging_cat_id"])
         serverchannels = category.channels
+        await updateroles()
     if DISCORDBOTLOGSTATS == "1":
         updateleaderboards.start()
+    
 
+async def updateroles():
+    guild = bot.get_guild(context["activeguild"])
+    for roletype,potentialrole in context["overrideroles"].items():
+            if isinstance(potentialrole, int):
+                potentialrole = [potentialrole]
+            uids = []
+            for role in potentialrole:
+                if not role:
+                    continue
+                # context["overriderolesuids"][roletype]
+                uids.extend ( [member.id for member in guild.get_role(role).members])
+            context["overriderolesuids"][roletype] = uids
+    savecontext()
 
 @bot.slash_command(
     name="bindloggingtocategory",
@@ -1525,7 +1545,7 @@ async def help(
         embed.add_field(name="togglejoinnotify", value="Toggle notifying on a player joining / leaving", inline=False)
         embed.add_field(name="bindloggingtocategory", value="Bind logging to a new category (use for first time init)", inline=False)
         # embed.add_field(name="bindleaderboardchannel", value="Bind a channel to the leaderboards", inline=False)
-        embed.add_field(name="rconchangeuserallowed", value="Toggle if a user is allowed to use RCON commands in dms", inline=False)
+        # embed.add_field(name="rconchangeuserallowed", value="Toggle if a user is allowed to use RCON commands in dms", inline=False)
         # embed.add_field(name="bindglobalchannel", value="Bind a global channel to the bot (for global messages from servers, like bans)", inline=False)
         embed.add_field(name="bindrole", value="Bind a role to the bot for other functions, like perkroles and non administrator rcon", inline=False)
         embed.add_field(name="bindchannel", value="Bind a channel to the bot for other functions, like leaderboards, globalmessages", inline=False)
@@ -1751,6 +1771,7 @@ async def bind_global_role(
         return
     context["overrideroles"][roletype] = role.id
     savecontext()
+    await updateroles()
     await ctx.respond(f"Role type {roletype} bound to {role.name}.", ephemeral=False)
 @bot.slash_command(name="bindchannel", description="Bind a channel to the bot.")
 async def bind_global_channel(
@@ -1962,28 +1983,28 @@ async def bind_global_channel(
 #     # else:
 #     #     await ctx.respond("Command response timed out.", ephemeral=False)
 
-@bot.slash_command(
-    name="rconchangeuserallowed",
-    description="toggle if a user is allowed to use RCON commands in dms",
-)
-async def rcon_add_user(ctx, user: Option(discord.User, "The user to add")):
-    global context
-    # return
-    # check if the user is an admin on the discord
-    if user.id in context["RCONallowedusers"] and ctx.author.guild_permissions.administrator:
-        context["RCONallowedusers"].remove(user.id)
-        savecontext()
-        await ctx.respond(
-            f"User {user.name} removed from RCON whitelist.", ephemeral=False
-        )
-    elif ctx.author.guild_permissions.administrator:
-        context["RCONallowedusers"].append(user.id)
-        savecontext()
-        await ctx.respond(f"User {user.name} added to RCON whitelist.", ephemeral=False)
-    else:
-        await ctx.respond(
-            "Only administrators can add users to the RCON whitelist.", ephemeral=False
-        )
+# @bot.slash_command(
+#     name="rconchangeuserallowed",
+#     description="toggle if a user is allowed to use RCON commands in dms",
+# )
+# async def rcon_add_user(ctx, user: Option(discord.User, "The user to add")):
+#     global context
+#     # return
+#     # check if the user is an admin on the discord
+#     if user.id in context["RCONallowedusers"] and ctx.author.guild_permissions.administrator:
+#         context["RCONallowedusers"].remove(user.id)
+#         savecontext()
+#         await ctx.respond(
+#             f"User {user.name} removed from RCON whitelist.", ephemeral=False
+#         )
+#     elif ctx.author.guild_permissions.administrator:
+#         context["RCONallowedusers"].append(user.id)
+#         savecontext()
+#         await ctx.respond(f"User {user.name} added to RCON whitelist.", ephemeral=False)
+#     else:
+#         await ctx.respond(
+#             "Only administrators can add users to the RCON whitelist.", ephemeral=False
+#         )
 @bot.slash_command(
     name="linktf2account",
     description="link your tf2 account to a discord account"
@@ -2204,6 +2225,8 @@ async def on_message(message):
                 {
                     "id": message.id,
                     "content": f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}[38;5;254m{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}",
+                    "teamoverride": 4,
+                    "isteammessage": False
                     # "dotreacted": dotreacted
                 }
             )
@@ -2344,6 +2367,7 @@ def recieveflaskprintrequests():
                     str(command["id"])
                     for command in discordtotitanfall[serverid]["commands"]
                 ]
+                textsv2 = {value["id"]:{"content":value["content"],"teamoverride":value.get("teamoverride",4),"isteammessage":value.get("isteammessage",False)} for  value in discordtotitanfall[serverid]["messages"]}
         
                 discordtotitanfall[serverid]["messages"] = []
                 discordtotitanfall[serverid]["commands"] = []
@@ -2359,6 +2383,7 @@ def recieveflaskprintrequests():
                 # print((texts), (textvalidation))
                 return {
                     "texts": {a: b for a, b in zip(textvalidation,texts)},
+                    "textsv2":textsv2,
                     # "texts": "%&%&".join(texts),
                     "commands": {a: b for a, b in zip( sendingcommandsids,sendingcommands)},
                     # "textvalidation": "%&%&".join(textvalidation),
@@ -3703,7 +3728,7 @@ def checkrconallowed(author,typeof = "rconrole"):
     global context
     # if author.id not in context["RCONallowedusers"]:
     #     return False
-    if ( typeof == "rconrole" and author.id in context["RCONallowedusers"]) or(hasattr(author, "roles") and (( typeof == "rconrole" and author.guild_permissions.administrator) or (typeof == "coolperksrole" and OVVERRIDEROLEREQUIRMENT == "1") or functools.reduce(lambda a, x: a or x in list(map (lambda w: w.id ,author.roles)) ,[context["overrideroles"][typeof]] if isinstance(context["overrideroles"][typeof], int) else context["overrideroles"][typeof] ,False))):
+    if (not hasattr(author, "roles") and  author.id in context["overriderolesuids"][typeof]) or(hasattr(author, "roles") and (( typeof == "rconrole" and author.guild_permissions.administrator) or (typeof == "coolperksrole" and OVVERRIDEROLEREQUIRMENT == "1") or functools.reduce(lambda a, x: a or x in list(map (lambda w: w.id ,author.roles)) ,[context["overrideroles"][typeof]] if isinstance(context["overrideroles"][typeof], int) else context["overrideroles"][typeof] ,False))):
         return True
 # command slop
 

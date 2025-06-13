@@ -92,6 +92,10 @@ struct {
 	table playermodels
 } lastmodels
 
+table<string,float> playerrespawn = {
+	
+}
+
 // maps shamelessly stolen fvnk
 
 table<string, string> MAP_NAME_TABLE = {
@@ -124,6 +128,7 @@ table<string, string> MAP_NAME_TABLE = {
 
 
 void function discordloggerinit() {
+
 	serverdetails.matchid = GetUnixTimestamp()+"_" + GetConVarString("discordloggingserverid")
 	SetConVarString("discordloggingmatchid",serverdetails.matchid)
 	registeredfunctions.funcs = getregisteredfunctions()
@@ -226,6 +231,14 @@ void function playerstabbedmodelsaver( entity player, entity attacker, var damag
 	// table newmodel
 	// newmodel["pfp"] <- player.GetModelName() + ""
 	lastmodels.playermodels[player.GetUID()] <- player.GetModelName() + ""
+	float respawntime = Time()
+	int methodOfDeath = DamageInfo_GetDamageSourceIdentifier( damageInfo )
+	float replayLength = CalculateLengthOfKillReplay( player, methodOfDeath )
+	bool shouldDoReplay = Replay_IsEnabled() && KillcamsEnabled() && IsValid( attacker ) && ShouldDoReplay( player, attacker, replayLength, methodOfDeath )
+	if (shouldDoReplay){
+		respawntime += replayLength
+	}
+	playerrespawn[player.GetUID()+""] <- respawntime+1
 }
 
 ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
@@ -415,8 +428,8 @@ void function stoprequests(){
 	NSHttpRequest(request, onSuccess, onFailure)
 }
 
-void function discordlogsendmessage(string message){
-	Chat_ServerBroadcast(message,false)
+void function discordlogsendmessage(string message, int team = 4, bool isteam = false){
+	thread discordlogsendmessagemakesureissent(message,team,isteam)
 	// int trys = 0
 	// array <entity> players = GetPlayerArray()
 	// array <entity> playersdone
@@ -438,7 +451,41 @@ void function discordlogsendmessage(string message){
 	// }
 
 }
+void function discordlogsendmessagemakesureissent(string message, int team = 4, bool isteam = false){
+	array <entity> players = GetPlayerArray()
+	array <entity> shouldsend = []
+	foreach (entity player in players){
+		if (player.GetTeam() == team || team == 4){
+			shouldsend.append(player)
+		}
+	}
+	while (shouldsend.len() > 0){
+		array <int> removeindexes = []
+		for (int i = 0; i < shouldsend.len() ; i++){
+			if (!IsValid(shouldsend[i]) ){
+				removeindexes.append(i)
+			}
+			else if (IsAlive(shouldsend[i]) ||  Time() > playerrespawn[shouldsend[i].GetUID() +""] ) {
+				
+				removeindexes.append(i)
+				if (!isteam){
+				Chat_ServerPrivateMessage(shouldsend[i],message,false,false)}
+				else{
+					Chat_ServerPrivateMessage(shouldsend[i],"\x1b[111m[TEAM] "+message,false,false)
+				}
 
+			}
+			// Chat_ServerBroadcast("alive" + IsAlive(shouldsend[i]) + "time" + Time() + "desiredtime" +shouldsend[i].GetPlayerName())
+		}
+		int offset = 0
+		foreach (int removeindex in removeindexes){
+			shouldsend.remove(removeindex-offset)
+			offset +=1
+		}
+		WaitFrame()
+	}
+
+}
 
 void function DiscordClientMessageinloop()
 {
@@ -548,7 +595,8 @@ void function DiscordClientMessageinloop()
 		table commands = expect table(messagess["commands"])
 		// string texts = expect string(messagess["texts"])
 		check.timeof = expect string(messagess["time"])
-		table texts = expect table(messagess["texts"])
+		// table texts = expect table(messagess["texts"])
+		table textsv2 = expect table(messagess["textsv2"])
 		// string textvalidation = expect string(messagess["textvalidation"])
 		// array<string> splittextvalidation = split(textvalidation,"%&%&")
 		// array<string> splittexts = split(texts,"%&%&")
@@ -580,17 +628,32 @@ void function DiscordClientMessageinloop()
 		// {
 		// 	return
 		// }
-		foreach (value, key in texts){
-			string validation = expect string(value)
-			string text = expect string(key)
+		// foreach (value, key in texts){
+		// 	string validation = expect string(value)
+		// 	string text = expect string(key)
+		// 	print("[DiscordLogger] MESSAGE "+text)
+		// 	check.textcheck.append(validation)
+		// 	thread discordlogsendmessage(text)
+		// 	// foreach (entity player in GetPlayerArray()) {
+		// 	// 	Chat_PrivateMessage(player,player,"\x1b[38;5;105m"+text,false)
+		// 	// }
+
+		// }
+				foreach (key, value in textsv2){
+			table textw = expect table(value)
+			string text = expect string(textw["content"])
+			int teamoverride = expect int(textw["teamoverride"])
+			bool isteammessage = expect bool(textw["isteammessage"])
+			string validation = expect string(key)
 			print("[DiscordLogger] MESSAGE "+text)
 			check.textcheck.append(validation)
-			thread discordlogsendmessage(text)
+			thread discordlogsendmessage(text,teamoverride,isteammessage)
 			// foreach (entity player in GetPlayerArray()) {
 			// 	Chat_PrivateMessage(player,player,"\x1b[38;5;105m"+text,false)
 			// }
 
 		}
+		
 
 	}
 
