@@ -45,16 +45,24 @@ def discorduidinfodb():
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
     # c.execute("DROP TABLE IF EXISTS discorduiddata")
+    # c.execute("DELETE FROM discorduiddata WHERE choseningamecolour = 'reset'")
     c.execute(
         """CREATE TABLE IF NOT EXISTS discorduiddata (
             discorduid INTEGER PRIMARY KEY,
-            chosencolour STRING
+            chosencolour TEXT,
+            choseningamecolour TEXT
             )"""
     )
-    c.execute("SELECT discorduid, chosencolour FROM discorduiddata")
+    # c.execute("ALTER TABLE discorduiddata ADD COLUMN choseningamecolour TEXT")
+    c.execute("SELECT discorduid, chosencolour,choseningamecolour FROM discorduiddata")
     output = c.fetchall()
-    colourslink = {x[0]:list(map(lambda y: eval(y), x[1].split("|"))) if x[1] != "reset" else RGBCOLOUR  for x in output}
-    print("COLOURSLINK",colourslink) 
+    print(output)
+    colourslink = {x[0]:{"discordcolour":list(map(lambda y: eval(y), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [RGBCOLOUR['DISCORD']] ,"ingamecolour":list(map(lambda y: eval(y), x[2].split("|"))) if x[2] is not None else False}  for x in output}
+    
+    c.execute("SELECT discorduid, choseningamecolour FROM discorduiddata")
+    # output = c.fetchall()
+    # colourslink = {x[0]:list(map(lambda y: eval(y), x[1].split("|"))) if x[1] != "reset" else RGBCOLOUR['DISCORD']  for x in output}
+    # print("COLOURSLINK",colourslink) 
     tfdb.commit()
     tfdb.close()
 def specifickilltrackerdb():
@@ -257,7 +265,7 @@ messageflush = []
 messageflushnotify = []
 lastmessage = 0
 Ijuststarted = time.time()
-
+discorduidnamelink = {}
 reactedyellowtoo = []
 
 
@@ -308,7 +316,7 @@ OVERRIDEIPFORCDNLEADERBOARD = os.getenv("OVERRIDE_IP_FOR_CDN_LEADERBOARD","hidde
 OVVERRIDEROLEREQUIRMENT = os.getenv("OVERRIDE_ROLE_REQUIREMENT","1")
 COOLPERKSROLEREQUIRMENTS = os.getenv("COOL_PERKS_REQUIREMENT","You need something or other to get this")
 ANSICOLOUR = "\x1b[38;5;105m"
-RGBCOLOUR = (135, 135, 255)
+RGBCOLOUR = {"DISCORD":(135, 135, 255),"FRIENDLY":(80, 229, 255),"ENEMY":(213, 80, 16),"NEUTRAL":"[110m"}
 GLOBALIP = 0
 if OVERRIDEIPFORCDNLEADERBOARD == "use_actual_ip":
     GLOBALIP ="http://"+requests.get('https://api.ipify.org').text+":34511"
@@ -1550,7 +1558,8 @@ async def help(
         embed.add_field(name="bindrole", value="Bind a role to the bot for other functions, like perkroles and non administrator rcon", inline=False)
         embed.add_field(name="bindchannel", value="Bind a channel to the bot for other functions, like leaderboards, globalmessages", inline=False)
         embed.add_field(name="linktf2account", value="link your tf2 account to your discord account", inline=False)
-        embed.add_field(name="tf2chatcolour",value="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your tf2 name, seperate multiple colours with spaces")
+        embed.add_field(name="discordtotf2chatcolour",value="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your discord -> tf2 name, seperate multiple colours with spaces")
+        embed.add_field(name="tf2ingamechatcolour",value="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your in game tf2 name, seperate multiple colours with spaces")
         if SHOULDUSETHROWAI == "1":
             embed.add_field(name="thrownonrcon", value="Throw a player, after being persuasive", inline=False)
         if SANCTIONAPIBANKEY != "":
@@ -2015,10 +2024,8 @@ async def linktfaccount(ctx, tf2accountname: Option(str, "Enter your account nam
     accountlinker[accounts[0]["uid"]] = {"account":ctx.author.id,"name": accounts[0]["name"],"timerequested":int(time.time()+300),"randomnumber":random.randint(1000,10000),"ctx":ctx}
     await ctx.respond(f"Trying to link {ctx.author.nick if hasattr(ctx.author, 'nick') and ctx.author.nick is not None else ctx.author.display_name} to account {accountlinker[accounts[0]['uid']]['name']} type '!{accountlinker[accounts[0]['uid']]['randomnumber']}' in any server chat to link in next 5 mins",ephemeral = False)
     
-    
-
 @bot.slash_command(
-    name="tf2chatcolour",
+    name="tf2ingamechatcolour",
     description="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your tf2 name"
 )
 async def show_color(ctx, colour: Option(str, "Enter a normal/hex color, or 'reset' to reset")):
@@ -2051,19 +2058,70 @@ async def show_color(ctx, colour: Option(str, "Enter a normal/hex color, or 'res
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
     c.execute(
-        "INSERT OR REPLACE INTO discorduiddata (discorduid, chosencolour) VALUES (?, ?)",
-        (ctx.author.id, str(rgba))
+        "INSERT OR REPLACE INTO discorduiddata (discorduid, choseningamecolour) VALUES (?, ?)",
+        (ctx.author.id, str(rgba) if rgba != "reset" else "'reset'")
     )
 
     tfdb.commit()
     tfdb.close()
     
+    if ctx.author.id not in colourslink.keys():
+        colourslink[ctx.author.id] = {}
     if rgba == "reset":
-        colourslink[ctx.author.id] = RGBCOLOUR
-        await ctx.respond(f"reset colour to default")
+        colourslink[ctx.author.id]["ingamecolour"] = False
+        await ctx.respond(f"reset ingame colour to default")
         return
-    colourslink[ctx.author.id] = colourslist
-    await ctx.respond(f"Set colour to {', '.join(map(str, colourslist))}")
+    colourslink[ctx.author.id]["ingamecolour"] = colourslist
+    await ctx.respond(f"Set ingame colour to {', '.join(map(str, colourslist))}")
+
+@bot.slash_command(
+    name="discordtotf2chatcolour",
+    description="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your tf2 name"
+)
+async def show_color(ctx, colour: Option(str, "Enter a normal/hex color, or 'reset' to reset")):
+    global colourslink
+    colourslist = []
+    colours = colour
+
+    if not checkrconallowed(ctx.author,"coolperksrole"):
+        await asyncio.sleep (SLEEPTIME_ON_FAILED_COMMAND)
+        await ctx.respond(f"You do not have the coolperksrole, so cannot have more than one colour :) to get it: {COOLPERKSROLEREQUIRMENTS}", ephemeral=False)
+        return
+    for colour in colours.split(" "):
+        # print(colour)
+        if not re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour) and colour.lower() not in CSS_COLOURS.keys() and colour != "reset":
+            await ctx.respond("Please enter a **valid** hex color (e.g: '#1A2B3C'), or a valid normal colour, (e.g: 'red')", ephemeral=False)
+            return
+        if re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour):
+            r = int(colour[1:3], 16)
+            g = int(colour[3:5], 16)
+            b = int(colour[5:7], 16)
+            rgba = (r, g, b)
+        elif colour.lower()  in CSS_COLOURS.keys():
+            rgba = CSS_COLOURS[colour]
+        else:
+            rgba = "reset"
+            break
+        colourslist.append(rgba)
+        rgba = "|".join(map(str, colourslist))
+
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    c.execute(
+        "INSERT OR REPLACE INTO discorduiddata (discorduid, chosencolour) VALUES (?, ?)",
+        (ctx.author.id, str(rgba) if rgba != "reset" else "'reset'")
+    )
+
+    tfdb.commit()
+    tfdb.close()
+    if ctx.author.id not in colourslink.keys():
+        colourslink[ctx.author.id] = {}
+    if rgba == "reset":
+        colourslink[ctx.author.id]["discordcolour"] = RGBCOLOUR['DISCORD']
+        await ctx.respond(f"reset discord -> tf2 colour to default")
+        return
+    colourslink[ctx.author.id]["discordcolour"] = colourslist
+    await ctx.respond(f"Set discord -> tf2 colour to {', '.join(map(str, colourslist))}")
 
 # lifted straight from my chat colours thing
 def gradient(message,colours, maxlen):
@@ -2198,33 +2256,25 @@ async def on_message(message):
         initdiscordtotitanfall(serverid)
         if (
             len(
-                f"{ANSICOLOUR}{message.author.nick if message.author.nick is not None else message.author.display_name}: [38;5;254m{message.content}"
+                f"{ANSICOLOUR}{message.author.nick if message.author.nick is not None else message.author.display_name}: {RGBCOLOUR['NEUTRAL']}{message.content}"
             )
             > 254 - bool(context["istf1server"].get(serverid,False))*130
         ):
             await message.channel.send("Message too long, cannot send.")
             return
-        authornick = 2
-        counter = 0
-        while authornick == 2 and counter < len([RGBCOLOUR,*colourslink.get(message.author.id,[RGBCOLOUR])]):
-            # print(counter)
-            authornick = gradient(message.author.nick if message.author.nick is not None else message.author.display_name,[RGBCOLOUR,*colourslink.get(message.author.id,[RGBCOLOUR])[:len([RGBCOLOUR,*colourslink.get(message.author.id,[RGBCOLOUR])])-counter]], 254 -len( f": [38;5;254m{message.content}")- bool(context["istf1server"].get(serverid,False))*130)
-            counter +=1
-        if authornick == 2:
-            print("MESSAGE TOO LONG IN A WEIRD WAY, BIG PANIC")
-            authornick =f"{RGBCOLOUR}{message.author.nick if message.author.nick is not None else message.author.display_name}"
+        authornick = computeauthornick(message.author.nick if message.author.nick is not None else message.author.display_name,message.author.id,message.content,serverid)
         # dotreacted = None
         # if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 45:
         #     dotreacted = "🔴"
         # elif discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5:
         #     dotreacted = "🟡" 
         if message.content != "": #and not context["istf1server"].get(serverid,False):
-            print(len(f"{authornick}: [38;5;254m{message.content}"),f"{authornick}: [38;5;254m{message.content}\033[0m")
-            # print(len(f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}[38;5;254m{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}"))
+            print(len(f"{authornick}: {RGBCOLOUR['NEUTRAL']}{message.content}"),f"{authornick}: {RGBCOLOUR['NEUTRAL']}{message.content}\033[0m")
+            # print(len(f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}{RGBCOLOUR['NEUTRAL']}{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}"))
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": message.id,
-                    "content": f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}[38;5;254m{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}",
+                    "content": f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}{RGBCOLOUR['NEUTRAL']}{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}",
                     "teamoverride": 4,
                     "isteammessage": False
                     # "dotreacted": dotreacted
@@ -2239,10 +2289,63 @@ async def on_message(message):
             image = await createimage(message)
             await returncommandfeedback(*sendrconcommand(serverid,f"!sendimage {' '.join(image)}"), message, iscommandnotmessage = False)
         # messagestosend[serverid].append(
-        #     f"{message.author.nick if message.author.nick is not None else message.author.display_name}: [38;5;254m{message.content}"
+        #     f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {RGBCOLOUR['NEUTRAL']}{message.content}"
         # )
-
-
+def colourmessage(message,serverid):
+    global discorduidnamelink
+    # print("e")
+    if not message.get("metadata",False) or not  message["metadata"].get("uid",False) or not message["metadata"].get("type",False) in ["usermessagepfp","chat_message"]:
+        return False
+    # print("ew")
+    discorduid = discorduidnamelink.get(message["metadata"]["uid"],False)
+    if not discorduid:
+        specifickillbase = sqlite3.connect("./data/tf2helper.db")
+        c = specifickillbase.cursor()
+        c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (message["metadata"]["uid"],))
+        link = c.fetchone()
+        discorduidnamelink[message["metadata"]["uid"]] = link[0] if link[0] else False
+        if not link or  not link[0] and not message["metadata"]["blockedmessage"]:
+            # print("e")
+            return False
+        elif not link[0] :
+            return {"both":f"{RGBCOLOUR['NEUTRAL']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
+        discorduid = link[0]
+    if not colourslink.get(discorduid,{}).get("ingamecolour",False) and message["metadata"]["blockedmessage"]:
+        # print("edwqdqw")
+        return {"both":f"{RGBCOLOUR['NEUTRAL']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
+    elif not colourslink.get(discorduid,{}).get("ingamecolour",False):
+        # print("e")
+        return False
+        
+    authornicks = {}
+    # print(message["metadata"].get("type","blegh"))
+    # print(json.dumps(message))
+    # print(colourslink[discorduid])
+    if message["metadata"]["teamtype"] == "not team":
+        authornicks["friendly"] = computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"FRIENDLY","ingamecolour",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254)
+        authornicks["enemy"]= computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"ENEMY","ingamecolour",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254)
+    else:
+        authornicks["friendly"] = computeauthornick(message["player"],discorduid,"[111m[TEAM] " +message["messagecontent"],serverid,"FRIENDLY","ingamecolour",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254)
+    output = {}
+    for key, value in authornicks.items():
+        output[key] = f"{'[111m[TEAM] ' if message['metadata']['teamtype'] != 'not team' else ''}{value}: {RGBCOLOUR['NEUTRAL']}{message['messagecontent']}"
+    print(output)
+    if not message["metadata"]["blockedmessage"]:
+        # str(message["metadata"]["uid"]),"forceblock":False
+        output["uid"] = str(message["metadata"]["uid"])
+        output["forceblock"] = True
+    return {**output,"messageteam":message["metadata"]["teamint"]}
+def computeauthornick (name,idauthor,content,serverid,rgbcolouroverride = "DISCORD",colourlinksovverride = "discordcolour",lenoverride = 254):
+    authornick = 2
+    counter = 0
+    while authornick == 2 and counter < len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])]):
+        # print(counter)
+        authornick = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {RGBCOLOUR['NEUTRAL']}{content}")- bool(context["istf1server"].get(serverid,False))*130)
+        counter +=1
+    if authornick == 2:
+        print("MESSAGE TOO LONG IN A WEIRD WAY, BIG PANIC")
+        authornick =f"{RGBCOLOUR[rgbcolouroverride]}{name}"
+    return authornick
 # @bot.slash_command(name="bindloggingtochannel", description="Bind logging to an existing channel")
 # async def bind_logging_to_channel(ctx, servername: str):
 #     global context
@@ -2256,6 +2359,30 @@ async def on_message(message):
 def recieveflaskprintrequests():
     app = Flask(__name__)
 
+    @app.route("/playerdetails", methods=["POST"])    
+    def getplayerdetails():
+        global context,discorduidnamelink
+        data = request.get_json()
+        if data["password"] != SERVERPASS and SERVERPASS != "*":
+            print("invalid password used on playerdetails")
+        discorduid = discorduidnamelink.get(data["uid"],False)
+        if not discorduid:
+            specifickillbase = sqlite3.connect("./data/tf2helper.db")
+            c = specifickillbase.cursor()
+            c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (data["uid"],))
+            link = c.fetchone()
+            if not link:
+                return {"notfound",True}
+            if link[0]:
+                discorduidnamelink[data["uid"]] = link[0] if link[0] else False
+                discorduid = link[0]
+            else:
+                return {"notfound",True}
+        # if colourslink[str(data["uid"])]:
+        print(colourslink[596713937626595382])
+        print({"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",False) != False},"uid":data["uid"]})
+        return {"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",False) != False},"uid":data["uid"]}
+        # return output
     @app.route("/getrunningservers", methods=["POST"])
     def getrunningservers():
         global discordtotitanfall
@@ -2391,7 +2518,7 @@ def recieveflaskprintrequests():
                 }
             time.sleep(0.2)
         stoprequestsforserver[serverid] = False
-        return {"texts": {}, "commands": {}, "time": "0"}
+        return {"texts": {}, "commands": {}, "time": "0","textsv2":{}}
     @app.route("/players/<playeruid>",methods=["GET"])
     def getplayerstats(playeruid):
         specifickillbase = sqlite3.connect("./data/tf2helper.db")
@@ -2574,9 +2701,9 @@ def recieveflaskprintrequests():
             elif data["metadata"]["type"] == "disconnect":
                 onplayerleave(data["metadata"]["uid"],data["serverid"])
         if addtomessageflush:
-            print(newmessage)
+            # print(json.dumps(newmessage,indent =4))
             messageflush.append(newmessage)     
-
+            returnable =  colourmessage(newmessage,data["serverid"])
         messagecounter += 1
         lastmessage = time.time()
 
@@ -2589,7 +2716,8 @@ def recieveflaskprintrequests():
             # Get guild and category
             guild = bot.get_guild(context["activeguild"])
             category = guild.get_channel(context["logging_cat_id"])
-
+        if returnable:
+            return {"message": "success",**returnable}
         return {"message": "success"}
 
     serve(app, host="0.0.0.0", port=3451, threads=60)  # prod
@@ -3261,6 +3389,8 @@ def messageloop():
                     print("sending output",json.dumps(output, indent=4))
                 for serverid in output.keys():
                     for key,message in enumerate(output[serverid]):
+                        # extra functions hooked onto messages
+                        # asyncio.run_coroutine_threadsafe(colourmessage(message,serverid),bot.loop)
                         asyncio.run_coroutine_threadsafe(checkverify(message),bot.loop)
                         isbad = checkifbad(message)
                         if isbad[0]:

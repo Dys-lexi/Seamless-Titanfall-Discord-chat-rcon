@@ -95,6 +95,11 @@ struct {
 table<string,float> playerrespawn = {
 	
 }
+struct {
+	table<string,table> players
+	bool hasfailedandneedstorequestagain = false
+	array<string> messagespassed = []
+} blockedplayers
 
 // maps shamelessly stolen fvnk
 
@@ -184,12 +189,15 @@ void function discordloggerinit() {
 	// print(serverdetails.Servername)
 }
 
+
 void function LogConnect( entity player )
 {
+	thread checkshouldblockmessages(player)
 	if(!IsValid(player))
 	{
 		return
 	}
+	
 	else if (Time() < 30){ // && serverdetails.currentlyplaying.find(player.GetUID().tostring()) != null){
 		print("[DiscordLogger] Player "+player.GetPlayerName()+" is already in the server, not logging")
 		return
@@ -204,7 +212,7 @@ void function LogConnect( entity player )
 	meta["type"] <- "connect"
 	newmessage.metadata = EncodeJSON(meta)
 	newmessage.typeofmsg = 2
-	Postmessages(newmessage)
+	thread Postmessages(newmessage)
 	lastmodels.playermodels[player.GetUID()] <- player.GetModelName() + ""
 
 }
@@ -223,7 +231,7 @@ void function LogDC( entity player )
 	meta["type"] <- "disconnect"
 	newmessage.metadata = EncodeJSON(meta)
 	newmessage.typeofmsg = 2
-	Postmessages(newmessage)
+	thread Postmessages(newmessage)
 
 }
 
@@ -284,6 +292,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 		// }
 	}
 	meta["teamtype"] <- teammessage
+	meta["teamint"] <- message.player.GetTeam()
 	meta["type"] <- "usermessagepfp"
 	if (serverdetails.showchatprefix){
 	meta["isalive"] <- IsAlive(message.player)}
@@ -296,10 +305,22 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 		newmessage.overridechannel = "commandlogchannel"
 		newmessage.typeofmsg = 3
 	}
+	
+	
+
+	bool found = false
+	foreach (string key,table value in blockedplayers.players){
+		if (message.player.GetUID() == key && blockedplayers.players[key].shouldblockmessages){
+			found = true
+			break
+		}
+	}
+	meta["blockedmessage"] <- found
 	newmessage.metadata = EncodeJSON(meta)
-	Postmessages(newmessage)
-
-
+	if (found && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain) {
+		message.shouldBlock = true;
+	}
+	thread Postmessages(newmessage)
 
 
     return message
@@ -316,7 +337,7 @@ void function discordlogextmessage(string message, bool formatascodeblock = fals
 	else{
 		newmessage.typeofmsg = 4
 	}
-	Postmessages(newmessage)
+	thread Postmessages(newmessage)
 }
 
 struct {
@@ -327,6 +348,55 @@ struct {
 	int denylogging = 0
 	string timeof = "0"
 } check
+
+void function checkshouldblockmessages(entity player){
+	table params = {}
+	params["password"] <- serverdetails.password
+	params["uid"] <- player.GetUID()
+	HttpRequest request
+	request.method = HttpRequestMethod.POST
+	request.url = serverdetails.Requestpath + "/playerdetails"
+	request.body = EncodeJSON(params)
+	
+	void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse response )
+    {
+		// print("[DiscordLogger] MSG SENT")
+				if (response.statusCode
+		!= 200)
+		{
+			print("[DiscordLogger] Error: "+response.statusCode)
+			return
+			
+		}
+
+
+		// print(response.body)
+		table responses = DecodeJSON(response.body)
+		if ("notfound" in responses) {return}
+		table output = expect table(responses["output"])
+		// blockedplayers.players[expect string(responses["uid"])]
+		// string uid = expect string(responses["uid"])
+		table actualoutput
+		actualoutput.shouldblockmessages <- expect bool(output["shouldblockmessages"])
+		blockedplayers.players[expect string(responses["uid"])] <- actualoutput
+		// string texts = expect string(responses["texts"])
+		// check.timeof = expect string(responses["time"])
+		// table texts = expect table(responses["texts"])
+		// table textsv2 = expect table(responses["textsv2"])
+		// string textvalidation = expect string(messagess["textvalid
+    }
+
+    void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
+    {
+		// table errortable
+		// errortable.blockmessages <- true
+		blockedplayers.hasfailedandneedstorequestagain = true
+    }
+
+	// print(EncodeJSON(params))
+
+    NSHttpRequest(request, onSuccess, onFailure)
+}
 
 void function Postmessages(outgoingmessage message){
 	// print(serverdetails.Servername)
@@ -352,11 +422,36 @@ void function Postmessages(outgoingmessage message){
 	void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse response )
     {
 		// print("[DiscordLogger] MSG SENT")
-    }
+						if (response.statusCode
+		!= 200)
+		{
+			print("[DiscordLogger] Error: "+response.statusCode)
+			// print("[DiscordLogger] "+serverdetails.Requestpath + "/askformessage")
+			return
+		}
+		blockedplayers.hasfailedandneedstorequestagain = false
+		table responses = DecodeJSON(response.body)
+		if ("messageteam" in responses) {
+			int teamtype = expect int(responses["messageteam"])
+		
+			if ("forceblock" in responses) {
+				blockedplayers.players[expect string(responses["uid"])].shouldblockmessages = expect bool(responses["forceblock"])
+			}
+		if ("friendly" in responses) {
+				discordlogsendmessage(expect string(responses["friendly"]),teamtype)	
+         }
+		 if ("enemy" in responses) {
+				discordlogsendmessage(expect string(responses["enemy"]),(teamtype - 3)*-1+2)	
+		 }
+		 if ("both" in responses){
+			discordlogsendmessage(expect string(responses["both"]),4)
+		 }
+    }}
 
     void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
     {
         print("[DiscordLogger]Failed to log chat message"  + failure.errorMessage)
+		blockedplayers.hasfailedandneedstorequestagain = true
     }
 
 	// print(EncodeJSON(params))
@@ -384,7 +479,7 @@ void function Onmapchange(){
 	// print(newmessage.message)
 	newmessage.timestamp = GetUnixTimestamp()
 	newmessage.typeofmsg = 2
-	Postmessages(newmessage)
+	thread Postmessages(newmessage)
 }
 
 // struct commandchecker {
@@ -428,8 +523,8 @@ void function stoprequests(){
 	NSHttpRequest(request, onSuccess, onFailure)
 }
 
-void function discordlogsendmessage(string message, int team = 4, bool isteam = false){
-	thread discordlogsendmessagemakesureissent(message,team,isteam)
+void function discordlogsendmessage(string message, int team = 4){
+	thread discordlogsendmessagemakesureissent(message,team)
 	// int trys = 0
 	// array <entity> players = GetPlayerArray()
 	// array <entity> playersdone
@@ -451,7 +546,7 @@ void function discordlogsendmessage(string message, int team = 4, bool isteam = 
 	// }
 
 }
-void function discordlogsendmessagemakesureissent(string message, int team = 4, bool isteam = false){
+void function discordlogsendmessagemakesureissent(string message, int team = 4){
 	array <entity> players = GetPlayerArray()
 	array <entity> shouldsend = []
 	foreach (entity player in players){
@@ -468,13 +563,11 @@ void function discordlogsendmessagemakesureissent(string message, int team = 4, 
 			else if (IsAlive(shouldsend[i]) ||  Time() > playerrespawn[shouldsend[i].GetUID() +""] ) {
 				
 				removeindexes.append(i)
-				if (!isteam){
+				
 				Chat_ServerPrivateMessage(shouldsend[i],message,false,false)}
-				else{
-					Chat_ServerPrivateMessage(shouldsend[i],"\x1b[111m[TEAM] "+message,false,false)
-				}
+				
 
-			}
+			
 			// Chat_ServerBroadcast("alive" + IsAlive(shouldsend[i]) + "time" + Time() + "desiredtime" +shouldsend[i].GetPlayerName())
 		}
 		int offset = 0
@@ -523,6 +616,7 @@ void function DiscordClientMessageinloop()
 
 	table params = {}
 	params["password"] <- serverdetails.password
+	// params["blockerror"] <- blockedplayers.hasfailedandneedstorequestagain
 
 	params["serverid"] <- serverdetails.serverid
 	// array<string>params["texts"] <- check.textcheck
@@ -643,11 +737,10 @@ void function DiscordClientMessageinloop()
 			table textw = expect table(value)
 			string text = expect string(textw["content"])
 			int teamoverride = expect int(textw["teamoverride"])
-			bool isteammessage = expect bool(textw["isteammessage"])
 			string validation = expect string(key)
 			print("[DiscordLogger] MESSAGE "+text)
 			check.textcheck.append(validation)
-			thread discordlogsendmessage(text,teamoverride,isteammessage)
+			thread discordlogsendmessage(text,teamoverride)
 			// foreach (entity player in GetPlayerArray()) {
 			// 	Chat_PrivateMessage(player,player,"\x1b[38;5;105m"+text,false)
 			// }
