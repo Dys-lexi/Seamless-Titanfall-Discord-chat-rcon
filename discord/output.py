@@ -2032,11 +2032,11 @@ async def show_color(ctx, colour: Option(str, "Enter a normal/hex color, or 'res
     global colourslink
     colourslist = []
     colours = colour
-    if len (colours.split(" ")) > 1:
-        if not checkrconallowed(ctx.author,"coolperksrole"):
-            await asyncio.sleep (SLEEPTIME_ON_FAILED_COMMAND)
-            await ctx.respond(f"You do not have the coolperksrole, so cannot do multiple colours. to get it: {COOLPERKSROLEREQUIRMENTS}", ephemeral=False)
-            return
+    if not checkrconallowed(ctx.author,"coolperksrole"):
+        await asyncio.sleep (SLEEPTIME_ON_FAILED_COMMAND)
+        await ctx.respond(f"You do not have the coolperksrole, so cannot use this command :) to get it: {COOLPERKSROLEREQUIRMENTS}", ephemeral=False)
+        return
+
     for colour in colours.split(" "):
         # print(colour)
         if not re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour) and colour.lower() not in CSS_COLOURS.keys() and colour != "reset":
@@ -2083,10 +2083,12 @@ async def show_color(ctx, colour: Option(str, "Enter a normal/hex color, or 'res
     colourslist = []
     colours = colour
 
-    if not checkrconallowed(ctx.author,"coolperksrole"):
-        await asyncio.sleep (SLEEPTIME_ON_FAILED_COMMAND)
-        await ctx.respond(f"You do not have the coolperksrole, so cannot have more than one colour :) to get it: {COOLPERKSROLEREQUIRMENTS}", ephemeral=False)
-        return
+
+    if len (colours.split(" ")) > 1:
+        if not checkrconallowed(ctx.author,"coolperksrole"):
+            await asyncio.sleep (SLEEPTIME_ON_FAILED_COMMAND)
+            await ctx.respond(f"You do not have the coolperksrole, so cannot do multiple colours. to get it: {COOLPERKSROLEREQUIRMENTS}", ephemeral=False)
+            return
     for colour in colours.split(" "):
         # print(colour)
         if not re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour) and colour.lower() not in CSS_COLOURS.keys() and colour != "reset":
@@ -2329,7 +2331,7 @@ def colourmessage(message,serverid):
     output = {}
     for key, value in authornicks.items():
         output[key] = f"{'[111m[TEAM] ' if message['metadata']['teamtype'] != 'not team' else ''}{value}: {RGBCOLOUR['NEUTRAL']}{message['messagecontent']}"
-    print(output)
+    # print(output)
     if not message["metadata"]["blockedmessage"]:
         # str(message["metadata"]["uid"]),"forceblock":False
         output["uid"] = str(message["metadata"]["uid"])
@@ -4664,6 +4666,10 @@ if DISCORDBOTLOGSTATS == "1":
 threading.Thread(target=messageloop).start()
 threading.Thread(target=recieveflaskprintrequests).start()
 threading.Thread(target=tf1relay).start()
+
+
+
+
 
 
 
