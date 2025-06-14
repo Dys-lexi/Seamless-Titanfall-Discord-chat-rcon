@@ -899,6 +899,24 @@ GRENADES = [
 ]
 
 DEATH_BY_MAP = [
+    {
+    "weapon_name": "burn",
+    "png_name": "burn",
+    "mods": [],
+    "modsfiltertype": "include"
+},
+   {
+    "weapon_name": "fall",
+    "png_name": "offmap",
+    "mods": [],
+    "modsfiltertype": "include"
+},
+   {
+    "weapon_name": "outOfBounds",
+    "png_name": "oob",
+    "mods": [],
+    "modsfiltertype": "include"
+},
 
 ]
 

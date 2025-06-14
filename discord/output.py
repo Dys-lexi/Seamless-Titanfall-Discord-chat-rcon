@@ -312,7 +312,7 @@ USEDYNAMICPFPS = os.getenv("USE_DYNAMIC_PFPS","1")
 PFPROUTE = os.getenv("PFP_ROUTE","https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/")
 FILTERNAMESINMESSAGES = os.getenv("FILTER_NAMES_IN_MESSAGES","usermessagepfp,chat_message,command,tf1command")
 SENDKILLFEED = os.getenv("SEND_KILL_FEED","0")
-OVERRIDEIPFORCDNLEADERBOARD = os.getenv("OVERRIDE_IP_FOR_CDN_LEADERBOARD","hidden")
+OVERRIDEIPFORCDNLEADERBOARD = os.getenv("OVERRIDE_IP_FOR_CDN_LEADERBOARD","use_actual_ip")
 OVVERRIDEROLEREQUIRMENT = os.getenv("OVERRIDE_ROLE_REQUIREMENT","1")
 COOLPERKSROLEREQUIRMENTS = os.getenv("COOL_PERKS_REQUIREMENT","You need something or other to get this")
 ANSICOLOUR = "\x1b[38;5;105m"
@@ -721,7 +721,7 @@ if DISCORDBOTLOGSTATS == "1":
                 # print("here")
                 # individual = leaderboard_entry.get("individual",{})
                 # leaderboardcategorysshown = {"CATEGORYS":leaderboardcategorysshown,**individual}
-                timestamp = await asyncio.to_thread(getweaponspng, leaderboardcategorysshown, maxshown, False)
+                timestamp = await asyncio.to_thread(getweaponspng, leaderboardcategorysshown, maxshown, leaderboard_entry.get("columns", False))
                 channel = bot.get_channel(context["overridechannels"]["leaderboardchannel"])
                 # if leaderboardcategorysshown:
                 #     image_name = "_".join(sorted(leaderboardcategorysshown)).upper() + ".png"
@@ -2305,7 +2305,7 @@ def colourmessage(message,serverid):
         c = specifickillbase.cursor()
         c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (message["metadata"]["uid"],))
         link = c.fetchone()
-        discorduidnamelink[message["metadata"]["uid"]] = link[0] if link[0] else False
+        discorduidnamelink[message["metadata"]["uid"]] = link[0] if link and link[0] else False
         if not link or  not link[0] and not message["metadata"]["blockedmessage"]:
             # print("e")
             return False
@@ -2374,12 +2374,12 @@ def recieveflaskprintrequests():
             c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (data["uid"],))
             link = c.fetchone()
             if not link:
-                return {"notfound",True}
+                return {"notfound":True}
             if link[0]:
                 discorduidnamelink[data["uid"]] = link[0] if link[0] else False
                 discorduid = link[0]
             else:
-                return {"notfound",True}
+                return {"notfound":True}
         # if colourslink[str(data["uid"])]:
         print(colourslink[596713937626595382])
         print({"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",False) != False},"uid":data["uid"]})
@@ -3039,7 +3039,7 @@ def tf1readsend(serverid,checkstatus):
                         # print("I managed it!")
                         continue
                     # print("BEEP BOOP",filterquotes("".join(command["args"])))
-                    print("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")')
+                    print("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")\033[0m')
                     inputstring[command["id"]] = client.run("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")')#{","+quotationmark+filterquotes(command["name"])+quotationmark if "name" in command.keys() else "" })')
                     # print(inputstring[command["id"]])
             if checkstatus or len(commands) > 0:
