@@ -246,7 +246,7 @@ void function playerstabbedmodelsaver( entity player, entity attacker, var damag
 	if (shouldDoReplay){
 		respawntime += replayLength
 	}
-	playerrespawn[player.GetUID()+""] <- respawntime+1
+	playerrespawn[player.GetUID()+""] <- respawntime+2
 }
 
 ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){

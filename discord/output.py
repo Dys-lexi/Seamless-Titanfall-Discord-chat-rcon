@@ -1443,7 +1443,7 @@ if DISCORDBOTLOGSTATS == "1":
             if not output:
                 tfdb.commit()
                 tfdb.close()
-                asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+                await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
                 await ctx.respond("No players found", ephemeral=False)
                 return
             player = {"uid": output[0]}
@@ -2058,8 +2058,12 @@ async def show_color_what(ctx, colour: Option(str, "Enter a normal/hex color, or
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
     c.execute(
-        "INSERT OR REPLACE INTO discorduiddata (discorduid, choseningamecolour) VALUES (?, ?)",
-        (ctx.author.id, str(rgba) if rgba != "reset" else "'reset'")
+        """
+        INSERT INTO discorduiddata (discorduid, choseningamecolour)
+        VALUES (?, ?)
+        ON CONFLICT(discorduid) DO UPDATE SET choseningamecolour = excluded.choseningamecolour
+        """,
+        (ctx.author.id, str(rgba) if rgba != "reset" else "reset")
     )
 
     tfdb.commit()
@@ -2110,8 +2114,12 @@ async def show_color_why(ctx, colour: Option(str, "Enter a normal/hex color, or 
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
     c.execute(
-        "INSERT OR REPLACE INTO discorduiddata (discorduid, chosencolour) VALUES (?, ?)",
-        (ctx.author.id, str(rgba) if rgba != "reset" else "'reset'")
+        """
+        INSERT INTO discorduiddata (discorduid, chosencolour)
+        VALUES (?, ?)
+        ON CONFLICT(discorduid) DO UPDATE SET chosencolour = excluded.chosencolour
+        """,
+        (ctx.author.id, str(rgba) if rgba != "reset" else "reset")
     )
 
     tfdb.commit()
