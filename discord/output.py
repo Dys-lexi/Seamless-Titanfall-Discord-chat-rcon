@@ -2602,7 +2602,7 @@ def recieveflaskprintrequests():
             messages[str(enum+offset)] = f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}\x1b[110m kills: \x1b[38;5;189m{weapon[1]}"
         # if len(messages):
             # output["messages"] = messages
-        print({**output,**messages},"colour":colour)
+        print({**output,**messages},"colour",colour)
         return {**output,**messages}
     @app.route("/data", methods=["POST"])
     def onkilldata():
