@@ -2539,14 +2539,65 @@ def recieveflaskprintrequests():
             playeruid = str(output["uid"])
         except:
             name = "unknown"
+            return {"sob":"sobbing Unknown player"}
+        messages = {}
         print(name)
         output = {"name":name,"uid":playeruid,"total":{}}
         c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ?",(playeruid,))
         output["total"]["deaths"] = len(c.fetchall())
         c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ?",(playeruid,))
         output["total"]["kills"] = len(c.fetchall())
+        c.execute("""
+            SELECT cause_of_death, COUNT(*) as kill_count
+            FROM specifickilltracker
+            WHERE playeruid = ?
+            GROUP BY cause_of_death
+            ORDER BY kill_count DESC
+            LIMIT 3
+        """, (playeruid,))
+        top_weapons = c.fetchall()
+        c.execute("""
+            SELECT matchid, pilotkills
+            FROM playtime
+            WHERE playeruid = ?
+            GROUP BY matchid
+            ORDER BY pilotkills DESC
+            LIMIT 1
+        """, (playeruid,))
+        highest_pilotkills_match = c.fetchone()
+        c.execute("""
+            SELECT matchid, map, MIN(joinatunix) as start_time, SUM(pilotkills) as total_pilotkills
+            FROM playtime
+            WHERE playeruid = ?
+            GROUP BY matchid, map
+            ORDER BY total_pilotkills DESC
+            LIMIT 1
+        """, (playeruid,))
+        bestgame = c.fetchone()
+        # output["total"]["top_weapons"] = top_weapons
+
+        if output["total"]["deaths"] != 0:
+            kd = output["total"]["kills"]/ output["total"]["deaths"]
+        else:
+            kd = 1
+        kd = int(kd*100)/100
         print("getting killdata for",name,playeruid,output)
-        return output
+        while True:
+            colour = random.randint(0, 255)
+            # colour = random.choice([254,219,87])
+            # dissallowedcolours colours (unreadable)  (too dark)
+            if colour not in DISALLOWED_COLOURS:
+                break
+        messages["0"] = f"\x1b[38;5;{colour}m{name}\x1b[110m has \x1b[38;5;189m{output['total']['kills']}\x1b[110m kills and \x1b[38;5;189m{output['total']['deaths']}\x1b[110m deaths (\x1b[38;5;189m{kd}\x1b[110m kd)"
+        formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
+        messages["1"] = f"\x1b[38;5;{colour}m{name}\x1b[110m had their best game on \x1b[38;5;189m{MAP_NAME_TABLE.get(bestgame[1],bestgame[1])}\x1b[110m with \x1b[38;5;189m{bestgame[3]}\x1b[110m kills on \x1b[38;5;189m{formatted_date}"
+        colourcodes = ["\x1b[38;5;226m","\x1b[38;5;251m","\x1b[38;5;208m"]
+        for enum , weapon in enumerate( top_weapons):
+            messages[str(enum+2)] = f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}\x1b[110m kills: \x1b[38;5;189m{weapon[1]}"
+        # if len(messages):
+            # output["messages"] = messages
+        # print({**output,**messages})
+        return {**output,**messages}
     @app.route("/data", methods=["POST"])
     def onkilldata():
         # takes input directly from (slightly modified) nutone (https://github.com/nutone-tf) code for this to work is not on the github repo, so probably don't try using it.
@@ -3975,7 +4026,9 @@ if SHOULDUSETHROWAI == "1":
         # ) = None,
     ):
         
-        global context, discordtotitanfall, lasttimethrown, aibotmessageresponses
+        global context, discordtotitanfall, lasttimethrown, aibotmessageresponses,messageflush
+        
+        
         servername = None
         messagehistory = []
         keyaireply = random.randint(1,10000000000000)
@@ -3986,6 +4039,17 @@ if SHOULDUSETHROWAI == "1":
             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
             await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
             return
+        messageflush.append({{
+            "timestamp": int(time.time()),
+            "serverid": serverid,
+            "type": 3,
+            "globalmessage": True,
+            "overridechannel": "commandlogchannel",
+            "messagecontent": "!thrownonrcon",
+            "metadata": {{"type":"command"}},
+            "servername" :context["serveridnamelinks"][serverid],
+            "player":  f"`BOT COMMAND` sent by {{ctx.author.name}}"
+        }})
         if ctx.author.id in lasttimethrown["passes"].keys() and lasttimethrown["passes"][ctx.author.id] > time.time() - 60:
             print("has been allowed recently")
             await ctx.defer(ephemeral=False)
@@ -4046,7 +4110,7 @@ The user is asking to use a command on a titanfall 2 sever. this command throws 
 If the user has a reason that you deem would bring GREAT value however, don't hesitate to press the "allow_request button". This will allow the command to be executed. HOWEVER YOU SHOULD HAVE EXTREME PREJUDICE AGAINST USING THIS BUTTON. ALMOST NEVER ALLOW IT, ESPECIALLY IF THE USER HAS BEEN ALLOWED OR DENIED RECENTLY.
 If you believe the user might make a good case to deserve using the command, with good reasoning, press "more_information_needed".
 If you believe the user is trying to mislead you (they probably are), is undeserving, is too rude, is trying to get a competitive advantage, or simply have the feeling of being powerful, press "deny_request".
-ENQUIRE A LOT ABOUT LARGE CLAIMS. the user is probably LYING. and so you should "deny_request"
+ENQUIRE A LOT ABOUT LARGE CLAIMS. the user is probably LYING. and so you should "more_information_needed"
 
 You will be expected to press exactly one of those 3 choices after each request, and also give a one - two sentence reason as to why, and a single word reason for the choice.
 In order to do this, format your output exactly like this, otherwise it will fail to be parsed.
