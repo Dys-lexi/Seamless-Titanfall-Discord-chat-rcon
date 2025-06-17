@@ -2589,8 +2589,9 @@ def recieveflaskprintrequests():
             if colour not in DISALLOWED_COLOURS:
                 break
         offset = 1
+
         messages["0"] = f"\x1b[38;5;{colour}m{name}\x1b[110m has \x1b[38;5;189m{output['total']['kills']}\x1b[110m kills and \x1b[38;5;189m{output['total']['deaths']}\x1b[110m deaths (\x1b[38;5;189m{kd}\x1b[110m kd)"
-        print("e",bestgame)
+        # print("e",bestgame)
         if  bestgame:
             formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
 
@@ -2601,7 +2602,7 @@ def recieveflaskprintrequests():
             messages[str(enum+offset)] = f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}\x1b[110m kills: \x1b[38;5;189m{weapon[1]}"
         # if len(messages):
             # output["messages"] = messages
-        print({**output,**messages})
+        print({**output,**messages},"colour":colour)
         return {**output,**messages}
     @app.route("/data", methods=["POST"])
     def onkilldata():
