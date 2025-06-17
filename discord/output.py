@@ -2588,15 +2588,20 @@ def recieveflaskprintrequests():
             # dissallowedcolours colours (unreadable)  (too dark)
             if colour not in DISALLOWED_COLOURS:
                 break
+        offset = 1
         messages["0"] = f"\x1b[38;5;{colour}m{name}\x1b[110m has \x1b[38;5;189m{output['total']['kills']}\x1b[110m kills and \x1b[38;5;189m{output['total']['deaths']}\x1b[110m deaths (\x1b[38;5;189m{kd}\x1b[110m kd)"
-        formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
-        messages["1"] = f"\x1b[38;5;{colour}m{name}\x1b[110m had their best game on \x1b[38;5;189m{MAP_NAME_TABLE.get(bestgame[1],bestgame[1])}\x1b[110m with \x1b[38;5;189m{bestgame[3]}\x1b[110m kills on \x1b[38;5;189m{formatted_date}"
+        print("e",bestgame)
+        if  bestgame:
+            formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
+
+            offset +=1
+            messages["1"] = f"\x1b[38;5;{colour}m{name}\x1b[110m had their best game on \x1b[38;5;189m{MAP_NAME_TABLE.get(bestgame[1],bestgame[1])}\x1b[110m with \x1b[38;5;189m{bestgame[3]}\x1b[110m kills on \x1b[38;5;189m{formatted_date}"
         colourcodes = ["\x1b[38;5;226m","\x1b[38;5;251m","\x1b[38;5;208m"]
         for enum , weapon in enumerate( top_weapons):
-            messages[str(enum+2)] = f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}\x1b[110m kills: \x1b[38;5;189m{weapon[1]}"
+            messages[str(enum+offset)] = f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}\x1b[110m kills: \x1b[38;5;189m{weapon[1]}"
         # if len(messages):
             # output["messages"] = messages
-        # print({**output,**messages})
+        print({**output,**messages})
         return {**output,**messages}
     @app.route("/data", methods=["POST"])
     def onkilldata():
