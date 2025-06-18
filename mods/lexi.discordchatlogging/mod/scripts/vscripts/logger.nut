@@ -133,6 +133,7 @@ table<string, string> MAP_NAME_TABLE = {
 
 
 void function discordloggerinit() {
+	AddCallback_OnPlayerRespawned( OnPlayerRespawned )
 
 	serverdetails.matchid = GetUnixTimestamp()+"_" + GetConVarString("discordloggingserverid")
 	SetConVarString("discordloggingmatchid",serverdetails.matchid)
@@ -246,7 +247,7 @@ void function playerstabbedmodelsaver( entity player, entity attacker, var damag
 	if (shouldDoReplay){
 		respawntime += replayLength
 	}
-	playerrespawn[player.GetUID()+""] <- respawntime+2
+	playerrespawn[player.GetUID()+""] <- respawntime+1
 }
 
 ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
@@ -435,7 +436,16 @@ void function Postmessages(outgoingmessage message){
 			int teamtype = expect int(responses["messageteam"])
 		
 			if ("forceblock" in responses) {
-				blockedplayers.players[expect string(responses["uid"])].shouldblockmessages = expect bool(responses["forceblock"])
+				if (expect string(responses["uid"])  in blockedplayers.players)
+				{
+						blockedplayers.players[expect string(responses["uid"])].shouldblockmessages <- expect bool(responses["forceblock"])
+				
+				}else{
+							table actualoutput
+						actualoutput.shouldblockmessages <- false
+						blockedplayers.players[expect string(responses["uid"])] <- actualoutput
+				}
+				
 			}
 		if ("friendly" in responses) {
 				discordlogsendmessage(expect string(responses["friendly"]),teamtype)	
@@ -557,14 +567,18 @@ void function discordlogsendmessagemakesureissent(string message, int team = 4){
 	while (shouldsend.len() > 0){
 		array <int> removeindexes = []
 		for (int i = 0; i < shouldsend.len() ; i++){
+			// Chat_ServerPrivateMessage(shouldsend[i],"e "+message,false,false)
 			if (!IsValid(shouldsend[i]) ){
 				removeindexes.append(i)
 			}
-			else if (IsAlive(shouldsend[i]) ||  Time() > playerrespawn[shouldsend[i].GetUID() +""] ) {
+			else if ( !(shouldsend[i].GetUID() +"" in playerrespawn) ||  Time() > playerrespawn[shouldsend[i].GetUID() +""] ) {
 				
 				removeindexes.append(i)
 				
-				Chat_ServerPrivateMessage(shouldsend[i],message,false,false)}
+				Chat_ServerPrivateMessage(shouldsend[i],message,false,false)
+				// Chat_PrivateMessage(shouldsend[i],shouldsend[i], "PRIVATE MESSAGE"+message,false)
+				// discordlogextmessage("TRYING TO SEND "+message+" TO "+shouldsend[i].GetPlayerName() + Time() + " "+  playerrespawn[shouldsend[i].GetUID() +""] + IsAlive(shouldsend[i]) +  (Time() > playerrespawn[shouldsend[i].GetUID() +""]) )
+			}
 				
 
 			
@@ -579,7 +593,13 @@ void function discordlogsendmessagemakesureissent(string message, int team = 4){
 	}
 
 }
+void function OnPlayerRespawned(entity player) {
+	thread waitisalive(player)
+}
 
+void function waitisalive(entity player) {
+	playerrespawn[player.GetUID()+""] <- Time() + 1
+}
 void function DiscordClientMessageinloop()
 {
 	// check.textcheck = []

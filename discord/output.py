@@ -57,7 +57,7 @@ def discorduidinfodb():
     c.execute("SELECT discorduid, chosencolour,choseningamecolour FROM discorduiddata")
     output = c.fetchall()
     print(output)
-    colourslink = {x[0]:{"discordcolour":list(map(lambda y: eval(y), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [RGBCOLOUR['DISCORD']] ,"ingamecolour":list(map(lambda y: eval(y), x[2].split("|"))) if x[2] is not None else False}  for x in output}
+    colourslink = {x[0]:{"discordcolour":list(map(lambda y: eval(y), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [RGBCOLOUR['DISCORD']] ,"ingamecolour":list(map(lambda y: eval(y), x[2].split("|"))) if x[2] is not None and x[2] != "reset" else False}  for x in output}
     
     c.execute("SELECT discorduid, choseningamecolour FROM discorduiddata")
     # output = c.fetchall()
@@ -2305,6 +2305,7 @@ def colourmessage(message,serverid):
     global discorduidnamelink
     # print("e")
     if not message.get("metadata",False) or not  message["metadata"].get("uid",False) or not message["metadata"].get("type",False) in ["usermessagepfp","chat_message"]:
+        # print("oxoxo",message["metadata"])
         return False
     # print("ew")
     discorduid = discorduidnamelink.get(message["metadata"]["uid"],False)
@@ -2314,10 +2315,10 @@ def colourmessage(message,serverid):
         c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (message["metadata"]["uid"],))
         link = c.fetchone()
         discorduidnamelink[message["metadata"]["uid"]] = link[0] if link and link[0] else False
-        if not link or  not link[0] and not message["metadata"]["blockedmessage"]:
-            # print("e")
+        if (not link or  not link[0]) and not message["metadata"]["blockedmessage"]:
+            # print("eee")
             return False
-        elif not link[0] :
+        elif  not link or not link[0] :
             return {"both":f"{RGBCOLOUR['NEUTRAL']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
         discorduid = link[0]
     if not colourslink.get(discorduid,{}).get("ingamecolour",False) and message["metadata"]["blockedmessage"]:
@@ -2536,7 +2537,7 @@ def recieveflaskprintrequests():
         try:
             output = resolveplayeruidfromdb(playeruid,None,True)[0]
             name = output["name"]
-            playeruid = str(output["uid"])
+            playeruid = (output["uid"])
         except:
             name = "unknown"
             return {"sob":"sobbing Unknown player"}

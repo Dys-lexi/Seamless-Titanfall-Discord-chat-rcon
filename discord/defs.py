@@ -170,6 +170,7 @@ DISALLOWED_COLOURS = (
     57,
     56,
     19,
+    91
 )
 
 MAP_NAME_TABLE = {
