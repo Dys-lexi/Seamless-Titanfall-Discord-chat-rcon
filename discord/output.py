@@ -723,7 +723,7 @@ if DISCORDBOTLOGSTATS == "1":
                 # print("here")
                 # individual = leaderboard_entry.get("individual",{})
                 # leaderboardcategorysshown = {"CATEGORYS":leaderboardcategorysshown,**individual}
-                timestamp = await asyncio.to_thread(getweaponspng, leaderboardcategorysshown, maxshown, leaderboard_entry.get("columns", False))
+                timestamp = await asyncio.to_thread(getweaponspng, leaderboard_entry.get("displayvictims", False),leaderboardcategorysshown, maxshown, leaderboard_entry.get("columns", False))
                 channel = bot.get_channel(context["overridechannels"]["leaderboardchannel"])
                 # if leaderboardcategorysshown:
                 #     image_name = "_".join(sorted(leaderboardcategorysshown)).upper() + ".png"
@@ -1078,7 +1078,7 @@ if DISCORDBOTLOGSTATS == "1":
 
 
 
-    def getweaponspng(specificweapon=False, max_players=10, COLUMNS=False):
+    def getweaponspng(swoptovictims = False,specificweapon=False, max_players=10, COLUMNS=False):
         global imagescdn
         print("getting pngleaderboard")
         now = int(time.time()*100)
@@ -1156,11 +1156,15 @@ if DISCORDBOTLOGSTATS == "1":
             rows = c.fetchall()
             conn.close()
             return rows
-        def bvsuggestedthistome(timecutoff = 0):
+        def bvsuggestedthistome(timecutoff = 0,swoptovictims = False):
             timecutoff = int(time.time() - timecutoff)
             conn = sqlite3.connect("./data/tf2helper.db")
             c = conn.cursor()
-            c.execute("SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount FROM specifickilltracker WHERE timeofkill < ? GROUP BY cause_of_death, playeruid, weapon_mods",(timecutoff,))
+            if not swoptovictims:
+                c.execute("SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker WHERE timeofkill < ? GROUP BY cause_of_death, playeruid, weapon_mods, attacker_type",(timecutoff,))
+            else:
+                c.execute("SELECT cause_of_death, victim_id, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker WHERE timeofkill < ? GROUP BY cause_of_death, victim_id, weapon_mods, attacker_type",(timecutoff,))
+
             rows = c.fetchall()
             conn.close()
             return rows
@@ -1168,7 +1172,7 @@ if DISCORDBOTLOGSTATS == "1":
         specificweaponsallowed = list(map(lambda x: x["weapon_name"],specificweapon))
         weapon_kills = {"main":{},"cutoff":{}}
         for name,cutoff in timecutoffs.items():
-            for weapon, killer, mods, stabcount in bvsuggestedthistome(cutoff):
+            for weapon, killer, mods, stabcount, whomurdered in bvsuggestedthistome(cutoff,swoptovictims):
                 if weapon not in specificweaponsallowed:
                     continue
                 index = specificweaponsallowed.index(weapon)
@@ -1177,8 +1181,13 @@ if DISCORDBOTLOGSTATS == "1":
                 if modsused == ['']:
                     modsused = []
                 modsfiltertype = specificweapon[index].get("modswanted","include")
+                mustbekilledby = specificweapon[index].get("killedby",[])
+                # print(specificweapon[index])
+                if mustbekilledby and whomurdered and whomurdered not in mustbekilledby:
+                    continue
                 if not (modsfiltertype == "include" and (not modswanted or list(filter(lambda x: x in modsused,modswanted)))) and not (modsfiltertype == "anyof" and len(set([*modswanted,*modsused])) < len([*modswanted,*modsused])) and not (modsfiltertype == "exclude" and len(set([*modswanted,*modsused])) == len([*modswanted,*modsused])) and not (modsfiltertype == "exact" and str(sorted(modswanted)) == str(sorted(modsused))):
                     continue
+                if not killer: killer = whomurdered
                 weapon_kills[name].setdefault(specificweapon[index]["png_name"],{})
                 weapon_kills[name][specificweapon[index]["png_name"]].setdefault(killer,0)
                 weapon_kills[name][specificweapon[index]["png_name"]][killer] += stabcount
