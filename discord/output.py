@@ -105,15 +105,17 @@ def specifickilltrackerdb():
             timeofkill              INTEGER,
             cause_of_death          TEXT,
             victim_y                REAL,
-            weapon_mods             TEXT
+            weapon_mods             TEXT,
+            victim_type             TEXT,
+            attacker_type           TEXT
         )"""
     )
     
-    # c.execute("PRAGMA table_info(specifickilltracker)")
-    # columns = [row[1] for row in c.fetchall()]
+    c.execute("PRAGMA table_info(specifickilltracker)")
+    columns = [row[1] for row in c.fetchall()]
     
-    # if "weapon_mods" not in columns:
-    #     c.execute("ALTER TABLE specifickilltracker ADD COLUMN weapon_mods TEXT DEFAULT ''")
+    if "victim_type" not in columns:
+        c.execute("ALTER TABLE specifickilltracker ADD COLUMN victim_type TEXT")
     
     tfdb.commit()
     c.close()
@@ -1132,7 +1134,7 @@ if DISCORDBOTLOGSTATS == "1":
 
         # if specificweapon.get("CATEGORYS",False):
         #     del specificweapon["CATEGORYS"]
-        os.makedirs(CDN_DIR, exist_ok=True)
+        # os.makedirs(CDN_DIR, exist_ok=True)
         # print(specificweapon)
         if not specificweapon:
             weapon_images = [f for f in os.listdir(IMAGE_DIR) if (f.startswith("mp_") or f.startswith("melee_")) and f.endswith(".png")]
@@ -2018,11 +2020,12 @@ async def bind_global_channel(
     name="linktf2account",
     description="link your tf2 account to a discord account"
 )
-async def linktfaccount(ctx, tf2accountname: Option(str, "Enter your account name")):
+async def linktfaccount(ctx):
     global context, oaccountlinker
-    accounts = resolveplayeruidfromdb(tf2accountname,None,True)
-    accountlinker[accounts[0]["uid"]] = {"account":ctx.author.id,"name": accounts[0]["name"],"timerequested":int(time.time()+300),"randomnumber":random.randint(1000,10000),"ctx":ctx}
-    await ctx.respond(f"Trying to link {ctx.author.nick if hasattr(ctx.author, 'nick') and ctx.author.nick is not None else ctx.author.display_name} to account {accountlinker[accounts[0]['uid']]['name']} type '!{accountlinker[accounts[0]['uid']]['randomnumber']}' in any server chat to link in next 5 mins",ephemeral = False)
+    # accounts = resolveplayeruidfromdb(tf2accountname,None,True)
+    linkcode = f"!{random.randint(10000,100000)}"
+    accountlinker[linkcode] = {"account":ctx.author.id, "timerequested":int(time.time()+300),"ctx":ctx}
+    await ctx.respond(f"Trying to link {ctx.author.nick if hasattr(ctx.author, 'nick') and ctx.author.nick is not None else ctx.author.display_name} '{linkcode}' in any server chat to link in next 5 mins",ephemeral = True)
     
 @bot.slash_command(
     name="tf2ingamechatcolour",
@@ -2530,7 +2533,7 @@ def recieveflaskprintrequests():
             time.sleep(0.2)
         stoprequestsforserver[serverid] = False
         return {"texts": {}, "commands": {}, "time": "0","textsv2":{}}
-    @app.route("/players/<playeruid>",methods=["GET"])
+    @app.route("/players/<playeruid>",methods=["GET","POST"])
     def getplayerstats(playeruid):
         specifickillbase = sqlite3.connect("./data/tf2helper.db")
         c = specifickillbase.cursor()
@@ -2540,10 +2543,10 @@ def recieveflaskprintrequests():
             playeruid = (output["uid"])
         except:
             name = "unknown"
-            return {"sob":"sobbing Unknown player"}
+            return {"sob":"sobbing Unknown player"} , 404
         messages = {}
         print(name)
-        output = {"name":name,"uid":playeruid,"total":{}}
+        output = {"name":name,"uid":str(playeruid),"total":{}}
         c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ?",(playeruid,))
         output["total"]["deaths"] = len(c.fetchall())
         c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ?",(playeruid,))
@@ -2575,7 +2578,33 @@ def recieveflaskprintrequests():
             LIMIT 1
         """, (playeruid,))
         bestgame = c.fetchone()
+        currentgun = False
+        # if request.method == "POST" and "current_weapon" in request.get_json():
+        #     print("ASDASDASDASDASSDAS",request.get_json()["current_weapon"])
+        #     c.execute("SELECT COUNT(*) as kill_count FROM specifickilltracker WHERE playeruid = ? AND cause_of_death = ?",(playeruid,request.get_json()["current_weapon"]))
+        #     currentgun = c.fetchone()
+        #     if not currentgun:
+        #         currentgun = False
+        #     else:
+                # print("HEREEE")
+                # top_weapons.append( (request.get_json()["current_weapon"],currentgun[0]))
+                # print(currentgun)
         # output["total"]["top_weapons"] = top_weapons
+        c.execute("""
+            SELECT cause_of_death, COUNT(*) as kill_count
+            FROM specifickilltracker
+            WHERE playeruid = ?
+            AND cause_of_death = (
+                SELECT cause_of_death
+                FROM specifickilltracker
+                WHERE playeruid = ?
+                ORDER BY timeofkill DESC
+                LIMIT 1
+            )
+            GROUP BY cause_of_death
+        """, (playeruid, playeruid))
+        recent_weapon_kills = c.fetchone()
+
 
         if output["total"]["deaths"] != 0:
             kd = output["total"]["kills"]/ output["total"]["deaths"]
@@ -2600,7 +2629,14 @@ def recieveflaskprintrequests():
             messages["1"] = f"\x1b[38;5;{colour}m{name}\x1b[110m had their best game on \x1b[38;5;189m{MAP_NAME_TABLE.get(bestgame[1],bestgame[1])}\x1b[110m with \x1b[38;5;189m{bestgame[3]}\x1b[110m kills on \x1b[38;5;189m{formatted_date}"
         colourcodes = ["\x1b[38;5;226m","\x1b[38;5;251m","\x1b[38;5;208m"]
         for enum , weapon in enumerate( top_weapons):
-            messages[str(enum+offset)] = f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}\x1b[110m kills: \x1b[38;5;189m{weapon[1]}"
+            if not weapon:
+                continue
+            # print(weapon)
+            messages[str(offset)] = f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}\x1b[110m kills: \x1b[38;5;189m{weapon[1]}"
+            offset +=1
+        if recent_weapon_kills:
+            messages[str(offset)] = f"\x1b[38;5;{colour}mMost recent weapon: \x1b[38;5;189m{WEAPON_NAMES.get(recent_weapon_kills[0],recent_weapon_kills[0])}\x1b[110m kills: \x1b[38;5;189m{recent_weapon_kills[1]}"
+            offset+=1
         # if len(messages):
             # output["messages"] = messages
         print({**output,**messages},"colour",colour)
@@ -2610,7 +2646,7 @@ def recieveflaskprintrequests():
         # takes input directly from (slightly modified) nutone (https://github.com/nutone-tf) code for this to work is not on the github repo, so probably don't try using it.
         global context, messageflush
         data = request.get_json()
-        print(f"{data['attacker_name']} killed {data['victim_name']} with {data['cause_of_death']} using mods {' '.join(data.get('modsused',[]))}")
+        print(f"{data.get('attacker_name', data['attacker_type'])} killed {data.get('victim_name', data['victim_type'])} with {data['cause_of_death']} using mods {' '.join(data.get('modsused',[]))}")
         if SENDKILLFEED == "1":
             messageflush.append({
                 "timestamp": int(time.time()),
@@ -2618,11 +2654,10 @@ def recieveflaskprintrequests():
                 "type": 3,
                 "globalmessage": False,
                 "overridechannel": None,
-                "messagecontent": f"{data['attacker_name']} killed {data['victim_name']} with {WEAPON_NAMES.get(data['cause_of_death'],data['cause_of_death'])}",
+                "messagecontent": f"{data.get('attacker_name', data['attacker_type'])} killed {data.get('victim_name', data['victim_type'])} with {WEAPON_NAMES.get(data['cause_of_death'], data['cause_of_death'])}",
                 "metadata": {"type":"killfeed"},
-                "servername" :context["serveridnamelinks"][data["server_id"]]
-
-                        })
+                "servername": context["serveridnamelinks"][data["server_id"]]
+            })
         if data["password"] != SERVERPASS and SERVERPASS != "*":
             print("invalid password used on data")
             return {"message": "invalid password"}
@@ -2663,44 +2698,49 @@ def recieveflaskprintrequests():
                 timeofkill,
                 cause_of_death,
                 victim_y,
-                weapon_mods
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                weapon_mods,
+                victim_type,
+                attacker_type
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                data["server_id"],
-                data["attacker_z"],
-                data["attacker_x"],
-                data["attacker_y"],
-                data["victim_id"],
-                data["victim_name"],
-                data["victim_offhand_weapon_2"],
-                data["attacker_titan"],
-                data["map"],
-                data["attacker_offhand_weapon_1"],
-                data["attacker_offhand_weapon_2"],
-                data["victim_offhand_weapon_1"],
-                data["attacker_weapon_3"],
-                data["attacker_name"],
-                data["match_id"],
-                data["victim_titan"],
-                data["distance"],
-                data["victim_current_weapon"],
-                data["victim_z"],
-                data["attacker_weapon_2"],
-                data["game_time"],
-                data["attacker_current_weapon"],
-                data["victim_weapon_3"],
-                data["attacker_id"],
-                data["game_mode"],
-                data["victim_x"],
-                data["attacker_weapon_1"],
-                data["victim_weapon_1"],
-                data["victim_weapon_2"],
-                data["timeofkill"],
-                data["cause_of_death"],
-                data["victim_y"],
-                " ".join(data.get("modsused",[]))
+                data.get("server_id", None),
+                data.get("attacker_z", None),
+                data.get("attacker_x", None),
+                data.get("attacker_y", None),
+                data.get("victim_id", None),
+                data.get("victim_name", None),
+                data.get("victim_offhand_weapon_2", None),
+                data.get("attacker_titan", None),
+                data.get("map", None),
+                data.get("attacker_offhand_weapon_1", None),
+                data.get("attacker_offhand_weapon_2", None),
+                data.get("victim_offhand_weapon_1", None),
+                data.get("attacker_weapon_3", None),
+                data.get("attacker_name", None),
+                data.get("match_id", None),
+                data.get("victim_titan", None),
+                data.get("distance", None),
+                data.get("victim_current_weapon", None),
+                data.get("victim_z", None),
+                data.get("attacker_weapon_2", None),
+                data.get("game_time", None),
+                data.get("attacker_current_weapon", None),
+                data.get("victim_weapon_3", None),
+                data.get("attacker_id", None),
+                data.get("game_mode", None),
+                data.get("victim_x", None),
+                data.get("attacker_weapon_1", None),
+                data.get("victim_weapon_1", None),
+                data.get("victim_weapon_2", None),
+                data.get("timeofkill", None),
+                data.get("cause_of_death", None),
+                data.get("victim_y", None),
+                " ".join(data.get("modsused", [])),
+                data.get("victim_type", None),
+                data.get("attacker_type", None)
             )
+
         )
         specifickillbase.commit()
         c.close()
@@ -3532,28 +3572,28 @@ async def checkverify(message):
     content = message.get("originalmessage", None)
     if not uid or not name or not content:
         return
-    verify_data = accountlinker.get(uid, None)
-    if not verify_data:
-        return
-    if str(content).strip() == "!"+str(verify_data["randomnumber"]) and time.time() < verify_data["timerequested"]:
-        tfdb = sqlite3.connect("./data/tf2helper.db")
-        c = tfdb.cursor()
+    # verify_data = accountlinker.get(uid, None)
+    # if not verify_data:
+    #     return
+    verify_data = accountlinker.get(str(content).strip(),False)
+    if not verify_data: return
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
 
-        c.execute(
-            """INSERT INTO discordlinkdata (uid, discordid, linktime)
-               VALUES (?, ?, ?)
-               ON CONFLICT(uid) DO UPDATE SET discordid=excluded.discordid, linktime=excluded.linktime
-            """,
-            (uid, verify_data["account"], int(time.time()))
-        )
+    c.execute(
+        """INSERT INTO discordlinkdata (uid, discordid, linktime)
+            VALUES (?, ?, ?)
+            ON CONFLICT(uid) DO UPDATE SET discordid=excluded.discordid, linktime=excluded.linktime
+        """,
+        (uid, verify_data["account"], int(time.time()))
+    )
 
-        tfdb.commit()
-        tfdb.close()
-        await verify_data["ctx"].followup.send(
-    f"linked <@{verify_data['account']}> to  **{name}** (UID `{uid}`)"
-)
+    tfdb.commit()
+    tfdb.close()
+    await verify_data["ctx"].followup.send(
+    f"linked <@{verify_data['account']}> to  **{name}** (UID `{uid}`)",ephemeral = True)
 
-        del accountlinker[uid]
+    del accountlinker[str(content).strip()]
     
     
 
