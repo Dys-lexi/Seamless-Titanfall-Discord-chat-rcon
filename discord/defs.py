@@ -51,6 +51,9 @@ MODEL_DICT = {
 
 
 WEAPON_NAMES = {
+  "human_execution":"Pilot execution",
+  "melee_pilot_emptyhanded": "Melee",
+  "mp_weapon_shotgun_doublebarrel":"Twin-B",
   "mp_weapon_rspn101": "R-201 Carbine",
   "mp_weapon_rspn101_og": "R-101 Carbine",
   "mp_weapon_hemlok": "Hemlock BF-R",
@@ -1011,7 +1014,16 @@ ABILITYS_PILOT = [
     "mods": [],
     "modsfiltertype": "include",
     "killedby" : ["player"]
-    }
+    },
+        {
+    "weapon_name": "mp_weapon_yh803_bullet",
+    "png_name": "boost_icon_personel_sentry",
+    "mods": [],
+    "modsfiltertype": "include",
+    "killedby": [
+        "player"
+    ]
+}
   
 ]
 
