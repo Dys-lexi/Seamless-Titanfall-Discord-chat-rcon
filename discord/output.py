@@ -2453,14 +2453,27 @@ def recieveflaskprintrequests():
 
     @app.route("/stoprequests", methods=["POST"])
     def stoprequests():
-        global stoprequestsforserver
+        global stoprequestsforserver,messageflush
         data = request.get_json()
         if data["password"] != SERVERPASS and SERVERPASS != "*":
             print("invalid password used on stoprequests")
             return {"message": "invalid password"}
-        serverid = data["serverid"]
-        print("stopping requests for", serverid)
-        stoprequestsforserver[serverid] = True
+        # serverid = data["serverid"]
+        print("stopping requests for", data["serverid"])
+        try:
+            messageflush.append({
+                "timestamp": int(time.time()),
+                "serverid": data["serverid"],
+                "type": 4,
+                "globalmessage": False,
+                "overridechannel": None,
+                "messagecontent": f"Stopping discord -> Titanfall communication for {context['serveridnamelinks'][data['serverid']]} till next map (to prevent server crash)",
+                "metadata": {"type":"stoprequestsnotif"},
+                "servername": context["serveridnamelinks"][data["serverid"]]
+            })
+        except:pass
+        # print()
+        stoprequestsforserver[data["serverid"]] = True
         return {"message": "ok"}
 
     @app.route("/askformessage", methods=["POST"])
@@ -2587,6 +2600,19 @@ def recieveflaskprintrequests():
             LIMIT 1
         """, (playeruid,))
         bestgame = c.fetchone()
+        c.execute("""
+            SELECT 
+                COALESCE(SUM(duration), 0) AS total_time_playing,
+                COALESCE(SUM(pilotkills), 0) AS total_pilot_kills
+            FROM playtime
+            WHERE playeruid = ?
+        """, (playeruid,))
+        kph = c.fetchone()
+        timeplayed = "unknown"
+        if not kph: killsperhour = 0
+        else:
+            killsperhour = int((kph[1]/(kph[0]/3600))*100)/100
+            timeplayed = modifyvalue(kph[0],"time")
         currentgun = False
         # if request.method == "POST" and "current_weapon" in request.get_json():
         #     print("ASDASDASDASDASSDAS",request.get_json()["current_weapon"])
@@ -2629,7 +2655,7 @@ def recieveflaskprintrequests():
                 break
         offset = 1
 
-        messages["0"] = f"\x1b[38;5;{colour}m{name}\x1b[110m has \x1b[38;5;189m{output['total']['kills']}\x1b[110m kills and \x1b[38;5;189m{output['total']['deaths']}\x1b[110m deaths (\x1b[38;5;189m{kd}\x1b[110m kd)"
+        messages["0"] = f"\x1b[38;5;{colour}m{name}\x1b[110m has \x1b[38;5;189m{output['total']['kills']}\x1b[110m kills and \x1b[38;5;189m{output['total']['deaths']}\x1b[110m deaths (\x1b[38;5;189m{kd}\x1b[110m k/d, \x1b[38;5;189m{killsperhour}\x1b[110m k/hour, \x1b[38;5;189m{timeplayed}\x1b[110m playtime)"
         # print("e",bestgame)
         if  bestgame:
             formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
