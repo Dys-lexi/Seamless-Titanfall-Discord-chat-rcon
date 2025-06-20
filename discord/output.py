@@ -919,6 +919,7 @@ if DISCORDBOTLOGSTATS == "1":
             # print(str(namemap.get(int(itemname), context["serveridnamelinks"].get(str(itemname),itemname))))
             if itemname == "None":
                 return "Some Unknown NPC"
+            return str(namemap.get(int(itemname), context["serveridnamelinks"].get(str(itemname),itemname)))
         displayoutput = []
         nameuidmap = []
         if nameoverride:
