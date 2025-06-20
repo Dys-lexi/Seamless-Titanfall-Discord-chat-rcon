@@ -2609,7 +2609,7 @@ def recieveflaskprintrequests():
         """, (playeruid,))
         kph = c.fetchone()
         timeplayed = "unknown"
-        if not kph: killsperhour = 0
+        if not kph or not kph[0]: killsperhour = 0
         else:
             killsperhour = int((kph[1]/(kph[0]/3600))*100)/100
             timeplayed = modifyvalue(kph[0],"time")
