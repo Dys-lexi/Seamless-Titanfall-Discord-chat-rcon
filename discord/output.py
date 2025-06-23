@@ -2558,6 +2558,7 @@ def recieveflaskprintrequests():
             time.sleep(0.2)
         stoprequestsforserver[serverid] = False
         return {"texts": {}, "commands": {}, "time": "0","textsv2":{}}
+
     @app.route("/players/<playeruid>",methods=["GET","POST"])
     def getplayerstats(playeruid):
         specifickillbase = sqlite3.connect("./data/tf2helper.db")
@@ -2666,19 +2667,212 @@ def recieveflaskprintrequests():
             offset +=1
             messages["1"] = f"\x1b[38;5;{colour}m{name}\x1b[110m had their best game on \x1b[38;5;189m{MAP_NAME_TABLE.get(bestgame[1],bestgame[1])}\x1b[110m with \x1b[38;5;189m{bestgame[3]}\x1b[110m kills on \x1b[38;5;189m{formatted_date}"
         colourcodes = ["\x1b[38;5;226m","\x1b[38;5;251m","\x1b[38;5;208m"]
+        topguns = []
         for enum , weapon in enumerate( top_weapons):
             if not weapon:
                 continue
-            # print(weapon)
-            messages[str(offset)] = f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}\x1b[110m kills: \x1b[38;5;189m{weapon[1]}"
+            # messages[str(offset)] = f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}\x1b[110m kills: \x1b[38;5;189m{weapon[1]}"
+            # offset +=1
+            topguns.append( f"{colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}: \x1b[38;5;189m{weapon[1]}\x1b[110m kills" )
+        if topguns != "":
+            messages[str(offset)] = f"\x1b[38;5;{colour}mTop 3 guns: " + ", ".join(topguns)
             offset +=1
+
         if recent_weapon_kills:
-            messages[str(offset)] = f"\x1b[38;5;{colour}mMost recent weapon: \x1b[38;5;189m{WEAPON_NAMES.get(recent_weapon_kills[0],recent_weapon_kills[0])}\x1b[110m kills: \x1b[38;5;189m{recent_weapon_kills[1]}"
+            messages[str(offset)] = f"\x1b[38;5;{colour}mMost recent weapon: \x1b[38;5;189m{WEAPON_NAMES.get(recent_weapon_kills[0],recent_weapon_kills[0])}: \x1b[38;5;189m{recent_weapon_kills[1]} \x1b[110m kills"
             offset+=1
         # if len(messages):
             # output["messages"] = messages
         print({**output,**messages},"colour",colour)
         return {**output,**messages}
+    # @app.route("/players/<playeruid>", methods=["GET", "POST"])
+    # def getplayerstats(playeruid):
+    #     tfdb = sqlite3.connect("./data/tf2helper.db")
+    #     c = tfdb.cursor()
+    #     try:
+    #         output = resolveplayeruidfromdb(playeruid, None, True)[0]
+    #         name = output["name"]
+    #         playeruid = output["uid"]
+    #     except:
+    #         name = "unknown"
+    #         return {"sob": "sobbing Unknown player"}, 404
+
+    #     messages = {}
+    #     output = {"name": name, "uid": str(playeruid), "total": {}}
+    #     now = datetime.now()
+    #     one_week_ago = int((now - timedelta(days=7)).timestamp())
+
+    #     # Total deaths
+    #     c.execute("SELECT COUNT(*) FROM specifickilltracker WHERE victim_id = ?", (playeruid,))
+    #     total_deaths = float(c.fetchone()[0] or 0)
+    #     # Recent deaths (past week)
+    #     c.execute("SELECT COUNT(*) FROM specifickilltracker WHERE victim_id = ? AND timeofkill >= ?", 
+    #             (playeruid, one_week_ago))
+    #     recent_deaths = float(c.fetchone()[0] or 0)
+    #     # Total kills
+    #     c.execute("SELECT COUNT(*) FROM specifickilltracker WHERE playeruid = ?", (playeruid,))
+    #     total_kills = float(c.fetchone()[0] or 0)
+    #     # Recent kills (past week)
+    #     c.execute("SELECT COUNT(*) FROM specifickilltracker WHERE playeruid = ? AND timeofkill >= ?", 
+    #             (playeruid, one_week_ago))
+    #     recent_kills = float(c.fetchone()[0] or 0)
+
+    #     # KD ratio calculations
+    #     kd = round(total_kills / total_deaths, 2) if total_deaths else round(total_kills, 2)
+    #     recent_kd = round(recent_kills / recent_deaths, 2) if recent_deaths else round(recent_kills, 2)
+    #     kd_difference = round(recent_kd - kd, 2)
+
+    #     # Top 3 weapons with recent kills
+    #     c.execute("""
+    #         SELECT cause_of_death, COUNT(*) as kill_count
+    #         FROM specifickilltracker
+    #         WHERE playeruid = ?
+    #         GROUP BY cause_of_death
+    #         ORDER BY kill_count DESC
+    #         LIMIT 3
+    #     """, (playeruid,))
+    #     top_weapons = []
+    #     for weapon in c.fetchall():
+    #         weapon_name = weapon[0]
+    #         total_weapon_kills = float(weapon[1])
+    #         # Recent kills for this weapon
+    #         c.execute("""
+    #             SELECT COUNT(*) 
+    #             FROM specifickilltracker 
+    #             WHERE playeruid = ? 
+    #             AND cause_of_death = ? 
+    #             AND timeofkill >= ?
+    #         """, (playeruid, weapon_name, one_week_ago))
+    #         recent_weapon_kills = float(c.fetchone()[0] or 0)
+    #         top_weapons.append((weapon_name, total_weapon_kills, recent_weapon_kills))
+
+    #     # Most recent weapon
+    #     c.execute("""
+    #         SELECT cause_of_death
+    #         FROM specifickilltracker
+    #         WHERE playeruid = ?
+    #         ORDER BY timeofkill DESC
+    #         LIMIT 1
+    #     """, (playeruid,))
+    #     recent_weapon = c.fetchone()
+    #     recent_weapon_data = None
+    #     if recent_weapon:
+    #         weapon_name = recent_weapon[0]
+    #         # Total kills with this weapon
+    #         c.execute("""
+    #             SELECT COUNT(*) 
+    #             FROM specifickilltracker 
+    #             WHERE playeruid = ? AND cause_of_death = ?
+    #         """, (playeruid, weapon_name))
+    #         total_weapon_kills = float(c.fetchone()[0] or 0)
+    #         # Recent kills for this weapon
+    #         c.execute("""
+    #             SELECT COUNT(*) 
+    #             FROM specifickilltracker 
+    #             WHERE playeruid = ? 
+    #             AND cause_of_death = ? 
+    #             AND timeofkill >= ?
+    #         """, (playeruid, weapon_name, one_week_ago))
+    #         recent_weapon_kills = float(c.fetchone()[0] or 0)
+    #         recent_weapon_data = (weapon_name, total_weapon_kills, recent_weapon_kills)
+
+    #     # Playtime and KPH
+    #     c.execute("""
+    #         SELECT 
+    #             COALESCE(SUM(duration), 0) AS total_time_playing,
+    #             COALESCE(SUM(pilotkills), 0) AS total_pilot_kills
+    #         FROM playtime
+    #         WHERE playeruid = ?
+    #     """, (playeruid,))
+    #     kph_data = c.fetchone()
+    #     total_playtime = float(kph_data[0] if kph_data else 0)
+    #     total_kph_kills = float(kph_data[1] if kph_data else 0)
+    #     # Recent playtime and kills (past week)
+    #     c.execute("""
+    #         SELECT 
+    #             COALESCE(SUM(duration), 0) AS recent_playtime,
+    #             COALESCE(SUM(pilotkills), 0) AS recent_kills
+    #         FROM playtime
+    #         WHERE playeruid = ? AND joinatunix >= ?
+    #     """, (playeruid, one_week_ago))
+    #     recent_kph_data = c.fetchone()
+    #     recent_playtime = float(recent_kph_data[0] if recent_kph_data else 0)
+    #     recent_kph_kills = float(recent_kph_data[1] if recent_kph_data else 0)
+
+    #     # Calculate KPH values
+    #     all_time_kph = round(total_kph_kills / (total_playtime / 3600), 2) if total_playtime else 0.0
+    #     past_week_kph = round(recent_kph_kills / (recent_playtime / 3600), 2) if recent_playtime else 0.0
+    #     kph_difference = round(past_week_kph - all_time_kph, 2)
+
+    #     # Format time played (as hours and minutes)
+    #     def format_time(seconds):
+    #         hours = int(seconds // 3600)
+    #         mins = int((seconds % 3600) // 60)
+    #         return f"{hours}h {mins}m"
+
+    #     # Color selection
+    #     while True:
+    #         colour = random.randint(0, 255)
+    #         if colour not in DISALLOWED_COLOURS:
+    #             break
+
+    #     # Formatting function to omit trailing zeros
+    #     def fmt(val):
+    #         if isinstance(val, float):
+    #             return f"{val:.2f}".rstrip('0').rstrip('.') if '.' in f"{val:.2f}" else str(int(val))
+    #         return str(val)
+
+    #     def format_stat(total, recent, is_positive=True, is_ratio=False, is_time=False):
+    #         if is_ratio:
+    #             sign = "+" if recent >= 0 else ""
+    #             color_code = 46 if recent >= 0 else 196
+    #             return f"\x1b[38;5;189m{fmt(total)}\x1b[110m (\x1b[38;5;{color_code}m{sign}{fmt(recent)}\x1b[0m)"
+    #         if is_time:
+    #             color_code = 46 if is_positive else 196
+    #             if recent > 0:
+    #                 return f"\x1b[38;5;189m{format_time(total)}\x1b[110m \x1b[38;5;{color_code}m+{format_time(recent)}\x1b[0m"
+    #             return f"\x1b[38;5;189m{format_time(total)}\x1b[110m"
+    #         color_code = 46 if is_positive else 196
+    #         if recent > 0:
+    #             return f"\x1b[38;5;189m{fmt(total)}\x1b[110m \x1b[38;5;{color_code}m+{fmt(recent)}\x1b[0m"
+    #         return f"\x1b[38;5;189m{fmt(total)}\x1b[110m"
+
+    #     # Main stats message
+    #     messages["0"] = (
+    #         f"\x1b[38;5;{colour}m{name}\x1b[110m has "
+    #         f"{format_stat(total_kills, recent_kills)} kills and "
+    #         f"{format_stat(total_deaths, recent_deaths, False)} deaths "
+    #         f"(KD: {format_stat(kd, kd_difference, is_ratio=True)}, "
+    #         f"KPH: {format_stat(all_time_kph, kph_difference, is_ratio=True)} k/hour, "
+    #         f"{format_stat(total_playtime, recent_playtime, is_time=True)} playtime)"
+    #     )
+
+    #     # Top 3 weapons
+    #     colourcodes = ["\x1b[38;5;226m", "\x1b[38;5;251m", "\x1b[38;5;208m"]
+    #     top3guns = ""
+    #     for enum, weapon in enumerate(top_weapons):
+    #         weapon_name = WEAPON_NAMES.get(weapon[0], weapon[0])
+    #         stat_str = format_stat(weapon[1], weapon[2])
+    #         top3guns += (
+    #             f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{weapon_name}\x1b[110m kills: "
+    #             f"{stat_str}   "
+    #         )
+    #     if top3guns:
+    #         messages["1"] = top3guns
+
+    #     # Most recent weapon
+    #     if recent_weapon_data:
+    #         weapon_name = WEAPON_NAMES.get(recent_weapon_data[0], recent_weapon_data[0])
+    #         stat_str = format_stat(recent_weapon_data[1], recent_weapon_data[2])
+    #         messages["2"] = (
+    #             f"\x1b[38;5;{colour}mMost recent weapon: "
+    #             f"\x1b[38;5;189m{weapon_name}\x1b[110m kills: {stat_str}"
+    #         )
+
+    #     tfdb.close()
+    #     return {**output, **messages}
+
+
     @app.route("/data", methods=["POST"])
     def onkilldata():
         # takes input directly from (slightly modified) nutone (https://github.com/nutone-tf) code for this to work is not on the github repo, so probably don't try using it.
