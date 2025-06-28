@@ -1717,10 +1717,9 @@ def listplayersoverride(data, serverid, statuscode):
                 }
             formattedata[value[1]]["playerinfo"][key] = {"score":value[0],"kills":value[2],"deaths":value[3]}
             formattedata[value[1]]["teaminfo"]["score"] += value[0]
-
     embed = discord.Embed(
         title=f"Server status for {context['serveridnamelinks'][serverid]}",
-        # description="This is a **test embed** with multiple customizations!",
+        description="" if len(data.keys()) < 22 else f"__{len(data)-21} player{'s' if len(data)-21 > 1 else ''} truncated due to embed limits__",
         color=0xff70cb,
     )
     if statuscode != 200:
@@ -1737,7 +1736,7 @@ def listplayersoverride(data, serverid, statuscode):
         if team == "meta":
             continue
         embed.add_field(name=f"> *Team {team}*", value=f"\u200b Score: {formattedata[team]['teaminfo']['score']} | Players: {len(formattedata[team]['playerinfo'])}", inline=False)
-        for player in sorted(formattedata[team]["playerinfo"].keys(), key=lambda x: formattedata[team]["playerinfo"][x]["score"], reverse=True):
+        for player in sorted(formattedata[team]["playerinfo"].keys(), key=lambda x: formattedata[team]["playerinfo"][x]["score"], reverse=True)[0:10]:
             embed.add_field(name=f"\u200b \u200b \u200b \u200b \u200b \u200b {player}", value=f"\u200b \u200b \u200b \u200b \u200b \u200b \u200b Score: {formattedata[team]['playerinfo'][player]['score']} | Kills: {formattedata[team]['playerinfo'][player]['kills']} | Deaths: {formattedata[team]['playerinfo'][player]['deaths']}", inline=False)
     return embed
 
@@ -2559,6 +2558,119 @@ def recieveflaskprintrequests():
         stoprequestsforserver[serverid] = False
         return {"texts": {}, "commands": {}, "time": "0","textsv2":{}}
 
+    @app.route("/autobalancedata", methods=["POST", "GET"])
+    def pullautobalancestats():
+        if request.method == "POST":
+            data = getjson(request.get_json())
+            uids =  list(map(lambda x: int(x),data["players"].keys()))#list(map(lambda x: x["uid"], data["players"]))
+        else:
+            data ={"players": {
+    1012640166434: 'mil',
+    1005973237832: 'imc',
+    1004517844743: 'mil',
+    1008752892665: 'imc',
+    1000342703429: 'imc',
+    1015739568089: 'mil',
+    2284657812: 'mil',
+    1009552389524: 'imc',
+    1009047269938: 'imc',
+    1014753681769: 'mil'
+}}
+
+            uids = [1012640166434,1005973237832,1004517844743,1008752892665 ,1000342703429,1015739568089,2284657812,1009552389524,1009047269938,1014753681769] #for testing
+        
+        placeholders = ','.join(['?'] * len(uids))
+        
+        conn = sqlite3.connect("./data/tf2helper.db")
+        c = conn.cursor()
+        
+        c.execute(f"""
+        WITH session_durations AS (
+            SELECT
+                playeruid,
+                matchid,
+                pilotkills,
+                (leftatunix - joinatunix) AS session_duration
+            FROM playtime
+            WHERE leftatunix > joinatunix
+                AND playeruid IN ({placeholders})
+        ),
+        match_stats AS (
+            SELECT
+                playeruid,
+                matchid,
+                SUM(pilotkills) AS total_pilotkills,
+                SUM(session_duration) AS total_playtime_seconds
+            FROM session_durations
+            GROUP BY playeruid, matchid
+            HAVING total_playtime_seconds > 0
+        ),
+        match_kph AS (
+            SELECT
+                playeruid,
+                matchid,
+                total_pilotkills,
+                total_playtime_seconds,
+                1.0 * total_pilotkills * 3600 / total_playtime_seconds AS kills_per_hour
+            FROM match_stats
+        ),
+        ranked_matches AS (
+            SELECT
+                *,
+                ROW_NUMBER() OVER (PARTITION BY playeruid ORDER BY kills_per_hour DESC) AS match_rank,
+                COUNT(*) OVER (PARTITION BY playeruid) AS total_matches
+            FROM match_kph
+        ),
+        filtered_matches AS (
+            SELECT
+                *,
+                CASE
+                    WHEN total_matches < 5 THEN total_matches
+                    ELSE CEIL(total_matches * 0.4)
+                END AS matches_to_include
+            FROM ranked_matches
+        ),
+        top_matches_data AS (
+            SELECT
+                playeruid,
+                MAX(matches_to_include) AS matches_used,  -- Critical fix: Get per-player value
+                SUM(total_pilotkills) AS total_kills_top,
+                SUM(total_playtime_seconds) AS total_seconds_top
+            FROM filtered_matches
+            WHERE match_rank <= matches_to_include
+            GROUP BY playeruid
+        )
+        SELECT
+            playeruid,
+            ROUND((total_kills_top * 3600.0) / NULLIF(total_seconds_top, 0), 2) AS kph,
+            matches_used
+        FROM top_matches_data;
+        """, tuple(uids))
+        
+        results = c.fetchall()
+        conn.close()
+        
+        stats_list = sorted([{"uid": row[0], "kph": row[1], "gamesplayed": row[2]} for row in results],key = lambda x: -x["kph"])
+        # zippp ittt
+        # this is half meant to support more than two teams, but lets be honest, we're not getting that update any time soon
+        outputtedteams = [[],[]]
+        teamchecker = 0
+        for stat in stats_list[0:-1]:
+            outputtedteams[teamchecker].append({**stat,"originalteam":data["players"][str(stat["uid"])]})
+            teamchecker += 1
+            teamchecker = teamchecker % len(outputtedteams)
+        outputtedteams[len(outputtedteams)-1].append({**stats_list[-1],"originalteam":data["players"][str(stats_list[-1]["uid"])]})
+        shouldflip = False
+        if functools.reduce(lambda a,b: a + 1*(b["originalteam"] == "imc"),outputtedteams[0],0) < functools.reduce(lambda a,b: a + 1*(b["originalteam"] == "imc"),outputtedteams[1],0):
+            outputtedteams = outputtedteams[::-1]
+        
+        print(json.dumps({"2":{x["uid"]:x for x in outputtedteams[0]},"3":{x["uid"]:x for x in outputtedteams[1]}},indent = 4))  
+        return {"message": "ok", "stats": {"2":{x["uid"]:{**x,"uid":str(x["uid"])} for x in outputtedteams[0]},"3":{x["uid"]:{**x,"uid":str(x["uid"])} for x in outputtedteams[1]}}}
+
+
+
+
+
     @app.route("/players/<playeruid>",methods=["GET","POST"])
     def getplayerstats(playeruid):
         specifickillbase = sqlite3.connect("./data/tf2helper.db")
@@ -2878,6 +2990,9 @@ def recieveflaskprintrequests():
         # takes input directly from (slightly modified) nutone (https://github.com/nutone-tf) code for this to work is not on the github repo, so probably don't try using it.
         global context, messageflush
         data = request.get_json()
+        if data["password"] != SERVERPASS and SERVERPASS != "*":
+            print("invalid password used on data")
+            return {"message": "invalid password"}
         print(f"{data.get('attacker_name', data['attacker_type'])} killed {data.get('victim_name', data['victim_type'])} with {data['cause_of_death']} using mods {' '.join(data.get('modsused',[]))}")
         if SENDKILLFEED == "1":
             messageflush.append({
@@ -2890,9 +3005,7 @@ def recieveflaskprintrequests():
                 "metadata": {"type":"killfeed"},
                 "servername": context["serveridnamelinks"][data["server_id"]]
             })
-        if data["password"] != SERVERPASS and SERVERPASS != "*":
-            print("invalid password used on data")
-            return {"message": "invalid password"}
+
         specifickillbase = sqlite3.connect("./data/tf2helper.db")
         c = specifickillbase.cursor()
         c.execute(
