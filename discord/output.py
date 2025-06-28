@@ -312,11 +312,12 @@ SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
 TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass") 
 USEDYNAMICPFPS = os.getenv("USE_DYNAMIC_PFPS","1")
 PFPROUTE = os.getenv("PFP_ROUTE","https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/")
-FILTERNAMESINMESSAGES = os.getenv("FILTER_NAMES_IN_MESSAGES","usermessagepfp,chat_message,command,tf1command")
+FILTERNAMESINMESSAGES = os.getenv("FILTER_NAMES_IN_MESSAGES","usermessagepfp,chat_message,command,tf1command,botcommand")
 SENDKILLFEED = os.getenv("SEND_KILL_FEED","0")
 OVERRIDEIPFORCDNLEADERBOARD = os.getenv("OVERRIDE_IP_FOR_CDN_LEADERBOARD","use_actual_ip")
 OVVERRIDEROLEREQUIRMENT = os.getenv("OVERRIDE_ROLE_REQUIREMENT","1")
 COOLPERKSROLEREQUIRMENTS = os.getenv("COOL_PERKS_REQUIREMENT","You need something or other to get this")
+SHOWIMPERSONATEDMESSAGESINDISCORD = os.getenv("SHOW_IMPERSONATED_MESSAGES_IN_DISCORD","1")
 ANSICOLOUR = "\x1b[38;5;105m"
 RGBCOLOUR = {"DISCORD":(135, 135, 255),"FRIENDLY":(80, 229, 255),"ENEMY":(213, 80, 16),"NEUTRAL":"[110m"}
 GLOBALIP = 0
@@ -2318,30 +2319,37 @@ async def on_message(message):
 def colourmessage(message,serverid):
     global discorduidnamelink
     # print("e")
-    if not message.get("metadata",False) or not  message["metadata"].get("uid",False) or not message["metadata"].get("type",False) in ["usermessagepfp","chat_message"]:
+    if not message.get("metadata",False) or not  message["metadata"].get("uid",False) or not message["metadata"].get("type",False) in ["usermessagepfp","chat_message","impersonate"]:
         # print("oxoxo",message["metadata"])
         return False
     # print("ew")
     discorduid = discorduidnamelink.get(message["metadata"]["uid"],False)
-    if not discorduid:
-        specifickillbase = sqlite3.connect("./data/tf2helper.db")
-        c = specifickillbase.cursor()
-        c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (message["metadata"]["uid"],))
-        link = c.fetchone()
-        discorduidnamelink[message["metadata"]["uid"]] = link[0] if link and link[0] else False
-        if (not link or  not link[0]) and not message["metadata"]["blockedmessage"]:
-            # print("eee")
-            return False
-        elif  not link or not link[0] :
+    if message["metadata"].get("type",False) != "impersonate" and not discorduid:
+            specifickillbase = sqlite3.connect("./data/tf2helper.db")
+            c = specifickillbase.cursor()
+            c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (message["metadata"]["uid"],))
+            link = c.fetchone()
+            discorduidnamelink[message["metadata"]["uid"]] = link[0] if link and link[0] else False
+    else:  
+        if not discorduid:
+            specifickillbase = sqlite3.connect("./data/tf2helper.db")
+            c = specifickillbase.cursor()
+            c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (message["metadata"]["uid"],))
+            link = c.fetchone()
+            discorduidnamelink[message["metadata"]["uid"]] = link[0] if link and link[0] else False
+            if (not link or  not link[0]) and not message["metadata"]["blockedmessage"]:
+                # print("eee")
+                return False
+            elif  not link or not link[0] :
+                return {"both":f"{RGBCOLOUR['NEUTRAL']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
+            discorduid = link[0]
+        if not colourslink.get(discorduid,{}).get("ingamecolour",False) and message["metadata"]["blockedmessage"]:
+            # print("edwqdqw")
             return {"both":f"{RGBCOLOUR['NEUTRAL']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
-        discorduid = link[0]
-    if not colourslink.get(discorduid,{}).get("ingamecolour",False) and message["metadata"]["blockedmessage"]:
-        # print("edwqdqw")
-        return {"both":f"{RGBCOLOUR['NEUTRAL']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
-    elif not colourslink.get(discorduid,{}).get("ingamecolour",False):
-        # print("e")
-        return False
-        
+        elif not colourslink.get(discorduid,{}).get("ingamecolour",False):
+            # print("e")
+            return False
+    # print("HEHRHEE")
     authornicks = {}
     # print(message["metadata"].get("type","blegh"))
     # print(json.dumps(message))
@@ -3139,7 +3147,7 @@ def recieveflaskprintrequests():
             newmessage["overridechannel"] = None
             newmessage["globalmessage"] = False
             addtomessageflush = False
-        newmessage["messagecontent"] = data["messagecontent"]
+        newmessage["messagecontent"] = data["messagecontent"].strip()
         if not newmessage["globalmessage"]:
             print("message request from", newmessage["serverid"], newmessage["servername"])
         else:
@@ -3241,6 +3249,8 @@ def getmessagewidget(metadata,serverid,messagecontent,message):
         
     if not metadata["type"]:
         pass
+    elif metadata["type"] == "impersonate" and SHOWIMPERSONATEDMESSAGESINDISCORD == "1":
+        player = f"{player} [IMPERSONATED]"
     elif metadata["type"] == "connect" and DISCORDBOTLOGSTATS == "1":
         pass
         uid = metadata["uid"]
@@ -3258,7 +3268,7 @@ def getmessagewidget(metadata,serverid,messagecontent,message):
                 data2 = sum(list(map(lambda x: x[0]-x[1], data2)))
                 output += f" - {data2//3600}h {data2//60%60}m time playing"
             output += ")"
-    elif metadata["type"] == "command":
+    elif metadata["type"] in ["command","botcommand"]:
         if DISCORDBOTLOGCOMMANDS != "1":
             return "",player
         output = f"""> {context['serveridnamelinks'].get(serverid,'Unknown server').ljust(30)} {(message['player']+":").ljust(20)} {message['messagecontent']}"""
@@ -3807,7 +3817,7 @@ def messageloop():
                             )
                     
                     messageadders = {"pfp":message["metadata"].get("pfp",None),"name":playername,"type":message["metadata"]["type"],"uid":message["metadata"].get("uid",None),"originalname":str(message.get("player",False)),"meta":message.get("metadata",{}),"originalmessage":message.get("messagecontent",False)}
-                    if message["metadata"]["type"] == "usermessagepfp" and USEDYNAMICPFPS == "1":
+                    if message["metadata"]["type"] in ["usermessagepfp","impersonate"] and USEDYNAMICPFPS == "1":
                         message["type"] = 3
                     # else: messageadders = {"type":message["metadata"]["type"]}
                     if message["type"] == 1:
@@ -3860,7 +3870,7 @@ def messageloop():
                         continue
                     # # to save my sanity, I'm going to throw the order out for pfp messages, so I can group them and make them a wee bit more compact, if somone is REALLY sending a lot of messages 
                     userpfpmessages ={}
-                    for message in list(filter(lambda x: x["type"] == "usermessagepfp" and USEDYNAMICPFPS == "1",output[serverid])):
+                    for message in list(filter(lambda x: x["type"] in ["usermessagepfp","impersonate"] and USEDYNAMICPFPS == "1",output[serverid])):
                         if not message["pfp"] or not message["name"] or not message["uid"]:
                             print("VERY BIG ERROR, PLEASE LOOK INTO IT",message)
                             continue
@@ -3988,7 +3998,7 @@ async def outputmsg(channel, output, serverid, USEDYNAMICPFPS):
         "\n".join(
             x["message"]
             for x in output[serverid]
-            if x["type"] != "usermessagepfp" or USEDYNAMICPFPS != "1"
+            if x["type"] not in  ["usermessagepfp","impersonate"] or USEDYNAMICPFPS != "1"
         )
     )
     if not content:
@@ -4381,7 +4391,7 @@ async def {command_name}(ctx, {params_signature}):
         "globalmessage": True,
         "overridechannel": "commandlogchannel",
         "messagecontent": command,
-        "metadata": {{"type":"command"}},
+        "metadata": {{"type":"botcommand"}},
         "servername" :context["serveridnamelinks"][serverid],
         "player":  f"`BOT COMMAND` sent by {{ctx.author.name}}"
     }})
@@ -4438,7 +4448,7 @@ if SHOULDUSETHROWAI == "1":
             "globalmessage": True,
             "overridechannel": "commandlogchannel",
             "messagecontent": "!thrownonrcon",
-            "metadata": {{"type":"command"}},
+            "metadata": {{"type":"botcommand"}},
             "servername" :context["serveridnamelinks"][serverid],
             "player":  f"`BOT COMMAND` sent by {{ctx.author.name}}"
         }})

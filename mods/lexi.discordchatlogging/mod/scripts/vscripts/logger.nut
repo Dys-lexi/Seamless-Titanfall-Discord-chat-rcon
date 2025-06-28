@@ -4,7 +4,8 @@ global function discordlogmatchplayers //given a string, returns all players who
 global function discordlogcheck //check if a command should be run
 global function discordlogsendmessage //send a message to all players, accounting for them being dead (messages sent here have a chance of not being in order, if sent fast) DISABLED
 global function stoprequests // stop sending requests till map change
-
+global function discordlogpostmessages
+global function discordloggetlastmodels
 // to add your own function create a file called xyz.nut in the same place as this one
 // then make it's file load in the mod.json AFTER logger.nut
 // after that, make the line "global function discordlogYOURFUNCTIONNAME"
@@ -25,6 +26,18 @@ global struct discordlogcommand {
 	array<string> commandargs
 	string matchid
 }
+
+global struct outgoingmessage{
+	string playername
+	string message
+	int timestamp
+	int typeofmsg
+	bool globalmessage = false
+	string overridechannel = "None"
+	string metadata = "None"
+}
+
+
 struct {
 	array<discordlogcommand functionref(discordlogcommand)> funcs
 } registeredfunctions
@@ -41,7 +54,8 @@ array <discordlogcommand functionref(discordlogcommand)> function getregisteredf
 		discordlogplayingpoll,
 		discordlogtoggleadmin,
 		getconvar,
-		extmessagesendtester
+		extmessagesendtester,
+		discordlogimpersonate
 		]
 		 //add functions here, and they'll work with / commands (if they fill criteria above)
 }
@@ -68,15 +82,7 @@ bool function discordlogcheck(string command, discordlogcommand inputcommand){
 	// print(split(inputcommand.command," ")[0].find(command) == null)
 	return ( (inputcommand.command[0] != 47 && inputcommand.command[0] != 33) || split(split(inputcommand.command," ")[0],"!/")[0] != command)
 }
-struct outgoingmessage{
-	string playername
-	string message
-	int timestamp
-	int typeofmsg // 1 = chat message, needs a playername. 2 = codeblock chat message, needs a playername. 3 and 4 are the same pattern, but do not need a playername.
-	bool globalmessage = false
-	string overridechannel = "None"
-	string metadata = "None"
-}
+
 struct {
 	string Requestpath
 	string Servername
@@ -88,9 +94,14 @@ struct {
 	bool showchatprefix
 } serverdetails
 
+
 struct {
 	table playermodels
-} lastmodels
+} discordloglastmodels
+
+table function discordloggetlastmodels(){
+	return discordloglastmodels.playermodels
+}
 
 table<string,float> playerrespawn = {
 	
@@ -214,7 +225,7 @@ void function LogConnect( entity player )
 	newmessage.metadata = EncodeJSON(meta)
 	newmessage.typeofmsg = 2
 	thread Postmessages(newmessage)
-	lastmodels.playermodels[player.GetUID()] <- player.GetModelName() + ""
+	discordloglastmodels.playermodels[player.GetUID()] <- player.GetModelName() + ""
 
 }
 void function LogDC( entity player )
@@ -239,7 +250,7 @@ void function LogDC( entity player )
 void function playerstabbedmodelsaver( entity player, entity attacker, var damageInfo) {
 	// table newmodel
 	// newmodel["pfp"] <- player.GetModelName() + ""
-	lastmodels.playermodels[player.GetUID()] <- player.GetModelName() + ""
+	discordloglastmodels.playermodels[player.GetUID()] <- player.GetModelName() + ""
 	float respawntime = Time()
 	int methodOfDeath = DamageInfo_GetDamageSourceIdentifier( damageInfo )
 	float replayLength = CalculateLengthOfKillReplay( player, methodOfDeath )
@@ -270,7 +281,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
     teammessage = "Militia"
     if( playerteam >= 4 )
     teammessage = "Both"
-	teammessage = "[TEAM (" + teammessage + ")]"
+	teammessage = "[TEAM-" + teammessage + "]"
 	}
 	// print(teammessage)
 	outgoingmessage newmessage
@@ -282,11 +293,11 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	if (IsAlive(message.player)){
 	meta["pfp"] <- message.player.GetModelName() + ""}
 	else{
-		// array<string> knownuids = expect array<string>(TableKeysToArray(lastmodels.playermodels))
+		// array<string> knownuids = expect array<string>(TableKeysToArray(discordloglastmodels.playermodels))
 		// if (knownuids.contains(message.player.GetUID())){
-		// print("PFP PFP FPF"+lastmodels.playermodels[message.player.GetUID()] + "")
-		 if ( message.player.GetUID() in lastmodels["playermodels"] ){
-		meta["pfp"] <- lastmodels["playermodels"][message.player.GetUID()]}
+		// print("PFP PFP FPF"+discordloglastmodels.playermodels[message.player.GetUID()] + "")
+		 if ( message.player.GetUID() in discordloglastmodels["playermodels"] ){
+		meta["pfp"] <- discordloglastmodels["playermodels"][message.player.GetUID()]}
 		// // }
 		// else{
 		// 	meta["pfp"] <- "I don't know"
@@ -397,6 +408,9 @@ void function checkshouldblockmessages(entity player){
 	// print(EncodeJSON(params))
 
     NSHttpRequest(request, onSuccess, onFailure)
+}
+void function discordlogpostmessages(outgoingmessage message){
+	thread Postmessages(message)
 }
 
 void function Postmessages(outgoingmessage message){

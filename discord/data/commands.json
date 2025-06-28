@@ -74,6 +74,25 @@
         "rcon": true,
         "outputfunc": false
     },
+        "impersonate": {
+        "description": "impersonate a player (you meanie)",
+        "parameters": [
+            {
+                "name": "playername",
+                "type": "str",
+                "description": "Who?",
+                "required": true
+            },
+            {
+                "name": "message",
+                "type": "str",
+                "description": "What do you want to say",
+                "required": true
+            }
+        ],
+        "rcon": true,
+        "outputfunc": false
+    },
     "getconvar": {
         "description": "Get a convar value",
         "parameters": [
