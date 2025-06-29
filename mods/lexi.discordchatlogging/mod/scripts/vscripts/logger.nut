@@ -317,6 +317,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 		newmessage.overridechannel = "commandlogchannel"
 		newmessage.typeofmsg = 3
 	}
+	else{
 	
 	
 
@@ -331,7 +332,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	newmessage.metadata = EncodeJSON(meta)
 	if (found && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain) {
 		message.shouldBlock = true;
-	}
+	}}
 	thread Postmessages(newmessage)
 
 

@@ -50,6 +50,7 @@ def messagelogger():
         """CREATE TABLE IF NOT EXISTS messagelogger (
             id INTEGER PRIMARY KEY,
             message STRING,
+            serverid INTEGER,
             type STRING
         )"""
     )
@@ -57,6 +58,7 @@ def messagelogger():
     # Add the "type" column if it doesn't exist (for existing tables)
     # This is optional if you always create the table fresh, but good practice for upgrades
     try:
+        c.execute("ALTER TABLE messagelogger ADD COLUMN serverid INTEGER")
         c.execute("ALTER TABLE messagelogger ADD COLUMN type STRING")
     except sqlite3.OperationalError:
         # Column already exists, ignore the error
@@ -301,7 +303,7 @@ if not os.path.exists("./data/" + log_file):
     with open("./data/" + log_file, "w") as f:
         f.write("")
 realprint = print
-def print(*message, end="\n"):
+def print(*message, end="\033[0m\n"):
     message = " ".join([str(i) for i in message])
     if len(message) < 1000000 and False:
         with open("./data/" + log_file, "a") as file:
@@ -338,7 +340,7 @@ TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass")
 USEDYNAMICPFPS = os.getenv("USE_DYNAMIC_PFPS","1")
 PFPROUTE = os.getenv("PFP_ROUTE","https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/")
 FILTERNAMESINMESSAGES = os.getenv("FILTER_NAMES_IN_MESSAGES","usermessagepfp,chat_message,command,tf1command,botcommand")
-SENDKILLFEED = os.getenv("SEND_KILL_FEED","0")
+SENDKILLFEED = os.getenv("SEND_KILL_FEED","1")
 OVERRIDEIPFORCDNLEADERBOARD = os.getenv("OVERRIDE_IP_FOR_CDN_LEADERBOARD","use_actual_ip")
 OVVERRIDEROLEREQUIRMENT = os.getenv("OVERRIDE_ROLE_REQUIREMENT","1")
 COOLPERKSROLEREQUIRMENTS = os.getenv("COOL_PERKS_REQUIREMENT","You need something or other to get this")
@@ -460,8 +462,9 @@ async def autocompletenamesfromdb(ctx):
     return output
 
 async def autocompletenamesfromingame(ctx):
-    main = list(set([p.lower() for v in titanfall1currentlyplaying.values() for p in v] +[name.lower() for s in playercontext.values() for u in s.values() for name in u.keys()] +["all", "_"]))
-    output = list(filter(lambda x: ctx.value.lower() in x,main))
+    channel = getchannelidfromname(False,ctx.interaction)
+    main = list(set([str(p) for v in dict(list(filter( lambda x: x[0] == channel or channel == None,titanfall1currentlyplaying.items()))).values() for p in v] +[str(name) for s in dict(list(filter( lambda x: x[0] == channel or channel == None,playercontext.items()))).values() for u in s.values() for name in u.keys()] +["all", "_"]))
+    output = list(filter(lambda x: ctx.value.lower() in x.lower(),main))
     if len(main) == 2:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["No one playing"]
@@ -471,6 +474,26 @@ async def autocompletenamesfromingame(ctx):
         
     return output
 
+async def autocompletenamesfromingamenowildcard(ctx):
+    channel = getchannelidfromname(False,ctx.interaction)
+    main = list(set([str(p) for v in dict(list(filter( lambda x: x[0] == channel or channel == None,titanfall1currentlyplaying.items()))).values() for p in v] +[str(name) for s in dict(list(filter( lambda x: x[0] == channel or channel == None,playercontext.items()))).values() for u in s.values() for name in u.keys()]))
+    output = list(filter(lambda x: ctx.value.lower() in x.lower(),main))
+    if len(main) == 0:
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        return ["No one playing"]
+    elif len(output) == 0:
+        await asyncio.sleep(0.3)
+        return output
+        
+    return output
+@functools.cache
+def getallweaponnames(weapon):
+    conn = sqlite3.connect("./data/tf2helper.db")
+    c = conn.cursor()
+    c.execute("SELECT DISTINCT cause_of_death FROM specifickilltracker ORDER BY cause_of_death")
+    return list(map(lambda x: WEAPON_NAMES.get(x[0],x[0]),list(filter(lambda x: (WEAPON_NAMES.get(x[0],False) and weapon.lower() in WEAPON_NAMES.get(x[0],"").lower()) or weapon.lower() in x[0].lower(),c.fetchall()))))[:30]
+async def weaponnamesautocomplete(ctx):
+    return getallweaponnames(ctx.value)
 
 
 
@@ -510,13 +533,13 @@ async def pullmessagelogs(ctx, filterword: str = ""):
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
     c.execute("""
-        SELECT message, type
+        SELECT message, type, serverid
         FROM messagelogger
         WHERE message LIKE ?
         AND type NOT IN ('command', 'tf1command', 'botcommand')
     """, ('%' + filterword + '%',))
     matches = [
-        (getjson(row[0]))
+        {**(getjson(row[0])),"serverid":row[2]}
         for row in c.fetchall()
     ]
     tfdb.close()
@@ -642,10 +665,52 @@ if DISCORDBOTLOGSTATS == "1":
     #     # ) = None
     # ):
     #     pass
+    @bot.slash_command(name="pngleaderboard", description="Gets pngleaderboard for a player, takes a LONG time to calculate on the wildcard.",)
+    async def retrieveleaderboard(
+        ctx,
+        playername: Option(str, "Who to get a leaderboard for",autocomplete=autocompletenamesfromdb),
+        leaderboard: Option(
+            str, "What weapon (please select one or pay my power bills)", autocomplete = weaponnamesautocomplete
+        ) = None,
+        fliptovictims: Option(str, "Flip to victims?", choices=["Yes", "No"]) = "No"
+    ):
+        await ctx.defer()
+        # def getweaponspng(swoptovictims = False,specificweapon=False, max_players=10, COLUMNS=False):
+        # timestamp = await asyncio.to_thread(getweaponspng, leaderboard_entry.get("displayvictims", False),leaderboardcategorysshown, maxshown, leaderboard_entry.get("columns", False))
+        player = resolveplayeruidfromdb(playername,None,True)
+        if not player:
+            await ctx.respond(f"{playername}player not found", ephemeral=False)
+            return
+        searchterm = False
+        if leaderboard:
+            searchterm = [*ABILITYS_PILOT, *GRENADES, *DEATH_BY_MAP, *MISC_MISC, *MISC_TITAN, *MISC_PILOT, *CORES, *GUNS_TITAN, *GUNS_PILOT, *ABILITYS_TITAN]
+            searchterm = list(filter(lambda x:  leaderboard.lower() in  WEAPON_NAMES.get(x["weapon_name"],x["weapon_name"]).lower(),searchterm))
+        timestamp = await asyncio.to_thread(getweaponspng, fliptovictims != "No",searchterm, 50 if searchterm else 10,False,350,player[0]["uid"])
+        cdn_url = f"{GLOBALIP}/cdn/{timestamp}"
+        if not timestamp:
+            await ctx.respond("Failed to calculate pngleaderboard - generic error")
+            return
+        image_available = True
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(cdn_url+"TEST") as response:
+                    if response.status != 200:
+                        image_available = False
+            except:
+                await ctx.respond("Failed to calculate pngleaderboard - cdn error")
+                return
+        await ctx.respond(f"bleh{cdn_url}")
+        
+
+
+
+            
+        
+        return "bleh"
     @bot.slash_command(name="leaderboards", description="Gets leaderboards for a player")
     async def retrieveleaderboard(
         ctx,
-        playername: Option(str, "Who to get a leaderboard for"),
+        playername: Option(str, "Who to get a leaderboard for",autocomplete=autocompletenamesfromdb),
         leaderboard: Option(
             str, "Witch leaderboard, omit for all, more specific data when not ommitted", choices=list(map(lambda x:x["name"],list(filter(lambda x:"name" in x.get("merge","none") ,context["leaderboardchannelmessages"]))))
         ) = None
@@ -1157,8 +1222,7 @@ if DISCORDBOTLOGSTATS == "1":
             return int_part
 
 
-
-    def getweaponspng(swoptovictims = False,specificweapon=False, max_players=10, COLUMNS=False):
+    def getweaponspng(swoptovictims = False,specificweapon=False, max_players=10, COLUMNS=False, widthoverride = 300,playeroverride = False):
         global imagescdn
         print("getting pngleaderboard")
         now = int(time.time()*100)
@@ -1168,10 +1232,12 @@ if DISCORDBOTLOGSTATS == "1":
         GOLD = (255, 215, 0)
         SILVER = (192, 192, 192)
         BRONZE = (205, 127, 50)
+        CURRENT = (255,180,00)
         DEFAULT_COLOR = (255, 255, 255)
         IMAGE_DIR = "./gunimages"
         CDN_DIR = "./data/cdn"
-        specificweapon = specificweapon.copy()
+        if specificweapon:
+            specificweapon = specificweapon.copy()
         timecutoffs = {"main":0,"cutoff":86400*7}
         if not specificweapon:
             specificweapon = []
@@ -1217,7 +1283,13 @@ if DISCORDBOTLOGSTATS == "1":
         # os.makedirs(CDN_DIR, exist_ok=True)
         # print(specificweapon)
         if not specificweapon:
-            weapon_images = [f for f in os.listdir(IMAGE_DIR) if (f.startswith("mp_") or f.startswith("melee_")) and f.endswith(".png")]
+            # weapon_images = [f for f in os.listdir(IMAGE_DIR) if (f.startswith("mp_") or f.startswith("melee_")) and f.endswith(".png")]
+            conn = sqlite3.connect("./data/tf2helper.db")
+            c = conn.cursor()
+            c.execute("SELECT DISTINCT cause_of_death FROM specifickilltracker ORDER BY cause_of_death")
+            weaponsused = c.fetchall()
+            weapon_images = list(map(lambda x: f"{x[0]}.png", weaponsused))
+
         else:
             weapon_images = [f for f in os.listdir(IMAGE_DIR) if f.endswith(".png")]
         weapon_names = [os.path.splitext(f)[0] for f in weapon_images]
@@ -1249,28 +1321,38 @@ if DISCORDBOTLOGSTATS == "1":
             conn.close()
             return rows
         # print("calculated pngleaderboard in", (int(time.time()*100)-now)/100,"seconds")
-        specificweaponsallowed = list(map(lambda x: x["weapon_name"],specificweapon))
-        weapon_kills = {"main":{},"cutoff":{}}
-        for name,cutoff in timecutoffs.items():
-            for weapon, killer, mods, stabcount, whomurdered in bvsuggestedthistome(cutoff,swoptovictims):
-                if weapon not in specificweaponsallowed:
-                    continue
-                index = specificweaponsallowed.index(weapon)
-                modswanted = (specificweapon[index].get("mods",[]))
-                modsused = (mods.split(" "))
-                if modsused == ['']:
-                    modsused = []
-                modsfiltertype = specificweapon[index].get("modswanted","include")
-                mustbekilledby = specificweapon[index].get("killedby",[])
-                # print(specificweapon[index])
-                if mustbekilledby and whomurdered and whomurdered not in mustbekilledby:
-                    continue
-                if not (modsfiltertype == "include" and (not modswanted or list(filter(lambda x: x in modsused,modswanted)))) and not (modsfiltertype == "anyof" and len(set([*modswanted,*modsused])) < len([*modswanted,*modsused])) and not (modsfiltertype == "exclude" and len(set([*modswanted,*modsused])) == len([*modswanted,*modsused])) and not (modsfiltertype == "exact" and str(sorted(modswanted)) == str(sorted(modsused))):
-                    continue
-                if not killer: killer = whomurdered
-                weapon_kills[name].setdefault(specificweapon[index]["png_name"],{})
-                weapon_kills[name][specificweapon[index]["png_name"]].setdefault(killer,0)
-                weapon_kills[name][specificweapon[index]["png_name"]][killer] += stabcount
+        if specificweapon:
+            specificweaponsallowed = list(map(lambda x: x["weapon_name"],specificweapon))
+            weapon_kills = {"main":{},"cutoff":{}}
+            for name,cutoff in timecutoffs.items():
+                for weapon, killer, mods, stabcount, whomurdered in bvsuggestedthistome(cutoff,swoptovictims):
+                    if weapon not in specificweaponsallowed:
+                        continue
+                    index = specificweaponsallowed.index(weapon)
+                    modswanted = (specificweapon[index].get("mods",[]))
+                    modsused = (mods.split(" "))
+                    if modsused == ['']:
+                        modsused = []
+                    modsfiltertype = specificweapon[index].get("modswanted","include")
+                    mustbekilledby = specificweapon[index].get("killedby",[])
+                    # print(specificweapon[index])
+                    if mustbekilledby and whomurdered and whomurdered not in mustbekilledby:
+                        continue
+                    if not (modsfiltertype == "include" and (not modswanted or list(filter(lambda x: x in modsused,modswanted)))) and not (modsfiltertype == "anyof" and len(set([*modswanted,*modsused])) < len([*modswanted,*modsused])) and not (modsfiltertype == "exclude" and len(set([*modswanted,*modsused])) == len([*modswanted,*modsused])) and not (modsfiltertype == "exact" and str(sorted(modswanted)) == str(sorted(modsused))):
+                        continue
+                    if not killer: killer = whomurdered
+                    weapon_kills[name].setdefault(specificweapon[index]["png_name"],{})
+                    weapon_kills[name][specificweapon[index]["png_name"]].setdefault(killer,0)
+                    weapon_kills[name][specificweapon[index]["png_name"]][killer] += stabcount
+        else:
+            weapon_kills = {"main":{},"cutoff":{}}
+            for name,cutoff in timecutoffs.items():
+                for weapon, killer, mods, stabcount, whomurdered in bvsuggestedthistome(cutoff,swoptovictims):
+                    weapon_kills[name].setdefault(f"{weapon}",{})
+                    weapon_kills[name][f"{weapon}"].setdefault(killer,0)
+                    weapon_kills[name][f"{weapon}"][killer] += stabcount
+
+
 
         # weapon_kills = {"main":{},"cutoff":{}}
         # for name,cutoff in timecutoffs.items():
@@ -1314,21 +1396,45 @@ if DISCORDBOTLOGSTATS == "1":
 
             # if not specificweapon:
         weapon_names.sort(key=lambda w: max([0,*list(weapon_kills["main"].get(w, {}).values())]), reverse=True)
+        # print(weapon_names)
         weapon_names = list(filter(lambda w: weapon_kills["main"].get(w, False) != False, weapon_names))
         try:
             font = ImageFont.truetype(FONT_PATH, FONT_SIZE)
         except (OSError, IOError):
             font = ImageFont.load_default()
-
+        # print("bleh",weapon_names)
         panels = []
         images = {}
         maxheight = 0
-        maxwidth = 300
+        maxwidth = widthoverride
         if not COLUMNS:
             COLUMNS = sqrt_ceil(len(weapon_names))
         for weapon in weapon_names:
-            img_path = os.path.join(IMAGE_DIR, weapon + ".png")
-            gun_img = Image.open(img_path)
+            try:
+                img_path = os.path.join(IMAGE_DIR, weapon + ".png")
+                gun_img = Image.open(img_path)
+            except FileNotFoundError:
+                gun_img = Image.new("RGBA", (maxwidth, 128), color=(0, 0, 0, 0))
+                draw = ImageDraw.Draw(gun_img)
+
+                text = weapon
+                font_path = "arial.ttf"  # Replace or leave as None to use default
+
+                font = get_max_font_size(draw, text, maxwidth, 128, font_path)
+
+                bbox = draw.textbbox((0, 0), text, font=font)
+                text_width = bbox[2] - bbox[0]
+                text_height = bbox[3] - bbox[1]
+
+                x = (maxwidth - text_width) // 2
+                y = (128 - text_height) // 2
+
+                draw.text((x, y), text, fill=(255, 0, 0, 255), font=font)
+
+                # Optionally save placeholder
+                placeholder_path = os.path.join(IMAGE_DIR, weapon + ".png")
+                gun_img.save(placeholder_path, format="PNG")
+
             images[weapon] = gun_img
             if gun_img.width > maxwidth:
                 maxwidth = gun_img.width
@@ -1357,8 +1463,26 @@ if DISCORDBOTLOGSTATS == "1":
             #         counts[attacker]["killscutoff"] = counts[attacker]["killscutoff"] + 1
             # if len(counts) == 0:
             #     continue
-
-            sorted_players = sorted(counts.items(), key=lambda item: item[1]["kills"], reverse=True)[:max_players]
+            if not playeroverride:
+                sorted_players = sorted(counts.items(), key=lambda item: item[1]["kills"], reverse=True)[:max_players]
+                startindex = 0
+                sorted_player_index = -1
+            else:
+                sorted_players = sorted(counts.items(), key=lambda item: item[1]["kills"], reverse=True)
+                sorted_player_index = functools.reduce(lambda a,b: (a[0] + 1,a[1]) if  not a[1] and b[0] != str(playeroverride) else (a[0],True)  , sorted_players,(0,False))
+                print("SORQWDIQWD",sorted_player_index)
+                if not sorted_player_index[1]:
+                    sorted_player_index = 0
+                else: sorted_player_index = sorted_player_index[0]
+                half = max_players // 2
+                print("SORTED INDFEX",sorted_player_index)
+                start = max(0, sorted_player_index - half)
+                end = start + max_players
+                if end > len(sorted_players):
+                    end = len(sorted_players)
+                    start = max(0, end - max_players)
+                sorted_players = sorted_players[start:end]
+                startindex = start
             sorted_players_cutoff = sorted(counts.items(), key=lambda item: item[1]["killscutoff"], reverse=True)
 
             
@@ -1388,8 +1512,10 @@ if DISCORDBOTLOGSTATS == "1":
             for i, (attacker, data) in enumerate(sorted_players):
                 count = data["kills"]
                 oldkills = data["killscutoff"]
-
-                name = resolveplayeruidfromdb(attacker, "uid", True)[0]["name"] if resolveplayeruidfromdb(attacker, "uid", True) else attacker
+                if not playeroverride:
+                    name = resolveplayeruidfromdb(attacker, "uid", True)[0]["name"] if attacker and resolveplayeruidfromdb(attacker, "uid", True) else attacker
+                else:
+                    name = f'{i+1+sorted_player_index}) {resolveplayeruidfromdb(attacker, "uid", True)[0]["name"] if attacker and resolveplayeruidfromdb(attacker, "uid", True) else attacker}'
                 delta_kills = count - oldkills
                 previous_index = sorted_players_cutoff.index(attacker)
                 delta = previous_index - i
@@ -1403,9 +1529,10 @@ if DISCORDBOTLOGSTATS == "1":
                     change_text = "–"
                     change_color = (128, 128, 128)
                 color = (
-                    GOLD if i == 0 else
-                    SILVER if i == 1 else
-                    BRONZE if i == 2 else
+                    GOLD if i+startindex == 0 else
+                    SILVER if i+startindex == 1 else
+                    BRONZE if i+startindex == 2 else
+                    CURRENT if i+startindex == sorted_player_index else
                     DEFAULT_COLOR
                 )
 
@@ -1465,7 +1592,24 @@ if DISCORDBOTLOGSTATS == "1":
         # canvas.save(file_path, format="PNG")
         
 
-    
+    def get_max_font_size(draw, text, max_width, max_height, font_path=None):
+        font_size = 1
+        while True:
+            try:
+                font = ImageFont.truetype(font_path, font_size) if font_path else ImageFont.load_default()
+            except:
+                font = ImageFont.load_default()
+                break
+
+            bbox = draw.textbbox((0, 0), text, font=font)
+            width = bbox[2] - bbox[0]
+            height = bbox[3] - bbox[1]
+
+            if width > max_width or height > max_height:
+                font_size -= 1
+                break
+            font_size += 1
+            return ImageFont.truetype(font_path, font_size) if font_path else ImageFont.load_default()
     def modifyvalue(value, format, calculation=None):
         if format is None:
             return value
@@ -1595,7 +1739,7 @@ if DISCORDBOTLOGSTATS == "1":
         name="togglejoinnotify",
         description="Toggle if you are notified when a player joins",
     )
-    async def togglejoinnotify(ctx,name: Option(str, "The playername to toggle")):
+    async def togglejoinnotify(ctx,name: Option(str, "The playername to toggle",autocomplete=autocompletenamesfromdb)):
         tfdb = sqlite3.connect("./data/tf2helper.db")
         c = tfdb.cursor()
         c.execute("SELECT playeruid, playername FROM uidnamelink")
@@ -2410,7 +2554,7 @@ def colourmessage(message,serverid):
             c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (message["metadata"]["uid"],))
             link = c.fetchone()
             discorduidnamelink[message["metadata"]["uid"]] = link[0] if link and link[0] else False
-    else:  
+    elif message["metadata"].get("type",False) != "impersonate" :  
         if not discorduid:
             specifickillbase = sqlite3.connect("./data/tf2helper.db")
             c = specifickillbase.cursor()
@@ -2536,7 +2680,7 @@ def recieveflaskprintrequests():
         cloned = BytesIO(image_data.read())  
         cloned.seek(0)
         # del imagescdn[filename]
-        if len(imagescdn.keys()) > 10:
+        if len(imagescdn.keys()) > 30:
             del imagescdn[list(imagescdn.keys())[0]]
         print("returning file",filename)
         return send_file(cloned, mimetype="image/png")
@@ -3938,7 +4082,7 @@ def messageloop():
                         # extra functions hooked onto messages
                         # asyncio.run_coroutine_threadsafe(colourmessage(message,serverid),bot.loop)
                         asyncio.run_coroutine_threadsafe(checkverify(message),bot.loop)
-                        thready = threading.Thread(target=savemessages, daemon=True, args=(message,))
+                        thready = threading.Thread(target=savemessages, daemon=True, args=(message,serverid))
                         thready.start()
                         isbad = checkifbad(message)
                         if isbad[0]:
@@ -4002,15 +4146,15 @@ def messageloop():
             print("bot not ready", e)
         time.sleep(0.1)
 
-def savemessages(message):
+def savemessages(message,serverid):
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
     
     c.execute(
-        """INSERT INTO messagelogger (message,type)
-            VALUES (?,?)
+        """INSERT INTO messagelogger (message,type,serverid)
+            VALUES (?,?,?)
         """,
-        (json.dumps(message),message.get("type","Unknown type"))
+        (json.dumps(message),message.get("type","Unknown type"),serverid)
     )
 
     tfdb.commit()

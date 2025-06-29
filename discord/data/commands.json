@@ -20,7 +20,7 @@
                 "type": "str",
                 "description": "Get a player's UID",
                 "required": true,
-                "autocompletefunc": "autocompletenamesfromingame"
+                "autocompletefunc": "autocompletenamesfromingamenowildcard"
             }
         ],
         "rcon": false,
@@ -65,7 +65,7 @@
                 "type": "str",
                 "description": "The player name",
                 "required": true,
-                "autocompletefunc": "autocompletenamesfromingame"
+                "autocompletefunc": "autocompletenamesfromingamenowildcard"
             },
             {
                 "name": "reason",
@@ -85,7 +85,7 @@
                 "type": "str",
                 "description": "Who?",
                 "required": true,
-                "autocompletefunc": "autocompletenamesfromingame"
+                "autocompletefunc": "autocompletenamesfromingamenowildcard"
             },
             {
                 "name": "message",
@@ -117,7 +117,7 @@
                 "type": "str",
                 "description": "The player name",
                 "required": true,
-                "autocompletefunc": "autocompletenamesfromingame"
+                "autocompletefunc": "autocompletenamesfromingamenowildcard"
             },
             {
                 "name": "reason",
@@ -182,7 +182,7 @@
                 "type": "str",
                 "description": "The player name",
                 "required": true,
-                "autocompletefunc": "autocompletenamesfromingame"
+                "autocompletefunc": "autocompletenamesfromingamenowildcard"
             },
             {
                 "name": "level",
