@@ -3551,10 +3551,11 @@ def tf1readsend(serverid,checkstatus):
                     statusoutput = "".join("".join("".join(statusoutput.split("BEGINMAINOUT")[1:]).split("OUTPUT<")[1:]).split("/>ENDOUTPUT")[:-1])
                     statusoutput = statusoutput.replace("☻",'"')
                     statusoutput = getjson(statusoutput)
+                else:
+                    titanfall1currentlyplaying[serverid] = []
                 # print((statusoutput))
                 peopleonserver = len(statusoutput.keys()) -1
-                if peopleonserver:
-                    titanfall1currentlyplaying[serverid] = [statusoutput[x]["playername"] for x in list(filter(lambda x: x != "meta", statusoutput.keys()))]
+                titanfall1currentlyplaying[serverid] = [statusoutput[x]["playername"] for x in list(filter(lambda x: x != "meta", statusoutput.keys()))]
                 discordtotitanfall[serverid]["serveronline"] = bool (len(statusoutput.keys()) -1)
                 if not discordtotitanfall[serverid]["serveronline"]:
                     offlinethisloop = True
