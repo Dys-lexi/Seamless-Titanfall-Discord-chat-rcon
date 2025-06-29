@@ -24,6 +24,7 @@ import sqlite3
 import re
 import aiohttp
 from defs import *
+import io
 
 def creatediscordlinkdb():
     tfdb = sqlite3.connect("./data/tf2helper.db")
@@ -37,6 +38,30 @@ def creatediscordlinkdb():
         )"""
     )
 
+    tfdb.commit()
+    tfdb.close()
+
+def messagelogger():
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    
+    # Create the table if it doesn't exist
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS messagelogger (
+            id INTEGER PRIMARY KEY,
+            message STRING,
+            type STRING
+        )"""
+    )
+    
+    # Add the "type" column if it doesn't exist (for existing tables)
+    # This is optional if you always create the table fresh, but good practice for upgrades
+    try:
+        c.execute("ALTER TABLE messagelogger ADD COLUMN type STRING")
+    except sqlite3.OperationalError:
+        # Column already exists, ignore the error
+        pass
+    
     tfdb.commit()
     tfdb.close()
 
@@ -353,6 +378,7 @@ if TOKEN == 0:
 stoprequestsforserver = {}
 discordtotitanfall = {}
 colourslink = {}
+titanfall1currentlyplaying = {}
 # Load channel ID from file
 context = {
         "wordfilter":{
@@ -391,6 +417,7 @@ playeruidnamelink()
 joincounterdb()
 matchid()
 discorduidinfodb()
+messagelogger()
 creatediscordlinkdb()
 specifickilltrackerdb()
 serverchannels = []
@@ -425,6 +452,27 @@ else:
 print(json.dumps(context, indent=4))
 bot = discord.Bot(intents=intents)
 
+async def autocompletenamesfromdb(ctx):
+    output =  [x["name"] if x["name"].strip() else str(x["uid"]) for x in  resolveplayeruidfromdb(ctx.value,None,True)][:20]
+    if len(output) == 0:
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        return ["No one matches"]
+    return output
+
+async def autocompletenamesfromingame(ctx):
+    main = list(set([p for v in titanfall1currentlyplaying.values() for p in v] +[name for s in playercontext.values() for u in s.values() for name in u.keys()] +["all", "_"]))
+    output = list(filter(lambda x: ctx.value in x,main))
+    if len(main) == 2:
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        return ["No one playing"]
+    elif len(output) == 2:
+        await asyncio.sleep(0.3)
+        return output
+        
+    return output
+
+
+
 
 @bot.event
 async def on_ready():
@@ -453,6 +501,34 @@ async def updateroles():
                 uids.extend ( [member.id for member in guild.get_role(role).members])
             context["overriderolesuids"][roletype] = uids
     savecontext()
+
+@bot.slash_command(
+    name="messagelogs",
+    description="Pull all non command message logs with a given filter"
+)
+async def pullmessagelogs(ctx, filterword: str = ""):
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    c.execute("""
+        SELECT message, type
+        FROM messagelogger
+        WHERE message LIKE ?
+        AND type NOT IN ('command', 'tf1command', 'botcommand')
+    """, ('%' + filterword + '%',))
+    matches = [
+        (getjson(row[0]))
+        for row in c.fetchall()
+    ]
+    tfdb.close()
+    if matches:
+        file_obj = io.BytesIO(json.dumps(matches, indent=4).encode('utf-8'))
+        file_obj.seek(0)
+        discord_file = discord.File(file_obj, filename="matches.json")
+        await ctx.respond(f"Matching Messages:", file=discord_file)
+    else:
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        await ctx.respond("No matches found.")
+
 
 @bot.slash_command(
     name="bindloggingtocategory",
@@ -1424,13 +1500,16 @@ if DISCORDBOTLOGSTATS == "1":
         elif format == "map":
             return str(MAP_NAME_TABLE.get(value, value))
         return value
+    
         
 
     @bot.slash_command(
         name="whois",
         description="Get a player's Aliases",
     )
-    async def whois(ctx, name: Option(str, "The playername/uid to Query")):
+    async def whois(
+            ctx,
+            name: Option(str, "The playername/uid to Query", autocomplete=autocompletenamesfromdb)):
         MAXALIASESSHOWN = 22
         originalname = name
         print("whois command from", ctx.author.id, "to", name)
@@ -1575,6 +1654,7 @@ async def help(
         embed.add_field(name="linktf2account", value="link your tf2 account to your discord account", inline=False)
         embed.add_field(name="discordtotf2chatcolour",value="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your discord -> tf2 name, seperate multiple colours with spaces")
         embed.add_field(name="tf2ingamechatcolour",value="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your in game tf2 name, seperate multiple colours with spaces")
+        embed.add_field(name="messagelogs",value="Pull all non command message logs with a given filter")
         if SHOULDUSETHROWAI == "1":
             embed.add_field(name="thrownonrcon", value="Throw a player, after being persuasive", inline=False)
         if SANCTIONAPIBANKEY != "":
@@ -3380,30 +3460,30 @@ tf1servercontext ={}
 
 
 
-# def interpstatus(log):
-#     m = re.search(r"map\s*:\s*(\S+)", log)
-#     map_name = m.group(1) if m else None
-#     players = []
-#     for line in log.splitlines():
-#         if "#" in line and '"' in line:
-#             m1 = re.search(r'#\s*(\d+)\s+\d+\s+"([^"]+)"', line)
-#             if not m1:
-#                 continue
-#             userid, name = m1.group(1), m1.group(2)
-#             m2 = re.search(r'(\d{1,3}(?:\.\d{1,3}){3})(?=\[)', line)
-#             ip = m2.group(1) if m2 else None
+def interpstatus(log):
+    m = re.search(r"map\s*:\s*(\S+)", log)
+    map_name = m.group(1) if m else None
+    players = []
+    for line in log.splitlines():
+        if "#" in line and '"' in line:
+            m1 = re.search(r'#\s*(\d+)\s+\d+\s+"([^"]+)"', line)
+            if not m1:
+                continue
+            userid, name = m1.group(1), m1.group(2)
+            m2 = re.search(r'(\d{1,3}(?:\.\d{1,3}){3})(?=\[)', line)
+            ip = m2.group(1) if m2 else None
 
-#             players.append({
-#                 "userid": userid,
-#                 "name": name,
-#                 "ip": ip
-#             })
+            players.append({
+                "userid": userid,
+                "name": name,
+                "ip": ip
+            })
 
-#     return map_name, players
+    return map_name, players
 
 def tf1readsend(serverid,checkstatus):
     # don't even bother trying to send anything or read anything if the server is offline!
-    global discordtotitanfall,context,reactedyellowtoo
+    global discordtotitanfall,context,reactedyellowtoo,titanfall1currentlyplaying
     commands = {}
     offlinethisloop = False
     now = int((time.time())*100) # increased by 8 seconds, to increase the time it takes for a yellow dot to be reacted
@@ -3473,6 +3553,8 @@ def tf1readsend(serverid,checkstatus):
                     statusoutput = getjson(statusoutput)
                 # print((statusoutput))
                 peopleonserver = len(statusoutput.keys()) -1
+                if peopleonserver:
+                    titanfall1currentlyplaying[serverid] = [statusoutput[x]["playername"] for x in list(filter(lambda x: x != "meta", statusoutput.keys()))]
                 discordtotitanfall[serverid]["serveronline"] = bool (len(statusoutput.keys()) -1)
                 if not discordtotitanfall[serverid]["serveronline"]:
                     offlinethisloop = True
@@ -3855,6 +3937,8 @@ def messageloop():
                         # extra functions hooked onto messages
                         # asyncio.run_coroutine_threadsafe(colourmessage(message,serverid),bot.loop)
                         asyncio.run_coroutine_threadsafe(checkverify(message),bot.loop)
+                        thready = threading.Thread(target=savemessages, daemon=True, args=(message,))
+                        thready.start()
                         isbad = checkifbad(message)
                         if isbad[0]:
                             print("horrible message found")
@@ -3917,6 +4001,19 @@ def messageloop():
             print("bot not ready", e)
         time.sleep(0.1)
 
+def savemessages(message):
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    
+    c.execute(
+        """INSERT INTO messagelogger (message,type)
+            VALUES (?,?)
+        """,
+        (json.dumps(message),message.get("type","Unknown type"))
+    )
+
+    tfdb.commit()
+    tfdb.close()
 async def checkverify(message):
     global accountlinker
     if len(accountlinker.keys()) == 0:
@@ -4221,46 +4318,42 @@ def defaultoverride(data, serverid, statuscode):
             embed.add_field(name=f"> {key}:", value=f"```json\n{json.dumps(value,indent=4)}```", inline=False)
     return embed
 
-def resolveplayeruidfromdb(name,uidnameforce = None,oneuidpermatch = False):
-        tfdb = sqlite3.connect("./data/tf2helper.db")
-        c = tfdb.cursor()
-        c.execute("SELECT playeruid, playername FROM uidnamelink")
+
+def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False):
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+
+    name_like = f"%{name}%"
+    query = """
+        SELECT playeruid, playername FROM uidnamelink
+        WHERE LOWER(playername) LIKE LOWER(?)
+        ORDER BY LENGTH(playername), playername COLLATE NOCASE
+    """
+    c.execute(query, (name_like,))
+    data = c.fetchall()
+    if not data and (uidnameforce == "uid" or uidnameforce is None):
+        c.execute("""
+            SELECT playeruid, playername FROM uidnamelink
+            WHERE playeruid = ?
+            ORDER BY id DESC
+        """, (name,))
         data = c.fetchall()
-        if not data:
-            tfdb.commit()
-            tfdb.close()
-            return []
 
-        data = [{"name": x[1], "uid": x[0]} for x in data]
-        data = sorted(data, key=lambda x: len(x["name"]))
+    tfdb.close()
 
-        data = [x for x in data if name.lower() in x["name"].lower()]
-        if len(data) == 0 and uidnameforce == "name":
-            return []
-        if len(data) == 0 or uidnameforce == "uid":
-            c.execute("SELECT playeruid, playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC", (name,))
-            output = c.fetchall()
-            if not output:
-                tfdb.commit()
-                tfdb.close()
-                
-    
-                return []
+    if not data:
+        return []
 
-            data = [{"name": x[1], "uid": x[0]} for x in output]
-        players = []
-        uids = []
-        for x in data:
-            if not oneuidpermatch or x["uid"] not in uids:
-                players.append(x)
-                uids.append(x["uid"])
+    # Deduplicate UIDs if requested
+    seen_uids = set()
+    results = []
+    for uid, pname in data:
+        if not oneuidpermatch or uid not in seen_uids:
+            results.append({"name": pname, "uid": uid})
+            seen_uids.add(uid)
+    results.sort(key=lambda x: len(x["name"]) - x["name"].lower().startswith(name.lower()) * 50)
 
-        tfdb.commit()
-        tfdb.close()
-
-        if len(players) == 0:
-            return []
-        return  sorted(players, key=lambda x: len(x["name"])-x["name"].lower().startswith(name.lower())*50)
+    return results
         
 
 async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride, iscommandnotmessage = True,logthiscommand = True):
@@ -4332,11 +4425,13 @@ def create_dynamic_command(command_name, description = None, rcon = False, param
         ptype = param["type"]
         pdesc = param.get("description", "")
         prequired = param.get("required", True)
+        autocomplete = globals().get(param.get("autocompletefunc",None)) if param.get("autocompletefunc",None)  and callable(globals().get(param.get("autocompletefunc",None))) else None
+        autocompplete = autocomplete.__name__ if autocomplete is not None else None
         if "choices" in param and param["choices"]:
             pchoices = param["choices"]
             param_str = f'{pname}: Option({ptype}, "{pdesc}", choices={pchoices}, required={prequired})'
         else:
-            param_str = f'{pname}: Option({ptype}, "{pdesc}", required={prequired})'
+            param_str = f'{pname}: Option({ptype}, "{pdesc}", required={prequired}, autocomplete = {autocompplete})'
         if not prequired:
             param_str += " = None"
         param_list.append(param_str)

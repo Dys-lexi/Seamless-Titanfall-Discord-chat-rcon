@@ -36,7 +36,8 @@
                 "name": "playername",
                 "type": "str",
                 "description": "The player name",
-                "required": true
+                "required": true,
+                "autocompletefunc": "autocompletenamesfromingame"
             }
         ],
         "rcon": true,
