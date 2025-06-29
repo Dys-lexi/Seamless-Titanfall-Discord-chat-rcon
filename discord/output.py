@@ -1232,7 +1232,7 @@ if DISCORDBOTLOGSTATS == "1":
         GOLD = (255, 215, 0)
         SILVER = (192, 192, 192)
         BRONZE = (205, 127, 50)
-        CURRENT = (255,180,00)
+        CURRENT = (255,0,255)
         DEFAULT_COLOR = (255, 255, 255)
         IMAGE_DIR = "./gunimages"
         CDN_DIR = "./data/cdn"
@@ -1431,10 +1431,6 @@ if DISCORDBOTLOGSTATS == "1":
 
                 draw.text((x, y), text, fill=(255, 0, 0, 255), font=font)
 
-                # Optionally save placeholder
-                placeholder_path = os.path.join(IMAGE_DIR, weapon + ".png")
-                gun_img.save(placeholder_path, format="PNG")
-
             images[weapon] = gun_img
             if gun_img.width > maxwidth:
                 maxwidth = gun_img.width
@@ -1470,12 +1466,12 @@ if DISCORDBOTLOGSTATS == "1":
             else:
                 sorted_players = sorted(counts.items(), key=lambda item: item[1]["kills"], reverse=True)
                 sorted_player_index = functools.reduce(lambda a,b: (a[0] + 1,a[1]) if  not a[1] and b[0] != str(playeroverride) else (a[0],True)  , sorted_players,(0,False))
-                print("SORQWDIQWD",sorted_player_index)
+                # print("SORQWDIQWD",sorted_player_index)
                 if not sorted_player_index[1]:
                     sorted_player_index = 0
                 else: sorted_player_index = sorted_player_index[0]
                 half = max_players // 2
-                print("SORTED INDFEX",sorted_player_index)
+                # print("SORTED INDFEX",sorted_player_index)
                 start = max(0, sorted_player_index - half)
                 end = start + max_players
                 if end > len(sorted_players):
@@ -1799,6 +1795,7 @@ async def help(
         embed.add_field(name="discordtotf2chatcolour",value="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your discord -> tf2 name, seperate multiple colours with spaces")
         embed.add_field(name="tf2ingamechatcolour",value="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your in game tf2 name, seperate multiple colours with spaces")
         embed.add_field(name="messagelogs",value="Pull all non command message logs with a given filter")
+        embed.add_field(name="pngleaderboard",value="Gets pngleaderboard for a player, takes a LONG time to calculate on the wildcard.")
         if SHOULDUSETHROWAI == "1":
             embed.add_field(name="thrownonrcon", value="Throw a player, after being persuasive", inline=False)
         if SANCTIONAPIBANKEY != "":
@@ -3607,7 +3604,7 @@ tf1servercontext ={}
 def interpstatus(log):
     m = re.search(r"map\s*:\s*(\S+)", log)
     map_name = m.group(1) if m else None
-    players = []
+    players = {}
     for line in log.splitlines():
         if "#" in line and '"' in line:
             m1 = re.search(r'#\s*(\d+)\s+\d+\s+"([^"]+)"', line)
@@ -3617,13 +3614,12 @@ def interpstatus(log):
             m2 = re.search(r'(\d{1,3}(?:\.\d{1,3}){3})(?=\[)', line)
             ip = m2.group(1) if m2 else None
 
-            players.append({
-                "userid": userid,
+            players[userid] = {
                 "name": name,
                 "ip": ip
-            })
+            }
 
-    return map_name, players
+    return {"map":map_name,**players}
 
 def tf1readsend(serverid,checkstatus):
     # don't even bother trying to send anything or read anything if the server is offline!
@@ -3854,7 +3850,10 @@ def tf1readsend(serverid,checkstatus):
                 value = str(value)
             
         else:
-            value = value[0:800]
+            if commands[key]["command"] == "status":
+                value = interpstatus(value)
+            else:
+                value = value[0:800]
         if "FUNCRETURN<" in origval and "/>FUNCRETURN" in origval:
             funcprint = "".join("".join("".join(origval.split("BEGINMAINOUT")[:1]).split("FUNCRETURN<")[1:]).split("/>FUNCRETURN")[:-1])[0:500]
             if len(funcprint) == 0:
