@@ -460,8 +460,8 @@ async def autocompletenamesfromdb(ctx):
     return output
 
 async def autocompletenamesfromingame(ctx):
-    main = list(set([p for v in titanfall1currentlyplaying.values() for p in v] +[name for s in playercontext.values() for u in s.values() for name in u.keys()] +["all", "_"]))
-    output = list(filter(lambda x: ctx.value in x,main))
+    main = list(set([p.lower() for v in titanfall1currentlyplaying.values() for p in v] +[name.lower() for s in playercontext.values() for u in s.values() for name in u.keys()] +["all", "_"]))
+    output = list(filter(lambda x: ctx.value.lower() in x,main))
     if len(main) == 2:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["No one playing"]
@@ -2404,7 +2404,7 @@ def colourmessage(message,serverid):
         return False
     # print("ew")
     discorduid = discorduidnamelink.get(message["metadata"]["uid"],False)
-    if message["metadata"].get("type",False) != "impersonate" and not discorduid:
+    if message["metadata"].get("type",False) == "impersonate" and not discorduid:
             specifickillbase = sqlite3.connect("./data/tf2helper.db")
             c = specifickillbase.cursor()
             c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (message["metadata"]["uid"],))
@@ -4517,7 +4517,7 @@ if SHOULDUSETHROWAI == "1":
     @bot.slash_command(name="thrownonrcon", description="non rcon throw command")
     async def getuid(
         ctx,
-        playername: Option(str, "Who gets thrown"),
+        playername: Option(str, "Who gets thrown", autocomplete = autocompletenamesfromingame),
         # servername: Option(
         #     str, "The servername (omit for current channel's server)", required=False
         # ) = None,
