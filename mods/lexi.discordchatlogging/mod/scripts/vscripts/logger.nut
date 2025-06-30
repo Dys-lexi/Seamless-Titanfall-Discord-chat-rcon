@@ -329,10 +329,10 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 		}
 	}
 	meta["blockedmessage"] <- found
-	newmessage.metadata = EncodeJSON(meta)
 	if (found && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain) {
 		message.shouldBlock = true;
 	}}
+	newmessage.metadata = EncodeJSON(meta)
 	thread Postmessages(newmessage)
 
 

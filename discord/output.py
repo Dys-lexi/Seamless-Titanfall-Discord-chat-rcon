@@ -464,7 +464,7 @@ async def autocompletenamesfromdb(ctx):
 async def autocompletenamesfromingame(ctx):
     channel = getchannelidfromname(False,ctx.interaction)
     main = list(set([str(p) for v in dict(list(filter( lambda x: x[0] == channel or channel == None,titanfall1currentlyplaying.items()))).values() for p in v] +[str(name) for s in dict(list(filter( lambda x: x[0] == channel or channel == None,playercontext.items()))).values() for u in s.values() for name in u.keys()] +["all", "_"]))
-    output = list(filter(lambda x: ctx.value.lower() in x.lower(),main))
+    output = sorted(list(filter(lambda x: ctx.value.lower() in x.lower(),main)),key = lambda x: x.lower().startswith(ctx.value.lower())* 50, reverse = True)
     if len(main) == 2:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["No one playing"]
@@ -477,7 +477,7 @@ async def autocompletenamesfromingame(ctx):
 async def autocompletenamesfromingamenowildcard(ctx):
     channel = getchannelidfromname(False,ctx.interaction)
     main = list(set([str(p) for v in dict(list(filter( lambda x: x[0] == channel or channel == None,titanfall1currentlyplaying.items()))).values() for p in v] +[str(name) for s in dict(list(filter( lambda x: x[0] == channel or channel == None,playercontext.items()))).values() for u in s.values() for name in u.keys()]))
-    output = list(filter(lambda x: ctx.value.lower() in x.lower(),main))
+    output = sorted(list(filter(lambda x: ctx.value.lower() in x.lower(),main)),key = lambda x: x.lower().startswith(ctx.value.lower())* 50, reverse = True)
     if len(main) == 0:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["No one playing"]
@@ -491,7 +491,7 @@ def getallweaponnames(weapon):
     conn = sqlite3.connect("./data/tf2helper.db")
     c = conn.cursor()
     c.execute("SELECT DISTINCT cause_of_death FROM specifickilltracker ORDER BY cause_of_death")
-    return list(map(lambda x: WEAPON_NAMES.get(x[0],x[0]),list(filter(lambda x: (WEAPON_NAMES.get(x[0],False) and weapon.lower() in WEAPON_NAMES.get(x[0],"").lower()) or weapon.lower() in x[0].lower(),c.fetchall()))))[:30]
+    return sorted(list(map(lambda x: WEAPON_NAMES.get(x[0],x[0]),list(filter(lambda x: (WEAPON_NAMES.get(x[0],False) and weapon.lower() in WEAPON_NAMES.get(x[0],"").lower()) or weapon.lower() in x[0].lower(),c.fetchall())))),key = lambda x: x.lower().startswith(ctx.value.lower())* 50 ,reverse = True)[:30]
 async def weaponnamesautocomplete(ctx):
     return getallweaponnames(ctx.value)
 
@@ -541,7 +541,7 @@ async def pullmessagelogs(ctx, filterword: str = ""):
     matches = [
         {**(getjson(row[0])),"serverid":row[2]}
         for row in c.fetchall()
-    ]
+    ][::-1]
     tfdb.close()
     if matches:
         file_obj = io.BytesIO(json.dumps(matches, indent=4).encode('utf-8'))
@@ -4382,8 +4382,9 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
                 print("FALLING BACK TO GUESSING")
                 for model, valuew in MODEL_DICT.items():
                     if str(value["pfp"])[6:] in model:
-                        print("setting pfp too",pfp)
                         pfp = valuew
+                        print("setting pfp too",pfp)
+
                         break
             # print("SENDING PFP MESSAGE","\n".join(list(map(lambda x: x["message"],value["messages"]))),f'{PFPROUTE}{pfp}')
             
@@ -4680,17 +4681,17 @@ if SHOULDUSETHROWAI == "1":
             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
             await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
             return
-        messageflush.append({{
+        messageflush.append({
             "timestamp": int(time.time()),
             "serverid": serverid,
             "type": 3,
             "globalmessage": True,
             "overridechannel": "commandlogchannel",
             "messagecontent": "!thrownonrcon",
-            "metadata": {{"type":"botcommand"}},
+            "metadata": {"type":"botcommand"},
             "servername" :context["serveridnamelinks"][serverid],
             "player":  f"`BOT COMMAND` sent by {{ctx.author.name}}"
-        }})
+        })
         if ctx.author.id in lasttimethrown["passes"].keys() and lasttimethrown["passes"][ctx.author.id] > time.time() - 60:
             print("has been allowed recently")
             await ctx.defer(ephemeral=False)
