@@ -4377,8 +4377,11 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
                     pilotstates[serverid]["webhook"] = "ChatBridge"
             pilotstates[serverid] = {"uid":value["uid"],"model":str(value["pfp"]),"webhook":pilotstates[serverid]["webhook"]}
             # print("here")
-            pfp = MODEL_DICT.get(str(value["pfp"].lower()),"unknown/confused.jpg")
-            if pfp == "unknown/confused.jpg" and (str(value["pfp"].startswith("true")) or str(value["pfp"].startswith("false"))):
+            invalidimage = "unknown/confused.jpg"
+            pfp = MODEL_DICT.get(str(value["pfp"]),invalidimage)
+            if pfp == invalidimage
+                pfp = MODEL_DICT.get(str(value["pfp"]).lower(),invalidimage)
+            if pfp == invalidimage and (str(value["pfp"].startswith("true")) or str(value["pfp"].startswith("false"))):
                 print("FALLING BACK TO GUESSING")
                 for model, valuew in MODEL_DICT.items():
                     if str(value["pfp"])[6:] in model:
