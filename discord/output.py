@@ -2585,7 +2585,7 @@ def colourmessage(message,serverid):
     for key, value in authornicks.items():
         output[key] = f"{'[111m[TEAM] ' if message['metadata']['teamtype'] != 'not team' else ''}{value}: {RGBCOLOUR['NEUTRAL']}{message['messagecontent']}"
     # print(output)
-    if colourslink.get(discorduid,{}).get("ingamecolour",False) and message["metadata"]["blockedmessage"]:
+    if not colourslink.get(discorduid,{}).get("ingamecolour",False) and message["metadata"]["blockedmessage"]:
         output["uid"] = str(message["metadata"]["uid"])
         output["forceblock"] = False 
     elif not message["metadata"]["blockedmessage"]:
@@ -2640,8 +2640,8 @@ def recieveflaskprintrequests():
                 return {"notfound":True}
         # if colourslink[str(data["uid"])]:
         print(colourslink[596713937626595382])
-        print({"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",{}) != {}},"uid":data["uid"]})
-        return {"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",{}) != {}},"uid":data["uid"]}
+        print({"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",[]) != []},"uid":data["uid"]})
+        return {"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",[]) != []},"uid":data["uid"]}
         # return output
     @app.route("/getrunningservers", methods=["POST"])
     def getrunningservers():
