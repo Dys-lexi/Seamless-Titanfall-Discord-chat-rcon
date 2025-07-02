@@ -2910,6 +2910,8 @@ def recieveflaskprintrequests():
     def getplayerstats(playeruid):
         specifickillbase = sqlite3.connect("./data/tf2helper.db")
         c = specifickillbase.cursor()
+        now = int(time.time())
+        timeoffset = 86400
         try:
             output = resolveplayeruidfromdb(playeruid,None,True)[0]
             name = output["name"]
@@ -2924,6 +2926,74 @@ def recieveflaskprintrequests():
         output["total"]["deaths"] = len(c.fetchall())
         c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ?",(playeruid,))
         output["total"]["kills"] = len(c.fetchall())
+        c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ? AND timeofkill > ?",(playeruid,now-timeoffset))
+        output["total"]["killstoday"] = len(c.fetchall())
+        c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ? AND timeofkill > ?",(playeruid,now-timeoffset))
+        output["total"]["deathstoday"] = len(c.fetchall())
+        c.execute("""
+            SELECT MAX(CASE WHEN playeruid = ? THEN position END) AS player_position
+            FROM (
+                SELECT playeruid, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
+                FROM specifickilltracker
+                WHERE timeofkill > ?
+                GROUP BY playeruid
+            ) x;
+        """, (playeruid,now-timeoffset))
+        killspos = c.fetchone()
+        if killspos:
+            output["total"]["killslasthourpos"] = killspos[0]
+        c.execute("""
+            SELECT MAX(CASE WHEN victim_id = ? THEN position END) AS player_position
+            FROM (
+                SELECT victim_id, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
+                FROM specifickilltracker
+                WHERE timeofkill > ?
+                GROUP BY victim_id
+            ) x;
+        """, (playeruid,now-timeoffset))
+        killspos = c.fetchone()
+        if killspos:
+            output["total"]["deathslasthourpos"] = killspos[0]
+        c.execute("""
+        SELECT MAX(CASE WHEN playeruid = ? THEN position END) AS player_position
+        FROM (
+            SELECT playeruid, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
+            FROM specifickilltracker
+            GROUP BY playeruid
+        ) x;
+        """, (playeruid,))
+        killspos = c.fetchone()
+        if killspos:
+            output["total"]["killspos"] = killspos[0]
+        c.execute("""
+        SELECT MAX(CASE WHEN playeruid = ? THEN position END) AS player_position
+        FROM (
+            SELECT playeruid, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
+            FROM specifickilltracker
+            WHERE cause_of_death = (
+                SELECT cause_of_death
+                FROM specifickilltracker
+                WHERE playeruid = ?
+                ORDER BY timeofkill DESC
+                LIMIT 1
+            )
+            GROUP BY playeruid
+        ) x;
+        """, (playeruid, playeruid))
+        killspos = c.fetchone()
+        if killspos:
+            output["total"]["recentweaponkillspos"] = killspos[0]
+        c.execute("""
+        SELECT MAX(CASE WHEN victim_id = ? THEN position END) AS player_position
+        FROM (
+            SELECT victim_id, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
+            FROM specifickilltracker
+            GROUP BY victim_id
+        ) x;
+        """, (playeruid,))
+        killspos = c.fetchone()
+        if killspos:
+            output["total"]["deathspos"] = killspos[0]
         c.execute("""
             SELECT cause_of_death, COUNT(*) as kill_count
             FROM specifickilltracker
@@ -2989,7 +3059,7 @@ def recieveflaskprintrequests():
             )
             GROUP BY cause_of_death
         """, (playeruid, playeruid))
-        recent_weapon_kills = c.fetchone()
+        output["total"]["recent_weapon_kills"] = c.fetchone()
 
 
         if output["total"]["deaths"] != 0:
@@ -3006,7 +3076,7 @@ def recieveflaskprintrequests():
                 break
         offset = 1
 
-        messages["0"] = f"\x1b[38;5;{colour}m{name}\x1b[110m has \x1b[38;5;189m{output['total']['kills']}\x1b[110m kills and \x1b[38;5;189m{output['total']['deaths']}\x1b[110m deaths (\x1b[38;5;189m{kd}\x1b[110m k/d, \x1b[38;5;189m{killsperhour}\x1b[110m k/hour, \x1b[38;5;189m{timeplayed}\x1b[110m playtime)"
+        messages["0"] = f"\x1b[38;5;{colour}m{name}\x1b[110m has \x1b[38;5;189m{output['total']['kills']} \x1b[38;5;244m#{output['total']['killspos']} \x1b[110m kills and \x1b[38;5;189m{output['total']['deaths']} \x1b[38;5;244m#{output['total']['deathspos']} \x1b[110mdeaths (\x1b[38;5;189m{kd}\x1b[110m k/d, \x1b[38;5;189m{killsperhour}\x1b[110m k/hour, \x1b[38;5;189m{timeplayed}\x1b[110m playtime)"
         # print("e",bestgame)
         if  bestgame:
             formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
@@ -3021,17 +3091,26 @@ def recieveflaskprintrequests():
             # messages[str(offset)] = f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}\x1b[110m kills: \x1b[38;5;189m{weapon[1]}"
             # offset +=1
             topguns.append( f"{colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}: \x1b[38;5;189m{weapon[1]}\x1b[110m kills" )
+        
         if topguns != "":
             messages[str(offset)] = f"\x1b[38;5;{colour}mTop 3 guns: " + ", ".join(topguns)
             offset +=1
-
-        if recent_weapon_kills:
-            messages[str(offset)] = f"\x1b[38;5;{colour}mMost recent weapon: \x1b[38;5;189m{WEAPON_NAMES.get(recent_weapon_kills[0],recent_weapon_kills[0])}: \x1b[38;5;189m{recent_weapon_kills[1]} \x1b[110m kills"
+    # \x1b[38;5;244m
+        if output["total"]["recent_weapon_kills"]:
+            messages[str(offset)] = f"\x1b[38;5;{colour}mMost recent weapon: \x1b[38;5;189m{WEAPON_NAMES.get(output['total']['recent_weapon_kills'][0],output['total']['recent_weapon_kills'][0])}: \x1b[38;5;189m{output['total']['recent_weapon_kills'][1]} \x1b[38;5;244m#{output['total']['recentweaponkillspos']} \x1b[110m kills"
             offset+=1
+        messages[str(offset)] = f"\x1b[38;5;{colour}m{name} has \x1b[38;5;189m{output['total']['killstoday']} \x1b[38;5;244m#{output['total']['killslasthourpos']}\x1b[110m kill{'s' if  output['total']['killstoday'] != 1 else ''} today and \x1b[38;5;189m{output['total']['deathstoday']} \x1b[38;5;244m#{output['total']['killslasthourpos']} \x1b[110mdeath{'s' if  output['total']['deathstoday'] != 1 else ''} today"
+        offset +=1
+
         # if len(messages):
             # output["messages"] = messages
         print({**output,**messages},"colour",colour)
         return {**output,**messages}
+
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    
+
     # @app.route("/players/<playeruid>", methods=["GET", "POST"])
     # def getplayerstats(playeruid):
     #     tfdb = sqlite3.connect("./data/tf2helper.db")
@@ -3090,8 +3169,8 @@ def recieveflaskprintrequests():
     #             AND cause_of_death = ? 
     #             AND timeofkill >= ?
     #         """, (playeruid, weapon_name, one_week_ago))
-    #         recent_weapon_kills = float(c.fetchone()[0] or 0)
-    #         top_weapons.append((weapon_name, total_weapon_kills, recent_weapon_kills))
+    #         output["total"]["recent_weapon_kills"] = float(c.fetchone()[0] or 0)
+    #         top_weapons.append((weapon_name, total_weapon_kills, output["total"]["recent_weapon_kills"]))
 
     #     # Most recent weapon
     #     c.execute("""
@@ -3120,8 +3199,8 @@ def recieveflaskprintrequests():
     #             AND cause_of_death = ? 
     #             AND timeofkill >= ?
     #         """, (playeruid, weapon_name, one_week_ago))
-    #         recent_weapon_kills = float(c.fetchone()[0] or 0)
-    #         recent_weapon_data = (weapon_name, total_weapon_kills, recent_weapon_kills)
+    #         output["total"]["recent_weapon_kills"] = float(c.fetchone()[0] or 0)
+    #         recent_weapon_data = (weapon_name, total_weapon_kills, output["total"]["recent_weapon_kills"])
 
     #     # Playtime and KPH
     #     c.execute("""
@@ -3297,7 +3376,7 @@ def recieveflaskprintrequests():
                 data.get("attacker_offhand_weapon_2", None),
                 data.get("victim_offhand_weapon_1", None),
                 data.get("attacker_weapon_3", None),
-                data.get("attacker_name", None),
+                data.get("attacker_name", None) if  data.get("attacker_name", None) else data.get("attacker_type", None),
                 data.get("match_id", None),
                 data.get("victim_titan", None),
                 data.get("distance", None),
