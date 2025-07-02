@@ -84,7 +84,7 @@ def discorduidinfodb():
     c.execute("SELECT discorduid, chosencolour,choseningamecolour FROM discorduiddata")
     output = c.fetchall()
     print(output)
-    colourslink = {x[0]:{"discordcolour":list(map(lambda y: eval(y), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [RGBCOLOUR['DISCORD']] ,"ingamecolour":list(map(lambda y: eval(y), x[2].split("|"))) if x[2] is not None and x[2] != "reset" else False}  for x in output}
+    colourslink = {x[0]:{"discordcolour":list(map(lambda y: eval(y), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,"ingamecolour":list(map(lambda y: eval(y), x[2].split("|"))) if x[2] is not None and x[2] != "reset" else []}  for x in output}
     
     c.execute("SELECT discorduid, choseningamecolour FROM discorduiddata")
     # output = c.fetchall()
@@ -2308,7 +2308,7 @@ async def show_color_what(ctx, colour: Option(str, "Enter a normal/hex color, or
     if ctx.author.id not in colourslink.keys():
         colourslink[ctx.author.id] = {}
     if rgba == "reset":
-        colourslink[ctx.author.id]["ingamecolour"] = False
+        colourslink[ctx.author.id]["ingamecolour"] = []
         await ctx.respond(f"reset ingame colour to default")
         return
     colourslink[ctx.author.id]["ingamecolour"] = colourslist
@@ -2363,7 +2363,7 @@ async def show_color_why(ctx, colour: Option(str, "Enter a normal/hex color, or 
     if ctx.author.id not in colourslink.keys():
         colourslink[ctx.author.id] = {}
     if rgba == "reset":
-        colourslink[ctx.author.id]["discordcolour"] = RGBCOLOUR['DISCORD']
+        colourslink[ctx.author.id]["discordcolour"] = []
         await ctx.respond(f"reset discord -> tf2 colour to default")
         return
     colourslink[ctx.author.id]["discordcolour"] = colourslist
@@ -2388,7 +2388,7 @@ def gradient(message,colours, maxlen):
     if colours == []:
         return 1
     if len(colours) == 1:
-        colours.append(colour[0])
+        colours.append(colours[0])
     
     # colours.reverse()
     encodelength = 1
@@ -2551,6 +2551,7 @@ def colourmessage(message,serverid):
             c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (message["metadata"]["uid"],))
             link = c.fetchone()
             discorduidnamelink[message["metadata"]["uid"]] = link[0] if link and link[0] else False
+            discorduid = discorduidnamelink.get(message["metadata"]["uid"],False)
     elif message["metadata"].get("type",False) != "impersonate" :  
         if not discorduid:
             specifickillbase = sqlite3.connect("./data/tf2helper.db")
@@ -2564,10 +2565,10 @@ def colourmessage(message,serverid):
             elif  not link or not link[0] :
                 return {"both":f"{RGBCOLOUR['NEUTRAL']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
             discorduid = link[0]
-        if not colourslink.get(discorduid,{}).get("ingamecolour",False) and message["metadata"]["blockedmessage"]:
-            # print("edwqdqw")
-            return {"both":f"{RGBCOLOUR['NEUTRAL']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
-        elif not colourslink.get(discorduid,{}).get("ingamecolour",False):
+        # if not colourslink.get(discorduid,False).get("ingamecolour",False) and message["metadata"]["blockedmessage"]:
+        #     # print("edwqdqw")
+        #     return {"both":f"{RGBCOLOUR['NEUTRAL']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
+        if not colourslink.get(discorduid,False).get("ingamecolour",False) and not message["metadata"]["blockedmessage"]:
             # print("e")
             return False
     # print("HEHRHEE")
@@ -2584,12 +2585,17 @@ def colourmessage(message,serverid):
     for key, value in authornicks.items():
         output[key] = f"{'[111m[TEAM] ' if message['metadata']['teamtype'] != 'not team' else ''}{value}: {RGBCOLOUR['NEUTRAL']}{message['messagecontent']}"
     # print(output)
-    if not message["metadata"]["blockedmessage"]:
+    if colourslink.get(discorduid,False).get("ingamecolour",False) and message["metadata"]["blockedmessage"]:
+        output["uid"] = str(message["metadata"]["uid"])
+        output["forceblock"] = False 
+    elif not message["metadata"]["blockedmessage"]:
         # str(message["metadata"]["uid"]),"forceblock":False
         output["uid"] = str(message["metadata"]["uid"])
         output["forceblock"] = True
+    # print(f"OUTPUT {output}")
     return {**output,"messageteam":message["metadata"]["teamint"]}
 def computeauthornick (name,idauthor,content,serverid,rgbcolouroverride = "DISCORD",colourlinksovverride = "discordcolour",lenoverride = 254):
+    print("DETAILS",name,idauthor,content,serverid,colourslink.get(idauthor,{}))
     authornick = 2
     counter = 0
     while authornick == 2 and counter < len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])]):
@@ -2634,8 +2640,8 @@ def recieveflaskprintrequests():
                 return {"notfound":True}
         # if colourslink[str(data["uid"])]:
         print(colourslink[596713937626595382])
-        print({"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",False) != False},"uid":data["uid"]})
-        return {"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",False) != False},"uid":data["uid"]}
+        print({"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",{}) != {}},"uid":data["uid"]})
+        return {"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",{}) != {}},"uid":data["uid"]}
         # return output
     @app.route("/getrunningservers", methods=["POST"])
     def getrunningservers():
