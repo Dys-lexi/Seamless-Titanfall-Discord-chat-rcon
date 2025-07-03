@@ -25,6 +25,57 @@ import re
 import aiohttp
 from defs import *
 import io
+import sys
+import logging
+
+def create_all_indexes():
+    conn = sqlite3.connect("./data/tf2helper.db")
+    c = conn.cursor()
+
+    # --- specifickilltracker ---
+    c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_victim_id ON specifickilltracker(victim_id);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_playeruid ON specifickilltracker(playeruid);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_timeofkill ON specifickilltracker(timeofkill);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_cause_of_death ON specifickilltracker(cause_of_death);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_combined_player_time ON specifickilltracker(playeruid, timeofkill);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_combined_victim_time ON specifickilltracker(victim_id, timeofkill);")
+
+    # --- playtime ---
+    c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_playeruid ON playtime(playeruid);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_matchid ON playtime(matchid);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_map ON playtime(map);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_joinatunix ON playtime(joinatunix);")
+
+    # --- uidnamelink ---
+    c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelink_playeruid ON uidnamelink(playeruid);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelink_playername ON uidnamelink(playername);")
+
+    # --- discordlinkdata ---
+    c.execute("CREATE INDEX IF NOT EXISTS idx_discordlinkdata_discordid ON discordlinkdata(discordid);")
+
+    # --- discorduiddata ---
+    c.execute("CREATE INDEX IF NOT EXISTS idx_discorduiddata_discorduid ON discorduiddata(discorduid);")
+
+    # --- joinnotify ---
+    c.execute("CREATE INDEX IF NOT EXISTS idx_joinnotify_uidnotify ON joinnotify(uidnotify);")
+
+    # --- joincounter ---
+    c.execute("CREATE INDEX IF NOT EXISTS idx_joincounter_playeruid_serverid ON joincounter(playeruid, serverid);")
+
+    # --- matchid ---
+    c.execute("CREATE INDEX IF NOT EXISTS idx_matchid_serverid ON matchid(serverid);")
+
+    # --- banstf1 ---
+    c.execute("CREATE INDEX IF NOT EXISTS idx_banstf1_playerip ON banstf1(playerip);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_banstf1_playername ON banstf1(playername);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_banstf1_banid ON banstf1(banid);")
+
+    # --- messagelogger ---
+    c.execute("CREATE INDEX IF NOT EXISTS idx_messagelogger_serverid ON messagelogger(serverid);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_messagelogger_type ON messagelogger(type);")
+
+    conn.commit()
+    conn.close()
 
 def creatediscordlinkdb():
     tfdb = sqlite3.connect("./data/tf2helper.db")
@@ -167,18 +218,58 @@ def tf1matchplayers():
     c.execute("DROP TABLE IF EXISTS matchtf1")
     c.execute(
         """CREATE TABLE IF NOT EXISTS matchtf1 (
-            matchid STRING,
-            serverid INTEGER,
+            matchid STRING PRIMARY KEY,
             map STRING,
             time INTEGER,
-            playername STRING,
-            playerip INTEGER,
-            PRIMARY KEY (playername, playerip)
+            serverid INTEGER
             )"""
     )
     tfdb.commit()
     tfdb.close()
 
+def playtimedbtf1():
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS playtimetf1 (
+            id INTEGER PRIMARY KEY,
+            playeruid INTEGER,
+            joinatunix INTEGER,
+            leftatunix INTEGER,
+            endtype INTEGER,
+            serverid INTEGER,
+            scoregained INTEGER,
+            titankills INTEGER,
+            pilotkills INTEGER,
+            npckills INTEGER,
+            deaths INTEGER,
+            duration INTEGER,
+            matchid STRING,
+            map TEXT,
+            timecounter INTEGER
+            )"""
+    )
+
+    tfdb.commit()
+    tfdb.close()
+def playeruidnamelinktf1():
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS uidnamelinktf1 (
+            id INTEGER PRIMARY KEY,
+            playeruid INTEGER,
+            playername TEXT,
+            lastseenunix INTEGER,
+            firstseenunix INTEGER
+            )"""
+    )
+    try:
+        c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN firstseenunix INTEGER")
+        c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN lastseenunix INTEGER") 
+    except:pass
+    tfdb.commit()
+    tfdb.close()
 def bantf1():
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
@@ -422,6 +513,10 @@ discorduidinfodb()
 messagelogger()
 creatediscordlinkdb()
 specifickilltrackerdb()
+playeruidnamelinktf1()
+tf1matchplayers()
+playtimedbtf1()
+create_all_indexes()
 serverchannels = []
 pngcounter = random.randint(0,9)
 imagescdn = {}
@@ -2618,7 +2713,18 @@ def computeauthornick (name,idauthor,content,serverid,rgbcolouroverride = "DISCO
 
 def recieveflaskprintrequests():
     app = Flask(__name__)
-
+    def handle_flask_exception(e):
+        logging.error(
+            "Flask error during request to %s [%s]: %s",
+            request.path,
+            request.method,
+            str(e),
+            exc_info=True
+        )
+        return "Internal Server Error", 500
+    # @app.route("/crash")
+    # def crash():
+    #     raise RuntimeError("bleh")
     @app.route("/playerdetails", methods=["POST"])    
     def getplayerdetails():
         global context,discorduidnamelink
@@ -2907,8 +3013,10 @@ def recieveflaskprintrequests():
 
     @app.route("/players/<playeruid>",methods=["GET","POST"])
     def getplayerstats(playeruid):
+        # print(int(time.time()))
         specifickillbase = sqlite3.connect("./data/tf2helper.db")
         c = specifickillbase.cursor()
+        # print(int(time.time()/))
         now = int(time.time())
         timeoffset = 86400
         try:
@@ -3096,7 +3204,7 @@ def recieveflaskprintrequests():
             offset +=1
     # \x1b[38;5;244m
         if output["total"]["recent_weapon_kills"]:
-            messages[str(offset)] = f"\x1b[38;5;{colour}mMost recent weapon: \x1b[38;5;189m{WEAPON_NAMES.get(output['total']['recent_weapon_kills'][0],output['total']['recent_weapon_kills'][0])}: \x1b[38;5;189m{output['total']['recent_weapon_kills'][1]}{' '+ backslash + '[38;5;244m#' + str(output['total']['recentweaponkillspos']) if output['total']['recentweaponkillspos'] else ''} \x1b[110m kills"
+            messages[str(offset)] = f"\x1b[38;5;{colour}mMost recent weapon: \x1b[38;5;189m{WEAPON_NAMES.get(output['total']['recent_weapon_kills'][0],output['total']['recent_weapon_kills'][0])}: \x1b[38;5;189m{output['total']['recent_weapon_kills'][1]}{' '+ backslash + '[38;5;244m#' + str(output['total']['recentweaponkillspos']) if output['total']['recentweaponkillspos'] else ''} \x1b[110mkills"
             offset+=1
         messages[str(offset)] = f"\x1b[38;5;{colour}m{name} has \x1b[38;5;189m{output['total']['killstoday']}{' '+ backslash + '[38;5;244m#' + str(output['total']['killslasthourpos']) if output['total']['killslasthourpos'] else ''}\x1b[110m kill{'s' if  output['total']['killstoday'] != 1 else ''} today and \x1b[38;5;189m{output['total']['deathstoday']}{' '+ backslash + '[38;5;244m#' + str(output['total']['deathslasthourpos']) if output['total']['deathslasthourpos'] else ''} \x1b[110mdeath{'s' if  output['total']['deathstoday'] != 1 else ''} today"
         offset +=1
@@ -3483,7 +3591,7 @@ def recieveflaskprintrequests():
             return {"message": "success",**returnable}
         return {"message": "success"}
 
-    serve(app, host="0.0.0.0", port=3451, threads=60)  # prod
+    serve(app, host="0.0.0.0", port=3451, threads=120,connection_limit=200)  # prod
     #app.run(host="0.0.0.0", port=3451)  #dev
 
 
@@ -3766,12 +3874,14 @@ def tf1readsend(serverid,checkstatus):
                 client.run('sv_cheats','1')
             if checkstatus:
                 # playingpollidentity
-                statusoutput = client.run("script",'Lrconcommand("playingpollidentity")')
+                statusoutput = client.run("script",'Lrconcommand("playingpoll")')
+                
                 # print(statusoutput)
                 if "OUTPUT<" in statusoutput and "/>ENDOUTPUT" in statusoutput:
                     statusoutput = "".join("".join("".join(statusoutput.split("BEGINMAINOUT")[1:]).split("OUTPUT<")[1:]).split("/>ENDOUTPUT")[:-1])
                     statusoutput = statusoutput.replace("☻",'"')
                     statusoutput = getjson(statusoutput)
+                    # print(json.dumps(statusoutput,indent = 4))
                 else:
                     titanfall1currentlyplaying[serverid] = []
                 # print((statusoutput))
@@ -4925,31 +5035,34 @@ playercontext = {}
 matchids = []
 playerjoinlist = {}
 
-def checkandaddtouidnamelink(uid, playername):
+def checkandaddtouidnamelink(uid, playername, istf1 = False):
     global playercontext
     now = int(time.time())
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
     c.execute(
-        "SELECT id, playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
+        f"SELECT id, playername FROM uidnamelink{'tf1' if istf1 else ''} WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
     row = c.fetchone()
     if row:
         last_id, last_name = row
         if str(playername) == str(last_name):
             c.execute(
-                "UPDATE uidnamelink SET lastseenunix = ? WHERE id = ?",(now, last_id))
+                f"UPDATE uidnamelink{'tf1' if istf1 else ''} SET lastseenunix = ? WHERE id = ?",(now, last_id))
         else:
             c.execute(
-                "INSERT INTO uidnamelink (playeruid, playername, firstseenunix, lastseenunix) VALUES (?, ?, ?, ?)",(uid, playername, now, now))
+                f"INSERT INTO uidnamelink{'tf1' if istf1 else ''} (playeruid, playername, firstseenunix, lastseenunix) VALUES (?, ?, ?, ?)",(uid, playername, now, now))
     else:
         c.execute(
-            "INSERT INTO uidnamelink (playeruid, playername, firstseenunix, lastseenunix) VALUES (?, ?, ?, ?)",(uid, playername, now, now))
+            f"INSERT INTO uidnamelink{'tf1' if istf1 else ''} (playeruid, playername, firstseenunix, lastseenunix) VALUES (?, ?, ?, ?)",(uid, playername, now, now))
     tfdb.commit()
     tfdb.close()
 
 
 def onplayerjoin(uid,serverid,nameof = False):
     global context,messageflushnotify,playerjoinlist
+    istf1 = context["istf1server"].get(serverid,False) # {"tf2" if istf1 else ""}
+    if istf1:
+        return
     print("joincommand", uid, serverid)
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
@@ -5004,6 +5117,9 @@ def onplayerjoin(uid,serverid,nameof = False):
     
 def onplayerleave(uid,serverid):
     global context,messageflushnotify,playercontext
+    istf1 = context["istf1server"].get(serverid,False) # {"tf2" if istf1 else ""}
+    if istf1:
+        return
     print("leavecommand",uid,serverid)
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
@@ -5045,21 +5161,23 @@ def savestats(saveinfo):
     # 4 is tempory save
     global playercontext
     print("saving playerinfo",saveinfo)
+    istf1 = context["istf1server"].get(saveinfo["serverid"],False) # {"tf2" if istf1 else ""}
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
     try:
-        c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],))
+        c.execute(f"SELECT playername FROM uidnamelink{'tf1' if istf1 else ''} WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],))
         playernames = c.fetchall()
         if playernames:
             playernames = [x[0] for x in playernames]
         if playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"] not in playernames or not playernames:
             # c.execute("INSERT INTO uidnamelink (playeruid,playername) VALUES (?,?)",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"]))
-            checkandaddtouidnamelink(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"])
+
+            checkandaddtouidnamelink(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"],True)
         if playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"] != 0:
-            c.execute("UPDATE playtime SET leftatunix = ?, endtype = ?, scoregained = ?, titankills = ?, pilotkills = ?, deaths = ?, duration = ? WHERE id = ?",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"]))
+            c.execute(f"UPDATE playtime{'tf1' if istf1 else ''} SET leftatunix = ?, endtype = ?, scoregained = ?, titankills = ?, pilotkills = ?, deaths = ?, duration = ? WHERE id = ?",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"]))
             lastrowid = playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"]
         else:
-            c.execute("INSERT INTO playtime (playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,matchid,timecounter ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["serverid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["npckills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["map"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["matchid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["timecounter"]))
+            c.execute(f"INSERT INTO playtime{'tf1' if istf1 else ''} (playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,matchid,timecounter ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["serverid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["npckills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["map"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["matchid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["timecounter"]))
             lastrowid = c.lastrowid
     except Exception as e:
         print("error in saving",e)
@@ -5078,18 +5196,19 @@ def savestats(saveinfo):
 
 def addmatchtodb(matchid,serverid,currentmap):
     global matchids,playercontext
+    istf1 = context["istf1server"].get(serverid,False) # {'tf1' if istf1 else ''}
     print("adding match to db",matchid,serverid)
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
-    c.execute("SELECT matchid FROM matchid WHERE matchid = ?",(matchid,))
+    c.execute(f"SELECT matchid FROM matchid{'tf1' if istf1 else ''} WHERE matchid = ?",(matchid,))
     matchidcheck = c.fetchone()
     if matchidcheck:
         if serverid not in playercontext.keys():
             playercontext[serverid] = {}
         print("already in db, loading data")
-        c.execute("SELECT playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,id,timecounter FROM playtime WHERE matchid = ?",(matchid,))
+        c.execute(f"SELECT playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,id,timecounter FROM playtime{'tf1' if istf1 else ''} WHERE matchid = ?",(matchid,))
         matchdata = c.fetchall()
-        c.execute("SELECT playername,playeruid FROM uidnamelink")
+        c.execute(f"SELECT playername,playeruid FROM uidnamelink{'tf1' if istf1 else ''}")
         playernames = c.fetchall()
         playernames = {str(x[1]):x[0] for x in playernames}
         for player in matchdata:
@@ -5130,7 +5249,7 @@ def addmatchtodb(matchid,serverid,currentmap):
             })
         matchids.append(matchid)
         return
-    c.execute("INSERT INTO matchid (matchid,serverid,map,time) VALUES (?,?,?,?)",(matchid,serverid,currentmap,int(time.time())))
+    c.execute(f"INSERT INTO matchid{'tf1' if istf1 else ''} (matchid,serverid,map,time) VALUES (?,?,?,?)",(matchid,serverid,currentmap,int(time.time())))
     
     tfdb.commit()
     tfdb.close()
@@ -5145,13 +5264,26 @@ def playerpolllog(data,serverid,statuscode):
     # use the fact that theoretically one player can be on just one server at a time
     # playerid+playername = primary key. this is because of the edge case where people join one server on one account twice because.. well they do that sometimes
     # print(data,serverid,statuscode)
-    currentmap = data["meta"][0]
-    matchid = data["meta"][2]
+    istf1 = context["istf1server"].get(serverid,False) # {"tf2" if istf1 else ""}
+    if not istf1:
+        currentmap = data["meta"][0]
+        matchid = data["meta"][2]
+    else:
+        currentmap = data["meta"]["map"]
+        matchid = int(data["meta"]["matchid"].split("<")[1].split("/>")[0])
     if matchid not in matchids:
         addmatchtodb(matchid,serverid,currentmap)
     now = int(time.time())
     # players = [lambda x: {"uid":x[0],"score":x[1][0],"team":x[1][1],"kills":x[1][2],"deaths":x[1][3],"name":x[1][4],"titankills":x[1][5],"npckills":x[1][6]} for x in list(filter(lambda x: x[0] != "meta",list(data.items())))]
-    players = [{"uid":x[0], "score":x[1][0], "team":x[1][1], "kills":x[1][2], "deaths":x[1][3], "name":x[1][4], "titankills":x[1][5], "npckills":x[1][6],"timecounter":x[1][7]} for x in list(filter(lambda x: x[0] != "meta", list(data.items())))]
+    if not istf1:
+        players = [{"uid":x[0], "score":x[1][0], "team":x[1][1], "kills":x[1][2], "deaths":x[1][3], "name":x[1][4], "titankills":x[1][5], "npckills":x[1][6],"timecounter":x[1][7]} for x in list(filter(lambda x: x[0] != "meta", list(data.items())))]
+    else:
+        players = [{"uid": x[0], "score": x[1]["score"], "team": x[1]["team"], "kills": x[1]["kills"], "deaths": x[1]["deaths"], "name": x[1]["name"], "titankills": x[1]["titankills"], "npckills": x[1]["npckills"], "timecounter": x[1]["timecounter"]} for x in filter(lambda x: x[0] != "meta" and len(x[0]) > 15, data.items())]
+        if data.get("meta",False):
+            metadata = data["meta"].copy()
+            metadata["matchid"] = int(data["meta"]["matchid"].split("<")[1].split("/>")[0])
+            data["meta"] = [metadata["map"],50,metadata["matchid"]]#50 is a placeholder for actual time left!
+            
     # playercontext[pinfo["uid"]+pinfo["name"]] = {"joined":now,"map":map,"name":pinfo["name"],"uid":pinfo["uid"],"idoverride":0,"endtime":0,"serverid":serverid,"kills":0,"deaths":0,"titankills":0,"npckills":0,"score":0}
     # print(list(map(lambda x: x["name"],players)))
     uids =list(set( [*list(map(lambda x: x["uid"],players))]))
@@ -5169,7 +5301,7 @@ def playerpolllog(data,serverid,statuscode):
             # print([player["uid"]],list(playercontext[serverid].keys()))
             # print("here")
             # onplayerjoin(player["uid"],serverid,player["name"])
-            checkandaddtouidnamelink(player["uid"],player["name"])
+            checkandaddtouidnamelink(player["uid"],player["name"],True)
             playercontext[serverid][player["uid"]][player["name"]][matchid] = [{  #ON FIRST MAP JOIN
                 "joined": player["timecounter"],  #FOR BOTH JOINED CASES, TEST CHANGINT IT TO INT(PLAYER["TIMECOUNTER"])
                 "map": currentmap,
@@ -5342,8 +5474,8 @@ def playerpoll():
         # I want to iterate through all servers, and ask them what they are up too.
         for serverid,data in discordtotitanfall.items():
             # print(discordtotitanfall)
-            if context["istf1server"].get(serverid,False):
-                continue
+            # if context["istf1server"].get(serverid,False):
+            #     continue
             if time.time() - data["lastheardfrom"] > Ithinktheserverhascrashed:
                 pass
             else:
@@ -5456,13 +5588,29 @@ def lotsofmathscreatingimage(image_bytes, output_width=80, ascii_char="█", max
             idx += 1
         ascii_art.append(row_chars)
     return ascii_art
+
+
+logging.basicConfig(
+    filename='./data/errors.txt',
+    level=logging.ERROR,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+def log_uncaught_exceptions(exc_type, exc_value, exc_traceback):
+    # if issubclass(exc_type, KeyboardInterrupt):
+    #     sys.__excepthook__(exc_type, exc_value, exc_traceback)
+    #     return
+
+    logging.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+sys.excepthook = log_uncaught_exceptions
+
+
 if DISCORDBOTLOGSTATS == "1":
     threading.Thread(target=playerpoll).start()
 threading.Thread(target=messageloop).start()
 threading.Thread(target=recieveflaskprintrequests).start()
 threading.Thread(target=tf1relay).start()
-
-
 
 
 
