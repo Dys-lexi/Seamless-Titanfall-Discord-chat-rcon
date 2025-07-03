@@ -3875,7 +3875,7 @@ def tf1readsend(serverid,checkstatus):
             if checkstatus:
                 # playingpollidentity
                 statusoutput = client.run("script",'Lrconcommand("playingpoll")')
-                
+                # print("Here")
                 # print(statusoutput)
                 if "OUTPUT<" in statusoutput and "/>ENDOUTPUT" in statusoutput:
                     statusoutput = "".join("".join("".join(statusoutput.split("BEGINMAINOUT")[1:]).split("OUTPUT<")[1:]).split("/>ENDOUTPUT")[:-1])
@@ -3886,7 +3886,8 @@ def tf1readsend(serverid,checkstatus):
                     titanfall1currentlyplaying[serverid] = []
                 # print((statusoutput))
                 peopleonserver = len(statusoutput.keys()) -1
-                titanfall1currentlyplaying[serverid] = [statusoutput[x]["playername"] for x in list(filter(lambda x: x != "meta", statusoutput.keys()))]
+                titanfall1currentlyplaying[serverid] = [statusoutput[x]["name"] for x in list(filter(lambda x: x != "meta", statusoutput.keys()))]
+                # print("ONLINE",serverid,"ONLINE",bool (len(statusoutput.keys()) -1),statusoutput)
                 discordtotitanfall[serverid]["serveronline"] = bool (len(statusoutput.keys()) -1)
                 if not discordtotitanfall[serverid]["serveronline"]:
                     offlinethisloop = True
@@ -3928,6 +3929,7 @@ def tf1readsend(serverid,checkstatus):
             
     except Exception as e:
         # print("CORE BROKEY SOB",e)
+
         outputstring = ""
         status = ""
         discordtotitanfall[serverid]["serveronline"] = False
@@ -4089,7 +4091,7 @@ def tf1readsend(serverid,checkstatus):
     discordtotitanfall[serverid]["commands"] = list(filter(lambda x: x != "hot potato",discordtotitanfall[serverid]["commands"]))
     discordtotitanfall[serverid]["messages"] = list(filter(lambda x: x,discordtotitanfall[serverid]["messages"]))
     asyncio.run_coroutine_threadsafe(reactomessages(list(ids), serverid), bot.loop)
-    discordtotitanfall[serverid]["serveronline"] = not offlinethisloop
+    # discordtotitanfall[serverid]["serveronline"] = not offlinethisloop
     if senttoolongmessages:
              asyncio.run_coroutine_threadsafe(reactomessages(senttoolongmessages, serverid,"✂️"), bot.loop)
 
@@ -4118,7 +4120,7 @@ def tf1relay():
             # discordtotitanfall[server]["client"] = Client(discordtotitanfall[server]["ip"].split(":")[0], discordtotitanfall[server]["ip"].split(":")[1], passwd=TF1RCONKEY,timeout=1.5)
     i = 0
     while True:
-        i += 1
+        
         time.sleep(1)
         for server in servers:
             # print("boop")
@@ -4127,6 +4129,7 @@ def tf1relay():
                 # try:print((discordtotitanfall[server]["serveronline"]))
                 # except:print(list(discordtotitanfall[server].keys()))
                 threading.Thread(target=tf1readsend, daemon=True, args=(server,i%10 == 0)).start()
+        i += 1
 
   
             # response = discordtotitanfall[server]["client"].run('sv_cheats1;script Lrconcommand("sendmessage","OWOWOOWOWOOW")')
@@ -5265,6 +5268,8 @@ def playerpolllog(data,serverid,statuscode):
     # playerid+playername = primary key. this is because of the edge case where people join one server on one account twice because.. well they do that sometimes
     # print(data,serverid,statuscode)
     istf1 = context["istf1server"].get(serverid,False) # {"tf2" if istf1 else ""}
+    # print("DATA",serverid,data)
+    # if not data: print("true")
     if not istf1:
         currentmap = data["meta"][0]
         matchid = data["meta"][2]
@@ -5474,8 +5479,10 @@ def playerpoll():
         # I want to iterate through all servers, and ask them what they are up too.
         for serverid,data in discordtotitanfall.items():
             # print(discordtotitanfall)
-            # if context["istf1server"].get(serverid,False):
-            #     continue
+            if context["istf1server"].get(serverid,False) and not discordtotitanfall.get(serverid,{}).get("serveronline",False):
+                continue
+            # print(discordtotitanfall.get(serverid,{}).get("serveronline",False))
+            # print(serverid,"going")
             if time.time() - data["lastheardfrom"] > Ithinktheserverhascrashed:
                 pass
             else:
@@ -5611,6 +5618,7 @@ if DISCORDBOTLOGSTATS == "1":
 threading.Thread(target=messageloop).start()
 threading.Thread(target=recieveflaskprintrequests).start()
 threading.Thread(target=tf1relay).start()
+
 
 
 
