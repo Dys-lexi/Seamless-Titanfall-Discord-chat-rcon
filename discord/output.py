@@ -1072,6 +1072,7 @@ if DISCORDBOTLOGSTATS == "1":
 
         nameoverride = False
         serveroverride = False
+        tf1nameoverride = False
 
         if  isinstance(leaderboardmerge, str):
             leaderboardmerge = [leaderboardmerge]
@@ -1084,9 +1085,18 @@ if DISCORDBOTLOGSTATS == "1":
                 leaderboardmerge[i] = "playeruid"
                 nameoverride = True
         for i,value in enumerate(leaderboardmerge):
+            if leaderboardmerge[i] == "tf1name":
+                leaderboardmerge[i] = "playeruid"
+                tf1nameoverride = True
+        for i,value in enumerate(leaderboardmerge):
+            if leaderboardmerge[i] == "deathname":
+                leaderboardmerge[i] = "victim_id"
+                nameoverride = True
+        for i,value in enumerate(leaderboardmerge):
             if leaderboardmerge[i] == "server":
                 leaderboardmerge[i] = "serverid"
                 serveroverride = True       
+
 
         tfdb = sqlite3.connect("./data/tf2helper.db")
         c = tfdb.cursor()
@@ -3945,7 +3955,7 @@ def tf1readsend(serverid,checkstatus):
                     # matchid = client.run("autocvar_matchid") 
                     # tf1statusinterp(status,serverid,matchid)
             if len(commands) > 0:
-                print("sending messages and commands to tf1",commands)
+                # print("sending messages and commands to tf1",commands)
 
                 for w, command in commands.items():
                     otherquotemark = "'"
@@ -3959,7 +3969,8 @@ def tf1readsend(serverid,checkstatus):
                     # print("BEEP BOOP",filterquotes("".join(command["args"])))
                     # print("CMDARGS",[command["args"]])
                     # print("CMDARGS", "[" + otherquotemark + (otherquotemark + "," + otherquotemark.join(command["args"].split(" ")) + otherquotemark)if isinstance(command["args"], str) else "[" + ",".join(f"{otherquotemark}{arg}{otherquotemark}" for arg in command["args"]) + "]")
-                    print("script", f'Lrconcommand("{quotationmark+filterquotes("".join(command["args"]) if isinstance(command["args"], str) else " ".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")')
+                    if command["command"] != "playingpoll":
+                        print("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]) if isinstance(command["args"], str) else " ".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")')
                     inputstring[command["id"]] = client.run("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]) if isinstance(command["args"], str) else " ".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")')#{","+quotationmark+filterquotes(command["name"])+quotationmark if "name" in command.keys() else "" })')
                     # print(inputstring[command["id"]])
             if checkstatus or len(commands) > 0:
@@ -4100,7 +4111,7 @@ def tf1readsend(serverid,checkstatus):
             if len(funcprint) == 0:
                 funcprint = None
         # print("BEEP BOOOOP","".join("".join("".join(origval.split("BEGINMAINOUT")[:1]).split("FUNCRETURN<")[1:]).split("/>FUNCRETURN")[:-1])[0:500])
-        print("output from server:",value,funcprint)
+        # print("output from server:",value,funcprint)
         # print("funcout",funcprint)
         if  commands[key]["type"] == "msg" and (value != "sent!" or messageflag):
             continue
