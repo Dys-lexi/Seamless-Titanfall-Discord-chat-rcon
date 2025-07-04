@@ -751,6 +751,41 @@ if SANCTIONAPIBANKEY != "":
 
         await ctx.respond(f"```{jsonresponse}```", ephemeral=False)
 if DISCORDBOTLOGSTATS == "1":
+    def tf1pullstats(playerdetails,serverid):
+        playeruid = playerdetails["playeruid"]
+        playername = playerdetails["playername"]
+        playerdiscorduid = playerdetails["playerdiscorduid"]
+        # recall the rule of sending external commands!
+        if not len(str(playerdiscorduid)) > 15:
+            # a few workarounds in play, here, sadly.
+            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} No discord UID found, stats logging disabled"),"fake context",defaultoverride,True,False), bot.loop)
+            return
+        specifickillbase = sqlite3.connect("./data/tf2helper.db")
+        c = specifickillbase.cursor()
+        c.execute("SELECT playername FROM uidnamelinktf1 WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(playerdiscorduid,))
+        playernamereal = c.fetchone()
+        c.execute("SELECT SUM(pilotkills), SUM(duration), SUM(deaths), SUM(titankills) FROM playtimetf1 WHERE playeruid = ?",(playerdiscorduid,))
+        playerstats = c.fetchone()
+        c.execute("""
+            SELECT matchid, map, MIN(joinatunix) as start_time, SUM(pilotkills) as total_pilotkills
+            FROM playtimetf1
+            WHERE playeruid = ?
+            GROUP BY matchid, map
+            ORDER BY total_pilotkills DESC
+            LIMIT 1
+        """, (playerdiscorduid,))
+        bestgame = c.fetchone()
+        if not playerstats or not playernamereal:
+            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} Stats for {playername} not found :("),"fake context",defaultoverride,True,False), bot.loop)
+            return
+        playernamereal = playernamereal[0]
+
+        output = f"{playernamereal} has {playerstats[0]} Pilot kills, {playerstats[2]} Deaths, {playerstats[3]} Titan kills and {modifyvalue(int(playerstats[1]),'time')} Time played"
+        formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
+        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} {output}"),"fake context",defaultoverride,True,False), bot.loop)
+        if bestgame:
+            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} {playernamereal} had their best game in {MAP_NAME_TABLE.get(bestgame[1],bestgame[1])} with {bestgame[3]} kills on {formatted_date}"),"fake context",defaultoverride,True,False), bot.loop)
+
     # @bot.slash_command(name="gunleaderboard",description="Gets leaderboards for a gun")
     # async def retrieveleaderboardgun(
     #     ctx,
@@ -1074,7 +1109,7 @@ if DISCORDBOTLOGSTATS == "1":
             wherestring = eval(leaderboardfilters)
         if not specificuidsearch:
             print("Updating leaderboard:",leaderboardname)
-        # print("wherestring",wherestring,where_clauses)
+
         orderbyiscolumn = leaderboardorderby not in [x for x in leaderboardcategorysshown.keys()]
 
         leaderboardcategorys = list(set([
@@ -1090,6 +1125,7 @@ if DISCORDBOTLOGSTATS == "1":
         # print("leaderboardcategorys",leaderboardcategorys)
         # leaderboardcategorys = sorted(leaderboardcategorys, key=lambda x: list(leaderboardcategorysshown.keys()).index(x) if x in leaderboardcategorysshown else len(leaderboardcategorysshown))
         base_query = f"SELECT {','.join(leaderboardcategorys)} FROM {leaderboarddatabase}"
+        # print("wherestring",f"{base_query} WHERE {wherestring}")
         query = f"{base_query} WHERE {wherestring}" if wherestring else base_query
 
         # print("Executing query:", query)
@@ -2905,20 +2941,21 @@ def recieveflaskprintrequests():
             data = getjson(request.get_json())
             uids =  list(map(lambda x: int(x),data["players"].keys()))#list(map(lambda x: x["uid"], data["players"]))
         else:
-            data ={"players": {
-    1012640166434: 'mil',
-    1005973237832: 'imc',
-    1004517844743: 'mil',
-    1008752892665: 'imc',
-    1000342703429: 'imc',
-    1015739568089: 'mil',
-    2284657812: 'mil',
-    1009552389524: 'imc',
-    1009047269938: 'imc',
-    1014753681769: 'mil'
-}}
+            pass
+#             data ={"players": {
+#     1012640166434: 'mil',
+#     1005973237832: 'imc',
+#     1004517844743: 'mil',
+#     1008752892665: 'imc',
+#     1000342703429: 'imc',
+#     1015739568089: 'mil',
+#     2284657812: 'mil',
+#     1009552389524: 'imc',
+#     1009047269938: 'imc',
+#     1014753681769: 'mil'
+# }}
 
-            uids = [1012640166434,1005973237832,1004517844743,1008752892665 ,1000342703429,1015739568089,2284657812,1009552389524,1009047269938,1014753681769] #for testing
+#             uids = [1012640166434,1005973237832,1004517844743,1008752892665 ,1000342703429,1015739568089,2284657812,1009552389524,1009047269938,1014753681769] #for testing
         
         placeholders = ','.join(['?'] * len(uids))
         
@@ -3010,7 +3047,10 @@ def recieveflaskprintrequests():
 
 
 
+            # compute stats for the player!
+        # len(x[0]) > 15
 
+        # step one, check the len of the discorduid
     @app.route("/players/<playeruid>",methods=["GET","POST"])
     def getplayerstats(playeruid):
         # print(int(time.time()))
@@ -3908,15 +3948,19 @@ def tf1readsend(serverid,checkstatus):
                 print("sending messages and commands to tf1",commands)
 
                 for w, command in commands.items():
+                    otherquotemark = "'"
                     quotationmark = '"'
                     if command["type"] == "rcon":
                         # print("beep boop")
                         inputstring[command["id"]] = client.run(*command["command"].split(" "))
                         # print("I managed it!")
                         continue
+                        
                     # print("BEEP BOOP",filterquotes("".join(command["args"])))
-                    print("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")\033[0m')
-                    inputstring[command["id"]] = client.run("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")')#{","+quotationmark+filterquotes(command["name"])+quotationmark if "name" in command.keys() else "" })')
+                    # print("CMDARGS",[command["args"]])
+                    # print("CMDARGS", "[" + otherquotemark + (otherquotemark + "," + otherquotemark.join(command["args"].split(" ")) + otherquotemark)if isinstance(command["args"], str) else "[" + ",".join(f"{otherquotemark}{arg}{otherquotemark}" for arg in command["args"]) + "]")
+                    print("script", f'Lrconcommand("{quotationmark+filterquotes("".join(command["args"]) if isinstance(command["args"], str) else " ".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")')
+                    inputstring[command["id"]] = client.run("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]) if isinstance(command["args"], str) else " ".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")')#{","+quotationmark+filterquotes(command["name"])+quotationmark if "name" in command.keys() else "" })')
                     # print(inputstring[command["id"]])
             if checkstatus or len(commands) > 0:
                 client.run('sv_cheats','0')
@@ -3926,7 +3970,7 @@ def tf1readsend(serverid,checkstatus):
                 clearup = client.run("autocvar_Lcommandreader",'""')
                 
             
-            
+    
     except Exception as e:
         # print("CORE BROKEY SOB",e)
 
@@ -3939,6 +3983,7 @@ def tf1readsend(serverid,checkstatus):
         if not offlinethisloop:
             discordtotitanfall[serverid]["lastheardfrom"] = int(time.time())
     # print("I got here!")
+    # print("outputstring",outputstring)
     try:
         if "☻" in outputstring:
             # print(outputstring)
@@ -4011,6 +4056,9 @@ def tf1readsend(serverid,checkstatus):
                         "servername" :context["serveridnamelinks"][serverid]
 
                     })
+                if output["commandtype"] == "stats":
+                    # print("STATS REQUESTED POG")
+                    tf1pullstats(getjson(output["command"].replace("♥",'"')),serverid)
     except Exception as e:
         print("read brokey")
         traceback.print_exc()
@@ -5484,7 +5532,7 @@ def playerpoll():
             # print(discordtotitanfall.get(serverid,{}).get("serveronline",False))
             # print(serverid,"going")
             if time.time() - data["lastheardfrom"] > Ithinktheserverhascrashed:
-                pass
+                continue
             else:
                 shouldIsave = False
                 asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,"!playingpoll"),"fake context",playerpolllog,True,False), bot.loop)

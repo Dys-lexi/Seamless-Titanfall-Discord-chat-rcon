@@ -208,7 +208,32 @@ MAP_NAME_TABLE = {
     "mp_thaw": "Exoplanet",
     "mp_wargames": "Wargames",
     "mp_mirror_city": "Mirror City",
-    "mp_brick": "BRICK"
+    "mp_brick": "BRICK",
+    "mp_airbase": "Airbase",
+    "mp_boneyard": "Boneyard",
+    "mp_colony": "Colony",
+    "mp_corporate": "Corporate",
+    "mp_fracture": "Fracture",
+    "mp_lagoon": "Lagoon",
+    "mp_nexus": "Nexus",
+    "mp_outpost_207": "Outpost 207",
+    "mp_overlook": "Overlook",
+    "mp_smugglers_cove": "Smuggler's Cove",
+    "mp_training_ground": "Training Ground",
+    "mp_runoff": "Runoff",
+    "mp_swampland": "Swampland",
+    "mp_haven": "Haven",
+    "mp_switchback": "Export",
+    "mp_backwater": "Backwater",
+    "mp_sandtrap": "Sand Trap",
+    "mp_harmony_mines": "Dig Site",
+    "mp_zone_18": "Zone 18",
+    "mp_mia": "M.I.A",
+    "mp_nest2": "Nest 2",
+    "mp_box": "Box",
+    "mp_npe": "Training",
+    "mp_o2": "Demeter",
+    "mp_lobby": "Lobby"
 }
 
 
@@ -368,34 +393,6 @@ CSS_COLOURS = {
     "lvio" : (238, 130, 238),
     "llblue": (135, 206, 235)
     }
-
-MAP_NAME_TABLE = {
-    "mp_angel_city": "Angel City",
-    "mp_black_water_canal": "Black Water Canal",
-    "mp_coliseum": "Coliseum",
-    "mp_coliseum_column": "Pillars",
-    "mp_colony02": "Colony",
-    "mp_complex3": "Complex",
-    "mp_crashsite3": "Crash Site",
-    "mp_drydock": "Drydock",
-    "mp_eden": "Eden",
-    "mp_forwardbase_kodai": "Forwardbase Kodai",
-    "mp_glitch": "Glitch",
-    "mp_grave": "Boomtown",
-    "mp_homestead": "Homestead",
-    "mp_lf_deck": "Deck",
-    "mp_lf_meadow": "Meadow",
-    "mp_lf_stacks": "Stacks",
-    "mp_lf_township": "Township",
-    "mp_lf_traffic": "Traffic",
-    "mp_lf_uma": "UMA",
-    "mp_relic02": "Relic",
-    "mp_rise": "Rise",
-    "mp_thaw": "Exoplanet",
-    "mp_wargames": "Wargames",
-    "mp_mirror_city": "Mirror City",
-    "mp_brick": "BRICK",
-}
 GUNS_TITAN = [ {
         "weapon_name": "mp_titanweapon_leadwall",
         "png_name": "mp_titanweapon_leadwall",
