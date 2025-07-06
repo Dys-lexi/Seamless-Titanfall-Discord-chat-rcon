@@ -214,7 +214,7 @@ def playeruidpreferences():
     tfdb.close()
 
 def readplayeruidpreferences(uid,istf1 = False):
-    uid = int(uid)
+    # uid = int(uid)
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
     c.execute("SELECT preferences FROM playeruidpreferences WHERE uid = ? AND istf1 = ?",(uid,1 if istf1 else 0))
@@ -4341,7 +4341,7 @@ def togglestats(message,serverid,isfromserver):
 
 def ingamehelp(message,serverid,isfromserver):
     istf1 = context["istf1server"].get(serverid,False) != False
-    uid = getpriority(message,"uid",["meta","uid"])
+    # uid = getpriority(message,"uid",["meta","uid"])
     for i, ( name, command) in enumerate(REGISTEREDTFTODISCORDCOMMANDS.items()):
         if "tf1" if istf1 else "tf2" in command["games"]:
             discordtotitanfall[serverid]["messages"].append(
@@ -4360,7 +4360,8 @@ def calcstats(message,serverid,isfromserver):
     
     istf1 = context["istf1server"].get(serverid,False) != False
     # print(isfromserver,readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]),istf1) )
-    if isfromserver and  getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]),istf1),["tf1" if istf1 else "tf2","autostats"]) == False:
+    # print("BLEHHHH",getpriority(message,"uid",["meta","uid"]))
+    if isfromserver and  getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"],"name"),istf1),["tf1" if istf1 else "tf2","autostats"]) == False:
         # print("HERE")
         return
         # discordtotitanfall[serverid]["messages"].append(
