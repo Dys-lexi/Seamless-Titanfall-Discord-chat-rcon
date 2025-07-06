@@ -6,6 +6,7 @@ global function discordlogsendmessage //send a message to all players, accountin
 global function stoprequests // stop sending requests till map change
 global function discordlogpostmessages
 global function discordloggetlastmodels
+global function runcommandondiscord
 // to add your own function create a file called xyz.nut in the same place as this one
 // then make it's file load in the mod.json AFTER logger.nut
 // after that, make the line "global function discordlogYOURFUNCTIONNAME"
@@ -548,8 +549,8 @@ void function stoprequests(){
 	NSHttpRequest(request, onSuccess, onFailure)
 }
 
-void function discordlogsendmessage(string message, int team = 4){
-	thread discordlogsendmessagemakesureissent(message,team)
+void function discordlogsendmessage(string message, int team = 4,array<string> ovverideuids = []){
+	thread discordlogsendmessagemakesureissent(message,team,ovverideuids)
 	// int trys = 0
 	// array <entity> players = GetPlayerArray()
 	// array <entity> playersdone
@@ -571,8 +572,17 @@ void function discordlogsendmessage(string message, int team = 4){
 	// }
 
 }
-void function discordlogsendmessagemakesureissent(string message, int team = 4){
+void function discordlogsendmessagemakesureissent(string message, int team = 4, array<string> ovverideuids = []){
 	array <entity> players = GetPlayerArray()
+	if (ovverideuids.len() > 0){
+		players = []
+		foreach (entity player in GetPlayerArray() ){
+		if (ovverideuids.contains(player.GetUID())) {
+		players.append(player)
+		}
+		
+		}
+	}
 	array <entity> shouldsend = []
 	foreach (entity player in players){
 		if (player.GetTeam() == team || team == 4){
@@ -772,10 +782,12 @@ void function DiscordClientMessageinloop()
 			table textw = expect table(value)
 			string text = expect string(textw["content"])
 			int teamoverride = expect int(textw["teamoverride"])
-			string validation = expect string(key)
+			string validation = expect string(textw["validation"])
+			string ovverrideuids = expect string(textw["uidoverride"])
+			array<string> uidoverride =  split(ovverrideuids,",")
 			print("[DiscordLogger] MESSAGE "+text)
 			check.textcheck.append(validation)
-			thread discordlogsendmessage(text,teamoverride)
+			thread discordlogsendmessage(text,teamoverride,uidoverride)
 			// foreach (entity player in GetPlayerArray()) {
 			// 	Chat_PrivateMessage(player,player,"\x1b[38;5;105m"+text,false)
 			// }
@@ -812,7 +824,27 @@ void function DiscordClientMessageinloop()
 		NSHttpRequest( request, onSuccess, onFailure )}
 }
 }
+void function runcommandondiscord(string commandname, table paramaters = {}){
+	thread runcommandondiscordreal(commandname,paramaters)
+}
 
+void function runcommandondiscordreal(string commandname, table paramaters){
+	table params = {}
+		params["password"] <- serverdetails.password
+		params["serverid"] <- serverdetails.serverid
+		params["command"] <- commandname
+		params["paramaters"] <- EncodeJSON(paramaters)
+	
+    HttpRequest request
+    request.method = HttpRequestMethod.POST
+    request.url = serverdetails.Requestpath + "/runcommand"
+	request.body = EncodeJSON(params)
+	    void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse messages )
+{}
+    void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
+	{}
+	NSHttpRequest( request, onSuccess, onFailure )
+}
 void function runcommand(string command,string validation) {
 	check.commandcheck[validation] <- EncodeJSON({statuscode=-3,output=command+": Special command not found"})
 	discordlogcommand commandstruct

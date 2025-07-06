@@ -50,6 +50,7 @@ MODEL_DICT = {
 }
 
 
+
 WEAPON_NAMES = {
     "outOfBounds":"Tried to flee battle",
     "titan_execution":"Titan execution",
@@ -236,6 +237,9 @@ MAP_NAME_TABLE = {
     "mp_lobby": "Lobby"
 }
 
+ANSICOLOUR = "\x1b[38;5;105m"
+RGBCOLOUR = {"DISCORD":(135, 135, 255),"FRIENDLY":(80, 229, 255),"ENEMY":(213, 80, 16),"NEUTRAL":"[110m"}
+PREFIXES = {"lexicmdprivate":"\x1b[38;5;213m[Lexicmd]\x1b[38;5;254m ","discord":"[38;2;135;135;254m[Discord]\x1b[38;5;254m "}
 
 CSS_COLOURS = {
     "black": (0, 0, 0),

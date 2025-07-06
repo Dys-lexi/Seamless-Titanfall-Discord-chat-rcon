@@ -27,7 +27,6 @@ from defs import *
 import io
 import sys
 import logging
-
 def create_all_indexes():
     conn = sqlite3.connect("./data/tf2helper.db")
     c = conn.cursor()
@@ -198,6 +197,56 @@ def specifickilltrackerdb():
     tfdb.commit()
     c.close()
     tfdb.close()
+
+def playeruidpreferences():
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    # c.execute("DROP TABLE IF EXISTS playeruidpreferences")
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS playeruidpreferences (
+            id INTEGER PRIMARY KEY,
+            uid INTEGER,
+            istf1 INTEGER,
+            preferences STRING
+            )"""
+    )
+    tfdb.commit()
+    tfdb.close()
+
+def readplayeruidpreferences(uid,istf1 = False):
+    uid = int(uid)
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    c.execute("SELECT preferences FROM playeruidpreferences WHERE uid = ? AND istf1 = ?",(uid,1 if istf1 else 0))
+    output = c.fetchone()
+    try:
+        output = json.loads(output[0]) if output else {}
+    except: pass
+    tfdb.close()
+    return output
+
+def setplayeruidpreferences(value, uid, istf1=False):
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    preferences_json = json.dumps(value)
+    istf1_int = 1 if istf1 else 0
+    c.execute("SELECT id FROM playeruidpreferences WHERE uid = ? AND istf1 = ?", (uid, istf1_int))
+    existing = c.fetchone()
+    if existing:
+        c.execute(
+            "UPDATE playeruidpreferences SET preferences = ? WHERE uid = ? AND istf1 = ?",
+            (preferences_json, uid, istf1_int)
+        )
+    else:
+        c.execute(
+            "INSERT INTO playeruidpreferences (uid, istf1, preferences) VALUES (?, ?, ?)",
+            (uid, istf1_int, preferences_json)
+        )
+
+    tfdb.commit()
+    tfdb.close()
+    
+
 # def matchidtf1():
 #     tfdb = sqlite3.connect("./data/tf2helper.db")
 #     c = tfdb.cursor()
@@ -436,8 +485,7 @@ OVERRIDEIPFORCDNLEADERBOARD = os.getenv("OVERRIDE_IP_FOR_CDN_LEADERBOARD","use_a
 OVVERRIDEROLEREQUIRMENT = os.getenv("OVERRIDE_ROLE_REQUIREMENT","1")
 COOLPERKSROLEREQUIRMENTS = os.getenv("COOL_PERKS_REQUIREMENT","You need something or other to get this")
 SHOWIMPERSONATEDMESSAGESINDISCORD = os.getenv("SHOW_IMPERSONATED_MESSAGES_IN_DISCORD","1")
-ANSICOLOUR = "\x1b[38;5;105m"
-RGBCOLOUR = {"DISCORD":(135, 135, 255),"FRIENDLY":(80, 229, 255),"ENEMY":(213, 80, 16),"NEUTRAL":"[110m"}
+
 GLOBALIP = 0
 if OVERRIDEIPFORCDNLEADERBOARD == "use_actual_ip":
     GLOBALIP ="http://"+requests.get('https://api.ipify.org').text+":34511"
@@ -511,6 +559,7 @@ joincounterdb()
 matchid()
 discorduidinfodb()
 messagelogger()
+playeruidpreferences()
 creatediscordlinkdb()
 specifickilltrackerdb()
 playeruidnamelinktf1()
@@ -586,7 +635,7 @@ def getallweaponnames(weapon):
     conn = sqlite3.connect("./data/tf2helper.db")
     c = conn.cursor()
     c.execute("SELECT DISTINCT cause_of_death FROM specifickilltracker ORDER BY cause_of_death")
-    return sorted(list(map(lambda x: WEAPON_NAMES.get(x[0],x[0]),list(filter(lambda x: (WEAPON_NAMES.get(x[0],False) and weapon.lower() in WEAPON_NAMES.get(x[0],"").lower()) or weapon.lower() in x[0].lower(),c.fetchall())))),key = lambda x: x.lower().startswith(ctx.value.lower())* 50 ,reverse = True)[:30]
+    return sorted(list(map(lambda x: WEAPON_NAMES.get(x[0],x[0]),list(filter(lambda x: (WEAPON_NAMES.get(x[0],False) and weapon.lower() in WEAPON_NAMES.get(x[0],"").lower()) or weapon.lower() in x[0].lower(),c.fetchall())))),key = lambda x: x.lower().startswith(weapon.lower())* 50 ,reverse = True)[:30]
 async def weaponnamesautocomplete(ctx):
     return getallweaponnames(ctx.value)
 
@@ -637,12 +686,16 @@ async def pullmessagelogs(ctx, filterword: str = ""):
         {**(getjson(row[0])),"serverid":row[2]}
         for row in c.fetchall()
     ][::-1]
+    truncationmessage = ""
+    if len (matches) > 1000:
+        truncationmessage = f" {len(matches) - 1000} messages truncated"
+    matches = matches[:1000] 
     tfdb.close()
     if matches:
         file_obj = io.BytesIO(json.dumps(matches, indent=4).encode('utf-8'))
         file_obj.seek(0)
         discord_file = discord.File(file_obj, filename="matches.json")
-        await ctx.respond(f"Matching Messages:", file=discord_file)
+        await ctx.respond(f"Matching Messages{truncationmessage}:", file=discord_file)
     else:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("No matches found.")
@@ -752,14 +805,28 @@ if SANCTIONAPIBANKEY != "":
         await ctx.respond(f"```{jsonresponse}```", ephemeral=False)
 if DISCORDBOTLOGSTATS == "1":
     def tf1pullstats(playerdetails,serverid):
-        playeruid = playerdetails["playeruid"]
-        playername = playerdetails["playername"]
-        playerdiscorduid = playerdetails["playerdiscorduid"]
+        # print("running",playerdetails)
+        # playerdetails = getjson(playerdetails.replace("♥",'"'))
+        playeruid = playerdetails.get("meta",{}).get("entid",False)
+        if not playeruid:
+            playeruid = playerdetails.get("playeruid",False)
+        playername = playerdetails.get("originalname",False) 
+        if not playername:
+            playername = playerdetails.get("name",False)
+        playerdiscorduid = playerdetails.get("uid",0)
+        playerresolvedfromuid = False
+        
+        if playerdetails.get("originalmessage",False)  and len(playerdetails["originalmessage"].split(" ")) > 1:
+            playerresolvedfromuid =resolveplayeruidfromdb( " ".join(playerdetails["originalmessage"].split(" ")[1:]),None,False,True)
+            playername = (playerdetails["originalmessage"]).split(" ")[1]
+            playerdiscorduid = playerresolvedfromuid[0]["uid"]
+        # print(playerresolvedfromuid)
         # recall the rule of sending external commands!
-        if not len(str(playerdiscorduid)) > 15:
+        if not len(str(playerdiscorduid)) > 15 and not playerresolvedfromuid:
             # a few workarounds in play, here, sadly.
             asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} No discord UID found, stats logging disabled"),"fake context",defaultoverride,True,False), bot.loop)
             return
+        
         specifickillbase = sqlite3.connect("./data/tf2helper.db")
         c = specifickillbase.cursor()
         c.execute("SELECT playername FROM uidnamelinktf1 WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(playerdiscorduid,))
@@ -2663,7 +2730,8 @@ async def on_message(message):
                     "id": message.id,
                     "content": f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}{RGBCOLOUR['NEUTRAL']}{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}",
                     "teamoverride": 4,
-                    "isteammessage": False
+                    "isteammessage": False,
+                    "uidoverride": []
                     # "dotreacted": dotreacted
                 }
             )
@@ -2736,7 +2804,7 @@ def colourmessage(message,serverid):
     # print(f"OUTPUT {output}")
     return {**output,"messageteam":message["metadata"]["teamint"]}
 def computeauthornick (name,idauthor,content,serverid,rgbcolouroverride = "DISCORD",colourlinksovverride = "discordcolour",lenoverride = 254):
-    print("DETAILS",name,idauthor,content,serverid,colourslink.get(idauthor,{}))
+    # print("DETAILS",name,idauthor,content,serverid,colourslink.get(idauthor,{}))
     authornick = 2
     counter = 0
     while authornick == 2 and counter < len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])]):
@@ -2758,6 +2826,7 @@ def computeauthornick (name,idauthor,content,serverid,rgbcolouroverride = "DISCO
 
 
 def recieveflaskprintrequests():
+
     app = Flask(__name__)
     def handle_flask_exception(e):
         logging.error(
@@ -2777,6 +2846,7 @@ def recieveflaskprintrequests():
         data = request.get_json()
         if data["password"] != SERVERPASS and SERVERPASS != "*":
             print("invalid password used on playerdetails")
+            return {"message":"sorry, wrong pass"}
         discorduid = discorduidnamelink.get(data["uid"],False)
         if not discorduid:
             specifickillbase = sqlite3.connect("./data/tf2helper.db")
@@ -2919,7 +2989,7 @@ def recieveflaskprintrequests():
                     str(command["id"])
                     for command in discordtotitanfall[serverid]["commands"]
                 ]
-                textsv2 = {value["id"]:{"content":value["content"],"teamoverride":value.get("teamoverride",4),"isteammessage":value.get("isteammessage",False)} for  value in discordtotitanfall[serverid]["messages"]}
+                textsv2 = {str(i):{"content":value["content"],"validation":str(value["id"]),"teamoverride":value.get("teamoverride",4),"isteammessage":value.get("isteammessage",False),"uidoverride":",".join(list(map(lambda x: str(x),value.get("uidoverride",[]))))} for i, value in enumerate(discordtotitanfall[serverid]["messages"])}
         
                 discordtotitanfall[serverid]["messages"] = []
                 discordtotitanfall[serverid]["commands"] = []
@@ -2944,7 +3014,13 @@ def recieveflaskprintrequests():
             time.sleep(0.2)
         stoprequestsforserver[serverid] = False
         return {"texts": {}, "commands": {}, "time": "0","textsv2":{}}
-
+    @app.route("/runcommand",methods=["POST"])
+    def runcommandforserver():
+        data = getjson(request.get_json())
+        # print("PLEASE RUN A COMMAND FOR ME")
+        if data["password"]!= SERVERPASS and SERVERPASS != "*":
+            return {"message":"wrong pass"}
+        tftodiscordcommand(data["command"],data["paramaters"],str(data["serverid"]))
     @app.route("/autobalancedata", methods=["POST", "GET"])
     def pullautobalancestats():
         if request.method == "POST":
@@ -3063,206 +3139,8 @@ def recieveflaskprintrequests():
         # step one, check the len of the discorduid
     @app.route("/players/<playeruid>",methods=["GET","POST"])
     def getplayerstats(playeruid):
-        # print(int(time.time()))
-        specifickillbase = sqlite3.connect("./data/tf2helper.db")
-        c = specifickillbase.cursor()
-        # print(int(time.time()/))
-        now = int(time.time())
-        timeoffset = 86400
-        try:
-            output = resolveplayeruidfromdb(playeruid,None,True)[0]
-            name = output["name"]
-            playeruid = (output["uid"])
-        except:
-            name = "unknown"
-            return {"sob":"sobbing Unknown player"} , 404
-        messages = {}
-        print(name)
-        output = {"name":name,"uid":str(playeruid),"total":{}}
-        c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ?",(playeruid,))
-        output["total"]["deaths"] = len(c.fetchall())
-        c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ?",(playeruid,))
-        output["total"]["kills"] = len(c.fetchall())
-        c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ? AND timeofkill > ?",(playeruid,now-timeoffset))
-        output["total"]["killstoday"] = len(c.fetchall())
-        c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ? AND timeofkill > ?",(playeruid,now-timeoffset))
-        output["total"]["deathstoday"] = len(c.fetchall())
-        c.execute("""
-            SELECT MAX(CASE WHEN playeruid = ? THEN position END) AS player_position
-            FROM (
-                SELECT playeruid, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
-                FROM specifickilltracker
-                WHERE timeofkill > ?
-                GROUP BY playeruid
-            ) x;
-        """, (playeruid,now-timeoffset))
-        killspos = c.fetchone()
-        if killspos:
-            output["total"]["killslasthourpos"] = killspos[0]
-        c.execute("""
-            SELECT MAX(CASE WHEN victim_id = ? THEN position END) AS player_position
-            FROM (
-                SELECT victim_id, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
-                FROM specifickilltracker
-                WHERE timeofkill > ?
-                GROUP BY victim_id
-            ) x;
-        """, (playeruid,now-timeoffset))
-        killspos = c.fetchone()
-        if killspos:
-            output["total"]["deathslasthourpos"] = killspos[0]
-        c.execute("""
-        SELECT MAX(CASE WHEN playeruid = ? THEN position END) AS player_position
-        FROM (
-            SELECT playeruid, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
-            FROM specifickilltracker
-            GROUP BY playeruid
-        ) x;
-        """, (playeruid,))
-        killspos = c.fetchone()
-        if killspos:
-            output["total"]["killspos"] = killspos[0]
-        c.execute("""
-        SELECT MAX(CASE WHEN playeruid = ? THEN position END) AS player_position
-        FROM (
-            SELECT playeruid, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
-            FROM specifickilltracker
-            WHERE cause_of_death = (
-                SELECT cause_of_death
-                FROM specifickilltracker
-                WHERE playeruid = ?
-                ORDER BY timeofkill DESC
-                LIMIT 1
-            )
-            GROUP BY playeruid
-        ) x;
-        """, (playeruid, playeruid))
-        killspos = c.fetchone()
-        if killspos:
-            output["total"]["recentweaponkillspos"] = killspos[0]
-        c.execute("""
-        SELECT MAX(CASE WHEN victim_id = ? THEN position END) AS player_position
-        FROM (
-            SELECT victim_id, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
-            FROM specifickilltracker
-            GROUP BY victim_id
-        ) x;
-        """, (playeruid,))
-        killspos = c.fetchone()
-        if killspos:
-            output["total"]["deathspos"] = killspos[0]
-        c.execute("""
-            SELECT cause_of_death, COUNT(*) as kill_count
-            FROM specifickilltracker
-            WHERE playeruid = ?
-            GROUP BY cause_of_death
-            ORDER BY kill_count DESC
-            LIMIT 3
-        """, (playeruid,))
-        top_weapons = c.fetchall()
-        c.execute("""
-            SELECT matchid, pilotkills
-            FROM playtime
-            WHERE playeruid = ?
-            GROUP BY matchid
-            ORDER BY pilotkills DESC
-            LIMIT 1
-        """, (playeruid,))
-        highest_pilotkills_match = c.fetchone()
-        c.execute("""
-            SELECT matchid, map, MIN(joinatunix) as start_time, SUM(pilotkills) as total_pilotkills
-            FROM playtime
-            WHERE playeruid = ?
-            GROUP BY matchid, map
-            ORDER BY total_pilotkills DESC
-            LIMIT 1
-        """, (playeruid,))
-        bestgame = c.fetchone()
-        c.execute("""
-            SELECT 
-                COALESCE(SUM(duration), 0) AS total_time_playing,
-                COALESCE(SUM(pilotkills), 0) AS total_pilot_kills
-            FROM playtime
-            WHERE playeruid = ?
-        """, (playeruid,))
-        kph = c.fetchone()
-        timeplayed = "unknown"
-        if not kph or not kph[0]: killsperhour = 0
-        else:
-            killsperhour = int((kph[1]/(kph[0]/3600))*100)/100
-            timeplayed = modifyvalue(kph[0],"time")
-        currentgun = False
-        # if request.method == "POST" and "current_weapon" in request.get_json():
-        #     print("ASDASDASDASDASSDAS",request.get_json()["current_weapon"])
-        #     c.execute("SELECT COUNT(*) as kill_count FROM specifickilltracker WHERE playeruid = ? AND cause_of_death = ?",(playeruid,request.get_json()["current_weapon"]))
-        #     currentgun = c.fetchone()
-        #     if not currentgun:
-        #         currentgun = False
-        #     else:
-                # print("HEREEE")
-                # top_weapons.append( (request.get_json()["current_weapon"],currentgun[0]))
-                # print(currentgun)
-        # output["total"]["top_weapons"] = top_weapons
-        c.execute("""
-            SELECT cause_of_death, COUNT(*) as kill_count
-            FROM specifickilltracker
-            WHERE playeruid = ?
-            AND cause_of_death = (
-                SELECT cause_of_death
-                FROM specifickilltracker
-                WHERE playeruid = ?
-                ORDER BY timeofkill DESC
-                LIMIT 1
-            )
-            GROUP BY cause_of_death
-        """, (playeruid, playeruid))
-        output["total"]["recent_weapon_kills"] = c.fetchone()
-
-
-        if output["total"]["deaths"] != 0:
-            kd = output["total"]["kills"]/ output["total"]["deaths"]
-        else:
-            kd = 1
-        kd = int(kd*100)/100
-        print("getting killdata for",name,playeruid,output)
-        while True:
-            colour = random.randint(0, 255)
-            # colour = random.choice([254,219,87])
-            # dissallowedcolours colours (unreadable)  (too dark)
-            if colour not in DISALLOWED_COLOURS:
-                break
-        offset = 1
-        backslash = "\x1b"
-        messages["0"] = f"\x1b[38;5;{colour}m{name}\x1b[110m has \x1b[38;5;189m{output['total']['kills']}{' '+ backslash + '[38;5;244m#' + str(output['total']['killspos']) if output['total']['killspos'] else ''} \x1b[110m kills and \x1b[38;5;189m{output['total']['deaths']}{' '+ backslash + '[38;5;244m#' + str(output['total']['deathspos']) if output['total']['deathspos'] else ''} \x1b[110mdeaths (\x1b[38;5;189m{kd}\x1b[110m k/d, \x1b[38;5;189m{killsperhour}\x1b[110m k/hour, \x1b[38;5;189m{timeplayed}\x1b[110m playtime)"
-        # print("e",bestgame)
-        if  bestgame:
-            formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
-
-            offset +=1
-            messages["1"] = f"\x1b[38;5;{colour}m{name}\x1b[110m had their best game on \x1b[38;5;189m{MAP_NAME_TABLE.get(bestgame[1],bestgame[1])}\x1b[110m with \x1b[38;5;189m{bestgame[3]}\x1b[110m kills on \x1b[38;5;189m{formatted_date}"
-        colourcodes = ["\x1b[38;5;226m","\x1b[38;5;251m","\x1b[38;5;208m"]
-        topguns = []
-        for enum , weapon in enumerate( top_weapons):
-            if not weapon:
-                continue
-            # messages[str(offset)] = f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}\x1b[110m kills: \x1b[38;5;189m{weapon[1]}"
-            # offset +=1
-            topguns.append( f"{colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}: \x1b[38;5;189m{weapon[1]}\x1b[110m kills" )
+        return (getstats(playeruid))
         
-        if topguns != "":
-            messages[str(offset)] = f"\x1b[38;5;{colour}mTop 3 guns: " + ", ".join(topguns)
-            offset +=1
-    # \x1b[38;5;244m
-        if output["total"]["recent_weapon_kills"]:
-            messages[str(offset)] = f"\x1b[38;5;{colour}mMost recent weapon: \x1b[38;5;189m{WEAPON_NAMES.get(output['total']['recent_weapon_kills'][0],output['total']['recent_weapon_kills'][0])}: \x1b[38;5;189m{output['total']['recent_weapon_kills'][1]}{' '+ backslash + '[38;5;244m#' + str(output['total']['recentweaponkillspos']) if output['total']['recentweaponkillspos'] else ''} \x1b[110mkills"
-            offset+=1
-        messages[str(offset)] = f"\x1b[38;5;{colour}m{name} has \x1b[38;5;189m{output['total']['killstoday']}{' '+ backslash + '[38;5;244m#' + str(output['total']['killslasthourpos']) if output['total']['killslasthourpos'] else ''}\x1b[110m kill{'s' if  output['total']['killstoday'] != 1 else ''} today and \x1b[38;5;189m{output['total']['deathstoday']}{' '+ backslash + '[38;5;244m#' + str(output['total']['deathslasthourpos']) if output['total']['deathslasthourpos'] else ''} \x1b[110mdeath{'s' if  output['total']['deathstoday'] != 1 else ''} today"
-        offset +=1
-
-        # if len(messages):
-            # output["messages"] = messages
-        print({**output,**messages},"colour",colour)
-        return {**output,**messages}
     
 
     # @app.route("/players/<playeruid>", methods=["GET", "POST"])
@@ -3728,14 +3606,14 @@ def getmessagewidget(metadata,serverid,messagecontent,message):
                 data2 = sum(list(map(lambda x: x[0]-x[1], data2)))
                 output += f" - {data2//3600}h {data2//60%60}m time playing"
             output += ")"
-    elif metadata["type"] in ["command","botcommand"]:
+    elif metadata["type"] in ["command","botcommand","tf1command"]:
         if DISCORDBOTLOGCOMMANDS != "1":
             return "",player
         output = f"""> {context['serveridnamelinks'].get(serverid,'Unknown server').ljust(30)} {(message['player']+":").ljust(20)} {message['messagecontent']}"""
-    elif metadata["type"] == "tf1command":
-        if DISCORDBOTLOGCOMMANDS != "1":
-            return "",player
-        output = f"""> {context['serveridnamelinks'].get(serverid,'Unknown server').ljust(50)} {message['messagecontent']}"""  
+    # elif metadata["type"] == "tf1command":
+    #     if DISCORDBOTLOGCOMMANDS != "1":
+    #         return "",player
+    #     output = f"""> {context['serveridnamelinks'].get(serverid,'Unknown server').ljust(50)} {message['messagecontent']}"""  
     
     elif metadata["type"] == "disconnect":
         pass
@@ -3863,6 +3741,7 @@ def interpstatus(log):
 def tf1readsend(serverid,checkstatus):
     # don't even bother trying to send anything or read anything if the server is offline!
     global discordtotitanfall,context,reactedyellowtoo,titanfall1currentlyplaying
+    
     commands = {}
     offlinethisloop = False
     now = int((time.time())*100) # increased by 8 seconds, to increase the time it takes for a yellow dot to be reacted
@@ -3892,7 +3771,7 @@ def tf1readsend(serverid,checkstatus):
                 continue   #TRADEOFF HERE. EITHER I SEND IT EACH RCON CALL (and don't update the timestamp) OR I do what I do here and only send it once, wait untill yellow dot cleaner comes, then send again.
             if len(message["content"]) > 130:
                 toolongmessages.append(message["id"])
-            commands[message["id"]] = {"type":"msg","command":"sendmessage","id":message["id"],"args":str(message['content'])[0:130]}
+            commands[message["id"]] = {"type":"msg","command":"sendmessage","id":message["id"],"args":(f'placeholder{",".join(list(map(lambda x: str(x),message.get("uidoverride",[]))))}') +  " "+(message["content"][0:130])}
         if len(discordtotitanfall[serverid]["returnids"]["messages"].keys()) != -1 and messages:# and discordtotitanfall[serverid]["serveronline"]:
             
             for messageid in list(map(lambda x: str(x["id"]),list(filter(lambda x: True ,discordtotitanfall[serverid]["messages"])))):
@@ -4010,7 +3889,7 @@ def tf1readsend(serverid,checkstatus):
                 
                 # print(output)
                 output = {"id":output[0],"command":output[1],"output":output[2],"commandtype":output[3]}
-                print(output)
+                # print(output)
                 if output["commandtype"] == "chat_message":
                     # print("here")
                     messageflush.append({
@@ -4043,14 +3922,16 @@ def tf1readsend(serverid,checkstatus):
                     })
                 if output["commandtype"] == "command_message":
                     # print("here")
+                    outputjson = getjson(output["output"].replace("♥",'"'))
                     messageflush.append({
                         "timestamp": int(time.time()),
                         "serverid": serverid,
                         "type": 3,
+                        "player": outputjson["name"],  
                         "globalmessage": True,
                         "overridechannel": "commandlogchannel",
                         "messagecontent": output["command"],
-                        "metadata": {"type":"tf1command"},
+                        "metadata": {"type":"tf1command",**outputjson},
                         "servername" :context["serveridnamelinks"][serverid]
 
                     })
@@ -4067,9 +3948,14 @@ def tf1readsend(serverid,checkstatus):
                         "servername" :context["serveridnamelinks"][serverid]
 
                     })
-                if output["commandtype"] == "stats":
-                    # print("STATS REQUESTED POG")
-                    tf1pullstats(getjson(output["command"].replace("♥",'"')),serverid)
+                # if COMMANDDICT.get(output["commandtype"],False):
+                #     COMMANDDICT[output["commandtype"]](output["command"],serverid)
+                # if output["commandtype"] == "stats":
+                #     print("STATS REQUESTED POG")
+                #     tf1pullstats(getjson(output["command"].replace("♥",'"')),serverid)
+                if output["commandtype"] == "sendcommand":
+                    tftodiscordcommand(output["output"],getjson(output["command"].replace("♥",'"')),serverid)
+                # if output["commandtype"] == ""
     except Exception as e:
         print("read brokey")
         traceback.print_exc()
@@ -4302,25 +4188,25 @@ def messageloop():
                     if message["type"] == 1:
                         # print("c")
                         output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(
-                            {"message": f"**{playername}**: {messagewidget}",**messageadders,"messagecontent":messagewidget}
+                            {"message": f"**{playername}**: {messagewidget}",**messageadders,"messagecontent":messagewidget,"oserverid":message["serverid"]}
                         )
                         # print(f"**{playername}**:  {messagewidget}")
                     elif message["type"] == 2:
                         # print("d")
                         output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(
-                            {"message": f"""```{playername} {messagewidget}```""",**messageadders,"messagecontent":messagewidget}
+                            {"message": f"""```{playername} {messagewidget}```""",**messageadders,"messagecontent":messagewidget,"oserverid":message["serverid"]}
                         )
                         # print(f"""{playername} {messagewidget}""")
                     elif message["type"] == 3:
                         # print("e")
                         output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(
-                            {"message": f"{messagewidget}",**messageadders,"messagecontent":messagewidget}
+                            {"message": f"{messagewidget}",**messageadders,"messagecontent":messagewidget,"oserverid":message["serverid"]}
                         )
                         # print(f"{messagewidget}")
                     elif message["type"] == 4:
                         # print("f")
                         output[message["serverid"] if not message["globalmessage"] else message["overridechannel"]].append(
-                            {"message": f"```{messagewidget}```",**messageadders,"messagecontent":messagewidget}
+                            {"message": f"```{messagewidget}```",**messageadders,"messagecontent":messagewidget,"oserverid":message["serverid"]}
                         )
                         # print(f"{messagewidget}")
                     else:
@@ -4334,6 +4220,7 @@ def messageloop():
                         # extra functions hooked onto messages
                         # asyncio.run_coroutine_threadsafe(colourmessage(message,serverid),bot.loop)
                         asyncio.run_coroutine_threadsafe(checkverify(message),bot.loop)
+                        threading.Thread(target=tftodiscordcommand, daemon=True, args=(False,message,message["oserverid"])).start()
                         thready = threading.Thread(target=savemessages, daemon=True, args=(message,serverid))
                         thready.start()
                         isbad = checkifbad(message)
@@ -4398,6 +4285,124 @@ def messageloop():
             print("bot not ready", e)
         time.sleep(0.1)
 
+def tftodiscordcommand(specificommand,command,serverid):
+    # return
+    global context
+    servercommand = specificommand != False
+    keyletter = "!"
+    # print("HERE")
+    # print("HERE", not specificommand,command.get("originalmessage",False) ,command["originalmessage"][0] == keyletter,command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() ,("tf1" if context["istf1server"].get(serverid,False) else "tf2") in  REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
+    # print(not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
+    if not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"]:
+        specificommand = command["originalmessage"][1:].split(" ")[0]
+        commandargs = command["originalmessage"][1:].split(" ")[1:]
+    elif specificommand:
+        pass
+    else:
+        return
+    initdiscordtotitanfall(serverid)
+    # print(specificommand)
+    if REGISTEREDTFTODISCORDCOMMANDS[specificommand]["run"] == "thread":
+        threading.Thread(target=REGISTEREDTFTODISCORDCOMMANDS[specificommand]["function"], daemon=True, args=(command,serverid,servercommand)).start()
+    elif REGISTEREDTFTODISCORDCOMMANDS[specificommand]["run"] == "async":
+        asyncio.run_coroutine_threadsafe(REGISTEREDTFTODISCORDCOMMANDS[specificommand]["function"](command,serverid,servercommand),bot.loop)
+    elif REGISTEREDTFTODISCORDCOMMANDS[specificommand]["run"] == "seq":
+        REGISTEREDTFTODISCORDCOMMANDS[specificommand]["function"](command,serverid,servercommand)
+    
+def togglestats(message,serverid,isfromserver):
+    istf1 = context["istf1server"].get(serverid,False) != False
+    if not len(str(getpriority(message,"uid",["meta","uid"]))) > 15:
+            discordtotitanfall[serverid]["messages"].append(
+            {
+                "id": str(int(time.time()*100)),
+                "content":f"{PREFIXES['lexicmdprivate']} No discord account linked, cannot toggle autostats",
+                "teamoverride": 4,
+                "isteammessage": False,
+                "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+                # "dotreacted": dotreacted
+            }
+            )
+            return
+        
+    preferences = readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]),istf1)
+    preferences.setdefault("tf1",{"autostats":True})
+    preferences["tf1"]["autostats"] = not preferences["tf1"]["autostats"]
+    setplayeruidpreferences(preferences,getpriority(message,"uid",["meta","uid"]),istf1)
+    discordtotitanfall[serverid]["messages"].append(
+    {
+        "id": str(int(time.time()*100)),
+        "content":f"{PREFIXES['lexicmdprivate']}Toggled autostats - is now {preferences['tf1']['autostats']}",
+        "teamoverride": 4,
+        "isteammessage": False,
+        "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+        # "dotreacted": dotreacted
+    }
+    )
+
+def ingamehelp(message,serverid,isfromserver):
+    istf1 = context["istf1server"].get(serverid,False) != False
+    uid = getpriority(message,"uid",["meta","uid"])
+    for i, ( name, command) in enumerate(REGISTEREDTFTODISCORDCOMMANDS.items()):
+        if "tf1" if istf1 else "tf2" in command["games"]:
+            discordtotitanfall[serverid]["messages"].append(
+                {
+                    "id": str(i) + str(int(time.time()*100)),
+                    "content":f"{PREFIXES['discord']} {name}: {command['description']}",
+                    "teamoverride": 4,
+                    "isteammessage": False,
+                    "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+                    # "dotreacted": dotreacted
+                }
+                )
+
+def calcstats(message,serverid,isfromserver):
+    # print("e",message)
+    
+    istf1 = context["istf1server"].get(serverid,False) != False
+    # print(isfromserver,readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]),istf1) )
+    if isfromserver and  getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]),istf1),["tf1" if istf1 else "tf2","autostats"]) == False:
+        # print("HERE")
+        return
+        # discordtotitanfall[serverid]["messages"].append(
+        #     {
+        #         "id": random.randint(0,53353),
+        #         "content":"disabled stats",
+        #         "teamoverride": 4,
+        #         "isteammessage": False,
+        #         "uidoverride": []
+        #         # "dotreacted": dotreacted
+        #     }
+        #     )
+        #  readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]),istf1)
+      
+    # print("OPOWOWOOWOWOOWOWOOWOWOWO")
+    if istf1: tf1pullstats(message,serverid)
+    else:
+        if len(message.get("originalmessage","w").split(" ")) > 1:
+            output = getstats(" ".join(message["originalmessage"].split(" ")[1:]))
+        else:
+            # print(getpriority(message,"originalname","name"))
+            output = getstats(str(getpriority(message,"originalname","name")))
+        # print(output)
+        if "sob" in output.keys():
+            return
+
+        for i, (key, stat) in enumerate(output.items()):
+            try:
+                key = int(key)
+            except ValueError:
+                continue
+            discordtotitanfall[serverid]["messages"].append(
+            {
+                "id": str(i)+str(int(time.time()*100)),
+                "content":stat,
+                "teamoverride": 4,
+                "isteammessage": False,
+                "uidoverride": [resolveplayeruidfromdb(getpriority(message,"originalname","name"),None,True)[0]["uid"]] if not len(message.get("originalmessage","w").split(" ")) > 1 else []
+                # "dotreacted": dotreacted
+            }
+            )
+
 def savemessages(message,serverid):
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
@@ -4450,7 +4455,7 @@ def checkifbad(message):
     global context
     if message["type"] not in FILTERNAMESINMESSAGES.split(","):
         return [0,0]
-    lowered = message["message"].lower()
+    lowered = message["originalmessage"].lower()
     wordfilter = context.get("wordfilter", {})
     banwords = wordfilter.get("banwords", [])
     notifywords = wordfilter.get("notifybadwords", [])
@@ -4717,21 +4722,23 @@ def defaultoverride(data, serverid, statuscode):
     return embed
 
 
-def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False):
+def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 = False):
+    name = str(name)
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
 
     name_like = f"%{name}%"
-    query = """
-        SELECT playeruid, playername FROM uidnamelink
+    query = f"""
+        SELECT playeruid, playername FROM uidnamelink{'tf1' if istf1 else ''}
         WHERE LOWER(playername) LIKE LOWER(?)
         ORDER BY LENGTH(playername), playername COLLATE NOCASE
     """
     c.execute(query, (name_like,))
     data = c.fetchall()
     if not data and (uidnameforce == "uid" or uidnameforce is None):
-        c.execute("""
-            SELECT playeruid, playername FROM uidnamelink
+        # print("HERE BLURP",name,'tf1' if istf1 else 'tf2')
+        c.execute(f"""
+            SELECT playeruid, playername FROM uidnamelink{'tf1' if istf1 else ''}
             WHERE playeruid = ?
             ORDER BY id DESC
         """, (name,))
@@ -5508,6 +5515,13 @@ def playerpolllog(data,serverid,statuscode):
     #     playercontext[pinfo["uid"]+pinfo["name"]]["npckills"] = pinfo["npckills"]
     #     playercontext[pinfo["uid"]+pinfo["name"]]["score"] = pinfo["score"]
 
+
+def getpriority(ditionary,*priority):
+    for route in priority:
+        output = ditionary.copy()
+        if isinstance(route,str):route = [route]
+        for place in route: output = output.get(place,{})
+        if output != {}: return output
     
 
 def playerpoll():
@@ -5597,6 +5611,210 @@ def convansi(rgb):
     ansi_code = 16 + 36 * r_val + 6 * g_val + b_val
     return ansi_code
 
+def getstats(playeruid):
+# print(int(time.time()))
+        specifickillbase = sqlite3.connect("./data/tf2helper.db")
+        c = specifickillbase.cursor()
+        # print(int(time.time()/))
+        now = int(time.time())
+        timeoffset = 86400
+        try:
+            output = resolveplayeruidfromdb(playeruid,None,True)[0]
+            name = output["name"]
+            playeruid = (output["uid"])
+        except:
+            name = "unknown"
+            return {"sob":"sobbing Unknown player"}
+        messages = {}
+        print(name)
+        output = {"name":name,"uid":str(playeruid),"total":{}}
+        c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ?",(playeruid,))
+        output["total"]["deaths"] = len(c.fetchall())
+        c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ?",(playeruid,))
+        output["total"]["kills"] = len(c.fetchall())
+        c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ? AND timeofkill > ?",(playeruid,now-timeoffset))
+        output["total"]["killstoday"] = len(c.fetchall())
+        c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ? AND timeofkill > ?",(playeruid,now-timeoffset))
+        output["total"]["deathstoday"] = len(c.fetchall())
+        c.execute("""
+            SELECT MAX(CASE WHEN playeruid = ? THEN position END) AS player_position
+            FROM (
+                SELECT playeruid, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
+                FROM specifickilltracker
+                WHERE timeofkill > ?
+                GROUP BY playeruid
+            ) x;
+        """, (playeruid,now-timeoffset))
+        killspos = c.fetchone()
+        if killspos:
+            output["total"]["killslasthourpos"] = killspos[0]
+        c.execute("""
+            SELECT MAX(CASE WHEN victim_id = ? THEN position END) AS player_position
+            FROM (
+                SELECT victim_id, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
+                FROM specifickilltracker
+                WHERE timeofkill > ?
+                GROUP BY victim_id
+            ) x;
+        """, (playeruid,now-timeoffset))
+        killspos = c.fetchone()
+        if killspos:
+            output["total"]["deathslasthourpos"] = killspos[0]
+        c.execute("""
+        SELECT MAX(CASE WHEN playeruid = ? THEN position END) AS player_position
+        FROM (
+            SELECT playeruid, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
+            FROM specifickilltracker
+            GROUP BY playeruid
+        ) x;
+        """, (playeruid,))
+        killspos = c.fetchone()
+        if killspos:
+            output["total"]["killspos"] = killspos[0]
+        c.execute("""
+        SELECT MAX(CASE WHEN playeruid = ? THEN position END) AS player_position
+        FROM (
+            SELECT playeruid, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
+            FROM specifickilltracker
+            WHERE cause_of_death = (
+                SELECT cause_of_death
+                FROM specifickilltracker
+                WHERE playeruid = ?
+                ORDER BY timeofkill DESC
+                LIMIT 1
+            )
+            GROUP BY playeruid
+        ) x;
+        """, (playeruid, playeruid))
+        killspos = c.fetchone()
+        if killspos:
+            output["total"]["recentweaponkillspos"] = killspos[0]
+        c.execute("""
+        SELECT MAX(CASE WHEN victim_id = ? THEN position END) AS player_position
+        FROM (
+            SELECT victim_id, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
+            FROM specifickilltracker
+            GROUP BY victim_id
+        ) x;
+        """, (playeruid,))
+        killspos = c.fetchone()
+        if killspos:
+            output["total"]["deathspos"] = killspos[0]
+        c.execute("""
+            SELECT cause_of_death, COUNT(*) as kill_count
+            FROM specifickilltracker
+            WHERE playeruid = ?
+            GROUP BY cause_of_death
+            ORDER BY kill_count DESC
+            LIMIT 3
+        """, (playeruid,))
+        top_weapons = c.fetchall()
+        c.execute("""
+            SELECT matchid, pilotkills
+            FROM playtime
+            WHERE playeruid = ?
+            GROUP BY matchid
+            ORDER BY pilotkills DESC
+            LIMIT 1
+        """, (playeruid,))
+        highest_pilotkills_match = c.fetchone()
+        c.execute("""
+            SELECT matchid, map, MIN(joinatunix) as start_time, SUM(pilotkills) as total_pilotkills
+            FROM playtime
+            WHERE playeruid = ?
+            GROUP BY matchid, map
+            ORDER BY total_pilotkills DESC
+            LIMIT 1
+        """, (playeruid,))
+        bestgame = c.fetchone()
+        c.execute("""
+            SELECT 
+                COALESCE(SUM(duration), 0) AS total_time_playing,
+                COALESCE(SUM(pilotkills), 0) AS total_pilot_kills
+            FROM playtime
+            WHERE playeruid = ?
+        """, (playeruid,))
+        kph = c.fetchone()
+        timeplayed = "unknown"
+        if not kph or not kph[0]: killsperhour = 0
+        else:
+            killsperhour = int((kph[1]/(kph[0]/3600))*100)/100
+            timeplayed = modifyvalue(kph[0],"time")
+        currentgun = False
+        # if request.method == "POST" and "current_weapon" in request.get_json():
+        #     print("ASDASDASDASDASSDAS",request.get_json()["current_weapon"])
+        #     c.execute("SELECT COUNT(*) as kill_count FROM specifickilltracker WHERE playeruid = ? AND cause_of_death = ?",(playeruid,request.get_json()["current_weapon"]))
+        #     currentgun = c.fetchone()
+        #     if not currentgun:
+        #         currentgun = False
+        #     else:
+                # print("HEREEE")
+                # top_weapons.append( (request.get_json()["current_weapon"],currentgun[0]))
+                # print(currentgun)
+        # output["total"]["top_weapons"] = top_weapons
+        c.execute("""
+            SELECT cause_of_death, COUNT(*) as kill_count
+            FROM specifickilltracker
+            WHERE playeruid = ?
+            AND cause_of_death = (
+                SELECT cause_of_death
+                FROM specifickilltracker
+                WHERE playeruid = ?
+                ORDER BY timeofkill DESC
+                LIMIT 1
+            )
+            GROUP BY cause_of_death
+        """, (playeruid, playeruid))
+        output["total"]["recent_weapon_kills"] = c.fetchone()
+
+
+        if output["total"]["deaths"] != 0:
+            kd = output["total"]["kills"]/ output["total"]["deaths"]
+        else:
+            kd = 1
+        kd = int(kd*100)/100
+        print("getting killdata for",name,playeruid,output)
+        while True:
+            colour = random.randint(0, 255)
+            # colour = random.choice([254,219,87])
+            # dissallowedcolours colours (unreadable)  (too dark)
+            if colour not in DISALLOWED_COLOURS:
+                break
+        offset = 1
+        backslash = "\x1b"
+        messages["0"] = f"\x1b[38;5;{colour}m{name}\x1b[110m has \x1b[38;5;189m{output['total']['kills']}{' '+ backslash + '[38;5;244m#' + str(output['total']['killspos']) if output['total']['killspos'] else ''} \x1b[110mkills and \x1b[38;5;189m{output['total']['deaths']}{' '+ backslash + '[38;5;244m#' + str(output['total']['deathspos']) if output['total']['deathspos'] else ''} \x1b[110mdeaths (\x1b[38;5;189m{kd}\x1b[110m k/d, \x1b[38;5;189m{killsperhour}\x1b[110m k/hour, \x1b[38;5;189m{timeplayed}\x1b[110m playtime)"
+        # print("e",bestgame)
+        if  bestgame:
+            formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
+
+            offset +=1
+            messages["1"] = f"\x1b[38;5;{colour}m{name}\x1b[110m had their best game on \x1b[38;5;189m{MAP_NAME_TABLE.get(bestgame[1],bestgame[1])}\x1b[110m with \x1b[38;5;189m{bestgame[3]}\x1b[110m kills on \x1b[38;5;189m{formatted_date}"
+        colourcodes = ["\x1b[38;5;226m","\x1b[38;5;251m","\x1b[38;5;208m"]
+        topguns = []
+        for enum , weapon in enumerate( top_weapons):
+            if not weapon:
+                continue
+            # messages[str(offset)] = f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}\x1b[110m kills: \x1b[38;5;189m{weapon[1]}"
+            # offset +=1
+            topguns.append( f"{colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}: \x1b[38;5;189m{weapon[1]}\x1b[110m kills" )
+        
+        if topguns != "":
+            messages[str(offset)] = f"\x1b[38;5;{colour}mTop 3 guns: " + ", ".join(topguns)
+            offset +=1
+    # \x1b[38;5;244m
+        if output["total"]["recent_weapon_kills"]:
+            messages[str(offset)] = f"\x1b[38;5;{colour}mMost recent weapon: \x1b[38;5;189m{WEAPON_NAMES.get(output['total']['recent_weapon_kills'][0],output['total']['recent_weapon_kills'][0])}: \x1b[38;5;189m{output['total']['recent_weapon_kills'][1]}{' '+ backslash + '[38;5;244m#' + str(output['total']['recentweaponkillspos']) if output['total']['recentweaponkillspos'] else ''} \x1b[110mkills"
+            offset+=1
+        messages[str(offset)] = f"\x1b[38;5;{colour}m{name} has \x1b[38;5;189m{output['total']['killstoday']}{' '+ backslash + '[38;5;244m#' + str(output['total']['killslasthourpos']) if output['total']['killslasthourpos'] else ''}\x1b[110m kill{'s' if  output['total']['killstoday'] != 1 else ''} today and \x1b[38;5;189m{output['total']['deathstoday']}{' '+ backslash + '[38;5;244m#' + str(output['total']['deathslasthourpos']) if output['total']['deathslasthourpos'] else ''} \x1b[110mdeath{'s' if  output['total']['deathstoday'] != 1 else ''} today"
+        offset +=1
+
+        # if len(messages):
+            # output["messages"] = messages
+        print({**output,**messages},"colour",colour)
+   
+        return {**output,**messages}
+       
+
 def fitimage(image_bytes, output_width=30, ascii_char="█",maxlen = 249):
     ascii_art = lotsofmathscreatingimage(image_bytes, output_width, ascii_char)
     length = max(len(s) for s in ascii_art)
@@ -5663,6 +5881,7 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
+
 def log_uncaught_exceptions(exc_type, exc_value, exc_traceback):
     # if issubclass(exc_type, KeyboardInterrupt):
     #     sys.__excepthook__(exc_type, exc_value, exc_traceback)
@@ -5670,6 +5889,52 @@ def log_uncaught_exceptions(exc_type, exc_value, exc_traceback):
 
     logging.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
 sys.excepthook = log_uncaught_exceptions
+
+REGISTEREDTFTODISCORDCOMMANDS = { #shouldblock is not implemented, it likely never will be
+    "stats": {
+        "games": ["tf1", "tf2"],
+        "function": calcstats,
+        "run": "thread",
+        "description": "display your stats. do !stats lexi for a specific player",
+        "shouldblock":False
+    },
+    "togglestats": {
+        "games": ["tf1", "tf2"],
+        "function": togglestats,
+        "run": "thread",
+        "description": "toggle auto showing of stats on map change / join",
+        "shouldblock":True
+    },
+    "helpdc": {
+        "games": ["tf1", "tf2"],
+        "function": ingamehelp,
+        "run": "thread",
+        "description": "Get help on commands that exec on the discord bot",
+        "shouldblock":True
+    },
+    # "bettertb": {
+    #     "games": ["tf2"],
+    #     "function": bettertb,
+    #     "run": "thread",
+    #     "description": "betterteambal",
+    #     "shouldblock":False
+    # },
+    # "stoprequests": {
+    #     "games": [],
+    #     "function": stoprequests,
+    #     "run": "thread",
+    #     "description": "stop requests for a server",
+    #     "shouldblock":False
+    # },
+    # "onplayerkilled": {
+    #     "games": [],
+    #     "function": stoprequests,
+    #     "run": "thread",
+    #     "description": "stop requests for a server",
+    #     "shouldblock":False
+    # }
+    
+}
 
 
 if DISCORDBOTLOGSTATS == "1":
