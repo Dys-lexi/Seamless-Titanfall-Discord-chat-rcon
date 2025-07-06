@@ -46,6 +46,7 @@ struct {
 
 array <discordlogcommand functionref(discordlogcommand)> function getregisteredfunctions(){
 	return [
+		discordloggetdiscordcommands
 		discordlogplaying,
 		discordlogthrowplayer,
 		discordlogsimplesay,
@@ -105,6 +106,9 @@ table function discordloggetlastmodels(){
 }
 
 table<string,float> playerrespawn = {
+	
+}
+table<string,bool> tf2todiscordcommands = {
 	
 }
 struct {
@@ -198,6 +202,9 @@ void function discordloggerinit() {
 		thread DiscordClientMessageinloop()
 	}
 	serverdetails.rconenabled = GetConVarInt("discordloggingrconenabled")
+	if (serverdetails.rconenabled){
+		runcommandondiscord("getdiscordcommands")
+	}
 	}
 	// print(serverdetails.Servername)
 }
@@ -333,6 +340,11 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	if (found && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain) {
 		message.shouldBlock = true;
 	}}
+	// Chat_ServerBroadcast("BLOCKING"+split(message.message.tolower().slice(1)," ")[0] + " " + (split(message.message.tolower().slice(1)," ")[0] in tf2todiscordcommands ) )
+	if (format("%c", message.message.tolower()[0]) == "!" && (split(message.message.tolower().slice(1)," ")[0] in tf2todiscordcommands && tf2todiscordcommands[split(message.message.tolower().slice(1)," ")[0]]  )){
+		// Chat_ServerBroadcast("BLOCKING")
+		message.shouldBlock = true
+	}
 	newmessage.metadata = EncodeJSON(meta)
 	thread Postmessages(newmessage)
 
@@ -865,6 +877,39 @@ void function runcommand(string command,string validation) {
 	// throwplayer(command,validation)
 	// listplayers(command,validation)
 }
+
+
+
+discordlogcommand function discordloggetdiscordcommands(discordlogcommand commandin) {
+    if (discordlogcheck("senddiscordcommands", commandin)){
+            return commandin;
+    }
+    commandin.commandmatch = true
+	int i = 0
+	string prevarg = ""
+	printt("ARGSSSS "+commandin.commandargs.len())
+	for( i = 0; i < commandin.commandargs.len(); i++) {
+		printt("ARRRGS   "+i)
+		if ((i+1) % 2) {
+			print("HERE" + commandin.commandargs[i])
+			prevarg = commandin.commandargs[i]
+		}
+		else{
+			bool shouldblock = false
+			if (commandin.commandargs[i] == "1") {
+				shouldblock = true
+			}
+			printt("ARGSSSS "+prevarg)
+			tf2todiscordcommands[prevarg] <- shouldblock
+		}
+		
+	}
+	commandin.returnmessage = "Set commands - " + i / 2 + " commands found";
+	commandin.returncode = 200
+	return commandin
+	
+	
+	}
 
 // void function PushEntWithVelocity( entity ent, vector velocity )
 

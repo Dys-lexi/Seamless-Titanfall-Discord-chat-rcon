@@ -27,6 +27,8 @@ from defs import *
 import io
 import sys
 import logging
+# import tracemalloc
+# tracemalloc.start()
 def create_all_indexes():
     conn = sqlite3.connect("./data/tf2helper.db")
     c = conn.cursor()
@@ -824,7 +826,7 @@ if DISCORDBOTLOGSTATS == "1":
         # recall the rule of sending external commands!
         if not len(str(playerdiscorduid)) > 15 and not playerresolvedfromuid:
             # a few workarounds in play, here, sadly.
-            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} No discord UID found, stats logging disabled"),"fake context",defaultoverride,True,False), bot.loop)
+            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} No discord UID found, stats logging disabled"),"fake context",None,True,False), bot.loop)
             return
         
         specifickillbase = sqlite3.connect("./data/tf2helper.db")
@@ -843,15 +845,15 @@ if DISCORDBOTLOGSTATS == "1":
         """, (playerdiscorduid,))
         bestgame = c.fetchone()
         if not playerstats or not playernamereal:
-            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} Stats for {playername} not found :("),"fake context",defaultoverride,True,False), bot.loop)
+            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} Stats for {playername} not found :("),"fake context",None,True,False), bot.loop)
             return
         playernamereal = playernamereal[0]
 
         output = f"{playernamereal} has {playerstats[0]} Pilot kills, {playerstats[2]} Deaths, {playerstats[3]} Titan kills and {modifyvalue(int(playerstats[1]),'time')} Time played"
         formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
-        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} {output}"),"fake context",defaultoverride,True,False), bot.loop)
+        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} {output}"),"fake context",None,True,False), bot.loop)
         if bestgame:
-            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} {playernamereal} had their best game in {MAP_NAME_TABLE.get(bestgame[1],bestgame[1])} with {bestgame[3]} kills on {formatted_date}"),"fake context",defaultoverride,True,False), bot.loop)
+            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} {playernamereal} had their best game in {MAP_NAME_TABLE.get(bestgame[1],bestgame[1])} with {bestgame[3]} kills on {formatted_date}"),"fake context",None,True,False), bot.loop)
 
     # @bot.slash_command(name="gunleaderboard",description="Gets leaderboards for a gun")
     # async def retrieveleaderboardgun(
@@ -4288,6 +4290,7 @@ def messageloop():
 def tftodiscordcommand(specificommand,command,serverid):
     # return
     global context
+
     servercommand = specificommand != False
     keyletter = "!"
     # print("HERE")
@@ -4296,6 +4299,10 @@ def tftodiscordcommand(specificommand,command,serverid):
     if not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"]:
         specificommand = command["originalmessage"][1:].split(" ")[0]
         commandargs = command["originalmessage"][1:].split(" ")[1:]
+        if REGISTEREDTFTODISCORDCOMMANDS[specificommand]["rcon"] and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"])):
+            return
+
+
     elif specificommand:
         pass
     else:
@@ -4308,10 +4315,11 @@ def tftodiscordcommand(specificommand,command,serverid):
         asyncio.run_coroutine_threadsafe(REGISTEREDTFTODISCORDCOMMANDS[specificommand]["function"](command,serverid,servercommand),bot.loop)
     elif REGISTEREDTFTODISCORDCOMMANDS[specificommand]["run"] == "seq":
         REGISTEREDTFTODISCORDCOMMANDS[specificommand]["function"](command,serverid,servercommand)
+
     
 def togglestats(message,serverid,isfromserver):
     istf1 = context["istf1server"].get(serverid,False) != False
-    if not len(str(getpriority(message,"uid",["meta","uid"]))) > 15:
+    if  istf1 and not len(str(getpriority(message,"uid",["meta","uid"]))) > 15:
             discordtotitanfall[serverid]["messages"].append(
             {
                 "id": str(int(time.time()*100)),
@@ -4325,13 +4333,13 @@ def togglestats(message,serverid,isfromserver):
             return
         
     preferences = readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]),istf1)
-    preferences.setdefault("tf1",{"autostats":True})
-    preferences["tf1"]["autostats"] = not preferences["tf1"]["autostats"]
+    preferences.setdefault("tf1" if istf1 else "tf2",{"autostats":True})
+    preferences["tf1" if istf1 else "tf2"]["autostats"] = not preferences["tf1" if istf1 else "tf2"]["autostats"]
     setplayeruidpreferences(preferences,getpriority(message,"uid",["meta","uid"]),istf1)
     discordtotitanfall[serverid]["messages"].append(
     {
         "id": str(int(time.time()*100)),
-        "content":f"{PREFIXES['lexicmdprivate']}Toggled autostats - is now {preferences['tf1']['autostats']}",
+        "content":f"{PREFIXES['lexicmdprivate']}Toggled autostats - is now {preferences['tf1' if istf1 else 'tf2']['autostats']}",
         "teamoverride": 4,
         "isteammessage": False,
         "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -4339,21 +4347,48 @@ def togglestats(message,serverid,isfromserver):
     }
     )
 
+def throwplayer(message,serverid,isfromserver):
+    print("RUNNNING THROW")
+    # asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!throw {}',"fake context",None,True,False), bot.loop)
+    # asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!throw {" ".join(getpriority(message,"originalmessage").split(" ")[1:])}'),"fake context",None,True,False), bot.loop)
+    # asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!throw {" ".join(getpriority(message,"originalmessage").split(" ")[1:])}'),"fake context",None,True,False), bot.loop)
+    # human = (f'{" ".join(getpriority(message, "originalmessage").split(" ")[1:])}')
+    asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid, f'!throw {" ".join(getpriority(message, "originalmessage").split(" ")[1:])}'), "fake context", None, True, False), bot.loop)
+
+
+
+
 def ingamehelp(message,serverid,isfromserver):
     istf1 = context["istf1server"].get(serverid,False) != False
     # uid = getpriority(message,"uid",["meta","uid"])
-    for i, ( name, command) in enumerate(REGISTEREDTFTODISCORDCOMMANDS.items()):
-        if "tf1" if istf1 else "tf2" in command["games"]:
-            discordtotitanfall[serverid]["messages"].append(
+    discordtotitanfall[serverid]["messages"].append(
                 {
-                    "id": str(i) + str(int(time.time()*100)),
-                    "content":f"{PREFIXES['discord']} {name}: {command['description']}",
+                    "id": str(int(time.time()*100)),
+                    "content":f"{PREFIXES['discord']} \x1b[38;5;201mHelp menu for the discord bot",
                     "teamoverride": 4,
                     "isteammessage": False,
                     "uidoverride": [getpriority(message,"uid",["meta","uid"])]
                     # "dotreacted": dotreacted
                 }
                 )
+    for i, ( name, command) in enumerate(REGISTEREDTFTODISCORDCOMMANDS.items()):
+        # print("CHECKING COMMAND", (getpriority(command,"uid",["meta","uid"])),command)
+        if "tf1" if istf1 else "tf2" in command["games"] and (not command["rcon"] or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]))) :
+            discordtotitanfall[serverid]["messages"].append(
+                {
+                    "id": str(i) + str(int(time.time()*100)),
+                    "content":f"{PREFIXES['discord']}{'ADMINCMD' if command['rcon'] else ''} {name}: {command['description']}",
+                    "teamoverride": 4,
+                    "isteammessage": False,
+                    "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+                    # "dotreacted": dotreacted
+                }
+                )
+
+def senddiscordcommands(message,serverid,isfromserver):
+    print("COMMANDS REQUESTED",f'!senddiscordcommands {" ".join(functools.reduce(lambda a,b: [*a,b[0],str(int(b[1]["shouldblock"]))],REGISTEREDTFTODISCORDCOMMANDS.items(),[]))}')
+    asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!senddiscordcommands {" ".join(functools.reduce(lambda a,b: [*a,b[0],str(int(b[1]["shouldblock"]))],REGISTEREDTFTODISCORDCOMMANDS.items(),[]))}'),"fake context",None,True,False), bot.loop)
+
 
 def calcstats(message,serverid,isfromserver):
     # print("e",message)
@@ -4446,7 +4481,7 @@ async def checkverify(message):
     tfdb.commit()
     tfdb.close()
     await verify_data["ctx"].followup.send(
-    f"linked <@{verify_data['account']}> to  **{name}** (UID `{uid}`)",ephemeral = True)
+    f"linked <@{verify_data['account']}> to **{name}** (UID `{uid}`)",ephemeral = True)
 
     del accountlinker[str(content).strip()]
     
@@ -4823,7 +4858,22 @@ def checkrconallowed(author,typeof = "rconrole"):
     if (not hasattr(author, "roles") and  author.id in context["overriderolesuids"][typeof]) or(hasattr(author, "roles") and (( typeof == "rconrole" and author.guild_permissions.administrator) or (typeof == "coolperksrole" and OVVERRIDEROLEREQUIRMENT == "1") or functools.reduce(lambda a, x: a or x in list(map (lambda w: w.id ,author.roles)) ,[context["overrideroles"][typeof]] if isinstance(context["overrideroles"][typeof], int) else context["overrideroles"][typeof] ,False))):
         return True
 # command slop
+def checkrconallowedtfuid(uid, typeof="rconrole"):
+    global context
+    # print("CHECKING UID",uid)
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    c.execute("SELECT discordid FROM discordlinkdata WHERE uid = ?", (uid,))
+    result = c.fetchone()
 
+    if result is None:
+        c.execute("SELECT discordid FROM discordlinkdata WHERE discordid = ?", (uid,))
+        result = c.fetchone()
+        if result is None:
+            return False
+
+    discordid = result[0]
+    return discordid in context["overriderolesuids"].get(typeof, [])
 def create_dynamic_command(command_name, description = None, rcon = False, parameters = [], commandparaminputoverride = {}, outputfunc=None,regularconsolecommand=False):
     param_list = []
     for param in parameters:
@@ -5897,22 +5947,42 @@ REGISTEREDTFTODISCORDCOMMANDS = { #shouldblock is not implemented, it likely nev
         "function": calcstats,
         "run": "thread",
         "description": "display your stats. do !stats lexi for a specific player",
-        "shouldblock":False
+        "shouldblock":False,
+        "rcon":False
     },
     "togglestats": {
         "games": ["tf1", "tf2"],
         "function": togglestats,
         "run": "thread",
         "description": "toggle auto showing of stats on map change / join",
-        "shouldblock":True
+        "shouldblock":True,
+        "rcon":False
     },
     "helpdc": {
         "games": ["tf1", "tf2"],
         "function": ingamehelp,
         "run": "thread",
         "description": "Get help on commands that exec on the discord bot",
-        "shouldblock":True
+        "shouldblock":False,
+        "rcon":False
     },
+    "getdiscordcommands": {
+        "games": [],
+        "function": senddiscordcommands,
+        "run": "thread",
+        "description": "Internal function for pulling shouldblock values",
+        "shouldblock":True,
+        "rcon":False
+    },
+    "throw":{
+        "games": ["tf2"],
+        "function": throwplayer,
+        "run": "thread",
+        "description": "Throw somone, you meanie",
+        "shouldblock":True,
+        "rcon":True
+    }
+    #impersonate :O
     # "bettertb": {
     #     "games": ["tf2"],
     #     "function": bettertb,
