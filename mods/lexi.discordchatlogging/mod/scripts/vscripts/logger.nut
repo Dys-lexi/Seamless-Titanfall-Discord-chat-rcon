@@ -7,6 +7,7 @@ global function stoprequests // stop sending requests till map change
 global function discordlogpostmessages
 global function discordloggetlastmodels
 global function runcommandondiscord
+global function discordlogpullplayerstat
 // to add your own function create a file called xyz.nut in the same place as this one
 // then make it's file load in the mod.json AFTER logger.nut
 // after that, make the line "global function discordlogYOURFUNCTIONNAME"
@@ -57,7 +58,8 @@ array <discordlogcommand functionref(discordlogcommand)> function getregisteredf
 		discordlogtoggleadmin,
 		getconvar,
 		extmessagesendtester,
-		discordlogimpersonate
+		discordlogimpersonate,
+		reloadpersistentsettings
 		]
 		 //add functions here, and they'll work with / commands (if they fill criteria above)
 }
@@ -336,7 +338,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 			break
 		}
 	}
-	meta["blockedmessage"] <- found
+	meta["blockedmessage"] <- (found && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain)
 	if (found && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain) {
 		message.shouldBlock = true;
 	}}
@@ -344,6 +346,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	if (format("%c", message.message.tolower()[0]) == "!" && (split(message.message.tolower().slice(1)," ")[0] in tf2todiscordcommands && tf2todiscordcommands[split(message.message.tolower().slice(1)," ")[0]]  )){
 		// Chat_ServerBroadcast("BLOCKING")
 		message.shouldBlock = true
+		meta["blockedcommand"] <- true
 	}
 	newmessage.metadata = EncodeJSON(meta)
 	thread Postmessages(newmessage)
@@ -375,6 +378,17 @@ struct {
 	string timeof = "0"
 } check
 
+string function discordlogpullplayerstat(string uid, string stat){
+	if (!(uid in blockedplayers.players)){
+		return ""
+	}
+	else if (!(stat in blockedplayers.players[uid])) {
+		return ""
+	}
+	return expect string (blockedplayers.players[uid][stat])
+
+}
+
 void function checkshouldblockmessages(entity player){
 	table params = {}
 	params["password"] <- serverdetails.password
@@ -400,9 +414,13 @@ void function checkshouldblockmessages(entity player){
 		table responses = DecodeJSON(response.body)
 		if ("notfound" in responses) {return}
 		table output = expect table(responses["output"])
+		table otheroutputs = expect table(responses["otherdata"])
 		// blockedplayers.players[expect string(responses["uid"])]
 		// string uid = expect string(responses["uid"])
 		table actualoutput
+		foreach (key,value in otheroutputs){
+			actualoutput[ expect string(key)] <- expect string(value)
+		}
 		actualoutput.shouldblockmessages <- expect bool(output["shouldblockmessages"])
 		blockedplayers.players[expect string(responses["uid"])] <- actualoutput
 		// string texts = expect string(responses["texts"])
@@ -878,7 +896,35 @@ void function runcommand(string command,string validation) {
 	// listplayers(command,validation)
 }
 
-
+discordlogcommand function reloadpersistentsettings(discordlogcommand commandin) {
+    if (discordlogcheck("reloadpersistentvars", commandin)){
+            return commandin;
+    }
+    commandin.commandmatch = true
+	int i = 0
+	if (commandin.commandargs.len() < 1){
+		commandin.returncode = 404
+		commandin.returnmessage = "Wrong number of args"
+		return commandin
+	}
+	string username = ""
+	for( i = 0; i < commandin.commandargs.len()-1; i++) {
+		username = username + commandin.commandargs[i] + " "
+	}
+	username = username + commandin.commandargs[commandin.commandargs.len() -1 ]
+	array<entity> players = discordlogmatchplayers(username)
+	if (players.len() != 1){
+		commandin.returncode = 500
+		commandin.returnmessage = "PLAYER NOT FOUND"
+		return commandin
+	}
+	thread checkshouldblockmessages(players[0])
+	commandin.returnmessage = "Trying to set persistentvars for "+players[0];
+	commandin.returncode = 200
+	return commandin
+	
+	
+	}
 
 discordlogcommand function discordloggetdiscordcommands(discordlogcommand commandin) {
     if (discordlogcheck("senddiscordcommands", commandin)){
@@ -887,11 +933,8 @@ discordlogcommand function discordloggetdiscordcommands(discordlogcommand comman
     commandin.commandmatch = true
 	int i = 0
 	string prevarg = ""
-	printt("ARGSSSS "+commandin.commandargs.len())
 	for( i = 0; i < commandin.commandargs.len(); i++) {
-		printt("ARRRGS   "+i)
 		if ((i+1) % 2) {
-			print("HERE" + commandin.commandargs[i])
 			prevarg = commandin.commandargs[i]
 		}
 		else{
@@ -899,7 +942,6 @@ discordlogcommand function discordloggetdiscordcommands(discordlogcommand comman
 			if (commandin.commandargs[i] == "1") {
 				shouldblock = true
 			}
-			printt("ARGSSSS "+prevarg)
 			tf2todiscordcommands[prevarg] <- shouldblock
 		}
 		
