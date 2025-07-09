@@ -594,7 +594,8 @@ if not os.path.exists("./data"):
 channel_file = "channels.json"
 command_file = "commands.json"
 nongitcommandfile = "commandsnosync.json"
-
+tf1messagesizeadd = 254
+tf1messagesizesubtract = 0
 
 if os.path.exists("./data/" + channel_file):
     with open("./data/" + channel_file, "r") as f:
@@ -682,6 +683,8 @@ async def on_ready():
         await updateroles()
     if DISCORDBOTLOGSTATS == "1":
         updateleaderboards.start()
+    await asyncio.sleep(30)
+    updatechannels.start()
     
 
 async def updateroles():
@@ -2741,7 +2744,7 @@ async def on_message(message):
             len(
                 f"{ANSICOLOUR}{message.author.nick if message.author.nick is not None else message.author.display_name}: {RGBCOLOUR['NEUTRAL']}{message.content}"
             )
-            > 254 - bool(context["istf1server"].get(serverid,False))*130
+            > 254 - bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract
         ):
             await message.channel.send("Message too long, cannot send.")
             return
@@ -2840,7 +2843,7 @@ def computeauthornick (name,idauthor,content,serverid,rgbcolouroverride = "DISCO
     counter = 0
     while authornick == 2 and counter < len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])]):
         # print(counter)
-        authornick = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {RGBCOLOUR['NEUTRAL']}{content}")- bool(context["istf1server"].get(serverid,False))*130)
+        authornick = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {RGBCOLOUR['NEUTRAL']}{content}")- bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract)
         counter +=1
     if authornick == 2:
         print("MESSAGE TOO LONG IN A WEIRD WAY, BIG PANIC")
@@ -2895,8 +2898,8 @@ def recieveflaskprintrequests():
                 # return {"notfound":True}
         # if colourslink[str(data["uid"])]:
         # print(colourslink[596713937626595382])
-        print({"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",[]) != []},"uid":data["uid"],"otherdata":{x: str(y) for x,y in readplayeruidpreferences(data["uid"],False)["tf2"].items()}})
-        return {"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",[]) != []},"uid":data["uid"],"otherdata":{x: str(y) for x,y in readplayeruidpreferences(data["uid"],False)["tf2"].items()}}
+        # print({"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",[]) != []},"uid":data["uid"],"otherdata":{x: str(y) for x,y in readplayeruidpreferences(data["uid"],False)["tf2"].items()}})
+        return {"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",[]) != []},"uid":data["uid"],"otherdata":{x: str(y) for x,y in readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()}}
         # return output
     @app.route("/getrunningservers", methods=["POST"])
     def getrunningservers():
@@ -3054,6 +3057,7 @@ def recieveflaskprintrequests():
         if data["password"]!= SERVERPASS and SERVERPASS != "*":
             return {"message":"wrong pass"}
         tftodiscordcommand(data["command"],data["paramaters"],str(data["serverid"]))
+        return {"message":"ran command"}
     @app.route("/autobalancedata", methods=["POST", "GET"])
     def pullautobalancestats():
         if request.method == "POST":
@@ -3805,9 +3809,9 @@ def tf1readsend(serverid,checkstatus):
             messages = True
             if str(message["id"]) in discordtotitanfall[serverid]["returnids"]["messages"].keys():
                 continue   #TRADEOFF HERE. EITHER I SEND IT EACH RCON CALL (and don't update the timestamp) OR I do what I do here and only send it once, wait untill yellow dot cleaner comes, then send again.
-            if len(message["content"]) > 130:
+            if len(message["content"]) > tf1messagesizeadd:
                 toolongmessages.append(message["id"])
-            commands[message["id"]] = {"type":"msg","command":"sendmessage","id":message["id"],"args":(f'placeholder{",".join(list(map(lambda x: str(x),message.get("uidoverride",[]))))}') +  " "+(message["content"][0:130])}
+            commands[message["id"]] = {"type":"msg","command":"sendmessage","id":message["id"],"args":(f'placeholder{",".join(list(map(lambda x: str(x),message.get("uidoverride",[]))))}') +  " "+(message["content"][0:tf1messagesizeadd])}
         if len(discordtotitanfall[serverid]["returnids"]["messages"].keys()) != -1 and messages:# and discordtotitanfall[serverid]["serveronline"]:
             
             for messageid in list(map(lambda x: str(x["id"]),list(filter(lambda x: True ,discordtotitanfall[serverid]["messages"])))):
@@ -4365,7 +4369,7 @@ def togglestats(message,togglething,serverid):
             discordtotitanfall[serverid]["messages"].append(
             {
                 "id": str(int(time.time()*100)),
-                "content":f"{PREFIXES['lexicmdprivate']} No discord account linked, cannot toggle {togglething}",
+                "content":f"{PREFIXES['discord']} No discord account linked, cannot toggle {togglething}",
                 "teamoverride": 4,
                 "isteammessage": False,
                 "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -4384,7 +4388,7 @@ def togglestats(message,togglething,serverid):
     discordtotitanfall[serverid]["messages"].append(
     {
         "id": str(int(time.time()*100)),
-        "content":f"{PREFIXES['lexicmdprivate']}Toggled {togglething} - is now {not shouldset}",
+        "content":f"{PREFIXES['discord']}Toggled {togglething} - is now {not shouldset}",
         "teamoverride": 4,
         "isteammessage": False,
         "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -4769,6 +4773,8 @@ def initdiscordtotitanfall(serverid):
         discordtotitanfall[serverid]["returnids"] = {"messages": {}, "commands": {}, "commandsreturn": {}}
     if "lastheardfrom" not in discordtotitanfall[serverid].keys():
         discordtotitanfall[serverid]["lastheardfrom"] = 0
+    if "onlinestatus" not in discordtotitanfall[serverid].keys():
+        discordtotitanfall[serverid]["onlinestatus"] = False
 
 def getchannelidfromname(name,ctx):
     for key, value in sorted(context["serveridnamelinks"].items(), key = lambda x: len(x[1])):
@@ -5636,7 +5642,27 @@ def getpriority(ditionary,*priority):
         for place in route: output = output.get(place,{})
         if output != {}: return output
     
-
+@tasks.loop(seconds=360)
+async def updatechannels():
+    global context,discordtotitanfall
+    # print("MEOWOWOW")
+    # await asyncio.sleep(30)
+    print("running server update")
+    for serverid in context["serveridnamelinks"].keys():
+        channel = bot.get_channel(context["serverchannelidlinks"][serverid])
+        serverlastheardfrom = getpriority(discordtotitanfall,[serverid,"lastheardfrom"])
+        # print("lastheardfrom",serverlastheardfrom)
+        # print(json.dumps(discordtotitanfall))
+        if not serverlastheardfrom:serverlastheardfrom = 0
+        print(serverid,time.time() - serverlastheardfrom > 180,"🟢" not in channel.name)
+        if (time.time() - serverlastheardfrom > 180 and  "🟢" not in channel.name) or (time.time() - serverlastheardfrom < 180 and  "🟢"  in channel.name):
+            continue
+        if time.time() - serverlastheardfrom > 180:
+            print("editing here2")
+            await channel.edit(name=context["serveridnamelinks"][serverid])
+        elif time.time() - serverlastheardfrom < 180:
+            print("editing here")
+            await channel.edit(name=f'🟢{context["serveridnamelinks"][serverid]}')
 def playerpoll():
     global discordtotitanfall,playercontext,context
     Ithinktheserverhascrashed = 180
