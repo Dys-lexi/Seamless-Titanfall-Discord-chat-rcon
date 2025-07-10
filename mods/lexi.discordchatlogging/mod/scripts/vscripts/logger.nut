@@ -4,19 +4,20 @@ global function discordlogmatchplayers //given a string, returns all players who
 global function discordlogcheck //check if a command should be run
 global function discordlogsendmessage //send a message to all players, accounting for them being dead (messages sent here have a chance of not being in order, if sent fast) DISABLED
 global function stoprequests // stop sending requests till map change
-global function discordlogpostmessages
-global function discordloggetlastmodels
-global function runcommandondiscord
-global function discordlogpullplayerstat
+global function discordlogpostmessages // external call to main message sending function
+global function discordloggetlastmodels // used for /impersonate to pull peoples player models when they are dead
+global function runcommandondiscord // run a command on the discord bot like stats - runs as server, so is not validated like user commands are (rcon,asactuallyavailableintf2)
+global function discordlogpullplayerstat // returns a persistentvar for a player, for commands that have persistent effects.
+
 // to add your own function create a file called xyz.nut in the same place as this one
 // then make it's file load in the mod.json AFTER logger.nut
 // after that, make the line "global function discordlogYOURFUNCTIONNAME"
 // then create the function, in the same format as the one in discordlogkick.nut -> it must immedtiatly call discordlogcheck, and return the commandin struct if it doesn't match. if it does,
 // set commandin.commandmatch to true, and set commandin.returnmessage to the message you want to return, and commandin.returncode to the code you want to return
 // (codes do not mean too much, they work in a similar way to http codes)
-// Then add the function's name to the array in getregisteredfunctions (below)
+// Then add the function's name to the array in getregisteredfunctions (the first function defined below)
 
-// you'll be able to call the function with /rcon cmd:!YOURCOMMAND param1 param2 param3 on discord, or you can make a custom command in commands.json
+// you'll be able to call the function with /rcon cmd:!YOURCOMMAND param1 param2 param3 on discord, or you can make a custom command in discord/data/commands.json
 
 
 
@@ -291,7 +292,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
     teammessage = "Militia"
     if( playerteam >= 4 )
     teammessage = "Both"
-	teammessage = "[TEAM-" + teammessage + "]"
+	teammessage = "[Team-" + teammessage + "]"
 	}
 	// print(teammessage)
 	outgoingmessage newmessage

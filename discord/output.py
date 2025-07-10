@@ -1298,10 +1298,11 @@ if DISCORDBOTLOGSTATS == "1":
         actualoutput = sorted(actualoutput.items(), key=lambda x: x[1][leaderboardorderby] if orderbyiscolumn else (  x[1][leaderboardcategorysshown[leaderboardorderby]["columnsbound"][0]] if len (leaderboardcategorysshown[leaderboardorderby]["columnsbound"]) == 1 else eval(leaderboardcategorysshown[leaderboardorderby]["calculation"], {}, x[1])), reverse=True)
         def swopper(itemname):
             global context
+            # print(itemname)
             # print(str(namemap.get(int(itemname), context["serveridnamelinks"].get(str(itemname),itemname))))
-            if itemname == "None":
-                return "Some Unknown NPC"
-            return str(namemap.get(int(itemname), context["serveridnamelinks"].get(str(itemname),itemname)))
+            try: itemname = int(itemname)
+            except:  return "Some Unknown NPC"
+            return str(namemap.get((itemname), context["serveridnamelinks"].get(str(itemname),itemname)))
         displayoutput = []
         nameuidmap = []
         if nameoverride:

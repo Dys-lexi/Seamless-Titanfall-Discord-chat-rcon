@@ -94,11 +94,11 @@ void function calcmessage ( entity player, string message, bool isTeam = false){
 	meta["blockedmessage"] <- true
 	if (newmessage.message[0] == 47 || newmessage.message[0] == 33){
 		
-		meta["type"] <- "command"
+		// meta["type"] <- "command"
 		
 		
-		newmessage.overridechannel = "commandlogchannel"
-		newmessage.typeofmsg = 3
+		// newmessage.overridechannel = "commandlogchannel"
+		// newmessage.typeofmsg = 3
 	}
 	
 	
