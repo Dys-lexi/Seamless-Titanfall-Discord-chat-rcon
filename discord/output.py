@@ -4431,11 +4431,12 @@ def ingamehelp(message,serverid,isfromserver):
                     )
     for i, ( name, command) in enumerate(context["commands"]["ingamecommands"].items()):
         # print("CHECKING COMMAND", (getpriority(command,"uid",["meta","uid"])),command)
-        if "tf1" if istf1 else "tf2" in command["games"] and (not command["rcon"] or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]))) :
+        # print("tf1" if istf1 else "tf2","tf1" if istf1 else "tf2" in command["games"])
+        if ("tf1" if istf1 else "tf2") in command["games"] and (not command["rcon"] or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]))) :
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": str(i) + str(int(time.time()*100)),
-                    "content":f"{PREFIXES['discord']}{'ADMINCMD ' if command['rcon'] else ''}{backslash+'[38;5;201m' if not istf1 else ''}{name}{backslash+'[110m' if not istf1 else ''}: {command['description']}",
+                    "content":f"{PREFIXES['discord']}{'ADMINCMD ' if command['rcon'] else ''}{backslash+'[38;5;201m' if not istf1 else backslash+'[38;5;201m'}{name}{backslash+'[110m' if not istf1 else backslash+'[110m'}: {command['description']}",
                     "teamoverride": 4,
                     "isteammessage": False,
                     "uidoverride": [getpriority(message,"uid",["meta","uid"])]
