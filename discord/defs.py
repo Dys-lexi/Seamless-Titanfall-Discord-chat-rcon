@@ -184,6 +184,27 @@ DISALLOWED_COLOURS = (
     53
 )
 
+KILL_STREAK_MESSAGES = {
+    "killstreakselfended":[
+        "**/attacker/** ended their own killstreak! **/ks/**",
+        "**/attacker/** killed **/victim/** ending the **/ks/** of **/victim/**",
+        "**/attacker/** bid farewell, cruel world **/ks/**"
+    ],
+    "killstreakended":[
+        "**/attacker/** ended **/victim/**'s killstreak **/ks/**",
+        "**/victim/** got flattened by /**attacker/** **/ks/**",
+        "**/victim/**'s glorious reign was ended by the rightious fury of /**attacker/**",
+        "**/victim/** dead by /**attacker/**",
+        "**/attacker/** successfully stabbed **/victim/**"  
+    ],
+   "killstreakbegin": [
+        "**/attacker/** is on a killing spree **/ks/**",
+        "**/attacker/** is unstoppable **/ks/**",
+        "**/attacker/** is on a rampage **/ks/**",
+        "**/attacker/** is god-like **/ks/**",
+        "**/attacker/** is still god-like **/ks/**"
+]
+}
 MAP_NAME_TABLE = {
     "mp_angel_city": "Angel City",
     "mp_black_water_canal": "Black Water Canal",

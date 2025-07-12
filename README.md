@@ -14,7 +14,7 @@ you'll have to create a discord bot at discord developers to use this, and put t
 
 ## Docker
 
-### A docker compose could look like this
+### A docker compose could look like this - the values here are the default values
 
 ```
 discordlog:
@@ -35,6 +35,7 @@ discordlog:
       - TF1_RCON_PASSWORD="" #RCON Password for tf1 chat relay. when blank, completly disables relay
       - USE_DYNAMIC_PFPS="1" #FANCY new way of chat bridging.
       - PFP_ROUTE="https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/" #Url used for pfps
+      - FILTERNAMESINMESSAGES="usermessagepfp,chat_message,command,tf1command,botcommand" #What types of messages should the bot run the nonoword filter on
     volumes:
       - ./discord/data:/app/data:rw
     restart: always

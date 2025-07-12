@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw, ImageFont
 import traceback
 from discord.commands import Option
 from io import BytesIO
-
+import itertools
 import inspect
 from flask import Flask, jsonify, request,send_from_directory,send_file
 from waitress import serve
@@ -504,6 +504,8 @@ OVERRIDEIPFORCDNLEADERBOARD = os.getenv("OVERRIDE_IP_FOR_CDN_LEADERBOARD","use_a
 OVVERRIDEROLEREQUIRMENT = os.getenv("OVERRIDE_ROLE_REQUIREMENT","1")
 COOLPERKSROLEREQUIRMENTS = os.getenv("COOL_PERKS_REQUIREMENT","You need something or other to get this")
 SHOWIMPERSONATEDMESSAGESINDISCORD = os.getenv("SHOW_IMPERSONATED_MESSAGES_IN_DISCORD","1")
+KILLSTREAKNOTIFYTHRESHOLD = int(os.getenv("KILL_STREAK_NOTIFY_THRESHOLD","1"))
+KILLSTREAKNOTIFYSTEP = int(os.getenv("KILL_STREAK_NOTIFY_STEP","1"))
 
 GLOBALIP = 0
 if OVERRIDEIPFORCDNLEADERBOARD == "use_actual_ip":
@@ -539,6 +541,7 @@ stoprequestsforserver = {}
 discordtotitanfall = {}
 colourslink = {}
 titanfall1currentlyplaying = {}
+consecutivekills = {}
 # Load channel ID from file
 context = {
         "wordfilter":{
@@ -1235,7 +1238,8 @@ if DISCORDBOTLOGSTATS == "1":
         # leaderboardcategorys = sorted(leaderboardcategorys, key=lambda x: list(leaderboardcategorysshown.keys()).index(x) if x in leaderboardcategorysshown else len(leaderboardcategorysshown))
         base_query = f"SELECT {','.join(leaderboardcategorys)} FROM {leaderboarddatabase}"
         # print("wherestring",f"{base_query} WHERE {wherestring}")
-        query = f"{base_query} WHERE {wherestring}" if wherestring else base_query
+        quote = "'"
+        query = f"{base_query} WHERE{' victim_type = '+quote+'player'+quote+' AND' if leaderboarddatabase == 'specifickilltracker' else ''} {wherestring}" if wherestring else f"{base_query} {'WHERE victim_type = '+quote+'player'+quote if leaderboarddatabase == 'specifickilltracker' else ''}"
 
         # print("Executing query:", query)
         c.execute(query, params)
@@ -1545,7 +1549,7 @@ if DISCORDBOTLOGSTATS == "1":
             timecutoff = int(time.time() - timecutoff)
             conn = sqlite3.connect("./data/tf2helper.db")
             c = conn.cursor()
-            c.execute("SELECT cause_of_death ,playeruid,weapon_mods FROM specifickilltracker WHERE timeofkill < ?",(timecutoff,))
+            c.execute("SELECT cause_of_death ,playeruid,weapon_mods FROM specifickilltracker WHERE timeofkill < ? AND victim_type = 'player'",(timecutoff,))
             rows = c.fetchall()
             conn.close()
             return rows
@@ -1554,9 +1558,9 @@ if DISCORDBOTLOGSTATS == "1":
             conn = sqlite3.connect("./data/tf2helper.db")
             c = conn.cursor()
             if not swoptovictims:
-                c.execute("SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker WHERE timeofkill < ? GROUP BY cause_of_death, playeruid, weapon_mods, attacker_type",(timecutoff,))
+                c.execute("SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker WHERE timeofkill < ? AND victim_type = 'player' GROUP BY cause_of_death, playeruid, weapon_mods, attacker_type",(timecutoff,))
             else:
-                c.execute("SELECT cause_of_death, victim_id, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker WHERE timeofkill < ? GROUP BY cause_of_death, victim_id, weapon_mods, attacker_type",(timecutoff,))
+                c.execute("SELECT cause_of_death, victim_id, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker WHERE timeofkill < ? AND victim_type = 'player' GROUP BY cause_of_death, victim_id, weapon_mods, attacker_type",(timecutoff,))
 
             rows = c.fetchall()
             conn.close()
@@ -1879,7 +1883,7 @@ if DISCORDBOTLOGSTATS == "1":
             else:
                 return f"{value:.2f}{ calculation.split('/')[0].strip()[0].lower()}/{ calculation.split('/')[1].strip()[0].lower()}"
         elif format == "map":
-            return str(MAP_NAME_TABLE.get(value, value))
+            return str(MAP_NAME_TABLE.get(value, str(MAP_NAME_TABLE.get("mp_"+value, value))))
         return value
     
         
@@ -2996,7 +3000,7 @@ def recieveflaskprintrequests():
         if len (data.keys()) > 2:
             pass
             # realprint(json.dumps(data, indent=4))
-        # print(ids)
+        # print("IDSTOREACTTOO",ids)
         asyncio.run_coroutine_threadsafe(reactomessages(list(ids), serverid), bot.loop)
         if serverid not in stoprequestsforserver.keys():
             stoprequestsforserver[serverid] = False
@@ -3372,7 +3376,7 @@ def recieveflaskprintrequests():
     @app.route("/data", methods=["POST"])
     def onkilldata():
         # takes input directly from (slightly modified) nutone (https://github.com/nutone-tf) code for this to work is not on the github repo, so probably don't try using it.
-        global context, messageflush
+        global context, messageflush, consecutivekills
         data = request.get_json()
         if data["password"] != SERVERPASS and SERVERPASS != "*":
             print("invalid password used on data")
@@ -3389,7 +3393,54 @@ def recieveflaskprintrequests():
                 "metadata": {"type":"killfeed"},
                 "servername": context["serveridnamelinks"][data["server_id"]]
             })
-
+        if KILLSTREAKNOTIFYTHRESHOLD and data.get("attacker_type",False) not in ["npc_soldier","npc_stalker","npc_spectre","npc_super_spectre"]  and ((data.get("victim_type",False) == "player") or (data.get("victim_type",False) == "npc_titan" and data.get("attacker_type",False) == "player"))  and bool(data.get("attacker_titan",False)) == bool(data.get("victim_titan",False)) and data.get("match_id",False) and getpriority(data,"attacker_name","attacker_type"):
+            print("CORE KILLSTREAKS COUNTED")
+            consecutivekills.setdefault(data["match_id"],{})
+            consecutivekills[data["match_id"]].setdefault(getpriority(data,"attacker_name","attacker_type"),{})
+            consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")].setdefault(data.get("attacker_id",1),0)
+            consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] += 1
+            print("THIS HERE", getpriority(consecutivekills,[data["match_id"],data.get("victim_id",1),data.get("victim_name",False)]))
+            if getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)]) and getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)])  >= KILLSTREAKNOTIFYTHRESHOLD:
+                pass
+                if data.get("attacker_id",False) == data.get("victim_id",False):
+                    messageflush.append({
+                        "timestamp": int(time.time()),
+                        "serverid": data["server_id"],
+                        "type": 3,
+                        "globalmessage": False,
+                        "overridechannel": None,
+                        "messagecontent": random.choice([*KILL_STREAK_MESSAGES["killstreakended"],*KILL_STREAK_MESSAGES["killstreakselfended"]]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)])-1)),
+                        "metadata": {"type":"killfeed"},
+                        "servername": context["serveridnamelinks"][data["server_id"]]
+                    })
+                else:
+                    messageflush.append({
+                        "timestamp": int(time.time()),
+                        "serverid": data["server_id"],
+                        "type": 3,
+                        "globalmessage": False,
+                        "overridechannel": None,
+                        "messagecontent": random.choice([*KILL_STREAK_MESSAGES["killstreakended"]]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(getpriority(consecutivekills,[data["match_id"],data.get("victim_id",1),data.get("victim_name",False)]))),
+                        "metadata": {"type":"killfeed"},
+                        "servername": context["serveridnamelinks"][data["server_id"]]
+                    })
+                #their killstreak ended!
+                consecutivekills[data["match_id"]][data.get("victim_id",1)][data.get("victim_name",False)] = 0
+            print("dataaaaa",consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)],(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP,consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] > KILLSTREAKNOTIFYTHRESHOLD , not (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP )
+            if consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] >= KILLSTREAKNOTIFYTHRESHOLD and not (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP :
+                print("adding")
+                messageflush.append({
+                    "timestamp": int(time.time()),
+                    "serverid": data["server_id"],
+                    "type": 3,
+                    "globalmessage": False,
+                    "overridechannel": None,
+                    "messagecontent": (KILL_STREAK_MESSAGES["killstreakbegin"][(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)//KILLSTREAKNOTIFYSTEP ] if len(KILL_STREAK_MESSAGES["killstreakbegin"]) >  (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)//KILLSTREAKNOTIFYSTEP else  KILL_STREAK_MESSAGES["killstreakbegin"][-1]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)])),
+                    "metadata": {"type":"killfeed"},
+                    "servername": context["serveridnamelinks"][data["server_id"]]
+                })
+                # kill streak notify!
+            print("I got here")
         specifickillbase = sqlite3.connect("./data/tf2helper.db")
         c = specifickillbase.cursor()
         c.execute(
@@ -3438,7 +3489,7 @@ def recieveflaskprintrequests():
                 data.get("attacker_x", None),
                 data.get("attacker_y", None),
                 data.get("victim_id", None),
-                data.get("victim_name", None),
+                data.get("victim_name", None) if  data.get("victim_name", None) else data.get("victim_type", None),
                 data.get("victim_offhand_weapon_2", None),
                 data.get("attacker_titan", None),
                 data.get("map", None),
@@ -3625,6 +3676,8 @@ def getmessagewidget(metadata,serverid,messagecontent,message):
         player = f"{player} {metadata.get('teamtype','not team')}"
     if metadata.get("isalive","unknown") != "unknown" and not metadata.get("isalive","unknown"):
         player = f"{player} [DEAD]"
+    if metadata.get("ismuted",False):
+        player = f"{player} [MUTED BY SANCTION]"
         
     if not metadata["type"]:
         pass
@@ -5656,7 +5709,7 @@ async def updatechannels():
         # print("lastheardfrom",serverlastheardfrom)
         # print(json.dumps(discordtotitanfall))
         if not serverlastheardfrom:serverlastheardfrom = 0
-        print(serverid,time.time() - serverlastheardfrom > 180,"🟢" not in channel.name)
+        # print(serverid,time.time() - serverlastheardfrom > 180,"🟢" not in channel.name)
         if (time.time() - serverlastheardfrom > 180 and  "🟢" not in channel.name) or (time.time() - serverlastheardfrom < 180 and  "🟢"  in channel.name):
             continue
         if time.time() - serverlastheardfrom > 180:
@@ -5769,13 +5822,13 @@ def getstats(playeruid):
         messages = {}
         print(name)
         output = {"name":name,"uid":str(playeruid),"total":{}}
-        c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ?",(playeruid,))
+        c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ? AND victim_type = 'player'",(playeruid,))
         output["total"]["deaths"] = len(c.fetchall())
-        c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ?",(playeruid,))
+        c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ? AND victim_type = 'player'",(playeruid,))
         output["total"]["kills"] = len(c.fetchall())
-        c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ? AND timeofkill > ?",(playeruid,now-timeoffset))
+        c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ? AND timeofkill > ? AND victim_type = 'player'",(playeruid,now-timeoffset))
         output["total"]["killstoday"] = len(c.fetchall())
-        c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ? AND timeofkill > ?",(playeruid,now-timeoffset))
+        c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ? AND timeofkill > ? AND victim_type = 'player'",(playeruid,now-timeoffset))
         output["total"]["deathstoday"] = len(c.fetchall())
         c.execute("""
             SELECT MAX(CASE WHEN playeruid = ? THEN position END) AS player_position
@@ -5783,6 +5836,7 @@ def getstats(playeruid):
                 SELECT playeruid, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
                 FROM specifickilltracker
                 WHERE timeofkill > ?
+                AND victim_type = 'player'
                 GROUP BY playeruid
             ) x;
         """, (playeruid,now-timeoffset))
@@ -5795,6 +5849,7 @@ def getstats(playeruid):
                 SELECT victim_id, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
                 FROM specifickilltracker
                 WHERE timeofkill > ?
+                AND victim_type = 'player'
                 GROUP BY victim_id
             ) x;
         """, (playeruid,now-timeoffset))
@@ -5806,6 +5861,7 @@ def getstats(playeruid):
         FROM (
             SELECT playeruid, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
             FROM specifickilltracker
+            WHERE victim_type = 'player'
             GROUP BY playeruid
         ) x;
         """, (playeruid,))
@@ -5821,6 +5877,7 @@ def getstats(playeruid):
                 SELECT cause_of_death
                 FROM specifickilltracker
                 WHERE playeruid = ?
+                AND victim_type = 'player'
                 ORDER BY timeofkill DESC
                 LIMIT 1
             )
@@ -5835,6 +5892,7 @@ def getstats(playeruid):
         FROM (
             SELECT victim_id, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
             FROM specifickilltracker
+            WHERE victim_type = 'player'
             GROUP BY victim_id
         ) x;
         """, (playeruid,))
@@ -5845,6 +5903,7 @@ def getstats(playeruid):
             SELECT cause_of_death, COUNT(*) as kill_count
             FROM specifickilltracker
             WHERE playeruid = ?
+            AND victim_type = 'player'
             GROUP BY cause_of_death
             ORDER BY kill_count DESC
             LIMIT 3
@@ -5897,10 +5956,12 @@ def getstats(playeruid):
             SELECT cause_of_death, COUNT(*) as kill_count
             FROM specifickilltracker
             WHERE playeruid = ?
+            AND victim_type = 'player'
             AND cause_of_death = (
                 SELECT cause_of_death
                 FROM specifickilltracker
                 WHERE playeruid = ?
+                AND victim_type = 'player'
                 ORDER BY timeofkill DESC
                 LIMIT 1
             )

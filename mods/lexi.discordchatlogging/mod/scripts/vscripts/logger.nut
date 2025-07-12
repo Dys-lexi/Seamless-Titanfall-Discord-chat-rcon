@@ -314,6 +314,9 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 		// 	meta["pfp"] <- "I don't know"
 		// }
 	}
+	#if SANCTIONAPI_ENABLED
+		meta["ismuted"]  <- CheckMute(message.player)
+	#endif
 	meta["teamtype"] <- teammessage
 	meta["teamint"] <- message.player.GetTeam()
 	meta["type"] <- "usermessagepfp"
@@ -683,9 +686,9 @@ void function DiscordClientMessageinloop()
 	// wait 1
 	breakercounter = 0
 	// print(GetPlayerArray().len())
-	if(eCount==3 || GetPlayerArray().len() == 12313) //set to 0 to not relay if no people are on
+	if(eCount==3 || GetPlayerArray().len() == 0) //set to 0 to not relay if no people are on
 	{
-		wait 15
+		wait 2
 		eCount = 0
 
 	}
