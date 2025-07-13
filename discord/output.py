@@ -3400,7 +3400,7 @@ def recieveflaskprintrequests():
             consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")].setdefault(data.get("attacker_id",1),0)
             consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] += 1
             # print("THIS HERE", getpriority(consecutivekills,[data["match_id"],data.get("victim_id",1),data.get("victim_name",False)]))
-            if getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)]) and getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)])  >= KILLSTREAKNOTIFYTHRESHOLD:
+            if getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)]) and getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)])  >= KILLSTREAKNOTIFYTHRESHOLD and data.get("victim_type",False) == "player":
                 pass
                 if data.get("attacker_id",False) == data.get("victim_id",False):
                     messageflush.append({
