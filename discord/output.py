@@ -1549,7 +1549,7 @@ if DISCORDBOTLOGSTATS == "1":
             timecutoff = int(time.time() - timecutoff)
             conn = sqlite3.connect("./data/tf2helper.db")
             c = conn.cursor()
-            c.execute("SELECT cause_of_death ,playeruid,weapon_mods FROM specifickilltracker WHERE timeofkill < ? AND victim_type = 'player'",(timecutoff,))
+            c.execute("SELECT cause_of_death ,playeruid,weapon_mods FROM specifickilltracker WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL)",(timecutoff,))
             rows = c.fetchall()
             conn.close()
             return rows
@@ -1558,9 +1558,9 @@ if DISCORDBOTLOGSTATS == "1":
             conn = sqlite3.connect("./data/tf2helper.db")
             c = conn.cursor()
             if not swoptovictims:
-                c.execute("SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker WHERE timeofkill < ? AND victim_type = 'player' GROUP BY cause_of_death, playeruid, weapon_mods, attacker_type",(timecutoff,))
+                c.execute("SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, playeruid, weapon_mods, attacker_type",(timecutoff,))
             else:
-                c.execute("SELECT cause_of_death, victim_id, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker WHERE timeofkill < ? AND victim_type = 'player' GROUP BY cause_of_death, victim_id, weapon_mods, attacker_type",(timecutoff,))
+                c.execute("SELECT cause_of_death, victim_id, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, victim_id, weapon_mods, attacker_type",(timecutoff,))
 
             rows = c.fetchall()
             conn.close()
@@ -5822,13 +5822,13 @@ def getstats(playeruid):
         messages = {}
         print(name)
         output = {"name":name,"uid":str(playeruid),"total":{}}
-        c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ? AND victim_type = 'player'",(playeruid,))
+        c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ? AND (victim_type = 'player' OR victim_type IS NULL)",(playeruid,))
         output["total"]["deaths"] = len(c.fetchall())
-        c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ? AND victim_type = 'player'",(playeruid,))
+        c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ? AND (victim_type = 'player' OR victim_type IS NULL)",(playeruid,))
         output["total"]["kills"] = len(c.fetchall())
-        c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ? AND timeofkill > ? AND victim_type = 'player'",(playeruid,now-timeoffset))
+        c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ? AND timeofkill > ? AND (victim_type = 'player' OR victim_type IS NULL)",(playeruid,now-timeoffset))
         output["total"]["killstoday"] = len(c.fetchall())
-        c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ? AND timeofkill > ? AND victim_type = 'player'",(playeruid,now-timeoffset))
+        c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ? AND timeofkill > ? AND (victim_type = 'player' OR victim_type IS NULL)",(playeruid,now-timeoffset))
         output["total"]["deathstoday"] = len(c.fetchall())
         c.execute("""
             SELECT MAX(CASE WHEN playeruid = ? THEN position END) AS player_position
@@ -5836,7 +5836,7 @@ def getstats(playeruid):
                 SELECT playeruid, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
                 FROM specifickilltracker
                 WHERE timeofkill > ?
-                AND victim_type = 'player'
+                AND (victim_type = 'player' OR victim_type IS NULL)
                 GROUP BY playeruid
             ) x;
         """, (playeruid,now-timeoffset))
@@ -5849,7 +5849,7 @@ def getstats(playeruid):
                 SELECT victim_id, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
                 FROM specifickilltracker
                 WHERE timeofkill > ?
-                AND victim_type = 'player'
+                AND (victim_type = 'player' OR victim_type IS NULL)
                 GROUP BY victim_id
             ) x;
         """, (playeruid,now-timeoffset))
@@ -5861,7 +5861,7 @@ def getstats(playeruid):
         FROM (
             SELECT playeruid, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
             FROM specifickilltracker
-            WHERE victim_type = 'player'
+            WHERE (victim_type = 'player' OR victim_type IS NULL)
             GROUP BY playeruid
         ) x;
         """, (playeruid,))
@@ -5877,7 +5877,7 @@ def getstats(playeruid):
                 SELECT cause_of_death
                 FROM specifickilltracker
                 WHERE playeruid = ?
-                AND victim_type = 'player'
+                AND (victim_type = 'player' OR victim_type IS NULL)
                 ORDER BY timeofkill DESC
                 LIMIT 1
             )
@@ -5892,7 +5892,7 @@ def getstats(playeruid):
         FROM (
             SELECT victim_id, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
             FROM specifickilltracker
-            WHERE victim_type = 'player'
+            WHERE (victim_type = 'player' OR victim_type IS NULL)
             GROUP BY victim_id
         ) x;
         """, (playeruid,))
@@ -5903,7 +5903,7 @@ def getstats(playeruid):
             SELECT cause_of_death, COUNT(*) as kill_count
             FROM specifickilltracker
             WHERE playeruid = ?
-            AND victim_type = 'player'
+            AND (victim_type = 'player' OR victim_type IS NULL)
             GROUP BY cause_of_death
             ORDER BY kill_count DESC
             LIMIT 3
@@ -5956,12 +5956,12 @@ def getstats(playeruid):
             SELECT cause_of_death, COUNT(*) as kill_count
             FROM specifickilltracker
             WHERE playeruid = ?
-            AND victim_type = 'player'
+            AND (victim_type = 'player' OR victim_type IS NULL)
             AND cause_of_death = (
                 SELECT cause_of_death
                 FROM specifickilltracker
                 WHERE playeruid = ?
-                AND victim_type = 'player'
+                AND (victim_type = 'player' OR victim_type IS NULL)
                 ORDER BY timeofkill DESC
                 LIMIT 1
             )

@@ -194,8 +194,8 @@ KILL_STREAK_MESSAGES = {
         "**/attacker/** ended **/victim/**'s killstreak **/ks/**",
         "**/victim/** got flattened by **/attacker/** **/ks/**",
         "**/victim/**'s glorious reign was ended by the rightious fury of **/attacker/** **/ks/**",
-        "**/victim/** dead by **/attacker/**",
-        "**/attacker/** successfully stabbed **/victim/**"  
+        "**/victim/** dead by **/attacker/** **/ks/**",
+        "**/attacker/** successfully stabbed **/victim/** **/ks/**"  
     ],
    "killstreakbegin": [
         "**/attacker/** is on a killing spree **/ks/**",
