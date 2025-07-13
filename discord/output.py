@@ -3382,7 +3382,7 @@ def recieveflaskprintrequests():
             print("invalid password used on data")
             return {"message": "invalid password"}
         print(f"{data.get('attacker_name', data['attacker_type'])} killed {data.get('victim_name', data['victim_type'])} with {data['cause_of_death']} using mods {' '.join(data.get('modsused',[]))}")
-        if SENDKILLFEED == "1":
+        if SENDKILLFEED == "1" and (data.get("victim_type",False) == "player"):
             messageflush.append({
                 "timestamp": int(time.time()),
                 "serverid": data["server_id"],
@@ -3398,7 +3398,10 @@ def recieveflaskprintrequests():
             consecutivekills.setdefault(data["match_id"],{})
             consecutivekills[data["match_id"]].setdefault(getpriority(data,"attacker_name","attacker_type"),{})
             consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")].setdefault(data.get("attacker_id",1),0)
-            if bool(data.get("attacker_titan",False)) == bool(data.get("victim_titan",False)):
+            # print(data.get("attacker_titan",False),data.get("victim_titan",False))
+            # print(bool(data.get("victim_titan",False)if data.get("victim_titan",False) != "null" else False))
+            if bool(data.get("attacker_titan",False) if data.get("attacker_titan",False) != "null" else False ) == bool(data.get("victim_titan",False)if data.get("victim_titan",False) != "null" else False) or bool(data.get("victim_titan",False)if data.get("victim_titan",False) != "null" else False):
+                # print("this crill counted")
                 consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] += 1
             # print("THIS HERE", getpriority(consecutivekills,[data["match_id"],data.get("victim_id",1),data.get("victim_name",False)]))
             if getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)]) and getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)])  >= KILLSTREAKNOTIFYTHRESHOLD and data.get("victim_type",False) == "player":
