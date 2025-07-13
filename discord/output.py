@@ -3394,12 +3394,12 @@ def recieveflaskprintrequests():
                 "servername": context["serveridnamelinks"][data["server_id"]]
             })
         if KILLSTREAKNOTIFYTHRESHOLD and data.get("attacker_type",False) not in ["npc_soldier","npc_stalker","npc_spectre","npc_super_spectre"]  and ((data.get("victim_type",False) == "player") or (data.get("victim_type",False) == "npc_titan" and data.get("attacker_type",False) == "player"))  and bool(data.get("attacker_titan",False)) == bool(data.get("victim_titan",False)) and data.get("match_id",False) and getpriority(data,"attacker_name","attacker_type"):
-            print("CORE KILLSTREAKS COUNTED")
+            # print("CORE KILLSTREAKS COUNTED")
             consecutivekills.setdefault(data["match_id"],{})
             consecutivekills[data["match_id"]].setdefault(getpriority(data,"attacker_name","attacker_type"),{})
             consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")].setdefault(data.get("attacker_id",1),0)
             consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] += 1
-            print("THIS HERE", getpriority(consecutivekills,[data["match_id"],data.get("victim_id",1),data.get("victim_name",False)]))
+            # print("THIS HERE", getpriority(consecutivekills,[data["match_id"],data.get("victim_id",1),data.get("victim_name",False)]))
             if getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)]) and getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)])  >= KILLSTREAKNOTIFYTHRESHOLD:
                 pass
                 if data.get("attacker_id",False) == data.get("victim_id",False):
@@ -3426,9 +3426,9 @@ def recieveflaskprintrequests():
                     })
                 #their killstreak ended!
                 consecutivekills[data["match_id"]][data.get("victim_id",1)][data.get("victim_name",False)] = 0
-            print("dataaaaa",consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)],(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP,consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] > KILLSTREAKNOTIFYTHRESHOLD , not (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP )
+            # print("dataaaaa",consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)],(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP,consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] > KILLSTREAKNOTIFYTHRESHOLD , not (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP )
             if consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] >= KILLSTREAKNOTIFYTHRESHOLD and not (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP :
-                print("adding")
+                # print("adding")
                 messageflush.append({
                     "timestamp": int(time.time()),
                     "serverid": data["server_id"],
@@ -3440,7 +3440,7 @@ def recieveflaskprintrequests():
                     "servername": context["serveridnamelinks"][data["server_id"]]
                 })
                 # kill streak notify!
-            print("I got here")
+            # print("I got here")
         specifickillbase = sqlite3.connect("./data/tf2helper.db")
         c = specifickillbase.cursor()
         c.execute(
