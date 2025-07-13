@@ -3393,12 +3393,13 @@ def recieveflaskprintrequests():
                 "metadata": {"type":"killfeed"},
                 "servername": context["serveridnamelinks"][data["server_id"]]
             })
-        if KILLSTREAKNOTIFYTHRESHOLD and data.get("attacker_type",False) not in ["npc_soldier","npc_stalker","npc_spectre","npc_super_spectre"]  and ((data.get("victim_type",False) == "player") or (data.get("victim_type",False) == "npc_titan" and data.get("attacker_type",False) == "player"))  and bool(data.get("attacker_titan",False)) == bool(data.get("victim_titan",False)) and data.get("match_id",False) and getpriority(data,"attacker_name","attacker_type"):
+        if KILLSTREAKNOTIFYTHRESHOLD and data.get("attacker_type",False) not in ["npc_soldier","npc_stalker","npc_spectre","npc_super_spectre"]  and ((data.get("victim_type",False) == "player") or (data.get("victim_type",False) == "npc_titan"))  and data.get("match_id",False) and getpriority(data,"attacker_name","attacker_type"):
             # print("CORE KILLSTREAKS COUNTED")
             consecutivekills.setdefault(data["match_id"],{})
             consecutivekills[data["match_id"]].setdefault(getpriority(data,"attacker_name","attacker_type"),{})
             consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")].setdefault(data.get("attacker_id",1),0)
-            consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] += 1
+            if bool(data.get("attacker_titan",False)) == bool(data.get("victim_titan",False)):
+                consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] += 1
             # print("THIS HERE", getpriority(consecutivekills,[data["match_id"],data.get("victim_id",1),data.get("victim_name",False)]))
             if getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)]) and getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)])  >= KILLSTREAKNOTIFYTHRESHOLD and data.get("victim_type",False) == "player":
                 pass
@@ -3425,6 +3426,8 @@ def recieveflaskprintrequests():
                         "servername": context["serveridnamelinks"][data["server_id"]]
                     })
                 #their killstreak ended!
+                consecutivekills[data["match_id"]][data.get("victim_name",1)][data.get("victim_id",False)] = 0
+            elif  data.get("victim_type",False) == "player" and getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)]) :
                 consecutivekills[data["match_id"]][data.get("victim_name",1)][data.get("victim_id",False)] = 0
             # print("dataaaaa",consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)],(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP,consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] > KILLSTREAKNOTIFYTHRESHOLD , not (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP )
             if consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] >= KILLSTREAKNOTIFYTHRESHOLD and not (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP :
@@ -4400,16 +4403,28 @@ def tftodiscordcommand(specificommand,command,serverid):
     else:
         return
     initdiscordtotitanfall(serverid)
+    if bool(getpriority(command,"meta","blockedcommand")) !=  context["commands"]["ingamecommands"][specificommand]["shouldblock"]:
+        # huh? this if statment confuses me.. oh actually no, it's telling the server off if it gets blocking wrong but why does it only run here? surely it should always run? put it here as that seems better
+        senddiscordcommands(0,serverid,0)
     if context["commands"]["ingamecommands"][specificommand]["run"] == "togglestat":
         togglestats(command,specificommand,serverid)
+
     elif context["commands"]["ingamecommands"][specificommand]["run"] == "functionless":
         # pass
-        if not getpriority(command,"meta","blockedcommand") and  context["commands"]["ingamecommands"][specificommand]["shouldblock"]:
-            senddiscordcommands(0,serverid,0)
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "id": str(int(time.time()*100)),
+            "content":f"{PREFIXES['discord']}Running {getpriority(command, 'originalmessage','messagecontent')}",
+            "teamoverride": 4,
+            "isteammessage": False,
+            "uidoverride": [getpriority(command,"uid",["meta","uid"])]
+            # "dotreacted": dotreacted
+        }
+        )
         asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid, getpriority(command, "originalmessage","messagecontent")), "fake context", None, True, False), bot.loop)
     # print(specificommand)
     
-    if context["commands"]["ingamecommands"][specificommand]["run"] == "thread":
+    elif context["commands"]["ingamecommands"][specificommand]["run"] == "thread":
         threading.Thread(target=globals()[context["commands"]["ingamecommands"][specificommand]["function"]], daemon=True, args=(command,serverid,servercommand)).start()
     elif context["commands"]["ingamecommands"][specificommand]["run"] == "async":
         asyncio.run_coroutine_threadsafe(globals()[context["commands"]["ingamecommands"][specificommand]["function"]](command,serverid,servercommand),bot.loop)
