@@ -504,7 +504,7 @@ OVERRIDEIPFORCDNLEADERBOARD = os.getenv("OVERRIDE_IP_FOR_CDN_LEADERBOARD","use_a
 OVVERRIDEROLEREQUIRMENT = os.getenv("OVERRIDE_ROLE_REQUIREMENT","1")
 COOLPERKSROLEREQUIRMENTS = os.getenv("COOL_PERKS_REQUIREMENT","You need something or other to get this")
 SHOWIMPERSONATEDMESSAGESINDISCORD = os.getenv("SHOW_IMPERSONATED_MESSAGES_IN_DISCORD","1")
-KILLSTREAKNOTIFYTHRESHOLD = int(os.getenv("KILL_STREAK_NOTIFY_THRESHOLD","10"))
+KILLSTREAKNOTIFYTHRESHOLD = int(os.getenv("KILL_STREAK_NOTIFY_THRESHOLD","5"))
 KILLSTREAKNOTIFYSTEP = int(os.getenv("KILL_STREAK_NOTIFY_STEP","5"))
 
 GLOBALIP = 0
@@ -3420,12 +3420,12 @@ def recieveflaskprintrequests():
                         "type": 3,
                         "globalmessage": False,
                         "overridechannel": None,
-                        "messagecontent": random.choice([*KILL_STREAK_MESSAGES["killstreakended"]]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(getpriority(consecutivekills,[data["match_id"],data.get("victim_id",1),data.get("victim_name",False)]))),
+                        "messagecontent": random.choice([*KILL_STREAK_MESSAGES["killstreakended"]]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)]))),
                         "metadata": {"type":"killfeed"},
                         "servername": context["serveridnamelinks"][data["server_id"]]
                     })
                 #their killstreak ended!
-                consecutivekills[data["match_id"]][data.get("victim_id",1)][data.get("victim_name",False)] = 0
+                consecutivekills[data["match_id"]][data.get("victim_name",1)][data.get("victim_id",False)] = 0
             # print("dataaaaa",consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)],(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP,consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] > KILLSTREAKNOTIFYTHRESHOLD , not (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP )
             if consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] >= KILLSTREAKNOTIFYTHRESHOLD and not (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP :
                 # print("adding")

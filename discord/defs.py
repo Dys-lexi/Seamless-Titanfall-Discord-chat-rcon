@@ -192,9 +192,9 @@ KILL_STREAK_MESSAGES = {
     ],
     "killstreakended":[
         "**/attacker/** ended **/victim/**'s killstreak **/ks/**",
-        "**/victim/** got flattened by /**attacker/** **/ks/**",
-        "**/victim/**'s glorious reign was ended by the rightious fury of /**attacker/**",
-        "**/victim/** dead by /**attacker/**",
+        "**/victim/** got flattened by **/attacker/** **/ks/**",
+        "**/victim/**'s glorious reign was ended by the rightious fury of **/attacker/** **/ks/**",
+        "**/victim/** dead by **/attacker/**",
         "**/attacker/** successfully stabbed **/victim/**"  
     ],
    "killstreakbegin": [
