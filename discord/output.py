@@ -3400,7 +3400,7 @@ def recieveflaskprintrequests():
             consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")].setdefault(data.get("attacker_id",1),0)
             # print(data.get("attacker_titan",False),data.get("victim_titan",False))
             # print(bool(data.get("victim_titan",False)if data.get("victim_titan",False) != "null" else False))
-            if bool(data.get("attacker_titan",False) if data.get("attacker_titan",False) != "null" else False ) == bool(data.get("victim_titan",False)if data.get("victim_titan",False) != "null" else False) or bool(data.get("victim_titan",False)if data.get("victim_titan",False) != "null" else False):
+            if bool(data.get("attacker_titan",False) if data.get("attacker_titan",False) != "null" else False ) == bool(data.get("victim_titan",False)if data.get("victim_titan",False) != "null" else False) or bool(data.get("victim_titan",False)if data.get("victim_titan",False) != "null" else False) or (data.get("victim_type",False) == "npc_titan"):
                 # print("this crill counted")
                 consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] += 1
             # print("THIS HERE", getpriority(consecutivekills,[data["match_id"],data.get("victim_id",1),data.get("victim_name",False)]))
