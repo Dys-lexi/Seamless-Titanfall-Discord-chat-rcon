@@ -932,7 +932,7 @@ if DISCORDBOTLOGSTATS == "1":
             except:
                 await ctx.respond("Failed to calculate pngleaderboard - cdn error")
                 return
-        await ctx.respond(f"bleh{cdn_url}")
+        await ctx.respond(f"Open in browser for full res {cdn_url}")
         
 
 
@@ -1705,6 +1705,7 @@ if DISCORDBOTLOGSTATS == "1":
             #         counts[attacker]["killscutoff"] = counts[attacker]["killscutoff"] + 1
             # if len(counts) == 0:
             #     continue
+            playerinleaderboard = True
             if not playeroverride:
                 sorted_players = sorted(counts.items(), key=lambda item: item[1]["kills"], reverse=True)[:max_players]
                 startindex = 0
@@ -1716,6 +1717,7 @@ if DISCORDBOTLOGSTATS == "1":
                 # print("SORQWDIQWD",sorted_player_index)
                 if not sorted_player_index[1]:
                     sorted_player_index = 0
+                    playerinleaderboard = False
                 else: sorted_player_index = sorted_player_index[0]
                 half = max_players // 2
                 # print("SORTED INDFEX",sorted_player_index)
@@ -1733,7 +1735,11 @@ if DISCORDBOTLOGSTATS == "1":
             
             sorted_players_cutoff = [item[0] for (item) in sorted_players_cutoff]
             num_display = len(sorted_players)
-            text_area_height = (FONT_SIZE + LINE_SPACING) * num_display + 10
+            if playerinleaderboard:
+                text_area_height = (FONT_SIZE + LINE_SPACING) * num_display + 10
+            else: 
+                text_area_height = (FONT_SIZE + LINE_SPACING) * 2 + 10
+
             panel_height = maxheight + text_area_height
 
             panel = Image.new("RGBA", (maxwidth, panel_height), (random.randint(0, 50), random.randint(0, 50), random.randint(0, 50), 80))
@@ -1754,45 +1760,50 @@ if DISCORDBOTLOGSTATS == "1":
                 right_column = gun_img.crop((gun_img.width - 1, 0, gun_img.width, gun_img.height))
                 right_color = right_column.resize((right_fill_width, gun_img.height))
                 panel.paste(right_color, (center_x + gun_img.width, 0))
-            for i, (attacker, data) in enumerate(sorted_players):
-                count = data["kills"]
-                oldkills = data["killscutoff"]
-                if not playeroverride:
-                    name = resolveplayeruidfromdb(attacker, "uid", True)[0]["name"] if attacker and resolveplayeruidfromdb(attacker, "uid", True) else attacker
-                else:
-                    name = f'{i+1+sorted_player_index}) {resolveplayeruidfromdb(attacker, "uid", True)[0]["name"] if attacker and resolveplayeruidfromdb(attacker, "uid", True) else attacker}'
-                delta_kills = count - oldkills
-                previous_index = sorted_players_cutoff.index(attacker)
-                delta = previous_index - i
-                if delta > 0:
-                    change_text = f"↑ {delta}"
-                    change_color = (0, 200, 0)
-                elif delta < 0:
-                    change_text = f"↓ {abs(delta)}"
-                    change_color = (200, 0, 0)
-                else:
-                    change_text = "–"
-                    change_color = (128, 128, 128)
-                # print(i+startindex,sorted_player_index)
-                color = (
-                    CURRENT if i+startindex == notsubtractedhalf else
-                    GOLD if i+startindex == 0 else
-                    SILVER if i+startindex == 1 else
-                    BRONZE if i+startindex == 2 else
-                    DEFAULT_COLOR
-                )
+            if playerinleaderboard:
+                for i, (attacker, data) in enumerate(sorted_players):
+                    count = data["kills"]
+                    oldkills = data["killscutoff"]
+                    if not playeroverride:
+                        name = resolveplayeruidfromdb(attacker, "uid", True)[0]["name"] if attacker and resolveplayeruidfromdb(attacker, "uid", True) else attacker
+                    else:
+                        name = f'{i+1+sorted_player_index}) {resolveplayeruidfromdb(attacker, "uid", True)[0]["name"] if attacker and resolveplayeruidfromdb(attacker, "uid", True) else attacker}'
+                    delta_kills = count - oldkills
+                    previous_index = sorted_players_cutoff.index(attacker)
+                    delta = previous_index - i
+                    if delta > 0:
+                        change_text = f"↑ {delta}"
+                        change_color = (0, 200, 0)
+                    elif delta < 0:
+                        change_text = f"↓ {abs(delta)}"
+                        change_color = (200, 0, 0)
+                    else:
+                        change_text = "–"
+                        change_color = (128, 128, 128)
+                    # print(i+startindex,sorted_player_index)
+                    color = (
+                        CURRENT if i+startindex == notsubtractedhalf else
+                        GOLD if i+startindex == 0 else
+                        SILVER if i+startindex == 1 else
+                        BRONZE if i+startindex == 2 else
+                        DEFAULT_COLOR
+                    )
 
-                y = maxheight + i * (FONT_SIZE + LINE_SPACING) + 5
-                x = 5  
-                base_text = f"{name}: {count}"
-                draw.text((x, y), base_text, font=font, fill=color)
-                x += draw.textlength(base_text, font=font)
-                if delta_kills:
-                    plus_text = f" +{delta_kills}"
-                    draw.text((x, y), plus_text, font=font, fill=(100, 100, 100))
-                arrow_x = maxwidth - draw.textlength(change_text, font=font) - 10
-                draw.text((arrow_x, y), change_text, font=font, fill=change_color)
-
+                    y = maxheight + i * (FONT_SIZE + LINE_SPACING) + 5
+                    x = 5  
+                    base_text = f"{name}: {count}"
+                    draw.text((x, y), base_text, font=font, fill=color)
+                    x += draw.textlength(base_text, font=font)
+                    if delta_kills:
+                        plus_text = f" +{delta_kills}"
+                        draw.text((x, y), plus_text, font=font, fill=(100, 100, 100))
+                    arrow_x = maxwidth - draw.textlength(change_text, font=font) - 10
+                    draw.text((arrow_x, y), change_text, font=font, fill=change_color)
+            else:
+                x = 5
+                y = maxheight + 5
+                draw.text((x, y), f"No playerdata found for {resolveplayeruidfromdb(playeroverride,'uid',True,False)[0]['name']}", font=font, fill=(255,100,100))
+                draw.text((x, y+(FONT_SIZE + LINE_SPACING)), f"they have never used {WEAPON_NAMES.get(weapon,weapon)}", font=font, fill=(255,100,100))
 
 
             panels.append(panel)
@@ -1836,7 +1847,7 @@ if DISCORDBOTLOGSTATS == "1":
         print("calculated pngleaderboard in", (int(time.time()*100)-now)/100,"seconds")
         return imagetimestamp
         # canvas.save(file_path, format="PNG")
-        
+          
 
     def get_max_font_size(draw, text, max_width, max_height, font_path=None):
         font_size = 1
