@@ -145,6 +145,7 @@ WEAPON_NAMES = {
 
 DISALLOWED_COLOURS = (
     0,
+    52,
     16,
     18,
     17,

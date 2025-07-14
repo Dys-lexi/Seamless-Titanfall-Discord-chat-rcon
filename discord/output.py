@@ -1,4 +1,4 @@
-# chat relay for tf|1 and tf|2 by dyslexi!
+# chat relay for tf|1 and tf|2 by @dyslexi! it does a LOT more than just relay chat however
 import asyncio
 import json
 import os
@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw, ImageFont
 import traceback
 from discord.commands import Option
 from io import BytesIO
-import itertools
+
 import inspect
 from flask import Flask, jsonify, request,send_from_directory,send_file
 from waitress import serve
@@ -677,19 +677,20 @@ async def weaponnamesautocomplete(ctx):
 @bot.event
 async def on_ready():
     global context
-    print(f"{bot.user} has connected to Discord!")
+    print(f"{bot.user} Connected!!")
     if context["logging_cat_id"] != 0:
         # get all channels in the category and store in serverchannels
         guild = bot.get_guild(context["activeguild"])
         category = guild.get_channel(context["logging_cat_id"])
         serverchannels = category.channels
-        await updateroles()
+
     if DISCORDBOTLOGSTATS == "1":
         updateleaderboards.start()
     await asyncio.sleep(30)
     updatechannels.start()
-    
+    updateroles.start()
 
+@tasks.loop(seconds=1800)
 async def updateroles():
     guild = bot.get_guild(context["activeguild"])
     for roletype,potentialrole in context["overrideroles"].items():
@@ -1707,6 +1708,7 @@ if DISCORDBOTLOGSTATS == "1":
             if not playeroverride:
                 sorted_players = sorted(counts.items(), key=lambda item: item[1]["kills"], reverse=True)[:max_players]
                 startindex = 0
+                notsubtractedhalf = -1
                 sorted_player_index = -1
             else:
                 sorted_players = sorted(counts.items(), key=lambda item: item[1]["kills"], reverse=True)
@@ -1717,7 +1719,9 @@ if DISCORDBOTLOGSTATS == "1":
                 else: sorted_player_index = sorted_player_index[0]
                 half = max_players // 2
                 # print("SORTED INDFEX",sorted_player_index)
+                notsubtractedhalf = sorted_player_index
                 start = max(0, sorted_player_index - half)
+                sorted_player_index = start
                 end = start + max_players
                 if end > len(sorted_players):
                     end = len(sorted_players)
@@ -1769,11 +1773,12 @@ if DISCORDBOTLOGSTATS == "1":
                 else:
                     change_text = "–"
                     change_color = (128, 128, 128)
+                # print(i+startindex,sorted_player_index)
                 color = (
+                    CURRENT if i+startindex == notsubtractedhalf else
                     GOLD if i+startindex == 0 else
                     SILVER if i+startindex == 1 else
                     BRONZE if i+startindex == 2 else
-                    CURRENT if i+startindex == sorted_player_index else
                     DEFAULT_COLOR
                 )
 
@@ -4394,7 +4399,7 @@ def tftodiscordcommand(specificommand,command,serverid):
     # print("HERE")
     # print("HERE", not specificommand,command.get("originalmessage",False) ,command["originalmessage"][0] == keyletter,command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() ,("tf1" if context["istf1server"].get(serverid,False) else "tf2") in  REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
     # print(not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
-    if not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in context["commands"]["ingamecommands"].keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"]:
+    if not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in context["commands"]["ingamecommands"].keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"] and (not context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]].get("serversenabled",False) or server_id in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["serversenabled"]):
         specificommand = command["originalmessage"][1:].split(" ")[0].lower()
         commandargs = command["originalmessage"][1:].split(" ")[1:]
         if context["commands"]["ingamecommands"][specificommand]["rcon"] and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"])):
@@ -4436,6 +4441,7 @@ def tftodiscordcommand(specificommand,command,serverid):
 
     
 def togglestats(message,togglething,serverid):
+    internaltoggle = context["commands"]["ingamecommands"][togglething].get("internaltoggle",togglething)
     istf1 = context["istf1server"].get(serverid,False) != False
     if  istf1 and not len(str(getpriority(message,"uid",["meta","uid"]))) > 15:
             discordtotitanfall[serverid]["messages"].append(
@@ -4452,11 +4458,11 @@ def togglestats(message,togglething,serverid):
         
     preferences = readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]),istf1)
     
-    shouldset = getpriority( preferences ,["tf1" if istf1 else "tf2",togglething])
+    shouldset = getpriority( preferences ,["tf1" if istf1 else "tf2",internaltoggle])
     if shouldset == None:
-        shouldset = True
+        shouldset = False
     
-    setplayeruidpreferences(["tf1" if istf1 else "tf2",togglething],not shouldset,getpriority(message,"uid",["meta","uid"]),istf1)
+    setplayeruidpreferences(["tf1" if istf1 else "tf2",internaltoggle],not shouldset,getpriority(message,"uid",["meta","uid"]),istf1)
     discordtotitanfall[serverid]["messages"].append(
     {
         "id": str(int(time.time()*100)),
@@ -4503,7 +4509,7 @@ def ingamehelp(message,serverid,isfromserver):
     for i, ( name, command) in enumerate(context["commands"]["ingamecommands"].items()):
         # print("CHECKING COMMAND", (getpriority(command,"uid",["meta","uid"])),command)
         # print("tf1" if istf1 else "tf2","tf1" if istf1 else "tf2" in command["games"])
-        if ("tf1" if istf1 else "tf2") in command["games"] and (not command["rcon"] or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]))) :
+        if (not commandoverride or commandoverride.lower() in name) and ("tf1" if istf1 else "tf2") in command["games"] and (not command["rcon"] or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]))) and (not command.get("serversenabled",False) or server_id in command["serversenabled"]):
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": str(i) + str(int(time.time()*100)),

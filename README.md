@@ -35,7 +35,13 @@ discordlog:
       - TF1_RCON_PASSWORD="" #RCON Password for tf1 chat relay. when blank, completly disables relay
       - USE_DYNAMIC_PFPS="1" #FANCY new way of chat bridging.
       - PFP_ROUTE="https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/" #Url used for pfps
-      - FILTERNAMESINMESSAGES="usermessagepfp,chat_message,command,tf1command,botcommand" #What types of messages should the bot run the nonoword filter on
+      - FILTER_NAMES_IN_MESSAGES="usermessagepfp,chat_message,command,tf1command,botcommand" #What types of messages should the bot run the nonoword filter on
+      - SEND_KILL_FEED="1" #should the bot send the kill feed in the relay?
+      - OVERRIDE_IP_FOR_CDN_LEADERBOARD="use_actual_ip" #options = useactualip,if you have no domain, a domain name eg https://xyz.com or hidden to disable this. you'll need to port forward.
+      - COOL_PERKS_REQUIREMENT="You need something or other to get this"#message displayed when user does not have the role required for cool perks.
+      - SHOW_IMPERSONATED_MESSAGES_IN_DISCORD="1" # display an IMPERSONATED tag after an impersonated message, only in discord
+      - KILL_STREAK_NOTIFY_THRESHOLD="5" #min kill requirment to start a killstreak. set to "0" to disable.
+      - KILL_STREAK_NOTIFY_STEP="5" #how many kills needed for the next ks notification
     volumes:
       - ./discord/data:/app/data:rw
     restart: always
@@ -60,14 +66,14 @@ And you'll most likely _want_:
 -allowlocalhttp
 ```
 
-- Check the mod.json file for configuration on other things.
+- Check the mod.json file for configuration on other things, like url of discord bot
 
 ## Discord bot
 
 ### In-discord Setup
 
 - Use ```/bindloggingtocategory``` to make a category in a discord server, where the titanfall servers will log too
-- Use ```/rconchangeuserallowed``` to add a user (probably yourself) to rcon list
+- Use ```/bindrole``` to set a role as the admin role (and coolperksrole)
 - Use ```/bindchannel``` if you intend to use leaderboards, globalchannel, and commandlogging. these go in seperate channels.
 - Use ```/help``` to see commands
 
@@ -228,6 +234,6 @@ A simpler example could be:
 you'll need this mod on the server:
 https://github.com/Dys-lexi/nutone-server
 
-(it's nutone but ever so slightly changed)
+(it's nutone but ever so slightly changed (pretty well changed now))
 
 set the url to the discordbot in the mod.json, make sure log stats is on (a env var for bot), and done! (it's probably not that simple idk)
