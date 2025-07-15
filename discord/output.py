@@ -883,7 +883,7 @@ if DISCORDBOTLOGSTATS == "1":
             return
         playernamereal = playernamereal[0]
 
-        output = f"{playernamereal} has {playerstats[0]} Pilot kills, {playerstats[2]} Deaths, {playerstats[3]} Titan kills and {modifyvalue(int(playerstats[1]),'time')} Time played"
+        output = f"{playernamereal} has {playerstats[0]} Pilot kills, {playerstats[2]} Deaths, {playerstats[3]} Titan kills and {modifyvalue(int(playerstats[1] if playerstats[1] else 0),'time')} Time played"
         formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
         asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} {output}"),"fake context",None,True,False), bot.loop)
         if bestgame:
@@ -1951,13 +1951,35 @@ if DISCORDBOTLOGSTATS == "1":
             WHERE playeruid = ? 
             ORDER BY id DESC
         """, (player["uid"],))
-        aliases_raw = c.fetchall()
+        aliases_raw = list(map(list,c.fetchall()))
+        for i, alias in enumerate(aliases_raw):
+            if not alias[1] or not alias[2]:
+                aliases_raw[i].append("unknown")
+                continue
+            c.execute("""
+                SELECT SUM(duration)
+                FROM playtime
+                WHERE playeruid = ?
+                AND (joinatunix > ? OR leftatunix > ?)
+                AND joinatunix < ?
+            """, (player["uid"], alias[1], alias[1], alias[2]))
+            timespent = c.fetchone()
+            if not timespent or not timespent[0]:
+                aliases_raw[i].append("unknown")
+                continue
+            # print([timespent])
+            aliases_raw[i].append(modifyvalue(timespent[0],"time"))
+
+
+        
+
+        
 
         aliases = []
-        for name, first, last in aliases_raw:
+        for name, first, last,playtime in aliases_raw:
             first_str = f"<t:{first}:R>" if first else "unknown"
             last_str = f"<t:{last}:R>" if last else "unknown"
-            aliases.append(f"{name} *(first seen: {first_str}, last seen: {last_str})*")
+            aliases.append(f"{name} *(first seen: {first_str}, last seen: {last_str}, time played: **{playtime}**)*")
 
         tfdb.commit()
         tfdb.close()
@@ -3931,7 +3953,7 @@ def tf1readsend(serverid,checkstatus):
                     titanfall1currentlyplaying[serverid] = []
                 # print((statusoutput))
                 peopleonserver = len(statusoutput.keys()) -1
-                titanfall1currentlyplaying[serverid] = [statusoutput[x]["name"] for x in list(filter(lambda x: x != "meta", statusoutput.keys()))]
+                titanfall1currentlyplaying[serverid] = [statusoutput[x][0] for x in list(filter(lambda x: x != "meta", statusoutput.keys()))]
                 # print("ONLINE",serverid,"ONLINE",bool (len(statusoutput.keys()) -1),statusoutput)
                 discordtotitanfall[serverid]["serveronline"] = bool (len(statusoutput.keys()) -1)
                 if not discordtotitanfall[serverid]["serveronline"]:
@@ -4410,7 +4432,7 @@ def tftodiscordcommand(specificommand,command,serverid):
     # print("HERE")
     # print("HERE", not specificommand,command.get("originalmessage",False) ,command["originalmessage"][0] == keyletter,command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() ,("tf1" if context["istf1server"].get(serverid,False) else "tf2") in  REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
     # print(not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
-    if not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in context["commands"]["ingamecommands"].keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"] and (not context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]].get("serversenabled",False) or server_id in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["serversenabled"]):
+    if not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in context["commands"]["ingamecommands"].keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"] and (not context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]].get("serversenabled",False) or int(serverid) in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["serversenabled"]):
         specificommand = command["originalmessage"][1:].split(" ")[0].lower()
         commandargs = command["originalmessage"][1:].split(" ")[1:]
         if context["commands"]["ingamecommands"][specificommand]["rcon"] and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"])):
@@ -4520,7 +4542,7 @@ def ingamehelp(message,serverid,isfromserver):
     for i, ( name, command) in enumerate(context["commands"]["ingamecommands"].items()):
         # print("CHECKING COMMAND", (getpriority(command,"uid",["meta","uid"])),command)
         # print("tf1" if istf1 else "tf2","tf1" if istf1 else "tf2" in command["games"])
-        if (not commandoverride or commandoverride.lower() in name) and ("tf1" if istf1 else "tf2") in command["games"] and (not command["rcon"] or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]))) and (not command.get("serversenabled",False) or server_id in command["serversenabled"]):
+        if (not commandoverride or commandoverride.lower() in name) and ("tf1" if istf1 else "tf2") in command["games"] and (not command["rcon"] or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]))) and (not command.get("serversenabled",False) or int(serverid) in command["serversenabled"]):
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": str(i) + str(int(time.time()*100)),
@@ -5558,7 +5580,7 @@ def playerpolllog(data,serverid,statuscode):
     if not istf1:
         players = [{"uid":x[0], "score":x[1][0], "team":x[1][1], "kills":x[1][2], "deaths":x[1][3], "name":x[1][4], "titankills":x[1][5], "npckills":x[1][6],"timecounter":x[1][7]} for x in list(filter(lambda x: x[0] != "meta", list(data.items())))]
     else:
-        players = [{"uid": x[0], "score": x[1]["score"], "team": x[1]["team"], "kills": x[1]["kills"], "deaths": x[1]["deaths"], "name": x[1]["name"], "titankills": x[1]["titankills"], "npckills": x[1]["npckills"], "timecounter": x[1]["timecounter"]} for x in filter(lambda x: x[0] != "meta" and len(x[0]) > 15, data.items())]
+        players = [{"uid": str(x[0]), "score": x[1][1], "team": "UNKNOWN TEAM, UNUSED VAR", "kills": x[1][2], "deaths": x[1][3], "name": x[1][0], "titankills": x[1][4], "npckills": x[1][6], "timecounter": x[1][6]} for x in filter(lambda x: x[0] != "meta" and len(x[0]) > 15, data.items())]
         if data.get("meta",False):
             metadata = data["meta"].copy()
             metadata["matchid"] = int(data["meta"]["matchid"].split("<")[1].split("/>")[0])
