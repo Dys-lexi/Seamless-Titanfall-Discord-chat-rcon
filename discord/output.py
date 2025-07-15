@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw, ImageFont
 import traceback
 from discord.commands import Option
 from io import BytesIO
-
+import signal
 import inspect
 from flask import Flask, jsonify, request,send_from_directory,send_file
 from waitress import serve
@@ -1952,9 +1952,17 @@ if DISCORDBOTLOGSTATS == "1":
             ORDER BY id DESC
         """, (player["uid"],))
         aliases_raw = list(map(list,c.fetchall()))
+        c.execute("""
+            SELECT SUM(duration)
+            FROM playtime
+            WHERE playeruid = ?""",(player["uid"],))
+        totalplaytime = c.fetchone()
+        if totalplaytime and totalplaytime[0]:
+            totalplaytime = totalplaytime[0]
+        else: totalplaytime = False
         for i, alias in enumerate(aliases_raw):
             if not alias[1] or not alias[2]:
-                aliases_raw[i].append("unknown")
+                aliases_raw[i].append(-1)
                 continue
             c.execute("""
                 SELECT SUM(duration)
@@ -1965,10 +1973,10 @@ if DISCORDBOTLOGSTATS == "1":
             """, (player["uid"], alias[1], alias[1], alias[2]))
             timespent = c.fetchone()
             if not timespent or not timespent[0]:
-                aliases_raw[i].append("unknown")
+                aliases_raw[i].append(-1)
                 continue
             # print([timespent])
-            aliases_raw[i].append(modifyvalue(timespent[0],"time"))
+            aliases_raw[i].append(timespent[0])
 
 
         
@@ -1979,7 +1987,7 @@ if DISCORDBOTLOGSTATS == "1":
         for name, first, last,playtime in aliases_raw:
             first_str = f"<t:{first}:R>" if first else "unknown"
             last_str = f"<t:{last}:R>" if last else "unknown"
-            aliases.append(f"{name} *(first seen: {first_str}, last seen: {last_str}, time played: **{playtime}**)*")
+            aliases.append(f"{name} *(first seen: {first_str}, last seen: {last_str}, time played: **{modifyvalue(playtime,'time') if playtime != -1 else 'unknown'}**)*")
 
         tfdb.commit()
         tfdb.close()
@@ -1993,7 +2001,7 @@ if DISCORDBOTLOGSTATS == "1":
         embed = discord.Embed(
             title=f"Aliases for uid {player['uid']} ({len(alsomatching.keys()) + 1} match{'es' if len(alsomatching.keys()) > 0 else ''} for '{originalname}')",
             color=0xff70cb,
-            description="Most recent to oldest",
+            description=f"Most recent to oldest, total playtime **{modifyvalue(totalplaytime,'time') if totalplaytime else ''}**",
         )
 
         for y, x in enumerate(aliases[0:MAXALIASESSHOWN]):
@@ -6224,7 +6232,11 @@ threading.Thread(target=tf1relay).start()
 
 
 
+def shutdown_handler(sig, frame):
+    asyncio.get_event_loop().create_task(bot.close())
 
+signal.signal(signal.SIGINT, shutdown_handler)
+signal.signal(signal.SIGTERM, shutdown_handler)
 
 
 bot.run(TOKEN)

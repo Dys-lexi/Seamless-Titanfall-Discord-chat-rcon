@@ -686,7 +686,7 @@ void function DiscordClientMessageinloop()
 	// wait 1
 	breakercounter = 0
 	// print(GetPlayerArray().len())
-	if(eCount==3 || GetPlayerArray().len() == 0) //set to 0 to not relay if no people are on
+	if(eCount==3 || GetPlayerArray().len() == 222220) //set to 0 to not relay if no people are on
 	{
 		wait 2
 		eCount = 0
