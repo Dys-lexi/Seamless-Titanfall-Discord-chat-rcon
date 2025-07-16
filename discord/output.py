@@ -490,6 +490,7 @@ SHOULDUSETHROWAI = os.getenv("DISCORD_BOT_USE_THROWAI", "1")
 LOCALHOSTPATH = os.getenv("DISCORD_BOT_LOCALHOST_PATH","localhost")
 DISCORDBOTAIUSED = os.getenv("DISCORD_BOT_AI_USED","deepseek-r1")
 DISCORDBOTLOGSTATS = os.getenv("DISCORD_BOT_LOG_STATS","1")
+DISCORDBOTLOGSTATS = "1" # I worry about the amount of things that will break if this is off
 SERVERPASS = os.getenv("DISCORD_BOT_PASSWORD", "*")
 LEADERBOARDUPDATERATE = int(os.getenv("DISCORD_BOT_LEADERBOARD_UPDATERATE", "800"))
 DISCORDBOTLOGCOMMANDS = os.getenv("DISCORD_BOT_LOG_COMMANDS", "1")
@@ -2997,15 +2998,20 @@ def recieveflaskprintrequests():
         print("returning file",filename)
         return send_file(cloned, mimetype="image/png")
 
+
     @app.route("/stoprequests", methods=["POST"])
     def stoprequests():
         global stoprequestsforserver,messageflush
-        data = request.get_json()
+        data = getjson(request.get_json())
+        # print("STOP REQUESTS REQUESTED PANIC")
         if data["password"] != SERVERPASS and SERVERPASS != "*":
             print("invalid password used on stoprequests")
             return {"message": "invalid password"}
-        # serverid = data["serverid"]
+        data["serverid"] = str(data["serverid"])
+        initdiscordtotitanfall(data["serverid"])
         print("stopping requests for", data["serverid"])
+        # print("REALLY STOPPING REQUESTS")
+        stoprequestsforserver[data["serverid"]] = True
         try:
             messageflush.append({
                 "timestamp": int(time.time()),
@@ -3017,10 +3023,44 @@ def recieveflaskprintrequests():
                 "metadata": {"type":"stoprequestsnotif"},
                 "servername": context["serveridnamelinks"][data["serverid"]]
             })
-        except:pass
-        # print()
-        stoprequestsforserver[data["serverid"]] = True
+        except Exception as e:
+            print([data["serverid"]])
+            traceback.print_exc()
+
+        try:
+            if data.get("command",False):
+                tftodiscordcommand(data["command"],data.get("paramaters",False),str(data["serverid"]))
+        except:
+            pass
+        # print("here")
         return {"message": "ok"}
+    
+    # @app.route("/stoprequests", methods=["POST"])
+    # def stoprequests():
+    #     global stoprequestsforserver,messageflush
+    #     data = request.get_json()
+    #     if data["password"] != SERVERPASS and SERVERPASS != "*":
+    #         print("invalid password used on stoprequests")
+    #         return {"message": "invalid password"}
+    #     # serverid = data["serverid"]
+    #     print([data["serverid"]])
+    #     print("stopping requests for", data["serverid"])
+    #     try:
+    #         messageflush.append({
+    #             "timestamp": int(time.time()),
+    #             "serverid": data["serverid"],
+    #             "type": 4,
+    #             "globalmessage": False,
+    #             "overridechannel": None,
+    #             "messagecontent": f"Stopping discord -> Titanfall communication for {context['serveridnamelinks'][data['serverid']]} till next map (to prevent server crash)",
+    #             "metadata": {"type":"stoprequestsnotif"},
+    #             "servername": context["serveridnamelinks"][data["serverid"]]
+    #         })
+    #     except:pass
+    #     # print()
+    #     stoprequestsforserver[data["serverid"]] = True
+    #     return {"message": "ok"}
+
 
     @app.route("/askformessage", methods=["POST"])
     def askformessage():
@@ -3090,6 +3130,7 @@ def recieveflaskprintrequests():
                 # print("sending messages and commands to titanfall", texts, sendingcommands)
                 # print({a: b for a, b in zip(texts, textvalidation)})
                 # print((texts), (textvalidation))
+                # print("REALLY STOPPING")
                 return {
                     "texts": {a: b for a, b in zip(textvalidation,texts)},
                     "textsv2":textsv2,
@@ -3100,7 +3141,10 @@ def recieveflaskprintrequests():
                 }
             time.sleep(0.2)
         stoprequestsforserver[serverid] = False
+        # print("STOPPING")
         return {"texts": {}, "commands": {}, "time": "0","textsv2":{}}
+
+
     @app.route("/runcommand",methods=["POST"])
     def runcommandforserver():
         data = getjson(request.get_json())
@@ -3109,6 +3153,8 @@ def recieveflaskprintrequests():
             return {"message":"wrong pass"}
         tftodiscordcommand(data["command"],data["paramaters"],str(data["serverid"]))
         return {"message":"ran command"}
+
+
     @app.route("/autobalancedata", methods=["POST", "GET"])
     def pullautobalancestats():
         if request.method == "POST":
@@ -3441,6 +3487,8 @@ def recieveflaskprintrequests():
             })
         if KILLSTREAKNOTIFYTHRESHOLD and data.get("attacker_type",False) not in ["npc_soldier","npc_stalker","npc_spectre","npc_super_spectre"]  and ((data.get("victim_type",False) == "player") or (data.get("victim_type",False) == "npc_titan"))  and data.get("match_id",False) and getpriority(data,"attacker_name","attacker_type"):
             # print("CORE KILLSTREAKS COUNTED")
+            if len(consecutivekills.keys()) > 50:
+                del(consecutivekills[list(consecutivekills.keys())[0]])
             consecutivekills.setdefault(data["match_id"],{})
             consecutivekills[data["match_id"]].setdefault(getpriority(data,"attacker_name","attacker_type"),{})
             consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")].setdefault(data.get("attacker_id",1),0)
@@ -4007,14 +4055,19 @@ def tf1readsend(serverid,checkstatus):
                 
             
     
+    except ConnectionRefusedError as e:
+        outputstring = ""
+        status = ""
+        discordtotitanfall[serverid]["serveronline"] = False
+        pass
     except Exception as e:
-        # print("CORE BROKEY SOB",e)
+        print(serverid,"CORE BROKEY SOB",e)
 
         outputstring = ""
         status = ""
         discordtotitanfall[serverid]["serveronline"] = False
         # return False
-        # traceback.print_exc()
+        traceback.print_exc()
     else:
         if not offlinethisloop:
             discordtotitanfall[serverid]["lastheardfrom"] = int(time.time())
@@ -4478,9 +4531,102 @@ def tftodiscordcommand(specificommand,command,serverid):
     elif context["commands"]["ingamecommands"][specificommand]["run"] == "async":
         asyncio.run_coroutine_threadsafe(globals()[context["commands"]["ingamecommands"][specificommand]["function"]](command,serverid,servercommand),bot.loop)
     elif context["commands"]["ingamecommands"][specificommand]["run"] == "seq":
-        globals()[context["commands"]["ingamecommands"][specificommand]["function"]](command,serverid,servercommand)
+        returnvalue = globals()[context["commands"]["ingamecommands"][specificommand]["function"]](command,serverid,servercommand)
+        return returnvalue
+def displayendofroundstats(message,serverid,isfromserver):
+    istf1 = context["istf1server"].get(serverid,False) != False
+            #     messageflush.append({
+            #     "timestamp": int(time.time()),
+            #     "serverid": data["server_id"],
+            #     "type": 3,
+            #     "globalmessage": False,
+            #     "overridechannel": None,
+            #     "messagecontent": f"{data.get('attacker_name', data['attacker_type'])} killed {data.get('victim_name', data['victim_type'])} with {WEAPON_NAMES.get(data['cause_of_death'], data['cause_of_death'])}",
+            #     "metadata": {"type":"killfeed"},
+            #     "servername": context["serveridnamelinks"][data["server_id"]]
+            # })
+    # we'll want the matchid - I'll just send it as a weird custom param
+    matchid = getpriority(message,"matchid")
+    if not matchid:
+        matchid = getpriority(message,"originalmessage").split(" ")[1]
+    # pull stats
+    # playercontext[serverid][player["uid"]][player["name"]][matchid].append({ 
+    # playercontext[serverid][player["uid"]][player["name"]][matchid] = [{
+    # playercontext is not really a good varible for this, if somone crashed it won't accumulate, right? na it does, past me is AWESOME
+    # pull killstreaks
+    # consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)
+    # what I would want to display is likely:
+    # TOP KD (second top, too)
+    # TOP KILLS PER MINUTE (second top, too)
+    # MOST DEATHS
+    # BEST GUN //nutone could cache it tho (second top, too)
+    # NPC KILLS AGAINST PLAYERS //nutone could cache it tho
+    # TOP KILLSTREAK (second top, too)
+    # TOTAL KILLS
+    # TOTAL DEATHS
+    matchdata = {}
+    if mathcid in consecutivekills:
+        matchdata["ks"] = {x[0]:x[-1] for x in sorted(flattendict(consecutivekills[matchid]),key = lambda x: x[-1],reverse=True)}
+    if not istf1:
+        try:
+            tfdb = sqlite3.connect("./data/tf2helper.db")
+            c = tfdb.cursor()
+
+            c.execute(
+                """
+                SELECT cause_of_death, COUNT(*) as kill_count
+                FROM specifickilltracker
+                WHERE match_id = ?
+                GROUP BY cause_of_death
+                ORDER BY kill_count DESC
+                LIMIT 3
+                """,
+                (match_id,)
+            )
+
+            top_weapons = c.fetchall()
+            matchdata["topguns"] = {x[0]:x[1] for x in top_weapons}
+        except sqlite3.OperationalError:
+            pass
+        c.close()
+        tfdb.close()
+    c.close()
+    tfdb.close()
+    return top_weapons
+    for playerdata in playercontext[serverid].values():
+        for playername, matchdata in playerdata.items():
+            matchdata = functools.filter(lambda x: x[0] == matchid,matchdata.items())
+            if not matchdata:continue
+            matchdata = matchdata[0]
+            kills = functools.reduce(lambda a,b: a+b["kills"],matchdata[1],0)
+            deaths = functools.reduce(lambda a,b: a+b["deaths"],matchdata[1],0)
+            timeplayed = functools.reduce(lambda a,b: a+b["endtime"]-b["joined"],matchdata[1],0)
+            matchdata.setdefault("kpm",{})
+            matchdata.setdefault("kills",{})
+            matchdata.setdefault("deaths",{})
+            matchdata.setdefault("kd",{})
+            matchdata["kills"][playername] = kills
+            matchdata["deaths"][playername] = deaths
+            matchdata["kpm"][playername] = f"{(kills / (timeplayed / 60) if timeplayed else 0):.2f}"
+            matchdata["kd"][playername] = f"{(kills / deaths if deaths else kills):.2f}"
+
+    discordtotitanfall[serverid]["messages"].append(
+    {
+        "id": str(i)+str(int(time.time()*100)),
+        "content":str(matchdata),
+        "teamoverride": 4,
+        "isteammessage": False
+        # "uidoverride": [resolveplayeruidfromdb(getpriority(message,"originalname","name"),None,True)[0]["uid"]] if not len(message.get("originalmessage","w").split(" ")) > 1 else []
+        # "dotreacted": dotreacted
+    }
+    )
+
+        
+
+
 
     
+
 def togglestats(message,togglething,serverid):
     internaltoggle = context["commands"]["ingamecommands"][togglething].get("internaltoggle",togglething)
     istf1 = context["istf1server"].get(serverid,False) != False
@@ -4540,7 +4686,7 @@ def ingamehelp(message,serverid,isfromserver):
         discordtotitanfall[serverid]["messages"].append(
                     {
                         "id": str(int(time.time()*100)),
-                        "content":f"{PREFIXES['discord']}\x1b[38;5;201mHelp menu for the discord bot",
+                        "content":f"{PREFIXES['discord']}\x1b[38;5;219mHelp menu for the discord bot",
                         "teamoverride": 4,
                         "isteammessage": False,
                         "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -4554,7 +4700,7 @@ def ingamehelp(message,serverid,isfromserver):
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": str(i) + str(int(time.time()*100)),
-                    "content":f"{PREFIXES['discord']}{'ADMINCMD ' if command['rcon'] else ''}{backslash+'[38;5;201m' if not istf1 else backslash+'[38;5;201m'}{name}{backslash+'[110m' if not istf1 else backslash+'[110m'}: {command['description']}",
+                    "content":f"{PREFIXES['discord']}{'ADMINCMD ' if command['rcon'] else ''}{backslash+'[38;5;219m' if not istf1 else backslash+'[38;5;219m'}{name}{backslash+'[110m' if not istf1 else backslash+'[110m'}: {command['description']}",
                     "teamoverride": 4,
                     "isteammessage": False,
                     "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -5634,6 +5780,7 @@ def playerpolllog(data,serverid,statuscode):
             # print("here2")
             if not  playercontext[serverid][player["uid"]][player["name"]][matchid][-1].get("loadedfromsave",False):
                 onplayerjoin(player["uid"],serverid,player["name"])
+            # ohgodIamreadyingthisWHATONEARTH how does it know to save? oh because it keeps accumulating iirc.. but timecounter???
             # print("beep boop",playercontext[serverid][player["uid"]][player["name"]][matchid][-1].get("loadedfromsave",False),playercontext[serverid][player["uid"]][player["name"]][matchid][-1]["playerhasleft"], playercontext[serverid][player["uid"]][player["name"]][matchid][-1]["timecounter"] != player["timecounter"])
             playercontext[serverid][player["uid"]][player["name"]][matchid].append({ #ON JOINING AFTER LEAVING
                 "joined": player["timecounter"],
@@ -5753,6 +5900,19 @@ def playerpolllog(data,serverid,statuscode):
     #     playercontext[pinfo["uid"]+pinfo["name"]]["titankills"] = pinfo["titankills"]
     #     playercontext[pinfo["uid"]+pinfo["name"]]["npckills"] = pinfo["npckills"]
     #     playercontext[pinfo["uid"]+pinfo["name"]]["score"] = pinfo["score"]
+
+def flattendict(current, path=[], result=[None]):
+    if isinstance(current, dict):
+        for k, v in current.items():
+            flattendict(v, path + [k], result)
+    elif isinstance(current, list):
+        for i, item in enumerate(current):
+            flattendict(item, path + [i], result)
+    else:
+        result.append(path + [current])
+
+    return result
+
 
 
 def getpriority(ditionary,*priority):

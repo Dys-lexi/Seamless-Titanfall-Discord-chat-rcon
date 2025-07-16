@@ -564,6 +564,11 @@ void function stoprequests(){
 		}
 	}
 	SetConVarString("discordlogpreviousroundplayers",uids)
+	table otherparams = {}
+
+	otherparams["matchid"] <- serverdetails.matchid
+	params["paramaters"] <- EncodeJSON(otherparams)
+	params["command"] <- "displayendofroundstats"
 	params["password"] <- serverdetails.password
 	params["serverid"] <- serverdetails.serverid
 	HttpRequest request
