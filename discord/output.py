@@ -715,7 +715,7 @@ async def pullmessagelogs(ctx, filterword: str = ""):
     c.execute("""
         SELECT message, type, serverid
         FROM messagelogger
-        WHERE message LIKE ?
+        WHERE message LIKE ? COLLATE NOCASE
         AND type NOT IN ('command', 'tf1command', 'botcommand')
     """, ('%' + filterword + '%',))
     matches = [
@@ -2001,7 +2001,7 @@ if DISCORDBOTLOGSTATS == "1":
         embed = discord.Embed(
             title=f"Aliases for uid {player['uid']} ({len(alsomatching.keys()) + 1} match{'es' if len(alsomatching.keys()) > 0 else ''} for '{originalname}')",
             color=0xff70cb,
-            description=f"Most recent to oldest, total playtime **{modifyvalue(totalplaytime,'time') if totalplaytime else ''}**",
+            description=f"Most recent to oldest, total playtime **{modifyvalue(totalplaytime,'time') if totalplaytime else 'unknown'}**",
         )
 
         for y, x in enumerate(aliases[0:MAXALIASESSHOWN]):
