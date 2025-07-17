@@ -3570,7 +3570,7 @@ def recieveflaskprintrequests():
         if len(lexitoneapicache.keys()) > 30: #probably a safe amount
             del(lexitoneapicache[list(lexitoneapicache.keys())[0]])
         if data.get("match_id",False):
-            lexitoneapicache.setdefault("match_id",[]).append({
+            lexitoneapicache.setdefault(data.get("match_id", None),[]).append({
                 "victimtype":data.get("victim_type", None),
                 "attackertype":data.get("attacker_type", None),
                 "weapon":data.get("cause_of_death", None),
@@ -3582,7 +3582,7 @@ def recieveflaskprintrequests():
 
 
             })
-        lexitoneapicache.setdefault()
+
         specifickillbase = sqlite3.connect("./data/tf2helper.db")
         c = specifickillbase.cursor()
         c.execute(
@@ -4580,6 +4580,7 @@ def tftodiscordcommand(specificommand,command,serverid):
 
 def displayendofroundstats(message,serverid,isfromserver):
     # print("HEREEE")
+    global consecutivekills,lexitoneapicache
     istf1 = context["istf1server"].get(serverid,False) != False
             #     messageflush.append({
             #     "timestamp": int(time.time()),
@@ -4612,6 +4613,16 @@ def displayendofroundstats(message,serverid,isfromserver):
     matchid = message.get("matchid",False)
     if not matchid:
         matchid = getpriority(message,"originalmessage").split(" ")[1]
+
+    discordtotitanfall[serverid]["messages"].append(
+    {
+    "id": str(int(time.time()*100)),
+    "content":"begin",
+    "teamoverride": 4,
+    "isteammessage": False,
+    "uidoverride": ["1012640166434"]
+    }
+    )
     # pull stats
     # playercontext[serverid][player["uid"]][player["name"]][matchid].append({ 
     # playercontext[serverid][player["uid"]][player["name"]][matchid] = [{
@@ -4657,20 +4668,55 @@ def displayendofroundstats(message,serverid,isfromserver):
         #     pass
         # c.close()
         # tfdb.close()
-    maxshow = 2
+    #str(x[0]+1)+') '
+    lexitoneapicache =  {
+    "1752781743_23": [
+        {
+            "victimtype": "player",
+            "attackertype": "player",
+            "weapon": "titan_execution",
+            "victimtitan": "ion",
+            "attackertitan": "ion",
+            "victimname": "LexiGlasss",
+            "attackername": "LexiGlasss"
+        },
+                {
+            "victimtype": "player",
+            "attackertype": "player",
+            "weapon": "titan_execution",
+            "victimtitan": "ion",
+            "attackertitan": "ronin",
+            "victimname": "LexiGlasss",
+            "attackername": "LexiGlasss"
+        },
+                {
+            "victimtype": "player",
+            "attackertype": "player",
+            "weapon": "titan_execution",
+            "victimtitan": "ion",
+            "attackertitan": "ronin",
+            "victimname": "LexiGlasss",
+            "attackername": "LexiGlasss"
+        }
+    ]
+}
+    maxshow = 1
+    moremaxshow = 3
     if matchid in consecutivekills:
-        print(consecutivekills[matchid])
-        matchdata["ks"] = {x[0]:x[-1] for x in sorted(flattendict(consecutivekills[matchid]),key = lambda x: x[-1],reverse=True)}
-        output["ks"] = f"{colour}Highest killstreak{PREFIXES['chatcolour']}: {' '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+x[1][1]+PREFIXES['chatcolour']+'',enumerate(matchdata['ks'].items()[:maxshow]))))}"
+        # print(consecutivekills[matchid])
+        # print("bleh",json.dumps(flattendict(consecutivekills[matchid]),indent=4))
+        output["ks"] = f"{colour}Highest killstreak{PREFIXES['chatcolour']}: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(({x[0]:x[-1] for x in sorted(flattendict(consecutivekills[matchid]),key = lambda x: x[-1],reverse=True)}).items())[:moremaxshow]))))}"
+    # print("API",json.dumps(lexitoneapicache,indent=4))
     if matchid in lexitoneapicache:
         # for kill in lexitoneapicache[matchid]:
         #I am working under the assumption that I KNOW what titan both are
-        matchdata["topguns"] = dict(sorted(functools.reduce(lambda a,b: {**a,b["weapon"]:a.get(b["weapon"],0)+1} if b["attackertype"] in ["npc_titan","player"] and b["victimtype"] in ["npc_titan","player"] else a,lexitoneapicache[matchid],{}).items(),key = lambda x: x[1],reverse = True))
         matchdata["npckillsagainstplayers"] = dict(sorted(functools.reduce(lambda a,b: {**a,b["victimname"]:a.get(b["victimname"],0)+1}if b["victimtype"] in ["npc_titan","player"] and b["attackertype"] in ["npc_soldier","npc_spectre","npc_super_spectre","npc_stalker","worldspawn","trigger_hurt","prop_dynamic"] else a,lexitoneapicache[matchid],{} ).items(),key = lambda x: x[1],reverse = True))
         matchdata["tnpckillsagainstplayers"] = functools.reduce(lambda a,b: a+b,matchdata["npckillsagainstplayers"].values(),0)
-        matchdata["titankds"] = dict(sorted(functools.reduce(lambda a,b: {**a,b["attackertitan"]:{"kills":a.get("attackertitan",{}).get("kills",0)+1, "deaths":a.get("attackertitan",{}).get("deaths",0)},b["victimtitan"]:{"kills":a.get("victimtitan",{}).get("kills",0), "deaths":a.get("victimtitan",{}).get("deaths",0)+1}} if (b["attackertitan"] != "null" and b["attackertitan"] != None) and (b["victimtitan"] != "null" and b["victimtitan"] != None) else a, lexitoneapicache[matchid],{})).items(),key = lambda x: x[1][0]/max(x[1][1],1),reverse=True)
-        output["tkd"] = f"{colour}Titan kds{PREFIXES['chatcolour']}: {' ',join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+int((x[1][0]['kills']/max(x[1][0]['deaths'],1))*100)/100+': '+PREFIXES['stat']+x[1][1]+PREFIXES['chatcolour']+'', enumerate(matchdata['titankds'][:maxshow].items()))))}" + f"{PREFIXES['stat2']}{len(matchdata)}) {list(matchdata['titankds'].keys())[-1]}: {int((list(matchdata['titankds'].values())[-1]['kills']/list(matchdata['titankds'].values())[-1]['deaths'])*100)/100}" if len(matchdata["titankds"].keys()) > maxshow else ""
-        output["tg"] = f"{colour}Top guns{PREFIXES['chatcolour']}: {' '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+x[1][1]+PREFIXES['chatcolour']+' kills',enumerate(matchdata['topguns'].items()[:maxshow]))))}"
+        matchdata["titankds"] = dict(sorted(list(functools.reduce(lambda a,b: ({**a,b["attackertitan"]:{"kills":a.get(b["attackertitan"],{}).get("kills",0)+1, "deaths":a.get(b["attackertitan"],{}).get("deaths",0)},b["victimtitan"]:{"kills":a.get(b["victimtitan"],{}).get("kills",0), "deaths":a.get(b["victimtitan"],{}).get("deaths",0)+1}} if  b["attackertitan"] != b["victimtitan"] else {**a,b["attackertitan"]:{"kills":a.get(b["attackertitan"],{}).get("kills",0)+1, "deaths":a.get(b["attackertitan"],{}).get("deaths",0)+1}} )if (b["attackertitan"] != "null" and b["attackertitan"] != None and b["victimtitan"] != "null" and b["victimtitan"] != None) else a, lexitoneapicache[matchid],{}).items()),key = lambda x: x[1]["kills"]/max(x[1]["deaths"],1),reverse=True))
+        # print("titankds",matchdata["titankds"])
+        # print(functools.reduce(lambda a,b: ({**a,b["attackertitan"]:{"kills":a.get(b["attackertitan"],{}).get("kills",0)+1, "deaths":a.get(b["attackertitan"],{}).get("deaths",0)},b["victimtitan"]:{"kills":a.get(b["victimtitan"],{}).get("kills",0), "deaths":a.get(b["victimtitan"],{}).get("deaths",0)+1}} if  b["attackertitan"] != b["victimtitan"] else {**a,b["attackertitan"]:{"kills":a.get(b["attackertitan"],{}).get("kills",0)+1, "deaths":a.get(b["attackertitan"],{}).get("deaths",0)+1}} )if (b["attackertitan"] != "null" and b["attackertitan"] != None and b["victimtitan"] != "null" and b["victimtitan"] != None) else a, lexitoneapicache[matchid],{}))
+        output["tkd"] = f"{colour}Titan kds{PREFIXES['chatcolour']}: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(int((x[1][1]['kills']/max(x[1][1]['deaths'],1))*100)/100)+PREFIXES['chatcolour']+'', enumerate(list(matchdata['titankds'].items())[:moremaxshow]))))} " + (f"{PREFIXES['stat2']}Lowest) {list(matchdata['titankds'].keys())[-1]}: {int((list(matchdata['titankds'].values())[-1]['kills']/list(matchdata['titankds'].values())[-1]['deaths'])*100)/100}" if len(matchdata["titankds"].keys()) > moremaxshow else "")
+        output["tg"] = f"{colour}Top guns{PREFIXES['chatcolour']}: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+' kills',enumerate(list((dict(sorted(functools.reduce(lambda a,b: {**a,b['weapon']:a.get(b['weapon'],0)+1} if b['attackertype'] in ['npc_titan','player'] and b['victimtype'] in ['npc_titan','player'] else a,lexitoneapicache[matchid],{}).items(),key = lambda x: x[1],reverse = True))).items())[:3]))))}"
     if serverid in playercontext:
         for playerdata in playercontext[serverid].values():
             for playername, datafrommatch in playerdata.items():
@@ -4696,13 +4742,13 @@ def displayendofroundstats(message,serverid,isfromserver):
         matchdata["kpm"] = dict(sorted(matchdata["kpm"].items() ,key = lambda x: x[1],reverse=True))
         matchdata["deaths"] = dict(sorted(matchdata["deaths"].items() ,key = lambda x: x[1],reverse=True))
         
-        output["general"] = f"{colour}General {PREFIXES['chatcolour']}Total kills: {PREFIXES['stat']}{matchdata['tkills']}{PREFIXES['chatcolour']} Total Deaths: {PREFIXES['stat']}{matchdata['tdeaths']} "
-        output["top"] =  f"{PREFIXES['chatcolour']}Highest kd: {' '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+x[1][1]+PREFIXES['chatcolour']+'',enumerate(matchdata['kd'].items()[:maxshow]))))} {PREFIXES['chatcolour']}Highest kpm: {' '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+x[1][1]+PREFIXES['chatcolour']+'',enumerate(matchdata['kpm'].items()[:maxshow]))))} {PREFIXES['chatcolour']}Highest deaths: {' '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+x[1][1]+PREFIXES['chatcolour']+'',enumerate(matchdata['deaths'].items()[:maxshow]))))} "
+        output["general"] = f"{colour}General {PREFIXES['chatcolour']}Total kills: {PREFIXES['stat']}{matchdata['tkills']}{PREFIXES['chatcolour']} | Total Deaths: {PREFIXES['stat']}{matchdata['tdeaths']} "
+        output["top"] =  f"{colour}Top players {PREFIXES['chatcolour']}K/D: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kd'].items())[:maxshow]))))} {PREFIXES['chatcolour']}| K/min: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kpm'].items())[:maxshow]))))} {PREFIXES['chatcolour']}| Deaths: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['deaths'].items())[:maxshow]))))} "
     if matchid in lexitoneapicache:
-        output.setdefault("general","")
-        output["general"] = output["general"] + f"NPC kills {matchdata['tnpckillsagainstplayers']}"
-        output.setdefault("top","")
-        output["top"] = output["top"] +f"Npc Deaths: {' '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+x[1][1]+PREFIXES['chatcolour']+'',enumerate(matchdata['npckillsagainstplayers'].items()[:maxshow]))))}"
+        if "general" in output:
+            output["general"] = output["general"] + f"| {PREFIXES['chatcolour']}NPC kills {matchdata['tnpckillsagainstplayers']}"
+        if matchdata["npckillsagainstplayers"] and "top" in output:
+            output["top"] = output["top"] +f"| Npc Deaths: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+x[1][1]+PREFIXES['chatcolour']+'',enumerate(list(matchdata['npckillsagainstplayers'].items())[:maxshow]))))}"
     translater = ["general","ks","tg","top","tkd"]
     for i,key in enumerate(translater):
         if key not in output:
@@ -4716,8 +4762,18 @@ def displayendofroundstats(message,serverid,isfromserver):
             "uidoverride": ["1012640166434"]
         }
         )
-    return top_weapons
-
+    # return top_weapons
+    # print("MATCHDATA",json.dumps(matchdata,indent=4))
+    print(json.dumps(output,indent=4))
+    discordtotitanfall[serverid]["messages"].append(
+    {
+    "id": str(int(time.time()*100)),
+    "content":"end",
+    "teamoverride": 4,
+    "isteammessage": False,
+    "uidoverride": ["1012640166434"]
+    }
+    )
         
 
 def togglestats(message,togglething,serverid):
@@ -4793,7 +4849,7 @@ def ingamehelp(message,serverid,isfromserver):
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": str(i) + str(int(time.time()*100)),
-                    "content":f"{PREFIXES['discord']}{'ADMINCMD ' if command['rcon'] else ''}{PREFIXES['commandname']} if not istf1 else {PREFIXES['commandname']}{name}{PREFIXES['chatcolour']} if not istf1 else {PREFIXES['chatcolour']}: {command['description']}",
+                    "content":f"{PREFIXES['discord']}{'ADMINCMD ' if command['rcon'] else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{name}{PREFIXES['chatcolour'] if not istf1 else PREFIXES['chatcolour']}: {command['description']}",
                     "teamoverride": 4,
                     "isteammessage": False,
                     "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -5994,13 +6050,10 @@ def playerpolllog(data,serverid,statuscode):
     #     playercontext[pinfo["uid"]+pinfo["name"]]["npckills"] = pinfo["npckills"]
     #     playercontext[pinfo["uid"]+pinfo["name"]]["score"] = pinfo["score"]
 
-def flattendict(current, path=[], result=[None]):
+def flattendict(current, path=[], result=[]):
     if isinstance(current, dict):
         for k, v in current.items():
             flattendict(v, path + [k], result)
-    elif isinstance(current, list):
-        for i, item in enumerate(current):
-            flattendict(item, path + [i], result)
     else:
         result.append(path + [current])
 

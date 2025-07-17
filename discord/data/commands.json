@@ -1,17 +1,15 @@
 {
     "ingamecommands": {
-
-            "endofroundstats": {
-                "games": [
-                    "tf2"
-                ],
-                "function": "displayendofroundstats",
-                "run": "seq",
-                "description": "display end of round stats",
-                "shouldblock": false,
-                "rcon": true
-            },
-        
+        "endofroundstats": {
+            "games": [
+                "tf2"
+            ],
+            "function": "displayendofroundstats",
+            "run": "seq",
+            "description": "display end of round stats",
+            "shouldblock": false,
+            "rcon": true
+        },
         "stats": {
             "games": [
                 "tf1",

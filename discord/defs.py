@@ -266,10 +266,10 @@ PREFIXES = {"lexicmdprivate":"\x1b[38;5;213m[Lexicmd]\x1b[38;5;254m "
         "chatcolour":"\x1b[110m",
         "stat":"\x1b[38;5;189m",
         "stat2":"\x1b[38;5;244m",
-        "gold":"\x1b[38;5;226m",
+        "gold":"\x1b[38;5;220m",
         "silver":"\x1b[38;5;251m",
         "bronze":"\x1b[38;5;208m",
-        "0":"\x1b[38;5;226m",
+        "0":"\x1b[38;5;220m",
         "1":"\x1b[38;5;251m",
         "2":"\x1b[38;5;208m",
         "commandname":"\x1b[38;5;219m"
