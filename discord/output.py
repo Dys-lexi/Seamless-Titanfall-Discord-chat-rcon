@@ -29,6 +29,7 @@ import sys
 import logging
 # import tracemalloc
 # tracemalloc.start()
+
 def create_all_indexes():
     conn = sqlite3.connect("./data/tf2helper.db")
     c = conn.cursor()
@@ -44,12 +45,19 @@ def create_all_indexes():
     # --- playtime ---
     c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_playeruid ON playtime(playeruid);")
     c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_matchid ON playtime(matchid);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_map ON playtime(map);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_serverid ON playtime(serverid);")
     c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_joinatunix ON playtime(joinatunix);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_map ON playtime(map);")
 
     # --- uidnamelink ---
     c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelink_playeruid ON uidnamelink(playeruid);")
     c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelink_playername ON uidnamelink(playername);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelink_lastseenunix ON uidnamelink(lastseenunix);")
+
+    # --- uidnamelinktf1 ---
+    c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelinktf1_playeruid ON uidnamelinktf1(playeruid);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelinktf1_playername ON uidnamelinktf1(playername);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelinktf1_lastseenunix ON uidnamelinktf1(lastseenunix);")
 
     # --- discordlinkdata ---
     c.execute("CREATE INDEX IF NOT EXISTS idx_discordlinkdata_discordid ON discordlinkdata(discordid);")
@@ -59,12 +67,18 @@ def create_all_indexes():
 
     # --- joinnotify ---
     c.execute("CREATE INDEX IF NOT EXISTS idx_joinnotify_uidnotify ON joinnotify(uidnotify);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_joinnotify_discordidnotify ON joinnotify(discordidnotify);")
 
     # --- joincounter ---
     c.execute("CREATE INDEX IF NOT EXISTS idx_joincounter_playeruid_serverid ON joincounter(playeruid, serverid);")
 
     # --- matchid ---
     c.execute("CREATE INDEX IF NOT EXISTS idx_matchid_serverid ON matchid(serverid);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_matchid_map_time ON matchid(map, time);")
+
+    # --- matchtf1 ---
+    c.execute("CREATE INDEX IF NOT EXISTS idx_matchtf1_serverid ON matchtf1(serverid);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_matchtf1_map_time ON matchtf1(map, time);")
 
     # --- banstf1 ---
     c.execute("CREATE INDEX IF NOT EXISTS idx_banstf1_playerip ON banstf1(playerip);")
@@ -74,6 +88,15 @@ def create_all_indexes():
     # --- messagelogger ---
     c.execute("CREATE INDEX IF NOT EXISTS idx_messagelogger_serverid ON messagelogger(serverid);")
     c.execute("CREATE INDEX IF NOT EXISTS idx_messagelogger_type ON messagelogger(type);")
+
+    # --- playtimetf1 ---
+    c.execute("CREATE INDEX IF NOT EXISTS idx_playtimetf1_playeruid ON playtimetf1(playeruid);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_playtimetf1_matchid ON playtimetf1(matchid);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_playtimetf1_serverid ON playtimetf1(serverid);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_playtimetf1_joinatunix ON playtimetf1(joinatunix);")
+
+    # --- playeruidpreferences ---
+    c.execute("CREATE INDEX IF NOT EXISTS idx_playeruidpreferences_uid_istf1 ON playeruidpreferences(uid, istf1);")
 
     conn.commit()
     conn.close()
@@ -543,6 +566,7 @@ discordtotitanfall = {}
 colourslink = {}
 titanfall1currentlyplaying = {}
 consecutivekills = {}
+lexitoneapicache = {}
 # Load channel ID from file
 context = {
         "wordfilter":{
@@ -3418,20 +3442,20 @@ def recieveflaskprintrequests():
     #         if is_ratio:
     #             sign = "+" if recent >= 0 else ""
     #             color_code = 46 if recent >= 0 else 196
-    #             return f"\x1b[38;5;189m{fmt(total)}\x1b[110m (\x1b[38;5;{color_code}m{sign}{fmt(recent)}\x1b[0m)"
+    #             return f"{PREFIXES['stat']}{fmt(total)}{PREFIXES['chatcolour']} (\x1b[38;5;{color_code}m{sign}{fmt(recent)}\x1b[0m)"
     #         if is_time:
     #             color_code = 46 if is_positive else 196
     #             if recent > 0:
-    #                 return f"\x1b[38;5;189m{format_time(total)}\x1b[110m \x1b[38;5;{color_code}m+{format_time(recent)}\x1b[0m"
-    #             return f"\x1b[38;5;189m{format_time(total)}\x1b[110m"
+    #                 return f"{PREFIXES['stat']}{format_time(total)}{PREFIXES['chatcolour']} \x1b[38;5;{color_code}m+{format_time(recent)}\x1b[0m"
+    #             return f"{PREFIXES['stat']}{format_time(total)}{PREFIXES['chatcolour']}"
     #         color_code = 46 if is_positive else 196
     #         if recent > 0:
-    #             return f"\x1b[38;5;189m{fmt(total)}\x1b[110m \x1b[38;5;{color_code}m+{fmt(recent)}\x1b[0m"
-    #         return f"\x1b[38;5;189m{fmt(total)}\x1b[110m"
+    #             return f"{PREFIXES['stat']}{fmt(total)}{PREFIXES['chatcolour']} \x1b[38;5;{color_code}m+{fmt(recent)}\x1b[0m"
+    #         return f"{PREFIXES['stat']}{fmt(total)}{PREFIXES['chatcolour']}"
 
     #     # Main stats message
     #     messages["0"] = (
-    #         f"\x1b[38;5;{colour}m{name}\x1b[110m has "
+    #         f"\x1b[38;5;{colour}m{name}{PREFIXES['chatcolour']} has "
     #         f"{format_stat(total_kills, recent_kills)} kills and "
     #         f"{format_stat(total_deaths, recent_deaths, False)} deaths "
     #         f"(KD: {format_stat(kd, kd_difference, is_ratio=True)}, "
@@ -3446,7 +3470,7 @@ def recieveflaskprintrequests():
     #         weapon_name = WEAPON_NAMES.get(weapon[0], weapon[0])
     #         stat_str = format_stat(weapon[1], weapon[2])
     #         top3guns += (
-    #             f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{weapon_name}\x1b[110m kills: "
+    #             f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{weapon_name}{PREFIXES['chatcolour']} kills: "
     #             f"{stat_str}   "
     #         )
     #     if top3guns:
@@ -3458,7 +3482,7 @@ def recieveflaskprintrequests():
     #         stat_str = format_stat(recent_weapon_data[1], recent_weapon_data[2])
     #         messages["2"] = (
     #             f"\x1b[38;5;{colour}mMost recent weapon: "
-    #             f"\x1b[38;5;189m{weapon_name}\x1b[110m kills: {stat_str}"
+    #             f"{PREFIXES['stat']}{weapon_name}{PREFIXES['chatcolour']} kills: {stat_str}"
     #         )
 
     #     tfdb.close()
@@ -3468,7 +3492,7 @@ def recieveflaskprintrequests():
     @app.route("/data", methods=["POST"])
     def onkilldata():
         # takes input directly from (slightly modified) nutone (https://github.com/nutone-tf) code for this to work is not on the github repo, so probably don't try using it.
-        global context, messageflush, consecutivekills
+        global context, messageflush, consecutivekills,lexitoneapicache
         data = request.get_json()
         if data["password"] != SERVERPASS and SERVERPASS != "*":
             print("invalid password used on data")
@@ -3485,6 +3509,7 @@ def recieveflaskprintrequests():
                 "metadata": {"type":"killfeed"},
                 "servername": context["serveridnamelinks"][data["server_id"]]
             })
+        
         if KILLSTREAKNOTIFYTHRESHOLD and data.get("attacker_type",False) not in ["npc_soldier","npc_stalker","npc_spectre","npc_super_spectre"]  and ((data.get("victim_type",False) == "player") or (data.get("victim_type",False) == "npc_titan"))  and data.get("match_id",False) and getpriority(data,"attacker_name","attacker_type"):
             # print("CORE KILLSTREAKS COUNTED")
             if len(consecutivekills.keys()) > 50:
@@ -3497,6 +3522,19 @@ def recieveflaskprintrequests():
             if bool(data.get("attacker_titan",False) if data.get("attacker_titan",False) != "null" else False ) == bool(data.get("victim_titan",False)if data.get("victim_titan",False) != "null" else False) or bool(data.get("victim_titan",False)if data.get("victim_titan",False) != "null" else False) or (data.get("victim_type",False) == "npc_titan"):
                 # print("this crill counted")
                 consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] += 1
+                if consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] >= KILLSTREAKNOTIFYTHRESHOLD and not (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP :
+                    # print("adding")
+                    messageflush.append({
+                        "timestamp": int(time.time()),
+                        "serverid": data["server_id"],
+                        "type": 3,
+                        "globalmessage": False,
+                        "overridechannel": None,
+                        "messagecontent": (KILL_STREAK_MESSAGES["killstreakbegin"][(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)//KILLSTREAKNOTIFYSTEP ] if len(KILL_STREAK_MESSAGES["killstreakbegin"]) >  (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)//KILLSTREAKNOTIFYSTEP else  KILL_STREAK_MESSAGES["killstreakbegin"][-1]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)])),
+                        "metadata": {"type":"killfeed"},
+                        "servername": context["serveridnamelinks"][data["server_id"]]
+                    })
+
             # print("THIS HERE", getpriority(consecutivekills,[data["match_id"],data.get("victim_id",1),data.get("victim_name",False)]))
             if getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)]) and getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)])  >= KILLSTREAKNOTIFYTHRESHOLD and data.get("victim_type",False) == "player":
                 pass
@@ -3527,20 +3565,24 @@ def recieveflaskprintrequests():
             elif  data.get("victim_type",False) == "player" and getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)]) :
                 consecutivekills[data["match_id"]][data.get("victim_name",1)][data.get("victim_id",False)] = 0
             # print("dataaaaa",consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)],(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP,consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] > KILLSTREAKNOTIFYTHRESHOLD , not (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP )
-            if consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] >= KILLSTREAKNOTIFYTHRESHOLD and not (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP :
-                # print("adding")
-                messageflush.append({
-                    "timestamp": int(time.time()),
-                    "serverid": data["server_id"],
-                    "type": 3,
-                    "globalmessage": False,
-                    "overridechannel": None,
-                    "messagecontent": (KILL_STREAK_MESSAGES["killstreakbegin"][(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)//KILLSTREAKNOTIFYSTEP ] if len(KILL_STREAK_MESSAGES["killstreakbegin"]) >  (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)//KILLSTREAKNOTIFYSTEP else  KILL_STREAK_MESSAGES["killstreakbegin"][-1]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)])),
-                    "metadata": {"type":"killfeed"},
-                    "servername": context["serveridnamelinks"][data["server_id"]]
-                })
                 # kill streak notify!
             # print("I got here")
+        if len(lexitoneapicache.keys()) > 30: #probably a safe amount
+            del(lexitoneapicache[list(lexitoneapicache.keys())[0]])
+        if data.get("match_id",False):
+            lexitoneapicache.setdefault("match_id",[]).append({
+                "victimtype":data.get("victim_type", None),
+                "attackertype":data.get("attacker_type", None),
+                "weapon":data.get("cause_of_death", None),
+                "victimtitan":data.get("victim_titan", None),
+                "attackertitan":data.get("attacker_titan", None),
+                "victimname":data.get("victim_name", None) if  data.get("victim_name", None) else data.get("victim_type", None),
+                "attackername":data.get("attacker_name", None) if  data.get("attacker_name", None) else data.get("attacker_type", None),
+                # "victimweapon":data.get("victim_current_weapon", None),
+
+
+            })
+        lexitoneapicache.setdefault()
         specifickillbase = sqlite3.connect("./data/tf2helper.db")
         c = specifickillbase.cursor()
         c.execute(
@@ -4498,6 +4540,9 @@ def tftodiscordcommand(specificommand,command,serverid):
         commandargs = command["originalmessage"][1:].split(" ")[1:]
         if context["commands"]["ingamecommands"][specificommand]["rcon"] and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"])):
             return
+        if bool(getpriority(command,["meta","blockedcommand"])) !=  bool(context["commands"]["ingamecommands"][specificommand]["shouldblock"]):
+            # huh? this if statment confuses me.. oh actually no, it's telling the server off if it gets blocking wrong but why does it only run here? surely it should always run? put it here as that seems better
+            senddiscordcommands(0,serverid,0)
 
 
     elif specificommand:
@@ -4505,9 +4550,7 @@ def tftodiscordcommand(specificommand,command,serverid):
     else:
         return
     initdiscordtotitanfall(serverid)
-    if bool(getpriority(command,"meta","blockedcommand")) !=  context["commands"]["ingamecommands"][specificommand]["shouldblock"]:
-        # huh? this if statment confuses me.. oh actually no, it's telling the server off if it gets blocking wrong but why does it only run here? surely it should always run? put it here as that seems better
-        senddiscordcommands(0,serverid,0)
+
     if context["commands"]["ingamecommands"][specificommand]["run"] == "togglestat":
         togglestats(command,specificommand,serverid)
 
@@ -4533,7 +4576,10 @@ def tftodiscordcommand(specificommand,command,serverid):
     elif context["commands"]["ingamecommands"][specificommand]["run"] == "seq":
         returnvalue = globals()[context["commands"]["ingamecommands"][specificommand]["function"]](command,serverid,servercommand)
         return returnvalue
+
+
 def displayendofroundstats(message,serverid,isfromserver):
+    # print("HEREEE")
     istf1 = context["istf1server"].get(serverid,False) != False
             #     messageflush.append({
             #     "timestamp": int(time.time()),
@@ -4545,8 +4591,25 @@ def displayendofroundstats(message,serverid,isfromserver):
             #     "metadata": {"type":"killfeed"},
             #     "servername": context["serveridnamelinks"][data["server_id"]]
             # })
+    # discordtotitanfall[serverid]["messages"].append(
+    # {
+    #     "id": int(time.time()*100),
+    #     "content":str("eeee"),
+    #     "teamoverride": 4,
+    #     "isteammessage": False,
+    #     "uidoverride": []
+    #     # "dotreacted": dotreacted
+    # }
+    # )
     # we'll want the matchid - I'll just send it as a weird custom param
-    matchid = getpriority(message,"matchid")
+    while True:
+        colour = random.randint(0, 255)
+        # colour = random.choice([254,219,87])
+        # dissallowedcolours colours (unreadable)  (too dark)
+        if colour not in DISALLOWED_COLOURS:
+            break
+
+    matchid = message.get("matchid",False)
     if not matchid:
         matchid = getpriority(message,"originalmessage").split(" ")[1]
     # pull stats
@@ -4565,67 +4628,97 @@ def displayendofroundstats(message,serverid,isfromserver):
     # TOTAL KILLS
     # TOTAL DEATHS
     matchdata = {}
-    if mathcid in consecutivekills:
-        matchdata["ks"] = {x[0]:x[-1] for x in sorted(flattendict(consecutivekills[matchid]),key = lambda x: x[-1],reverse=True)}
+    colour = f"\x1b[38;5;{colour}m"
+
+    output = {"header":f"{colour}Match stats"}
     if not istf1:
-        try:
-            tfdb = sqlite3.connect("./data/tf2helper.db")
-            c = tfdb.cursor()
+        pass # quering this db takes a long time, and doing this is really time sensitive
+        # I do want this though..
+        # try:
+        #     tfdb = sqlite3.connect("./data/tf2helper.db")
+        #     c = tfdb.cursor()
 
-            c.execute(
-                """
-                SELECT cause_of_death, COUNT(*) as kill_count
-                FROM specifickilltracker
-                WHERE match_id = ?
-                GROUP BY cause_of_death
-                ORDER BY kill_count DESC
-                LIMIT 3
-                """,
-                (match_id,)
-            )
+        #     c.execute(
+        #         """
+        #         SELECT cause_of_death, COUNT(*) as kill_count
+        #         FROM specifickilltracker
+        #         WHERE match_id = ?
+        #         GROUP BY cause_of_death
+        #         ORDER BY kill_count DESC
+        #         LIMIT 3
+        #         """,
+        #         (matchid,)
+        #     )
 
-            top_weapons = c.fetchall()
-            matchdata["topguns"] = {x[0]:x[1] for x in top_weapons}
-        except sqlite3.OperationalError:
-            pass
-        c.close()
-        tfdb.close()
-    c.close()
-    tfdb.close()
+        #     top_weapons = c.fetchall()
+        #     matchdata["topguns"] = {x[0]:x[1] for x in top_weapons}
+        # except sqlite3.OperationalError:
+        #     print("sob")
+        #     pass
+        # c.close()
+        # tfdb.close()
+    maxshow = 2
+    if matchid in consecutivekills:
+        print(consecutivekills[matchid])
+        matchdata["ks"] = {x[0]:x[-1] for x in sorted(flattendict(consecutivekills[matchid]),key = lambda x: x[-1],reverse=True)}
+        output["ks"] = f"{colour}Highest killstreak{PREFIXES['chatcolour']}: {' '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+x[1][1]+PREFIXES['chatcolour']+'',enumerate(matchdata['ks'].items()[:maxshow]))))}"
+    if matchid in lexitoneapicache:
+        # for kill in lexitoneapicache[matchid]:
+        #I am working under the assumption that I KNOW what titan both are
+        matchdata["topguns"] = dict(sorted(functools.reduce(lambda a,b: {**a,b["weapon"]:a.get(b["weapon"],0)+1} if b["attackertype"] in ["npc_titan","player"] and b["victimtype"] in ["npc_titan","player"] else a,lexitoneapicache[matchid],{}).items(),key = lambda x: x[1],reverse = True))
+        matchdata["npckillsagainstplayers"] = dict(sorted(functools.reduce(lambda a,b: {**a,b["victimname"]:a.get(b["victimname"],0)+1}if b["victimtype"] in ["npc_titan","player"] and b["attackertype"] in ["npc_soldier","npc_spectre","npc_super_spectre","npc_stalker","worldspawn","trigger_hurt","prop_dynamic"] else a,lexitoneapicache[matchid],{} ).items(),key = lambda x: x[1],reverse = True))
+        matchdata["tnpckillsagainstplayers"] = functools.reduce(lambda a,b: a+b,matchdata["npckillsagainstplayers"].values(),0)
+        matchdata["titankds"] = dict(sorted(functools.reduce(lambda a,b: {**a,b["attackertitan"]:{"kills":a.get("attackertitan",{}).get("kills",0)+1, "deaths":a.get("attackertitan",{}).get("deaths",0)},b["victimtitan"]:{"kills":a.get("victimtitan",{}).get("kills",0), "deaths":a.get("victimtitan",{}).get("deaths",0)+1}} if (b["attackertitan"] != "null" and b["attackertitan"] != None) and (b["victimtitan"] != "null" and b["victimtitan"] != None) else a, lexitoneapicache[matchid],{})).items(),key = lambda x: x[1][0]/max(x[1][1],1),reverse=True)
+        output["tkd"] = f"{colour}Titan kds{PREFIXES['chatcolour']}: {' ',join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+int((x[1][0]['kills']/max(x[1][0]['deaths'],1))*100)/100+': '+PREFIXES['stat']+x[1][1]+PREFIXES['chatcolour']+'', enumerate(matchdata['titankds'][:maxshow].items()))))}" + f"{PREFIXES['stat2']}{len(matchdata)}) {list(matchdata['titankds'].keys())[-1]}: {int((list(matchdata['titankds'].values())[-1]['kills']/list(matchdata['titankds'].values())[-1]['deaths'])*100)/100}" if len(matchdata["titankds"].keys()) > maxshow else ""
+        output["tg"] = f"{colour}Top guns{PREFIXES['chatcolour']}: {' '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+x[1][1]+PREFIXES['chatcolour']+' kills',enumerate(matchdata['topguns'].items()[:maxshow]))))}"
+    if serverid in playercontext:
+        for playerdata in playercontext[serverid].values():
+            for playername, datafrommatch in playerdata.items():
+                datafrommatch = list(filter(lambda x: x[0] == matchid,datafrommatch.items()))
+                if not datafrommatch:continue
+                datafrommatch = datafrommatch[0]
+                kills = functools.reduce(lambda a,b: a+b["kills"],datafrommatch[1],0)
+                deaths = functools.reduce(lambda a,b: a+b["deaths"],datafrommatch[1],0)
+                timeplayed = functools.reduce(lambda a,b: a+b["endtime"]-b["joined"],datafrommatch[1],0)
+                matchdata.setdefault("kpm",{})
+                matchdata.setdefault("kills",{})
+                matchdata.setdefault("deaths",{})
+                matchdata.setdefault("kd",{})
+                matchdata.setdefault("tkills",0)
+                matchdata.setdefault("tdeaths",0)
+                # matchdata["kills"][playername] = kills // who cares!
+                matchdata["tkills"] += kills
+                matchdata["tdeaths"] += deaths
+                matchdata["deaths"][playername] = deaths
+                matchdata["kpm"][playername] = f"{(kills / (timeplayed / 60) if timeplayed else 0):.2f}"
+                matchdata["kd"][playername] = f"{(kills / deaths if deaths else kills):.2f}"
+        matchdata["kd"] = dict(sorted(matchdata["kd"].items() ,key = lambda x: x[1],reverse=True))
+        matchdata["kpm"] = dict(sorted(matchdata["kpm"].items() ,key = lambda x: x[1],reverse=True))
+        matchdata["deaths"] = dict(sorted(matchdata["deaths"].items() ,key = lambda x: x[1],reverse=True))
+        
+        output["general"] = f"{colour}General {PREFIXES['chatcolour']}Total kills: {PREFIXES['stat']}{matchdata['tkills']}{PREFIXES['chatcolour']} Total Deaths: {PREFIXES['stat']}{matchdata['tdeaths']} "
+        output["top"] =  f"{PREFIXES['chatcolour']}Highest kd: {' '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+x[1][1]+PREFIXES['chatcolour']+'',enumerate(matchdata['kd'].items()[:maxshow]))))} {PREFIXES['chatcolour']}Highest kpm: {' '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+x[1][1]+PREFIXES['chatcolour']+'',enumerate(matchdata['kpm'].items()[:maxshow]))))} {PREFIXES['chatcolour']}Highest deaths: {' '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+x[1][1]+PREFIXES['chatcolour']+'',enumerate(matchdata['deaths'].items()[:maxshow]))))} "
+    if matchid in lexitoneapicache:
+        output.setdefault("general","")
+        output["general"] = output["general"] + f"NPC kills {matchdata['tnpckillsagainstplayers']}"
+        output.setdefault("top","")
+        output["top"] = output["top"] +f"Npc Deaths: {' '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+x[1][1]+PREFIXES['chatcolour']+'',enumerate(matchdata['npckillsagainstplayers'].items()[:maxshow]))))}"
+    translater = ["general","ks","tg","top","tkd"]
+    for i,key in enumerate(translater):
+        if key not in output:
+            continue
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "id": str(i)+str(int(time.time()*100)),
+            "content":output[key],
+            "teamoverride": 4,
+            "isteammessage": False,
+            "uidoverride": ["1012640166434"]
+        }
+        )
     return top_weapons
-    for playerdata in playercontext[serverid].values():
-        for playername, matchdata in playerdata.items():
-            matchdata = functools.filter(lambda x: x[0] == matchid,matchdata.items())
-            if not matchdata:continue
-            matchdata = matchdata[0]
-            kills = functools.reduce(lambda a,b: a+b["kills"],matchdata[1],0)
-            deaths = functools.reduce(lambda a,b: a+b["deaths"],matchdata[1],0)
-            timeplayed = functools.reduce(lambda a,b: a+b["endtime"]-b["joined"],matchdata[1],0)
-            matchdata.setdefault("kpm",{})
-            matchdata.setdefault("kills",{})
-            matchdata.setdefault("deaths",{})
-            matchdata.setdefault("kd",{})
-            matchdata["kills"][playername] = kills
-            matchdata["deaths"][playername] = deaths
-            matchdata["kpm"][playername] = f"{(kills / (timeplayed / 60) if timeplayed else 0):.2f}"
-            matchdata["kd"][playername] = f"{(kills / deaths if deaths else kills):.2f}"
-
-    discordtotitanfall[serverid]["messages"].append(
-    {
-        "id": str(i)+str(int(time.time()*100)),
-        "content":str(matchdata),
-        "teamoverride": 4,
-        "isteammessage": False
-        # "uidoverride": [resolveplayeruidfromdb(getpriority(message,"originalname","name"),None,True)[0]["uid"]] if not len(message.get("originalmessage","w").split(" ")) > 1 else []
-        # "dotreacted": dotreacted
-    }
-    )
 
         
-
-
-
-    
 
 def togglestats(message,togglething,serverid):
     internaltoggle = context["commands"]["ingamecommands"][togglething].get("internaltoggle",togglething)
@@ -4686,7 +4779,7 @@ def ingamehelp(message,serverid,isfromserver):
         discordtotitanfall[serverid]["messages"].append(
                     {
                         "id": str(int(time.time()*100)),
-                        "content":f"{PREFIXES['discord']}\x1b[38;5;219mHelp menu for the discord bot",
+                        "content":f"{PREFIXES['discord']}{PREFIXES['chatcolour']}Help menu for the discord bot",
                         "teamoverride": 4,
                         "isteammessage": False,
                         "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -4700,7 +4793,7 @@ def ingamehelp(message,serverid,isfromserver):
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": str(i) + str(int(time.time()*100)),
-                    "content":f"{PREFIXES['discord']}{'ADMINCMD ' if command['rcon'] else ''}{backslash+'[38;5;219m' if not istf1 else backslash+'[38;5;219m'}{name}{backslash+'[110m' if not istf1 else backslash+'[110m'}: {command['description']}",
+                    "content":f"{PREFIXES['discord']}{'ADMINCMD ' if command['rcon'] else ''}{PREFIXES['commandname']} if not istf1 else {PREFIXES['commandname']}{name}{PREFIXES['chatcolour']} if not istf1 else {PREFIXES['chatcolour']}: {command['description']}",
                     "teamoverride": 4,
                     "isteammessage": False,
                     "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -4715,7 +4808,6 @@ def senddiscordcommands(message,serverid,isfromserver):
 
 def calcstats(message,serverid,isfromserver):
     # print("e",message)
-    
     istf1 = context["istf1server"].get(serverid,False) != False
     # print(isfromserver,readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]),istf1) )
     # print("BLEHHHH",getpriority(message,"uid",["meta","uid"]))
@@ -5832,7 +5924,8 @@ def playerpolllog(data,serverid,statuscode):
                         # print("not saving1", uid, name, matchidofsave)
                         continue
 
-                    if  value3[-1]["mostrecentsave"] == True and (value3[-1]["playerhasleft"] == True or matchidofsave != matchid):
+                    if  (value3[-1]["mostrecentsave"] == True and (value3[-1]["playerhasleft"] == True and False) or matchidofsave != matchid):
+#### CURRENTLY DISABLED FIRST CHECK FOR BETTER END OF ROUND STATS - PLAYERS ONLY GET DELETED ON MAP CHANGE. I HOPE THIS DOES NOT BREAK ANYTHING.
                             # print("not saving2", uid, name, matchidofsave)
                             # Mark for deletion
                             to_delete.append((uid, name, matchidofsave))
@@ -6209,30 +6302,30 @@ def getstats(playeruid):
                 break
         offset = 1
         backslash = "\x1b"
-        messages["0"] = f"\x1b[38;5;{colour}m{name}\x1b[110m has \x1b[38;5;189m{output['total']['kills']}{' '+ backslash + '[38;5;244m#' + str(output['total']['killspos']) if output['total']['killspos'] else ''} \x1b[110mkills and \x1b[38;5;189m{output['total']['deaths']}{' '+ backslash + '[38;5;244m#' + str(output['total']['deathspos']) if output['total']['deathspos'] else ''} \x1b[110mdeaths (\x1b[38;5;189m{kd}\x1b[110m k/d, \x1b[38;5;189m{killsperhour}\x1b[110m k/hour, \x1b[38;5;189m{timeplayed}\x1b[110m playtime)"
+        messages["0"] = f"\x1b[38;5;{colour}m{name}{PREFIXES['chatcolour']} has {PREFIXES['stat']}{output['total']['kills']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['killspos']) if output['total']['killspos'] else ''} {PREFIXES['chatcolour']}kills and {PREFIXES['stat']}{output['total']['deaths']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['deathspos']) if output['total']['deathspos'] else ''} {PREFIXES['chatcolour']}deaths ({PREFIXES['stat']}{kd}{PREFIXES['chatcolour']} k/d, {PREFIXES['stat']}{killsperhour}{PREFIXES['chatcolour']} k/hour, {PREFIXES['stat']}{timeplayed}{PREFIXES['chatcolour']} playtime)"
         # print("e",bestgame)
         if  bestgame:
             formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
 
             offset +=1
-            messages["1"] = f"\x1b[38;5;{colour}m{name}\x1b[110m had their best game on \x1b[38;5;189m{MAP_NAME_TABLE.get(bestgame[1],bestgame[1])}\x1b[110m with \x1b[38;5;189m{bestgame[3]}\x1b[110m kills on \x1b[38;5;189m{formatted_date}"
-        colourcodes = ["\x1b[38;5;226m","\x1b[38;5;251m","\x1b[38;5;208m"]
+            messages["1"] = f"\x1b[38;5;{colour}m{name}{PREFIXES['chatcolour']} had their best game on {PREFIXES['stat']}{MAP_NAME_TABLE.get(bestgame[1],bestgame[1])}{PREFIXES['chatcolour']} with {PREFIXES['stat']}{bestgame[3]}{PREFIXES['chatcolour']} kills on {PREFIXES['stat']}{formatted_date}"
+        colourcodes = [PREFIXES["gold"],PREFIXES["silver"],PREFIXES["bronze"]]
         topguns = []
         for enum , weapon in enumerate( top_weapons):
             if not weapon:
                 continue
-            # messages[str(offset)] = f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}\x1b[110m kills: \x1b[38;5;189m{weapon[1]}"
+            # messages[str(offset)] = f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}{PREFIXES['chatcolour']} kills: {PREFIXES['stat']}{weapon[1]}"
             # offset +=1
-            topguns.append( f"{colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}: \x1b[38;5;189m{weapon[1]}\x1b[110m kills" )
+            topguns.append( f"{colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}: {PREFIXES['stat']}{weapon[1]}{PREFIXES['chatcolour']} kills" )
         
         if topguns != "":
             messages[str(offset)] = f"\x1b[38;5;{colour}mTop 3 guns: " + ", ".join(topguns)
             offset +=1
     # \x1b[38;5;244m
         if output["total"]["recent_weapon_kills"]:
-            messages[str(offset)] = f"\x1b[38;5;{colour}mMost recent weapon: \x1b[38;5;189m{WEAPON_NAMES.get(output['total']['recent_weapon_kills'][0],output['total']['recent_weapon_kills'][0])}: \x1b[38;5;189m{output['total']['recent_weapon_kills'][1]}{' '+ backslash + '[38;5;244m#' + str(output['total']['recentweaponkillspos']) if output['total']['recentweaponkillspos'] else ''} \x1b[110mkills"
+            messages[str(offset)] = f"\x1b[38;5;{colour}mMost recent weapon: {PREFIXES['stat']}{WEAPON_NAMES.get(output['total']['recent_weapon_kills'][0],output['total']['recent_weapon_kills'][0])}: {PREFIXES['stat']}{output['total']['recent_weapon_kills'][1]}{' '+ PREFIXES['stat2']+'#' + str(output['total']['recentweaponkillspos']) if output['total']['recentweaponkillspos'] else ''} {PREFIXES['chatcolour']}kills"
             offset+=1
-        messages[str(offset)] = f"\x1b[38;5;{colour}m{name} has \x1b[38;5;189m{output['total']['killstoday']}{' '+ backslash + '[38;5;244m#' + str(output['total']['killslasthourpos']) if output['total']['killslasthourpos'] else ''}\x1b[110m kill{'s' if  output['total']['killstoday'] != 1 else ''} today and \x1b[38;5;189m{output['total']['deathstoday']}{' '+ backslash + '[38;5;244m#' + str(output['total']['deathslasthourpos']) if output['total']['deathslasthourpos'] else ''} \x1b[110mdeath{'s' if  output['total']['deathstoday'] != 1 else ''} today"
+        messages[str(offset)] = f"\x1b[38;5;{colour}m{name}{PREFIXES['chatcolour']} has {PREFIXES['stat']}{output['total']['killstoday']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['killslasthourpos']) if output['total']['killslasthourpos'] else ''}{PREFIXES['chatcolour']} kill{'s' if  output['total']['killstoday'] != 1 else ''} today and {PREFIXES['stat']}{output['total']['deathstoday']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['deathslasthourpos']) if output['total']['deathslasthourpos'] else ''} {PREFIXES['chatcolour']}death{'s' if  output['total']['deathstoday'] != 1 else ''} today"
         offset +=1
 
         # if len(messages):
