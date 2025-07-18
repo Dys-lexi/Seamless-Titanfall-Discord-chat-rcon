@@ -41,6 +41,9 @@ def create_all_indexes():
     c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_cause_of_death ON specifickilltracker(cause_of_death);")
     c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_combined_player_time ON specifickilltracker(playeruid, timeofkill);")
     c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_combined_victim_time ON specifickilltracker(victim_id, timeofkill);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_victim_type ON specifickilltracker(victim_type);")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_attacker_type ON specifickilltracker(attacker_type);")
+
 
     # --- playtime ---
     c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_playeruid ON playtime(playeruid);")
@@ -1265,7 +1268,7 @@ if DISCORDBOTLOGSTATS == "1":
         base_query = f"SELECT {','.join(leaderboardcategorys)} FROM {leaderboarddatabase}"
         # print("wherestring",f"{base_query} WHERE {wherestring}")
         quote = "'"
-        query = f"{base_query} WHERE{' victim_type = '+quote+'player'+quote+' AND' if leaderboarddatabase == 'specifickilltracker' else ''} {wherestring}" if wherestring else f"{base_query} {'WHERE victim_type = '+quote+'player'+quote if leaderboarddatabase == 'specifickilltracker' else ''}"
+        query = f"{base_query} WHERE{' (victim_type = '+quote+'player'+quote+ 'OR victim_type IS NULL)' + 'AND' if leaderboarddatabase == 'specifickilltracker' else ''} {wherestring}" if wherestring else f"{base_query} {'WHERE (victim_type = '+quote+'player'+quote+ 'OR victim_type IS NULL)' if leaderboarddatabase == 'specifickilltracker' else ''}"
 
         # print("Executing query:", query)
         c.execute(query, params)
@@ -2837,9 +2840,9 @@ async def on_message(message):
                 {
                     "id": message.id,
                     "content": f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}{RGBCOLOUR['NEUTRAL']}{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}",
-                    "teamoverride": 4,
-                    "isteammessage": False,
-                    "uidoverride": []
+                    # "teamoverride": 4,
+                    # "isteammessage": False,
+                    # "uidoverride": []
                     # "dotreacted": dotreacted
                 }
             )
@@ -3126,6 +3129,8 @@ def recieveflaskprintrequests():
                     message["content"]
                     for message in discordtotitanfall[serverid]["messages"]
                 ]
+                for i in range(len(discordtotitanfall[serverid]["messages"])):
+                    discordtotitanfall[serverid]["messages"][i]["id"] = discordtotitanfall[serverid]["messages"][i].get("id",str(random.randint(1,100000000000)))
                 textvalidation = [
                     str(message["id"])
                     for message in discordtotitanfall[serverid]["messages"]
@@ -3139,9 +3144,9 @@ def recieveflaskprintrequests():
                 sendingcommandsids = [
                     str(command["id"])
                     for command in discordtotitanfall[serverid]["commands"]
-                ]
+                ]                    
                 textsv2 = {str(i):{"content":value["content"],"validation":str(value["id"]),"teamoverride":value.get("teamoverride",4),"isteammessage":value.get("isteammessage",False),"uidoverride":",".join(list(map(lambda x: str(x),value.get("uidoverride",[]))))} for i, value in enumerate(discordtotitanfall[serverid]["messages"])}
-        
+                packfortextsv3(discordtotitanfall[serverid]["messages"])
                 discordtotitanfall[serverid]["messages"] = []
                 discordtotitanfall[serverid]["commands"] = []
                 now = int(time.time()*100)
@@ -3167,7 +3172,6 @@ def recieveflaskprintrequests():
         stoprequestsforserver[serverid] = False
         # print("STOPPING")
         return {"texts": {}, "commands": {}, "time": "0","textsv2":{}}
-
 
     @app.route("/runcommand",methods=["POST"])
     def runcommandforserver():
@@ -4103,13 +4107,13 @@ def tf1readsend(serverid,checkstatus):
         discordtotitanfall[serverid]["serveronline"] = False
         pass
     except Exception as e:
-        print(serverid,"CORE BROKEY SOB",e)
+        # print(serverid,"CORE BROKEY SOB",e)
 
         outputstring = ""
         status = ""
         discordtotitanfall[serverid]["serveronline"] = False
         # return False
-        traceback.print_exc()
+        # traceback.print_exc()
     else:
         if not offlinethisloop:
             discordtotitanfall[serverid]["lastheardfrom"] = int(time.time())
@@ -4558,10 +4562,10 @@ def tftodiscordcommand(specificommand,command,serverid):
         # pass
         discordtotitanfall[serverid]["messages"].append(
         {
-            "id": str(int(time.time()*100)),
+            # "id": str(int(time.time()*100)),
             "content":f"{PREFIXES['discord']}Running {getpriority(command, 'originalmessage','messagecontent')}",
-            "teamoverride": 4,
-            "isteammessage": False,
+            # "teamoverride": 4,
+            # "isteammessage": False,
             "uidoverride": [getpriority(command,"uid",["meta","uid"])]
             # "dotreacted": dotreacted
         }
@@ -4616,11 +4620,11 @@ def displayendofroundstats(message,serverid,isfromserver):
 
     discordtotitanfall[serverid]["messages"].append(
     {
-    "id": str(int(time.time()*100)),
+    # "id": str(int(time.time()*100)),
     "content":"begin",
-    "teamoverride": 4,
-    "isteammessage": False,
-    "uidoverride": ["1012640166434"]
+    # "teamoverride": 4,
+    # "isteammessage": False,
+    "uidoverride": [getpriority(message,"uid",["meta","uid"])]
     }
     )
     # pull stats
@@ -4642,6 +4646,7 @@ def displayendofroundstats(message,serverid,isfromserver):
     colour = f"\x1b[38;5;{colour}m"
 
     output = {"header":f"{colour}Match stats"}
+    stringslist = {"general":[],"personal":[]}
     if not istf1:
         pass # quering this db takes a long time, and doing this is really time sensitive
         # I do want this though..
@@ -4669,37 +4674,37 @@ def displayendofroundstats(message,serverid,isfromserver):
         # c.close()
         # tfdb.close()
     #str(x[0]+1)+') '
-    lexitoneapicache =  {
-    "1752781743_23": [
-        {
-            "victimtype": "player",
-            "attackertype": "player",
-            "weapon": "titan_execution",
-            "victimtitan": "ion",
-            "attackertitan": "ion",
-            "victimname": "LexiGlasss",
-            "attackername": "LexiGlasss"
-        },
-                {
-            "victimtype": "player",
-            "attackertype": "player",
-            "weapon": "titan_execution",
-            "victimtitan": "ion",
-            "attackertitan": "ronin",
-            "victimname": "LexiGlasss",
-            "attackername": "LexiGlasss"
-        },
-                {
-            "victimtype": "player",
-            "attackertype": "player",
-            "weapon": "titan_execution",
-            "victimtitan": "ion",
-            "attackertitan": "ronin",
-            "victimname": "LexiGlasss",
-            "attackername": "LexiGlasss"
-        }
-    ]
-}
+#     lexitoneapicache =  {
+#     "1752781743_23": [
+#         {
+#             "victimtype": "player",
+#             "attackertype": "player",
+#             "weapon": "titan_execution",
+#             "victimtitan": "ion",
+#             "attackertitan": "ion",
+#             "victimname": "LexiGlasss",
+#             "attackername": "LexiGlasss"
+#         },
+#                 {
+#             "victimtype": "player",
+#             "attackertype": "player",
+#             "weapon": "titan_execution",
+#             "victimtitan": "ion",
+#             "attackertitan": "ronin",
+#             "victimname": "LexiGlasss",
+#             "attackername": "LexiGlasss"
+#         },
+#                 {
+#             "victimtype": "player",
+#             "attackertype": "player",
+#             "weapon": "titan_execution",
+#             "victimtitan": "ion",
+#             "attackertitan": "ronin",
+#             "victimname": "LexiGlasss",
+#             "attackername": "LexiGlasss"
+#         }
+#     ]
+# }
     maxshow = 1
     moremaxshow = 3
     if matchid in consecutivekills:
@@ -4713,10 +4718,14 @@ def displayendofroundstats(message,serverid,isfromserver):
         matchdata["npckillsagainstplayers"] = dict(sorted(functools.reduce(lambda a,b: {**a,b["victimname"]:a.get(b["victimname"],0)+1}if b["victimtype"] in ["npc_titan","player"] and b["attackertype"] in ["npc_soldier","npc_spectre","npc_super_spectre","npc_stalker","worldspawn","trigger_hurt","prop_dynamic"] else a,lexitoneapicache[matchid],{} ).items(),key = lambda x: x[1],reverse = True))
         matchdata["tnpckillsagainstplayers"] = functools.reduce(lambda a,b: a+b,matchdata["npckillsagainstplayers"].values(),0)
         matchdata["titankds"] = dict(sorted(list(functools.reduce(lambda a,b: ({**a,b["attackertitan"]:{"kills":a.get(b["attackertitan"],{}).get("kills",0)+1, "deaths":a.get(b["attackertitan"],{}).get("deaths",0)},b["victimtitan"]:{"kills":a.get(b["victimtitan"],{}).get("kills",0), "deaths":a.get(b["victimtitan"],{}).get("deaths",0)+1}} if  b["attackertitan"] != b["victimtitan"] else {**a,b["attackertitan"]:{"kills":a.get(b["attackertitan"],{}).get("kills",0)+1, "deaths":a.get(b["attackertitan"],{}).get("deaths",0)+1}} )if (b["attackertitan"] != "null" and b["attackertitan"] != None and b["victimtitan"] != "null" and b["victimtitan"] != None) else a, lexitoneapicache[matchid],{}).items()),key = lambda x: x[1]["kills"]/max(x[1]["deaths"],1),reverse=True))
+        matchdata["topweapons"] = dict(sorted(functools.reduce(lambda a,b: {**a,b['weapon']:a.get(b['weapon'],0)+1} if b['attackertype'] in ['npc_titan','player'] and b['victimtype'] in ['npc_titan','player'] else a,lexitoneapicache[matchid],{}).items(),key = lambda x: x[1],reverse = True))
         # print("titankds",matchdata["titankds"])
         # print(functools.reduce(lambda a,b: ({**a,b["attackertitan"]:{"kills":a.get(b["attackertitan"],{}).get("kills",0)+1, "deaths":a.get(b["attackertitan"],{}).get("deaths",0)},b["victimtitan"]:{"kills":a.get(b["victimtitan"],{}).get("kills",0), "deaths":a.get(b["victimtitan"],{}).get("deaths",0)+1}} if  b["attackertitan"] != b["victimtitan"] else {**a,b["attackertitan"]:{"kills":a.get(b["attackertitan"],{}).get("kills",0)+1, "deaths":a.get(b["attackertitan"],{}).get("deaths",0)+1}} )if (b["attackertitan"] != "null" and b["attackertitan"] != None and b["victimtitan"] != "null" and b["victimtitan"] != None) else a, lexitoneapicache[matchid],{}))
-        output["tkd"] = f"{colour}Titan kds{PREFIXES['chatcolour']}: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(int((x[1][1]['kills']/max(x[1][1]['deaths'],1))*100)/100)+PREFIXES['chatcolour']+'', enumerate(list(matchdata['titankds'].items())[:moremaxshow]))))} " + (f"{PREFIXES['stat2']}Lowest) {list(matchdata['titankds'].keys())[-1]}: {int((list(matchdata['titankds'].values())[-1]['kills']/list(matchdata['titankds'].values())[-1]['deaths'])*100)/100}" if len(matchdata["titankds"].keys()) > moremaxshow else "")
-        output["tg"] = f"{colour}Top guns{PREFIXES['chatcolour']}: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+' kills',enumerate(list((dict(sorted(functools.reduce(lambda a,b: {**a,b['weapon']:a.get(b['weapon'],0)+1} if b['attackertype'] in ['npc_titan','player'] and b['victimtype'] in ['npc_titan','player'] else a,lexitoneapicache[matchid],{}).items(),key = lambda x: x[1],reverse = True))).items())[:3]))))}"
+        
+        if matchdata["titankds"]:
+            output["tkd"] = f"{colour}Titan kds{PREFIXES['chatcolour']}: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+TITAN_NAMES.get(x[1][0],x[1][0])+': '+PREFIXES['stat']+str(int((x[1][1]['kills']/max(x[1][1]['deaths'],1))*100)/100)+PREFIXES['chatcolour']+'', enumerate(list(matchdata['titankds'].items())[:moremaxshow]))))} " + (f"{PREFIXES['stat2']}Lowest) {list(matchdata['titankds'].keys())[-1]}: {int((list(matchdata['titankds'].values())[-1]['kills']/list(matchdata['titankds'].values())[-1]['deaths'])*100)/100}" if len(matchdata["titankds"].keys()) > moremaxshow else "")
+        if matchdata["topweaons"]:
+            output["tg"] = f"{colour}Top guns{PREFIXES['chatcolour']}: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+    ''    +WEAPON_NAMES.get(x[1][0],x[1][0])+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+' kills',enumerate(list((matchdata['topweapons']).items())[:3]))))}"
     if serverid in playercontext:
         for playerdata in playercontext[serverid].values():
             for playername, datafrommatch in playerdata.items():
@@ -4741,25 +4750,40 @@ def displayendofroundstats(message,serverid,isfromserver):
         matchdata["kd"] = dict(sorted(matchdata["kd"].items() ,key = lambda x: x[1],reverse=True))
         matchdata["kpm"] = dict(sorted(matchdata["kpm"].items() ,key = lambda x: x[1],reverse=True))
         matchdata["deaths"] = dict(sorted(matchdata["deaths"].items() ,key = lambda x: x[1],reverse=True))
-        
-        output["general"] = f"{colour}General {PREFIXES['chatcolour']}Total kills: {PREFIXES['stat']}{matchdata['tkills']}{PREFIXES['chatcolour']} | Total Deaths: {PREFIXES['stat']}{matchdata['tdeaths']} "
-        output["top"] =  f"{colour}Top players {PREFIXES['chatcolour']}K/D: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kd'].items())[:maxshow]))))} {PREFIXES['chatcolour']}| K/min: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kpm'].items())[:maxshow]))))} {PREFIXES['chatcolour']}| Deaths: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['deaths'].items())[:maxshow]))))} "
+
+        if matchdata['tkills']:
+            stringslist["general"].append(f"{colour}Total kills: {PREFIXES['stat']}{matchdata['tkills']}")
+        if matchdata["tdeaths"]:
+            stringslist["general"].append(f"{colour}Total deaths: {PREFIXES['stat']}{matchdata['tdeaths']}")
+        if matchdata["kd"] and max(matchdata["kd"].values()) > 0:
+            stringslist["personal"].append(f"{colour}K/D: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kd'].items())[:maxshow]))))}")
+        if matchdata["kpm"] and max(matchdata["kpm"].values()) > 0:
+            stringslist["personal"].append(f"{colour}K/min: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kpm'].items())[:maxshow]))))}")
+        if matchdata["deaths"] and max(matchdata["deaths"].values()) > 0:
+            stringslist["personal"].append(f"{colour}K/min: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['deaths'].items())[:maxshow]))))}")
+
+
+        # output["general"] = f"{colour}General {PREFIXES['chatcolour']}Total kills: {PREFIXES['stat']}{matchdata['tkills']}{PREFIXES['chatcolour']} | Total Deaths: {PREFIXES['stat']}{matchdata['tdeaths']} "
+        # output["top"] =  f"{colour}Top players {PREFIXES['chatcolour']}K/D: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kd'].items())[:maxshow]))))} {PREFIXES['chatcolour']}| K/min: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kpm'].items())[:maxshow]))))} {PREFIXES['chatcolour']}| Deaths: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['deaths'].items())[:maxshow]))))} "
     if matchid in lexitoneapicache:
-        if "general" in output:
-            output["general"] = output["general"] + f"| {PREFIXES['chatcolour']}NPC kills {matchdata['tnpckillsagainstplayers']}"
-        if matchdata["npckillsagainstplayers"] and "top" in output:
-            output["top"] = output["top"] +f"| Npc Deaths: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+x[1][1]+PREFIXES['chatcolour']+'',enumerate(list(matchdata['npckillsagainstplayers'].items())[:maxshow]))))}"
-    translater = ["general","ks","tg","top","tkd"]
+        # if "general" in output:
+        if matchdata['tnpckillsagainstplayers']:
+            stringslist["general"].append(f"{colour}Total kills: {PREFIXES['stat']}{matchdata['tnpckillsagainstplayers']}")
+        if matchdata["npckillsagainstplayers"] and max(matchdata["npckillsagainstplayers"].values()) > 0:
+            # output["top"] = output["top"] +f"| Npc Deaths: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['npckillsagainstplayers'].items())[:maxshow]))))}"
+            stringslist["personal"].append(f"{colour}K/min: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['npckillsagainstplayers'].items())[:maxshow]))))}")
+
+    translater = ["header","general","ks","tg","top","tkd"]
     for i,key in enumerate(translater):
         if key not in output:
             continue
         discordtotitanfall[serverid]["messages"].append(
         {
-            "id": str(i)+str(int(time.time()*100)),
+            # "id": str(i)+str(int(time.time()*100)),
             "content":output[key],
-            "teamoverride": 4,
-            "isteammessage": False,
-            "uidoverride": ["1012640166434"]
+            # "teamoverride": 4,
+            # "isteammessage": False,
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         }
         )
     # return top_weapons
@@ -4767,11 +4791,11 @@ def displayendofroundstats(message,serverid,isfromserver):
     print(json.dumps(output,indent=4))
     discordtotitanfall[serverid]["messages"].append(
     {
-    "id": str(int(time.time()*100)),
+    # "id": str(int(time.time()*100)),
     "content":"end",
-    "teamoverride": 4,
-    "isteammessage": False,
-    "uidoverride": ["1012640166434"]
+    # "teamoverride": 4,
+    # "isteammessage": False,
+    "uidoverride": [getpriority(message,"uid",["meta","uid"])]
     }
     )
         
@@ -4782,10 +4806,10 @@ def togglestats(message,togglething,serverid):
     if  istf1 and not len(str(getpriority(message,"uid",["meta","uid"]))) > 15:
             discordtotitanfall[serverid]["messages"].append(
             {
-                "id": str(int(time.time()*100)),
+                # "id": str(int(time.time()*100)),
                 "content":f"{PREFIXES['discord']} No discord account linked, cannot toggle {togglething}",
-                "teamoverride": 4,
-                "isteammessage": False,
+                # "teamoverride": 4,
+                # "isteammessage": False,
                 "uidoverride": [getpriority(message,"uid",["meta","uid"])]
                 # "dotreacted": dotreacted
             }
@@ -4801,10 +4825,10 @@ def togglestats(message,togglething,serverid):
     setplayeruidpreferences(["tf1" if istf1 else "tf2",internaltoggle],not shouldset,getpriority(message,"uid",["meta","uid"]),istf1)
     discordtotitanfall[serverid]["messages"].append(
     {
-        "id": str(int(time.time()*100)),
+        # "id": str(int(time.time()*100)),
         "content":f"{PREFIXES['discord']}Toggled {togglething} - is now {not shouldset}",
-        "teamoverride": 4,
-        "isteammessage": False,
+        # "teamoverride": 4,
+        # "isteammessage": False,
         "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         # "dotreacted": dotreacted
     }
@@ -4834,10 +4858,10 @@ def ingamehelp(message,serverid,isfromserver):
     if not commandoverride:
         discordtotitanfall[serverid]["messages"].append(
                     {
-                        "id": str(int(time.time()*100)),
+                        # "id": str(int(time.time()*100)),
                         "content":f"{PREFIXES['discord']}{PREFIXES['chatcolour']}Help menu for the discord bot",
-                        "teamoverride": 4,
-                        "isteammessage": False,
+                        # "teamoverride": 4,
+                        # "isteammessage": False,
                         "uidoverride": [getpriority(message,"uid",["meta","uid"])]
                         # "dotreacted": dotreacted
                     }
@@ -4848,10 +4872,10 @@ def ingamehelp(message,serverid,isfromserver):
         if (not commandoverride or commandoverride.lower() in name) and ("tf1" if istf1 else "tf2") in command["games"] and (not command["rcon"] or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]))) and (not command.get("serversenabled",False) or int(serverid) in command["serversenabled"]):
             discordtotitanfall[serverid]["messages"].append(
                 {
-                    "id": str(i) + str(int(time.time()*100)),
+                    # "id": str(i) + str(int(time.time()*100)),
                     "content":f"{PREFIXES['discord']}{'ADMINCMD ' if command['rcon'] else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{name}{PREFIXES['chatcolour'] if not istf1 else PREFIXES['chatcolour']}: {command['description']}",
-                    "teamoverride": 4,
-                    "isteammessage": False,
+                    # "teamoverride": 4,
+                    # "isteammessage": False,
                     "uidoverride": [getpriority(message,"uid",["meta","uid"])]
                     # "dotreacted": dotreacted
                 }
@@ -4894,10 +4918,10 @@ def calcstats(message,serverid,isfromserver):
         if "sob" in output.keys():
             discordtotitanfall[serverid]["messages"].append(
             {
-                "id": str(int(time.time()*100)),
+                # "id": str(int(time.time()*100)),
                 "content":f"{PREFIXES['discord']}player not found :(",
-                "teamoverride": 4,
-                "isteammessage": False,
+                # "teamoverride": 4,
+                # "isteammessage": False,
                 "uidoverride": [resolveplayeruidfromdb(getpriority(message,"originalname","name"),None,True)[0]["uid"]]
                 # "dotreacted": dotreacted
             } )
@@ -4910,10 +4934,10 @@ def calcstats(message,serverid,isfromserver):
                 continue
             discordtotitanfall[serverid]["messages"].append(
             {
-                "id": str(i)+str(int(time.time()*100)),
+                # "id": str(i)+str(int(time.time()*100)),
                 "content":stat,
-                "teamoverride": 4,
-                "isteammessage": False,
+                # "teamoverride": 4,
+                # "isteammessage": False,
                 "uidoverride": [resolveplayeruidfromdb(getpriority(message,"originalname","name"),None,True)[0]["uid"]] if not len(message.get("originalmessage","w").split(" ")) > 1 else []
                 # "dotreacted": dotreacted
             }
@@ -6059,6 +6083,10 @@ def flattendict(current, path=[], result=[]):
 
     return result
 
+def packfortextsv3(texts,output):
+    if not len(texts):
+        return output
+    return {"content":texts[0]["content"],"validation":str(texts[0]["id"]),"teamoverride":texts[0].get("teamoverride",4),"isteammessage":texts[0].get("isteammessage",False),"uidoverride":",".join(list(map(lambda x: str(x),texts[0].get("uidoverride",[])))),"nextmessage":packfortextsv3(texts[1:])}
 
 
 def getpriority(ditionary,*priority):

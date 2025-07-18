@@ -108,6 +108,13 @@ table function discordloggetlastmodels(){
 	return discordloglastmodels.playermodels
 }
 
+struct discordtotf2message {
+	string content
+	int teamoverride
+	array<string> uidoverride
+	string validation
+}
+
 table<string,float> playerrespawn = {
 	
 }
@@ -775,6 +782,7 @@ void function DiscordClientMessageinloop()
 		check.timeof = expect string(messagess["time"])
 		// table texts = expect table(messagess["texts"])
 		table textsv2 = expect table(messagess["textsv2"])
+		table textsv3 = expect table(messages["textv3"])
 		// string textvalidation = expect string(messagess["textvalidation"])
 		// array<string> splittextvalidation = split(textvalidation,"%&%&")
 		// array<string> splittexts = split(texts,"%&%&")
@@ -817,6 +825,26 @@ void function DiscordClientMessageinloop()
 		// 	// }
 
 		// }
+			
+
+			// // rn textsv2 is
+			// {
+			// 	a:text,
+			// 	b:text,
+			// 	c:text,
+			// }
+			// // new format it
+			// {
+			// 	a:text
+			// 	b:overridechannel
+			// 	c:validated
+			// 	d:uid
+			// 	e:nexttext
+			// }
+			foreach (v3message in orderedrecursiveunpack(textsv3)){
+				check.textcheck.append(v3message.validation)
+				thread discordlogsendmessage(v3message.content,v3message.teamoverride,v3message.uidoverride)
+			}
 				foreach (key, value in textsv2){
 			table textw = expect table(value)
 			string text = expect string(textw["content"])
@@ -863,6 +891,21 @@ void function DiscordClientMessageinloop()
 		NSHttpRequest( request, onSuccess, onFailure )}
 }
 }
+
+array<discordtotf2message> function orderedrecursiveunpack(table textsv3, array<discordtotf2message> output = [] ){
+				discordtotf2message thing
+				thing.content = expect string(textsv3["content"])
+				thing.teamoverride = expect int(textsv3["teamoverride"])
+				thing.validation = expect string(textsv3["validation"])
+				thing.uidoverride = split(expect string(textsv3["uidoverride"]),",")
+				output.append(thing)
+				if ("nextmessage" in textsv3){
+				    return orderedrecursiveunpack(expect table(textsv3["nextmessage"]),output)
+				}
+				return output
+				
+			}
+
 void function runcommandondiscord(string commandname, table paramaters = {}){
 	thread runcommandondiscordreal(commandname,paramaters)
 }

@@ -49,7 +49,15 @@ MODEL_DICT = {
     "confused": "unknown/confused.jpg"
 }
 
-
+TITAN_NAMES = {
+    "ronin":"Ronin",
+    "northstar":"Northstar",
+    "scorch":"Scorch",
+    "tone":"Tone",
+    "legion":"Legion",
+    "ion":"Ion",
+    "vanguard":"Monarch"
+}
 
 WEAPON_NAMES = {
     "outOfBounds":"Tried to flee battle",
