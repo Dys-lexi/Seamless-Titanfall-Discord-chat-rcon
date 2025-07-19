@@ -46,8 +46,16 @@ MODEL_DICT = {
     "false models/humans/imc_pilot/male_dm/imc_pilot_male_dm.mdl": "titanfall1/pilots/m_dm_imc_cropped.png",
     "true models/humans/mcor_pilot/male_dm/mcor_pilot_male_dm.mdl": "titanfall1/pilots/m_dm_militia_cropped.png",
     "unknown": "unknown/unkownpfp.png",
-    "confused": "unknown/confused.jpg"
+    "confused": "unknown/confused.jpg",
+    "brute":"titans/brutet.png",
 }
+
+UNKNOWNPFPS = [
+    "unknown/apatureperson.png",
+    "unknown/confused.jpg",
+    "unknown/unkownpfp.png",
+    "unknown/missingshark.jpg"
+]
 
 TITAN_NAMES = {
     "ronin":"Ronin",
@@ -56,7 +64,8 @@ TITAN_NAMES = {
     "tone":"Tone",
     "legion":"Legion",
     "ion":"Ion",
-    "vanguard":"Monarch"
+    "vanguard":"Monarch",
+    "brute":"Brute"
 }
 
 WEAPON_NAMES = {

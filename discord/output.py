@@ -307,7 +307,7 @@ def setplayeruidpreferences(path, value, uid, istf1=False):
 def tf1matchplayers():
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
-    c.execute("DROP TABLE IF EXISTS matchtf1")
+    # c.execute("DROP TABLE IF EXISTS matchtf1")
     c.execute(
         """CREATE TABLE IF NOT EXISTS matchtf1 (
             matchid STRING PRIMARY KEY,
@@ -2978,7 +2978,7 @@ def recieveflaskprintrequests():
         # if colourslink[str(data["uid"])]:
         # print(colourslink[596713937626595382])
         # print({"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",[]) != []},"uid":data["uid"],"otherdata":{x: str(y) for x,y in readplayeruidpreferences(data["uid"],False)["tf2"].items()}})
-        return {"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",[]) != []},"uid":data["uid"],"otherdata":{x: str(y) for x,y in readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()}}
+        return {"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",[]) != []},"uid":data["uid"],"otherdata":{x: str(y) for x,y in list(filter(lambda x:  not getpriority(context,["commands","ingamecommands",x[0],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",x[0],"serversenabled"])  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))}}
         # return output
     @app.route("/getrunningservers", methods=["POST"])
     def getrunningservers():
@@ -3030,6 +3030,7 @@ def recieveflaskprintrequests():
     def stoprequests():
         global stoprequestsforserver,messageflush
         data = getjson(request.get_json())
+        # print(json.dumps(data,indent=4))
         # print("STOP REQUESTS REQUESTED PANIC")
         if data["password"] != SERVERPASS and SERVERPASS != "*":
             print("invalid password used on stoprequests")
@@ -3038,6 +3039,15 @@ def recieveflaskprintrequests():
         initdiscordtotitanfall(data["serverid"])
         print("stopping requests for", data["serverid"])
         # print("REALLY STOPPING REQUESTS")
+        
+        output = ""
+        try:
+            if data.get("command",False):
+                # print("ASKING TO SEND ENDOFSTATS")
+                output = tftodiscordcommand(data["command"],data.get("paramaters",False),str(data["serverid"]))
+        except:
+            pass
+        # print("ASKING SERVER TO STOP")
         stoprequestsforserver[data["serverid"]] = True
         try:
             messageflush.append({
@@ -3046,19 +3056,13 @@ def recieveflaskprintrequests():
                 "type": 4,
                 "globalmessage": False,
                 "overridechannel": None,
-                "messagecontent": f"Stopping discord -> Titanfall communication for {context['serveridnamelinks'][data['serverid']]} till next map (to prevent server crash)",
+                "messagecontent": f"Stopping discord -> Titanfall communication for {context['serveridnamelinks'][data['serverid']]} till next map (to prevent server crash)" + str(output), #it should always be a string, but I don't trust it
                 "metadata": {"type":"stoprequestsnotif"},
                 "servername": context["serveridnamelinks"][data["serverid"]]
             })
         except Exception as e:
             print([data["serverid"]])
             traceback.print_exc()
-
-        try:
-            if data.get("command",False):
-                tftodiscordcommand(data["command"],data.get("paramaters",False),str(data["serverid"]))
-        except:
-            pass
         # print("here")
         return {"message": "ok"}
     
@@ -3118,7 +3122,7 @@ def recieveflaskprintrequests():
         if serverid not in stoprequestsforserver.keys():
             stoprequestsforserver[serverid] = False
         timer = 0
-        while timer < 50 and not stoprequestsforserver[serverid]:
+        while timer < 50 and (not stoprequestsforserver[serverid] or discordtotitanfall[serverid]["messages"] != []):
             discordtotitanfall[serverid]["lastheardfrom"] = int(time.time())
             timer += 0.2
             if serverid in discordtotitanfall.keys() and (
@@ -3146,7 +3150,7 @@ def recieveflaskprintrequests():
                     for command in discordtotitanfall[serverid]["commands"]
                 ]                    
                 textsv2 = {str(i):{"content":value["content"],"validation":str(value["id"]),"teamoverride":value.get("teamoverride",4),"isteammessage":value.get("isteammessage",False),"uidoverride":",".join(list(map(lambda x: str(x),value.get("uidoverride",[]))))} for i, value in enumerate(discordtotitanfall[serverid]["messages"])}
-                packfortextsv3(discordtotitanfall[serverid]["messages"])
+                textsv3 = packfortextsv3(discordtotitanfall[serverid]["messages"])
                 discordtotitanfall[serverid]["messages"] = []
                 discordtotitanfall[serverid]["commands"] = []
                 now = int(time.time()*100)
@@ -3160,18 +3164,21 @@ def recieveflaskprintrequests():
                 # print({a: b for a, b in zip(texts, textvalidation)})
                 # print((texts), (textvalidation))
                 # print("REALLY STOPPING")
+                if textsv3:
+                    print(json.dumps(textsv3,indent=4))
                 return {
                     "texts": {a: b for a, b in zip(textvalidation,texts)},
                     "textsv2":textsv2,
                     # "texts": "%&%&".join(texts),
                     "commands": {a: b for a, b in zip( sendingcommandsids,sendingcommands)},
                     # "textvalidation": "%&%&".join(textvalidation),
+                    "textsv3": textsv3,
                     "time": str(now)
                 }
             time.sleep(0.2)
         stoprequestsforserver[serverid] = False
         # print("STOPPING")
-        return {"texts": {}, "commands": {}, "time": "0","textsv2":{}}
+        return {"texts": {}, "commands": {}, "time": "0","textsv2":{}, "textsv3": {}}
 
     @app.route("/runcommand",methods=["POST"])
     def runcommandforserver():
@@ -4531,6 +4538,8 @@ def messageloop():
         time.sleep(0.1)
 
 def tftodiscordcommand(specificommand,command,serverid):
+    if specificommand:
+        print("SPECIFIC COMMAND REQUESTED",[serverid],specificommand)
     # return
     global context
 
@@ -4586,6 +4595,23 @@ def displayendofroundstats(message,serverid,isfromserver):
     # print("HEREEE")
     global consecutivekills,lexitoneapicache
     istf1 = context["istf1server"].get(serverid,False) != False
+
+
+    if not isfromserver:
+        tfdb = sqlite3.connect("./data/tf2helper.db")
+        c = tfdb.cursor()
+        c.execute(
+            """SELECT matchid
+        FROM matchid
+        WHERE serverid = ?
+        ORDER BY time DESC
+        LIMIT 1;""",(serverid,))
+        matchid = c.fetchone()
+        if matchid:
+            matchid = matchid[0]
+        tfdb.close()
+    else:
+        matchid = message.get("matchid",False)
             #     messageflush.append({
             #     "timestamp": int(time.time()),
             #     "serverid": data["server_id"],
@@ -4614,19 +4640,19 @@ def displayendofroundstats(message,serverid,isfromserver):
         if colour not in DISALLOWED_COLOURS:
             break
 
-    matchid = message.get("matchid",False)
-    if not matchid:
-        matchid = getpriority(message,"originalmessage").split(" ")[1]
+    # matchid = message.get("matchid",False)
+    # if not matchid:
+    #     matchid = getpriority(message,"originalmessage").split(" ")[1]
 
-    discordtotitanfall[serverid]["messages"].append(
-    {
-    # "id": str(int(time.time()*100)),
-    "content":"begin",
-    # "teamoverride": 4,
-    # "isteammessage": False,
-    "uidoverride": [getpriority(message,"uid",["meta","uid"])]
-    }
-    )
+    # discordtotitanfall[serverid]["messages"].append(
+    # {
+    # # "id": str(int(time.time()*100)),
+    # "content":"begin",
+    # # "teamoverride": 4,
+    # # "isteammessage": False,
+    # # "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+    # }
+    # )
     # pull stats
     # playercontext[serverid][player["uid"]][player["name"]][matchid].append({ 
     # playercontext[serverid][player["uid"]][player["name"]][matchid] = [{
@@ -4645,7 +4671,7 @@ def displayendofroundstats(message,serverid,isfromserver):
     matchdata = {}
     colour = f"\x1b[38;5;{colour}m"
 
-    output = {"header":f"{colour}Match stats"}
+    output = {"header":f"{colour}Match stats:"}
     stringslist = {"general":[],"personal":[]}
     if not istf1:
         pass # quering this db takes a long time, and doing this is really time sensitive
@@ -4674,8 +4700,8 @@ def displayendofroundstats(message,serverid,isfromserver):
         # c.close()
         # tfdb.close()
     #str(x[0]+1)+') '
-#     lexitoneapicache =  {
-#     "1752781743_23": [
+#     lexitoneapicache[list(lexitoneapicache.keys())[-1]].extend(
+#  [
 #         {
 #             "victimtype": "player",
 #             "attackertype": "player",
@@ -4703,14 +4729,16 @@ def displayendofroundstats(message,serverid,isfromserver):
 #             "victimname": "LexiGlasss",
 #             "attackername": "LexiGlasss"
 #         }
-#     ]
-# }
+#     ])
+
     maxshow = 1
     moremaxshow = 3
     if matchid in consecutivekills:
         # print(consecutivekills[matchid])
         # print("bleh",json.dumps(flattendict(consecutivekills[matchid]),indent=4))
-        output["ks"] = f"{colour}Highest killstreak{PREFIXES['chatcolour']}: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(({x[0]:x[-1] for x in sorted(flattendict(consecutivekills[matchid]),key = lambda x: x[-1],reverse=True)}).items())[:moremaxshow]))))}"
+        matchdata["ks"] = list(({x[0]:x[-1] for x in filter(lambda x: x[-1] > 0,sorted(flattendict(consecutivekills[matchid]),key = lambda x: x[-1],reverse=True))}).items())[:moremaxshow]
+        if matchdata["ks"]:
+            output["ks"] = f"{colour}Highest killstreak{PREFIXES['chatcolour']}: {', '.join(list(map(lambda x: PREFIXES['stat']+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(matchdata['ks']))))}"
     # print("API",json.dumps(lexitoneapicache,indent=4))
     if matchid in lexitoneapicache:
         # for kill in lexitoneapicache[matchid]:
@@ -4723,9 +4751,9 @@ def displayendofroundstats(message,serverid,isfromserver):
         # print(functools.reduce(lambda a,b: ({**a,b["attackertitan"]:{"kills":a.get(b["attackertitan"],{}).get("kills",0)+1, "deaths":a.get(b["attackertitan"],{}).get("deaths",0)},b["victimtitan"]:{"kills":a.get(b["victimtitan"],{}).get("kills",0), "deaths":a.get(b["victimtitan"],{}).get("deaths",0)+1}} if  b["attackertitan"] != b["victimtitan"] else {**a,b["attackertitan"]:{"kills":a.get(b["attackertitan"],{}).get("kills",0)+1, "deaths":a.get(b["attackertitan"],{}).get("deaths",0)+1}} )if (b["attackertitan"] != "null" and b["attackertitan"] != None and b["victimtitan"] != "null" and b["victimtitan"] != None) else a, lexitoneapicache[matchid],{}))
         
         if matchdata["titankds"]:
-            output["tkd"] = f"{colour}Titan kds{PREFIXES['chatcolour']}: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+TITAN_NAMES.get(x[1][0],x[1][0])+': '+PREFIXES['stat']+str(int((x[1][1]['kills']/max(x[1][1]['deaths'],1))*100)/100)+PREFIXES['chatcolour']+'', enumerate(list(matchdata['titankds'].items())[:moremaxshow]))))} " + (f"{PREFIXES['stat2']}Lowest) {list(matchdata['titankds'].keys())[-1]}: {int((list(matchdata['titankds'].values())[-1]['kills']/list(matchdata['titankds'].values())[-1]['deaths'])*100)/100}" if len(matchdata["titankds"].keys()) > moremaxshow else "")
-        if matchdata["topweaons"]:
-            output["tg"] = f"{colour}Top guns{PREFIXES['chatcolour']}: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+    ''    +WEAPON_NAMES.get(x[1][0],x[1][0])+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+' kills',enumerate(list((matchdata['topweapons']).items())[:3]))))}"
+            output["tkd"] = f"{colour}Titan kds{PREFIXES['chatcolour']}: {', '.join(list(map(lambda x: PREFIXES['stat']+str(x[0]+1)+') '+TITAN_NAMES.get(x[1][0],x[1][0])+': '+PREFIXES['stat']+str(int((x[1][1]['kills']/max(x[1][1]['deaths'],1))*100)/100)+PREFIXES['chatcolour']+'', enumerate(list(matchdata['titankds'].items())[:moremaxshow]))))} " + (f"{PREFIXES['stat2']}Lowest) {list(matchdata['titankds'].keys())[-1]}: {int((list(matchdata['titankds'].values())[-1]['kills']/list(matchdata['titankds'].values())[-1]['deaths'])*100)/100}" if len(matchdata["titankds"].keys()) > moremaxshow else "")
+        if matchdata["topweapons"]:
+            output["tg"] = f"{colour}Top guns{PREFIXES['chatcolour']}: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +WEAPON_NAMES.get(x[1][0],x[1][0])+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+' kill'+ ('s' if x[1][1] -1 else ''),enumerate(list((matchdata['topweapons']).items())[:3]))))}"
     if serverid in playercontext:
         for playerdata in playercontext[serverid].values():
             for playername, datafrommatch in playerdata.items():
@@ -4745,8 +4773,8 @@ def displayendofroundstats(message,serverid,isfromserver):
                 matchdata["tkills"] += kills
                 matchdata["tdeaths"] += deaths
                 matchdata["deaths"][playername] = deaths
-                matchdata["kpm"][playername] = f"{(kills / (timeplayed / 60) if timeplayed else 0):.2f}"
-                matchdata["kd"][playername] = f"{(kills / deaths if deaths else kills):.2f}"
+                matchdata["kpm"][playername] = float(f"{(kills / (timeplayed / 60) if timeplayed else 0):.2f}")
+                matchdata["kd"][playername] = float(f"{(kills / deaths if deaths else kills):.2f}")
         matchdata["kd"] = dict(sorted(matchdata["kd"].items() ,key = lambda x: x[1],reverse=True))
         matchdata["kpm"] = dict(sorted(matchdata["kpm"].items() ,key = lambda x: x[1],reverse=True))
         matchdata["deaths"] = dict(sorted(matchdata["deaths"].items() ,key = lambda x: x[1],reverse=True))
@@ -4755,49 +4783,65 @@ def displayendofroundstats(message,serverid,isfromserver):
             stringslist["general"].append(f"{colour}Total kills: {PREFIXES['stat']}{matchdata['tkills']}")
         if matchdata["tdeaths"]:
             stringslist["general"].append(f"{colour}Total deaths: {PREFIXES['stat']}{matchdata['tdeaths']}")
+        # print(list(matchdata["kd"].values()))
         if matchdata["kd"] and max(matchdata["kd"].values()) > 0:
-            stringslist["personal"].append(f"{colour}K/D: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kd'].items())[:maxshow]))))}")
+            stringslist["personal"].append(f"{colour}K/D: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +x[1][0]+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kd'].items())[:maxshow]))))}")
         if matchdata["kpm"] and max(matchdata["kpm"].values()) > 0:
-            stringslist["personal"].append(f"{colour}K/min: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kpm'].items())[:maxshow]))))}")
+            stringslist["personal"].append(f"{colour}K/min: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +x[1][0]+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kpm'].items())[:maxshow]))))}")
         if matchdata["deaths"] and max(matchdata["deaths"].values()) > 0:
-            stringslist["personal"].append(f"{colour}K/min: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['deaths'].items())[:maxshow]))))}")
+            stringslist["personal"].append(f"{colour}Deaths: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +x[1][0]+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['deaths'].items())[:maxshow]))))}")
 
 
         # output["general"] = f"{colour}General {PREFIXES['chatcolour']}Total kills: {PREFIXES['stat']}{matchdata['tkills']}{PREFIXES['chatcolour']} | Total Deaths: {PREFIXES['stat']}{matchdata['tdeaths']} "
-        # output["top"] =  f"{colour}Top players {PREFIXES['chatcolour']}K/D: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kd'].items())[:maxshow]))))} {PREFIXES['chatcolour']}| K/min: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kpm'].items())[:maxshow]))))} {PREFIXES['chatcolour']}| Deaths: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['deaths'].items())[:maxshow]))))} "
+        # output["top"] =  f"{colour}Top players {PREFIXES['chatcolour']}K/D: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +x[1][0]+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kd'].items())[:maxshow]))))} {PREFIXES['chatcolour']}| K/min: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +x[1][0]+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kpm'].items())[:maxshow]))))} {PREFIXES['chatcolour']}| Deaths: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +x[1][0]+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['deaths'].items())[:maxshow]))))} "
     if matchid in lexitoneapicache:
         # if "general" in output:
         if matchdata['tnpckillsagainstplayers']:
-            stringslist["general"].append(f"{colour}Total kills: {PREFIXES['stat']}{matchdata['tnpckillsagainstplayers']}")
+            stringslist["general"].append(f"{colour}NPC kills: {PREFIXES['stat']}{matchdata['tnpckillsagainstplayers']}")
         if matchdata["npckillsagainstplayers"] and max(matchdata["npckillsagainstplayers"].values()) > 0:
-            # output["top"] = output["top"] +f"| Npc Deaths: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['npckillsagainstplayers'].items())[:maxshow]))))}"
-            stringslist["personal"].append(f"{colour}K/min: {', '.join(list(map(lambda x: PREFIXES[str(x[0])]+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['npckillsagainstplayers'].items())[:maxshow]))))}")
+            # output["top"] = output["top"] +f"| Npc Deaths: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +x[1][0]+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['npckillsagainstplayers'].items())[:maxshow]))))}"
+            stringslist["personal"].append(f"{colour}NPC deaths: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +x[1][0]+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['npckillsagainstplayers'].items())[:maxshow]))))}")
 
-    translater = ["header","general","ks","tg","top","tkd"]
-    for i,key in enumerate(translater):
-        if key not in output:
-            continue
+
+    for key, value in stringslist.items():
+        if value:
+            output[key] = f"{colour} | ".join(value)
+    if len(output) < 2:
+        return ""
+    for value in output.values():
         discordtotitanfall[serverid]["messages"].append(
         {
             # "id": str(i)+str(int(time.time()*100)),
-            "content":output[key],
-            # "teamoverride": 4,
-            # "isteammessage": False,
-            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+            "content":value,
+            "teamoverride": 4,
+            "isteammessage": False,
+            # "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         }
         )
     # return top_weapons
     # print("MATCHDATA",json.dumps(matchdata,indent=4))
+#     messageflush.append({
+#     "timestamp": int(time.time()),
+#     "serverid": serverid,
+#     "type": 4,
+#     "globalmessage": False,
+#     "overridechannel": None,
+#     "messagecontent": "\n".join(list(output.values())),
+#     "metadata": {"type":"endofroundstats"},
+#     "servername": context["serveridnamelinks"][serverid]
+# })
+    return "\n" +  "\n".join(list(output.values()))
     print(json.dumps(output,indent=4))
-    discordtotitanfall[serverid]["messages"].append(
-    {
-    # "id": str(int(time.time()*100)),
-    "content":"end",
-    # "teamoverride": 4,
-    # "isteammessage": False,
-    "uidoverride": [getpriority(message,"uid",["meta","uid"])]
-    }
-    )
+    print(json.dumps(matchdata,indent=4))
+    # discordtotitanfall[serverid]["messages"].append(
+    # {
+    # # "id": str(int(time.time()*100)),
+    # "content":"end",
+    # # "teamoverride": 4,
+    # # "isteammessage": False,
+    # # "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+    # }
+    # )
         
 
 def togglestats(message,togglething,serverid):
@@ -4859,7 +4903,7 @@ def ingamehelp(message,serverid,isfromserver):
         discordtotitanfall[serverid]["messages"].append(
                     {
                         # "id": str(int(time.time()*100)),
-                        "content":f"{PREFIXES['discord']}{PREFIXES['chatcolour']}Help menu for the discord bot",
+                        "content":f"{PREFIXES['discord']}{PREFIXES['commandname']}Help menu for the discord bot",
                         # "teamoverride": 4,
                         # "isteammessage": False,
                         "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -5175,9 +5219,10 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
                     pilotstates[serverid]["webhook"] = "ChatBridge"
             pilotstates[serverid] = {"uid":value["uid"],"model":str(value["pfp"]),"webhook":pilotstates[serverid]["webhook"]}
             # print("here")
-            pfp = MODEL_DICT.get(str(value["pfp"]),"unknown/confused.jpg")
-            if pfp == "unknown/confused.jpg" and (str(value["pfp"].startswith("true")) or str(value["pfp"].startswith("false"))):
+            pfp = MODEL_DICT.get(str(value["pfp"]),random.choice(UNKNOWNPFPS))
+            if pfp in UNKNOWNPFPS and (str(value["pfp"].startswith("true")) or str(value["pfp"].startswith("false"))):
                 print("FALLING BACK TO GUESSING")
+                username = f"{username} - pfp not found - {value['pfp']}"
                 for model, valuew in MODEL_DICT.items():
                     if str(value["pfp"])[6:] in model:
                         pfp = valuew
@@ -6083,10 +6128,11 @@ def flattendict(current, path=[], result=[]):
 
     return result
 
-def packfortextsv3(texts,output):
+def packfortextsv3(texts,output = {}):
     if not len(texts):
+        # print(texts)
         return output
-    return {"content":texts[0]["content"],"validation":str(texts[0]["id"]),"teamoverride":texts[0].get("teamoverride",4),"isteammessage":texts[0].get("isteammessage",False),"uidoverride":",".join(list(map(lambda x: str(x),texts[0].get("uidoverride",[])))),"nextmessage":packfortextsv3(texts[1:])}
+    return {"content":texts[0]["content"],"validation":str(texts[0]["id"]),"teamoverride":texts[0].get("teamoverride",4),"isteammessage":texts[0].get("isteammessage",False),"uidoverride":",".join(list(map(lambda x: str(x),texts[0].get("uidoverride",[])))),"nextmessage":packfortextsv3(texts[1:]) if len(texts[1:]) else None}
 
 
 def getpriority(ditionary,*priority):

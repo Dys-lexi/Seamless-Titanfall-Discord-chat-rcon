@@ -97,6 +97,7 @@ struct {
 	string currentlyplaying = ""
 	string matchid
 	bool showchatprefix
+	bool iveaskedtostoprequests = false
 } serverdetails
 
 
@@ -269,6 +270,10 @@ void function playerstabbedmodelsaver( entity player, entity attacker, var damag
 	// table newmodel
 	// newmodel["pfp"] <- player.GetModelName() + ""
 	discordloglastmodels.playermodels[player.GetUID()] <- player.GetModelName() + ""
+	if ( discordlogpullplayerstat(player.GetUID(),"togglebrute") == "True" && (player.GetModelName() == $"models/titans/light/titan_light_northstar_prime.mdl" || player.GetModelName() == $"models/titans/light/titan_light_raptor.mdl"))
+	{
+		discordloglastmodels.playermodels[player.GetUID()] <- "brute"
+	}
 	float respawntime = Time()
 	int methodOfDeath = DamageInfo_GetDamageSourceIdentifier( damageInfo )
 	float replayLength = CalculateLengthOfKillReplay( player, methodOfDeath )
@@ -309,7 +314,13 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	newmessage.typeofmsg = 1
 	table meta
 	if (IsAlive(message.player)){
-	meta["pfp"] <- message.player.GetModelName() + ""}
+		if ( discordlogpullplayerstat(message.player.GetUID(),"togglebrute") == "True" && (message.player.GetModelName() == $"models/titans/light/titan_light_northstar_prime.mdl" || message.player.GetModelName() == $"models/titans/light/titan_light_raptor.mdl"))
+		{
+			meta["pfp"] <- "brute"}
+		else{
+			meta["pfp"] <- message.player.GetModelName() + ""}
+		}
+	
 	else{
 		// array<string> knownuids = expect array<string>(TableKeysToArray(discordloglastmodels.playermodels))
 		// if (knownuids.contains(message.player.GetUID())){
@@ -404,6 +415,7 @@ void function checkshouldblockmessages(entity player){
 	table params = {}
 	params["password"] <- serverdetails.password
 	params["uid"] <- player.GetUID()
+	params["serverid"] <- serverdetails.serverid
 	HttpRequest request
 	request.method = HttpRequestMethod.POST
 	request.url = serverdetails.Requestpath + "/playerdetails"
@@ -559,6 +571,10 @@ void function begintodiscord(){
   check.allowlogging = 1
 }
 void function stoprequests(){
+	if (serverdetails.iveaskedtostoprequests){
+		return
+	}
+	serverdetails.iveaskedtostoprequests = true
 	check.denylogging = 1
 	table params = {}
 	string uids = ""
@@ -575,7 +591,7 @@ void function stoprequests(){
 
 	otherparams["matchid"] <- serverdetails.matchid
 	params["paramaters"] <- EncodeJSON(otherparams)
-	params["command"] <- "displayendofroundstats"
+	params["command"] <- "endofroundstats"
 	params["password"] <- serverdetails.password
 	params["serverid"] <- serverdetails.serverid
 	HttpRequest request
@@ -782,7 +798,7 @@ void function DiscordClientMessageinloop()
 		check.timeof = expect string(messagess["time"])
 		// table texts = expect table(messagess["texts"])
 		table textsv2 = expect table(messagess["textsv2"])
-		table textsv3 = expect table(messagess["textv3"])
+		table textsv3 = expect table(messagess["textsv3"])
 		// string textvalidation = expect string(messagess["textvalidation"])
 		// array<string> splittextvalidation = split(textvalidation,"%&%&")
 		// array<string> splittexts = split(texts,"%&%&")
@@ -841,25 +857,27 @@ void function DiscordClientMessageinloop()
 			// 	d:uid
 			// 	e:nexttext
 			// }
-			foreach (v3message in orderedrecursiveunpack(textsv3)){
+			// PrintTable(textsv3)
+			foreach (v3message in orderedrecursiveunpack(textsv3,[])){
+				printt("SENDING "+v3message.content)
 				check.textcheck.append(v3message.validation)
 				thread discordlogsendmessage(v3message.content,v3message.teamoverride,v3message.uidoverride)
 			}
-				foreach (key, value in textsv2){
-			table textw = expect table(value)
-			string text = expect string(textw["content"])
-			int teamoverride = expect int(textw["teamoverride"])
-			string validation = expect string(textw["validation"])
-			string ovverrideuids = expect string(textw["uidoverride"])
-			array<string> uidoverride =  split(ovverrideuids,",")
-			print("[DiscordLogger] MESSAGE "+text)
-			check.textcheck.append(validation)
-			thread discordlogsendmessage(text,teamoverride,uidoverride)
-			// foreach (entity player in GetPlayerArray()) {
-			// 	Chat_PrivateMessage(player,player,"\x1b[38;5;105m"+text,false)
-			// }
+		// 		foreach (key, value in textsv2){
+		// 	table textw = expect table(value)
+		// 	string text = expect string(textw["content"])
+		// 	int teamoverride = expect int(textw["teamoverride"])
+		// 	string validation = expect string(textw["validation"])
+		// 	string ovverrideuids = expect string(textw["uidoverride"])
+		// 	array<string> uidoverride =  split(ovverrideuids,",")
+		// 	print("[DiscordLogger] MESSAGE "+text)
+		// 	check.textcheck.append(validation)
+		// 	thread discordlogsendmessage(text,teamoverride,uidoverride)
+		// 	// foreach (entity player in GetPlayerArray()) {
+		// 	// 	Chat_PrivateMessage(player,player,"\x1b[38;5;105m"+text,false)
+		// 	// }
 
-		}
+		// }
 		
 
 	}
@@ -893,17 +911,19 @@ void function DiscordClientMessageinloop()
 }
 
 array<discordtotf2message> function orderedrecursiveunpack(table textsv3, array<discordtotf2message> output = [] ){
+				if (!textsv3.len()) {
+				return []
+				}
 				discordtotf2message thing
 				thing.content = expect string(textsv3["content"])
 				thing.teamoverride = expect int(textsv3["teamoverride"])
 				thing.validation = expect string(textsv3["validation"])
 				thing.uidoverride = split(expect string(textsv3["uidoverride"]),",")
 				output.append(thing)
-				if ("nextmessage" in textsv3){
+				if ("nextmessage" in textsv3 && textsv3["nextmessage"] ){
 				    return orderedrecursiveunpack(expect table(textsv3["nextmessage"]),output)
 				}
 				return output
-				
 			}
 
 void function runcommandondiscord(string commandname, table paramaters = {}){
