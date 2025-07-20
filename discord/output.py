@@ -569,6 +569,7 @@ discordtotitanfall = {}
 colourslink = {}
 titanfall1currentlyplaying = {}
 consecutivekills = {}
+maxkills = {}
 lexitoneapicache = {}
 # Load channel ID from file
 context = {
@@ -960,7 +961,7 @@ if DISCORDBOTLOGSTATS == "1":
             except:
                 await ctx.respond("Failed to calculate pngleaderboard - cdn error")
                 return
-        await ctx.respond(f"Open in browser for full res {cdn_url}")
+        await ctx.respond(f"Open in browser for full res (links reset on bot restart, or after some time, request this leaderboard again if that happens)\n{cdn_url}")
         
 
 
@@ -1669,7 +1670,10 @@ if DISCORDBOTLOGSTATS == "1":
 
 
             # if not specificweapon:
-        weapon_names.sort(key=lambda w: max([0,*list(weapon_kills["main"].get(w, {}).values())]), reverse=True)
+        if not playeroverride:
+            weapon_names.sort(key=lambda w: max([0,*list(weapon_kills["main"].get(w, {}).values())]), reverse=True)
+        else:
+            weapon_names.sort(key=lambda w: weapon_kills["main"].get(w, {}).get(str(playeroverride),0), reverse=True)
         # print(weapon_names)
         weapon_names = list(filter(lambda w: weapon_kills["main"].get(w, False) != False, weapon_names))
         try:
@@ -3503,7 +3507,7 @@ def recieveflaskprintrequests():
     @app.route("/data", methods=["POST"])
     def onkilldata():
         # takes input directly from (slightly modified) nutone (https://github.com/nutone-tf) code for this to work is not on the github repo, so probably don't try using it.
-        global context, messageflush, consecutivekills,lexitoneapicache
+        global context, messageflush, consecutivekills,lexitoneapicache, maxkills
         data = request.get_json()
         if data["password"] != SERVERPASS and SERVERPASS != "*":
             print("invalid password used on data")
@@ -3525,6 +3529,8 @@ def recieveflaskprintrequests():
             # print("CORE KILLSTREAKS COUNTED")
             if len(consecutivekills.keys()) > 50:
                 del(consecutivekills[list(consecutivekills.keys())[0]])
+            if len(maxkills.keys()) > 50:
+                del(maxkills[list(maxkills.keys())[0]])
             consecutivekills.setdefault(data["match_id"],{})
             consecutivekills[data["match_id"]].setdefault(getpriority(data,"attacker_name","attacker_type"),{})
             consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")].setdefault(data.get("attacker_id",1),0)
@@ -3533,6 +3539,7 @@ def recieveflaskprintrequests():
             if bool(data.get("attacker_titan",False) if data.get("attacker_titan",False) != "null" else False ) == bool(data.get("victim_titan",False)if data.get("victim_titan",False) != "null" else False) or bool(data.get("victim_titan",False)if data.get("victim_titan",False) != "null" else False) or (data.get("victim_type",False) == "npc_titan"):
                 # print("this crill counted")
                 consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] += 1
+                setlotsofdefault(maxkills,max(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)],int(getpriority(maxkills,[data["match_id"],getpriority(data,"attacker_name","attacker_type"),data.get("attacker_id",1)]))),data["match_id"],getpriority(data,"attacker_name","attacker_type"),data.get("attacker_id",1))
                 if consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] >= KILLSTREAKNOTIFYTHRESHOLD and not (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP :
                     # print("adding")
                     messageflush.append({
@@ -4593,7 +4600,7 @@ def tftodiscordcommand(specificommand,command,serverid):
 
 def displayendofroundstats(message,serverid,isfromserver):
     # print("HEREEE")
-    global consecutivekills,lexitoneapicache
+    global maxkills,lexitoneapicache
     istf1 = context["istf1server"].get(serverid,False) != False
 
 
@@ -4658,7 +4665,7 @@ def displayendofroundstats(message,serverid,isfromserver):
     # playercontext[serverid][player["uid"]][player["name"]][matchid] = [{
     # playercontext is not really a good varible for this, if somone crashed it won't accumulate, right? na it does, past me is AWESOME
     # pull killstreaks
-    # consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)
+    # maxkills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)
     # what I would want to display is likely:
     # TOP KD (second top, too)
     # TOP KILLS PER MINUTE (second top, too)
@@ -4733,10 +4740,10 @@ def displayendofroundstats(message,serverid,isfromserver):
 
     maxshow = 1
     moremaxshow = 3
-    if matchid in consecutivekills:
-        # print(consecutivekills[matchid])
-        # print("bleh",json.dumps(flattendict(consecutivekills[matchid]),indent=4))
-        matchdata["ks"] = list(({x[0]:x[-1] for x in filter(lambda x: x[-1] > 0,sorted(flattendict(consecutivekills[matchid]),key = lambda x: x[-1],reverse=True))}).items())[:moremaxshow]
+    if matchid in maxkills:
+        # print(maxkills[matchid])
+        # print("bleh",json.dumps(flattendict(maxkills[matchid]),indent=4))
+        matchdata["ks"] = list(({x[0]:x[-1] for x in filter(lambda x: x[-1] > 0,sorted(flattendict(maxkills[matchid]),key = lambda x: x[-1],reverse=True))}).items())[:moremaxshow]
         if matchdata["ks"]:
             output["ks"] = f"{colour}Highest killstreak{PREFIXES['chatcolour']}: {', '.join(list(map(lambda x: PREFIXES['stat']+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(matchdata['ks']))))}"
     # print("API",json.dumps(lexitoneapicache,indent=4))
@@ -6141,6 +6148,16 @@ def getpriority(ditionary,*priority):
         if isinstance(route,str):route = [route]
         for place in route: output = output.get(place,{})
         if output != {}: return output
+
+def setlotsofdefault(dicto, value, *nests):
+    if not nests:
+        return value
+    if len(nests) == 1:
+        return dicto.setdefault(nests[0], value)
+    return setlotsofdefault(dicto.setdefault(nests[0], {}), value, *nests[1:])
+
+
+        
     
 @tasks.loop(seconds=360)
 async def updatechannels():
