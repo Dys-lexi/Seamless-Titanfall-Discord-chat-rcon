@@ -1,8 +1,17 @@
 {
     "ingamecommands": {
-        "endofroundstats": {
+        "hostiletf" :{
             "games": [
                 "tf2"
+            ],
+            "run": "functionless",
+            "description": "Play hostile titanfall warning for a player",
+            "shouldblock": true,
+            "rcon": true
+        },
+        "endofroundstats": {
+            "games": [
+                "tf2","tf1"
             ],
             "function": "displayendofroundstats",
             "run": "seq",
@@ -95,6 +104,20 @@
         },
         "throw": {
             "description": "Throw a player",
+            "parameters": [
+                {
+                    "name": "playername",
+                    "type": "str",
+                    "description": "The player name",
+                    "required": true,
+                    "autocompletefunc": "autocompletenamesfromingame"
+                }
+            ],
+            "rcon": true,
+            "outputfunc": false
+        },
+        "hostiletf": {
+            "description": "Play hostile titanfall warning for a player",
             "parameters": [
                 {
                     "name": "playername",

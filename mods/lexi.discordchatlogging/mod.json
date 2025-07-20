@@ -101,6 +101,10 @@
             "RunOn": "SERVER"
         },
         {
+            "Path": "discordloghostiletitanfall.nut",
+            "RunOn": "SERVER"
+        },
+        {
             "Path": "getconvar.nut",
             "RunOn": "SERVER"
         }

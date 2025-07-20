@@ -477,10 +477,10 @@ discorduidnamelink = {}
 reactedyellowtoo = []
 
 
-log_file = "logs"
-if not os.path.exists("./data/" + log_file):
-    with open("./data/" + log_file, "w") as f:
-        f.write("")
+# log_file = "logs"
+# if not os.path.exists("./data/" + log_file):
+#     with open("./data/" + log_file, "w") as f:
+#         f.write("")
 realprint = print
 def print(*message, end="\033[0m\n"):
     message = " ".join([str(i) for i in message])
@@ -1667,6 +1667,7 @@ if DISCORDBOTLOGSTATS == "1":
         if not playeroverride:
             weapon_names.sort(key=lambda w: max([0,*list(weapon_kills["main"].get(w, {}).values())]), reverse=True)
         else:
+            weapon_names = list(filter(lambda w: weapon_kills["main"].get(w, {}).get(str(playeroverride),0) ,weapon_names))
             weapon_names.sort(key=lambda w: weapon_kills["main"].get(w, {}).get(str(playeroverride),0), reverse=True)
         # print(weapon_names)
         weapon_names = list(filter(lambda w: weapon_kills["main"].get(w, False) != False, weapon_names))
@@ -2027,7 +2028,7 @@ if DISCORDBOTLOGSTATS == "1":
         embed = discord.Embed(
             title=f"Aliases for uid {player['uid']} ({len(alsomatching.keys()) + 1} match{'es' if len(alsomatching.keys()) > 0 else ''} for '{originalname}')",
             color=0xff70cb,
-            description=f"Most recent to oldest, total playtime **{modifyvalue(totalplaytime,'time') if totalplaytime else 'unknown'}**",
+            description=f"Most recent to oldest, si playtime **{modifyvalue(totalplaytime,'time') if totalplaytime else 'unknown'}**",
         )
 
         for y, x in enumerate(aliases[0:MAXALIASESSHOWN]):
@@ -4015,6 +4016,7 @@ def tf1readsend(serverid,checkstatus):
         toolongmessages = []
         for message in discordtotitanfall[serverid]["messages"]:
             messages = True
+            message["id"] = message.get("id",str(random.randint(0,9999999)))
             if str(message["id"]) in discordtotitanfall[serverid]["returnids"]["messages"].keys():
                 continue   #TRADEOFF HERE. EITHER I SEND IT EACH RCON CALL (and don't update the timestamp) OR I do what I do here and only send it once, wait untill yellow dot cleaner comes, then send again.
             if len(message["content"]) > tf1messagesizeadd:
@@ -4538,6 +4540,30 @@ def messageloop():
             print("bot not ready", e)
         time.sleep(0.1)
 
+def sendthingstoplayer(outputstring,serverid,statuscode,uidoverride):
+    istf1 = context["istf1server"].get(serverid,False) != False
+    discordtotitanfall[serverid]["messages"].append(
+    {
+        # "id": str(int(time.time()*100)),
+        "content":f"{PREFIXES['discord']} TF|{1 + int(not(istf1))} output: {outputstring}",
+        # "teamoverride": 4,
+        # "isteammessage": False,
+        "uidoverride": [uidoverride]
+        # "dotreacted": dotreacted
+    }
+    )
+    discordtotitanfall[serverid]["messages"].append(
+    {
+        # "id": str(int(time.time()*100)),
+        "content":f"{PREFIXES['discord']}Statuscode: {statuscode}",
+        # "teamoverride": 4,
+        # "isteammessage": False,
+        "uidoverride": [uidoverride]
+        # "dotreacted": dotreacted
+    }
+    )
+    
+
 def tftodiscordcommand(specificommand,command,serverid):
     if specificommand:
         print("SPECIFIC COMMAND REQUESTED",[serverid],specificommand)
@@ -4580,7 +4606,7 @@ def tftodiscordcommand(specificommand,command,serverid):
             # "dotreacted": dotreacted
         }
         )
-        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid, getpriority(command, "originalmessage","messagecontent")), "fake context", None, True, False), bot.loop)
+        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid, getpriority(command, "originalmessage","messagecontent")), "fake context", sendthingstoplayer, True, True,getpriority(command,"uid",["meta","uid"])), bot.loop)
     # print(specificommand)
     
     elif context["commands"]["ingamecommands"][specificommand]["run"] == "thread":
@@ -5349,7 +5375,7 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
     return results
         
 
-async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride, iscommandnotmessage = True,logthiscommand = True):
+async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride, iscommandnotmessage = True,logthiscommand = True,extraargsintofunction = None):
     # print(serverid, id, ctx,overridemsg)
     if not overridemsg:
         overridemsg = defaultoverride
@@ -5361,9 +5387,11 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride,
                 print(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)])
             if overridemsg:
                 try:
-                   
-                    realmessage = overridemsg(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]["output"], serverid,discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]["statuscode"] )
-           
+                    if extraargsintofunction == None:
+                        realmessage = overridemsg(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]["output"], serverid,discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]["statuscode"] )
+                    else:
+                        realmessage = overridemsg(discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]["output"], serverid,discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]["statuscode"] ,extraargsintofunction)
+
                     if not realmessage:
                         overridemsg = None
                         return

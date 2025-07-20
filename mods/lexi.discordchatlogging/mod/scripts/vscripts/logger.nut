@@ -48,6 +48,7 @@ struct {
 
 array <discordlogcommand functionref(discordlogcommand)> function getregisteredfunctions(){
 	return [
+		discordloghostiletitanfall,
 		discordloggetdiscordcommands
 		discordlogplaying,
 		discordlogthrowplayer,
