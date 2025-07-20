@@ -122,8 +122,6 @@ def creatediscordlinkdb():
 def messagelogger():
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
-    
-    # Create the table if it doesn't exist
     c.execute(
         """CREATE TABLE IF NOT EXISTS messagelogger (
             id INTEGER PRIMARY KEY,
@@ -132,14 +130,10 @@ def messagelogger():
             type STRING
         )"""
     )
-    
-    # Add the "type" column if it doesn't exist (for existing tables)
-    # This is optional if you always create the table fresh, but good practice for upgrades
     try:
         c.execute("ALTER TABLE messagelogger ADD COLUMN serverid INTEGER")
         c.execute("ALTER TABLE messagelogger ADD COLUMN type STRING")
     except sqlite3.OperationalError:
-        # Column already exists, ignore the error
         pass
     
     tfdb.commit()
