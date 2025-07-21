@@ -2583,19 +2583,23 @@ async def linktfaccount(ctx):
     description="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your tf2 name"
 )
 async def show_color_what(ctx, colour: Option(str, "Enter a normal/hex color, or 'reset' to reset")):
-    global colourslink
-    colourslist = []
-    colours = colour
+
     if not checkrconallowed(ctx.author,"coolperksrole"):
         await asyncio.sleep (SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond(f"You do not have the coolperksrole, so cannot use this command :) to get it: {COOLPERKSROLEREQUIRMENTS}", ephemeral=False)
         return
+    await ctx.respond(setcolour(colour,ctx.author.id,"choseningamecolour"),ephemeral=False)
 
+
+
+def setcolour(colours,discorduid,type = "choseningamecolour"):
+    global colourslink
+    colourslist = []
+    colours = colours.replce(","," ")
     for colour in colours.split(" "):
         # print(colour)
         if not re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour) and colour.lower() not in CSS_COLOURS.keys() and colour != "reset":
-            await ctx.respond("Please enter a **valid** hex color (e.g: '#1A2B3C'), or a valid normal colour, (e.g: 'red')", ephemeral=False)
-            return
+            return ("Please enter a **valid** hex color (e.g: '#1A2B3C'), or a valid normal colour, (e.g: 'red')")
         if re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour):
             r = int(colour[1:3], 16)
             g = int(colour[3:5], 16)
@@ -2617,20 +2621,20 @@ async def show_color_what(ctx, colour: Option(str, "Enter a normal/hex color, or
         VALUES (?, ?)
         ON CONFLICT(discorduid) DO UPDATE SET choseningamecolour = excluded.choseningamecolour
         """,
-        (ctx.author.id, str(rgba) if rgba != "reset" else "reset")
+        (discorduid, str(rgba) if rgba != "reset" else "reset")
     )
 
     tfdb.commit()
     tfdb.close()
     
-    if ctx.author.id not in colourslink.keys():
-        colourslink[ctx.author.id] = {}
+    if discorduid not in colourslink.keys():
+        colourslink[discorduid] = {}
     if rgba == "reset":
-        colourslink[ctx.author.id]["ingamecolour"] = []
-        await ctx.respond(f"reset ingame colour to default")
+        colourslink[discorduid]["ingamecolour"] = []
+        return (f"reset ingame colour to default")
         return
-    colourslink[ctx.author.id]["ingamecolour"] = colourslist
-    await ctx.respond(f"Set ingame colour to {', '.join(map(str, colourslist))}")
+    colourslink[discorduid]["ingamecolour"] = colourslist
+    return f"Set ingame colour to {', '.join(map(str, colourslist))}"
 
 @bot.slash_command(
     name="discordtotf2chatcolour",
@@ -2856,6 +2860,23 @@ async def on_message(message):
         # messagestosend[serverid].append(
         #     f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {RGBCOLOUR['NEUTRAL']}{message.content}"
         # )
+def pullid(uid,force = False):
+    global context
+    result = None
+    tfdb = sqlite3.connect("./data/tf2helper.db")
+    c = tfdb.cursor()
+    if not force or force == "discord":
+        c.execute("SELECT discordid FROM discordlinkdata WHERE uid = ?", (uid,))
+        result = c.fetchone()
+    if result is None and (not force or force == "tf"):
+        c.execute("SELECT discordid FROM discordlinkdata WHERE discordid = ?", (uid,))
+        result = c.fetchone()
+    c.close()
+    tfdb.close()
+    if not result:
+        return False
+    return result[0]
+    
 def colourmessage(message,serverid):
     global discorduidnamelink
     # print("HEREHERHERE")
@@ -2915,7 +2936,7 @@ def colourmessage(message,serverid):
     print(f"OUTPUT {output}")
     
     return {**output,"messageteam":message["metadata"]["teamint"]}
-def computeauthornick (name,idauthor,content,serverid,rgbcolouroverride = "DISCORD",colourlinksovverride = "discordcolour",lenoverride = 254):
+def computeauthornick (name,idauthor,content,serverid = False,rgbcolouroverride = "DISCORD",colourlinksovverride = "discordcolour",lenoverride = 254):
     # print("DETAILS",name,idauthor,content,serverid,colourslink.get(idauthor,{}))
     authornick = 2
     counter = 0
@@ -4584,7 +4605,7 @@ def tftodiscordcommand(specificommand,command,serverid):
     if not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in context["commands"]["ingamecommands"].keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"] and (not context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]].get("serversenabled",False) or int(serverid) in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["serversenabled"]):
         specificommand = command["originalmessage"][1:].split(" ")[0].lower()
         commandargs = command["originalmessage"][1:].split(" ")[1:]
-        if context["commands"]["ingamecommands"][specificommand]["rcon"] and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"])):
+        if context["commands"]["ingamecommands"][specificommand].get("permsneeded",False) and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"]),context["commands"]["ingamecommands"][specificommand].get("permsneeded",False)):
             return
         if not istf1 and bool(getpriority(command,["meta","blockedcommand"])) !=  bool(context["commands"]["ingamecommands"][specificommand]["shouldblock"]):
             # huh? this if statment confuses me.. oh actually no, it's telling the server off if it gets blocking wrong but why does it only run here? surely it should always run? put it here as that seems better
@@ -4624,6 +4645,87 @@ def tftodiscordcommand(specificommand,command,serverid):
     elif context["commands"]["ingamecommands"][specificommand]["run"] == "seq":
         returnvalue = globals()[context["commands"]["ingamecommands"][specificommand]["function"]](command,serverid,servercommand)
         return returnvalue
+
+def ingamesetusercolour(message,serverid,isfromserver):
+    istf1 = context["istf1server"].get(serverid,False) != False
+    name = getpriority(message,"originalname","name")
+
+    if len(message.get("originalmessage","w").split(" ") == 1):
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content":f"{PREFIXES['discord']} You need to speciy colours! put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to choose, after the command",
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+        }
+        )
+        return
+
+    name = resolveplayeruidfromdb(name,None,True)
+    if not name:
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content":f"{PREFIXES['discord']} Name: {' '.join(message['originalmessage'].split(' ')[1:])} could not be found",
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+        }
+        )
+        return
+    name = name[0]
+    discorduid =  pullid(name["uid"],"discord")
+    if not discorduid:
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content":f"{PREFIXES['discord']} Name: {name} does not have a discord account linked",
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+        }
+        )
+        return
+    
+    colours = (" ".join(message["originalmessage"].split(" ")[1:]))
+    setcolour(colours,discorduid,"choseningamecolour")
+
+
+def shownamecolours(message,serverid,isfromserver):
+    istf1 = context["istf1server"].get(serverid,False) != False
+    name = getpriority(message,"originalname","name")
+    if len(message.get("originalmessage","w").split(" ")) > 1:
+        name = (" ".join(message["originalmessage"].split(" ")[1:]))
+    name = resolveplayeruidfromdb(name,None,True)
+    if not name:
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content":f"{PREFIXES['discord']} Name: {' '.join(message['originalmessage'].split(' ')[1:])} could not be found",
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+        }
+        )
+        return
+    name = name[0]
+    discorduid =  pullid(name["uid"],"discord")
+    if not discorduid:
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content":f"{PREFIXES['discord']} Name: {name} does not have a discord account linked",
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+        }
+        )
+        return
+    
+    for colour in RGBCOLOUR:
+        message = f"{PREFIXES['discord']}{colour}: "
+        colourtype = "ingamecolour"
+        if colour == "DISCORD":
+            colourtype = "discordcolour"
+        message += computeauthornick(name,discorduid,message,False,colour,colourtype)
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content":message,
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+        }
+        )
+
+
+    
+
+    
+
 
 
 def displayendofroundstats(message,serverid,isfromserver):
@@ -4769,9 +4871,11 @@ def displayendofroundstats(message,serverid,isfromserver):
     maxshow = 1
     moremaxshow = 3
     if matchid in maxkills:
-        # print(maxkills[matchid])
+        print("MAXKILLS MATCHID",maxkills[matchid])
         # print("bleh",json.dumps(flattendict(maxkills[matchid]),indent=4))
-        matchdata["ks"] = list(({x[0]:x[-1] for x in filter(lambda x: x[-1] > 0,sorted(flattendict(maxkills[matchid]),key = lambda x: x[-1],reverse=True))}).items())[:moremaxshow]
+        # maxkills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)
+        matchdata["ks"] = sorted(list( functools.reduce(lambda a,b: {**a,b[0]: max(b[1].values())} if max(b[1].values()) > 1 else a, maxkills[matchid].items(),{}).items()),key = lambda x: x[1],reverse=True)
+        # matchdata["ks"] = list(({x[0]:x[-1] for x in filter(lambda x: x[-1] > 0,sorted(flattendict(maxkills[matchid]),key = lambda x: x[-1],reverse=True))}).items())[:moremaxshow]
         if matchdata["ks"]:
             output["ks"] = f"{colour}Highest killstreak{PREFIXES['chatcolour']}: {', '.join(list(map(lambda x: PREFIXES['stat']+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(matchdata['ks']))))}"
     # print("API",json.dumps(lexitoneapicache,indent=4))
@@ -4958,12 +5062,12 @@ def ingamehelp(message,serverid,isfromserver):
     for i, ( name, command) in enumerate(context["commands"]["ingamecommands"].items()):
         # print("CHECKING COMMAND", (getpriority(command,"uid",["meta","uid"])),command)
         # print("tf1" if istf1 else "tf2","tf1" if istf1 else "tf2" in command["games"])
-        if (not commandoverride or commandoverride.lower() in name) and ("tf1" if istf1 else "tf2") in command["games"] and (not command["rcon"] or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]))) and (not command.get("serversenabled",False) or int(serverid) in command["serversenabled"]):
+        if (not commandoverride or commandoverride.lower() in name) and ("tf1" if istf1 else "tf2") in command["games"] and (not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"])),command.get("permsneeded",False)) and (not command.get("serversenabled",False) or int(serverid) in command["serversenabled"]):
             cmdcounter +=1
             discordtotitanfall[serverid]["messages"].append(
                 {
                     # "id": str(i) + str(int(time.time()*100)),
-                    "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2']+'ADMINCMD ' if command['rcon'] else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{name}{PREFIXES['chatcolour'] if not istf1 else PREFIXES['chatcolour']}: {command['description']}",
+                    "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2']+command.get('permsneeded',False) if command.get('permsneeded',False) else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{name}{PREFIXES['chatcolour'] if not istf1 else PREFIXES['chatcolour']}: {command['description']}",
                     # "teamoverride": 4,
                     # "isteammessage": False,
                     "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -6179,7 +6283,7 @@ def packfortextsv3(texts,output = {}):
     if not len(texts):
         # print(texts)
         return output
-    return {"content":texts[0]["content"],"validation":str(texts[0]["id"]),"teamoverride":texts[0].get("teamoverride",4),"isteammessage":texts[0].get("isteammessage",False),"uidoverride":",".join(list(map(lambda x: str(x),texts[0].get("uidoverride",[])))),"nextmessage":packfortextsv3(texts[1:]) if len(texts[1:]) else None}
+    return {"content":texts[0]["content"],"validation":str(texts[0]["id"]),"teamoverride":texts[0].get("teamoverride",4),"isteammessage":texts[0].get("isteammessage",False),"uidoverride":",".join(list(map(lambda x: str(x), texts[0].get("uidoverride",[]) if texts[0].get("uidoverride",[]) else []))),"nextmessage":packfortextsv3(texts[1:]) if len(texts[1:]) else None}
 
 
 def getpriority(ditionary,*priority):

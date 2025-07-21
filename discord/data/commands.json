@@ -1,23 +1,42 @@
 {
     "ingamecommands": {
-        "hostiletf" :{
+        "namecolour": {
+            "games": [
+                "tf2"
+            ],
+            "run": "ingamesetusercolour",
+            "description": "Change the colour of your name",
+            "shouldblock": true,
+            "permsneeded": "coolperksrole"
+        },
+        "showname": {
+            "games": [
+                "tf2"
+            ],
+            "run": "shownamecolours",
+            "description": "Shows your name colours (because normally you cannot see enemy team ver)",
+            "shouldblock": true,
+            "permsneeded": "coolperksrole"
+        },
+        "hostiletf": {
             "games": [
                 "tf2"
             ],
             "run": "functionless",
             "description": "Play hostile titanfall warning for a player",
             "shouldblock": true,
-            "rcon": true
+            "permsneeded": "rconrole"
         },
         "endofroundstats": {
             "games": [
-                "tf2","tf1"
+                "tf2",
+                "tf1"
             ],
             "function": "displayendofroundstats",
             "run": "seq",
             "description": "display end of round stats",
             "shouldblock": false,
-            "rcon": true
+            "permsneeded": "rconrole"
         },
         "stats": {
             "games": [
@@ -27,8 +46,7 @@
             "function": "calcstats",
             "run": "thread",
             "description": "display your stats. do !stats lexi for a specific player",
-            "shouldblock": false,
-            "rcon": false
+            "shouldblock": false
         },
         "togglestats": {
             "games": [
@@ -37,8 +55,7 @@
             ],
             "run": "togglestat",
             "description": "True = disable auto showing of stats",
-            "shouldblock": true,
-            "rcon": false
+            "shouldblock": true
         },
         "helpdc": {
             "games": [
@@ -48,16 +65,14 @@
             "function": "ingamehelp",
             "run": "thread",
             "description": "Get help on commands that exec on the discord bot",
-            "shouldblock": false,
-            "rcon": false
+            "shouldblock": false
         },
         "getdiscordcommands": {
             "games": [],
             "function": "senddiscordcommands",
             "run": "thread",
             "description": "Internal function for pulling shouldblock values",
-            "shouldblock": true,
-            "rcon": false
+            "shouldblock": true
         },
         "throw": {
             "games": [
@@ -66,7 +81,7 @@
             "run": "functionless",
             "description": "Throw somone, you meanie",
             "shouldblock": true,
-            "rcon": true
+            "permsneeded": "rconrole"
         }
     },
     "botcommands": {
