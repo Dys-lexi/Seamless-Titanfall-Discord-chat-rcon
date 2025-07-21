@@ -984,6 +984,19 @@ discordlogcommand function reloadpersistentsettings(discordlogcommand commandin)
 	for( i = 0; i < commandin.commandargs.len()-1; i++) {
 		username = username + commandin.commandargs[i] + " "
 	}
+	string uid = commandin.commandargs[1]
+	foreach (player in GetPlayerArray()){
+		if (player.GetUID() == uid){
+			thread checkshouldblockmessages(player)
+
+			commandin.returnmessage = "Trying to set persistentvars for "+player.GetPlayerName();
+			commandin.returncode = 200
+			return commandin
+
+
+
+		}
+	}
 	username = username + commandin.commandargs[commandin.commandargs.len() -1 ]
 	array<entity> players = discordlogmatchplayers(username)
 	if (players.len() != 1){

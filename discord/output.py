@@ -492,7 +492,7 @@ def print(*message, end="\033[0m\n"):
                 + str(message)
                 + "\n"
             )
-    realprint(f"[{inspect.currentframe().f_back.f_lineno}] {message}", end=end)
+    realprint(f"[{inspect.currentframe().f_back.f_lineno}] [{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}] {message}", end=end)
 print("running discord logger bot")
 lastrestart = 0
 messagecounter = 0
@@ -3534,7 +3534,11 @@ def recieveflaskprintrequests():
             if bool(data.get("attacker_titan",False) if data.get("attacker_titan",False) != "null" else False ) == bool(data.get("victim_titan",False)if data.get("victim_titan",False) != "null" else False) or bool(data.get("victim_titan",False)if data.get("victim_titan",False) != "null" else False) or (data.get("victim_type",False) == "npc_titan"):
                 # print("this crill counted")
                 consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] += 1
-                setlotsofdefault(maxkills,max(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)],int(getpriority(maxkills,[data["match_id"],getpriority(data,"attacker_name","attacker_type"),data.get("attacker_id",1)]))),data["match_id"],getpriority(data,"attacker_name","attacker_type"),data.get("attacker_id",1))
+                # maxkills = setlotsofdefault(maxkills,max(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)],int(getpriority(maxkills,[data["match_id"],getpriority(data,"attacker_name","attacker_type"),data.get("attacker_id",1)]))),data["match_id"],getpriority(data,"attacker_name","attacker_type"),data.get("attacker_id",1))
+                maxkills.setdefault(data["match_id"], {}).setdefault(getpriority(data,"attacker_name","attacker_type"), {})[data.get("attacker_id",1)] = max(
+                    consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)],
+                    maxkills.get(data["match_id"], {}).get(getpriority(data,"attacker_name","attacker_type"), {}).get(data.get("attacker_id",1), 0)
+                )
                 if consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] >= KILLSTREAKNOTIFYTHRESHOLD and not (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP :
                     # print("adding")
                     messageflush.append({
@@ -4565,10 +4569,12 @@ def sendthingstoplayer(outputstring,serverid,statuscode,uidoverride):
     
 
 def tftodiscordcommand(specificommand,command,serverid):
+    global context
+    istf1 = context["istf1server"].get(serverid,False) != False
     if specificommand:
         print("SPECIFIC COMMAND REQUESTED",[serverid],specificommand)
     # return
-    global context
+
 
     servercommand = specificommand != False
     keyletter = "!"
@@ -4580,9 +4586,10 @@ def tftodiscordcommand(specificommand,command,serverid):
         commandargs = command["originalmessage"][1:].split(" ")[1:]
         if context["commands"]["ingamecommands"][specificommand]["rcon"] and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"])):
             return
-        if bool(getpriority(command,["meta","blockedcommand"])) !=  bool(context["commands"]["ingamecommands"][specificommand]["shouldblock"]):
+        if not istf1 and bool(getpriority(command,["meta","blockedcommand"])) !=  bool(context["commands"]["ingamecommands"][specificommand]["shouldblock"]):
             # huh? this if statment confuses me.. oh actually no, it's telling the server off if it gets blocking wrong but why does it only run here? surely it should always run? put it here as that seems better
-            senddiscordcommands(0,serverid,0)
+            # tf1 does not support blocking commands yet, from discord. nor does it have any, due to it using a better command system, so a lot of the commands can run directly on tf1
+            senddiscordcommands(0,serverid,0) 
 
 
     elif specificommand:
@@ -4592,6 +4599,7 @@ def tftodiscordcommand(specificommand,command,serverid):
     initdiscordtotitanfall(serverid)
 
     if context["commands"]["ingamecommands"][specificommand]["run"] == "togglestat":
+        # print("HERE HERE HERE HERE HERE HERE")
         togglestats(command,specificommand,serverid)
 
     elif context["commands"]["ingamecommands"][specificommand]["run"] == "functionless":
@@ -4872,6 +4880,7 @@ def displayendofroundstats(message,serverid,isfromserver):
         
 
 def togglestats(message,togglething,serverid):
+    # print(togglething,serverid)
     internaltoggle = context["commands"]["ingamecommands"][togglething].get("internaltoggle",togglething)
     istf1 = context["istf1server"].get(serverid,False) != False
     if  istf1 and not len(str(getpriority(message,"uid",["meta","uid"]))) > 15:
@@ -4894,6 +4903,14 @@ def togglestats(message,togglething,serverid):
         shouldset = False
     
     setplayeruidpreferences(["tf1" if istf1 else "tf2",internaltoggle],not shouldset,getpriority(message,"uid",["meta","uid"]),istf1)
+    if context["commands"]["ingamecommands"][togglething].get("description",False):
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content":f"{PREFIXES['discord']} (desc) {context['commands']['ingamecommands'][togglething]['description']}",
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+        }
+        )
+    
     discordtotitanfall[serverid]["messages"].append(
     {
         # "id": str(int(time.time()*100)),
@@ -4905,7 +4922,7 @@ def togglestats(message,togglething,serverid):
     }
     )
     if not istf1:
-        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {getpriority(message,"originalname","name")}'),"fake context",None,True,False), bot.loop)
+        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {getpriority(message,"uid",["meta","uid"],"originalname","name")}'),"fake context",None,True,False), bot.loop)
 
 
 # def throwplayer(message,serverid,isfromserver):
@@ -4937,14 +4954,16 @@ def ingamehelp(message,serverid,isfromserver):
                         # "dotreacted": dotreacted
                     }
                     )
+    cmdcounter = 0
     for i, ( name, command) in enumerate(context["commands"]["ingamecommands"].items()):
         # print("CHECKING COMMAND", (getpriority(command,"uid",["meta","uid"])),command)
         # print("tf1" if istf1 else "tf2","tf1" if istf1 else "tf2" in command["games"])
         if (not commandoverride or commandoverride.lower() in name) and ("tf1" if istf1 else "tf2") in command["games"] and (not command["rcon"] or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]))) and (not command.get("serversenabled",False) or int(serverid) in command["serversenabled"]):
+            cmdcounter +=1
             discordtotitanfall[serverid]["messages"].append(
                 {
                     # "id": str(i) + str(int(time.time()*100)),
-                    "content":f"{PREFIXES['discord']}{'ADMINCMD ' if command['rcon'] else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{name}{PREFIXES['chatcolour'] if not istf1 else PREFIXES['chatcolour']}: {command['description']}",
+                    "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2']+'ADMINCMD ' if command['rcon'] else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{name}{PREFIXES['chatcolour'] if not istf1 else PREFIXES['chatcolour']}: {command['description']}",
                     # "teamoverride": 4,
                     # "isteammessage": False,
                     "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -4962,7 +4981,7 @@ def calcstats(message,serverid,isfromserver):
     istf1 = context["istf1server"].get(serverid,False) != False
     # print(isfromserver,readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]),istf1) )
     # print("BLEHHHH",getpriority(message,"uid",["meta","uid"]))
-    if isfromserver and  getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"],"name"),istf1),["tf1" if istf1 else "tf2",togglestats]) == False:
+    if isfromserver and  getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"],"name"),istf1),["tf1" if istf1 else "tf2","togglestats"]) != True:
         # print("HERE")
         return
         # discordtotitanfall[serverid]["messages"].append(
@@ -5435,8 +5454,7 @@ def checkrconallowed(author,typeof = "rconrole"):
     global context
     # if author.id not in context["RCONallowedusers"]:
     #     return False
-    if (not hasattr(author, "roles") and  author.id in context["overriderolesuids"][typeof]) or(hasattr(author, "roles") and (( typeof == "rconrole" and author.guild_permissions.administrator) or (typeof == "coolperksrole" and OVVERRIDEROLEREQUIRMENT == "1") or functools.reduce(lambda a, x: a or x in list(map (lambda w: w.id ,author.roles)) ,[context["overrideroles"][typeof]] if isinstance(context["overrideroles"][typeof], int) else context["overrideroles"][typeof] ,False))):
-        return True
+    return (not hasattr(author, "roles") and  author.id in context["overriderolesuids"][typeof]) or(hasattr(author, "roles") and (( typeof == "rconrole" and author.guild_permissions.administrator) or (typeof == "coolperksrole" and OVVERRIDEROLEREQUIRMENT == "1") or functools.reduce(lambda a, x: a or x in list(map (lambda w: w.id ,author.roles)) ,[context["overrideroles"][typeof]] if isinstance(context["overrideroles"][typeof], int) else context["overrideroles"][typeof] ,False)))
 # command slop
 def checkrconallowedtfuid(uid, typeof="rconrole"):
     global context
@@ -6643,11 +6661,27 @@ sys.excepthook = log_uncaught_exceptions
 # }
 
 
+# def tf1inputemulator():
+#     while True:
+#         content = input("ENTER MESSAGE: ")
+#         messageflush.append({
+#         "timestamp": int(time.time()),
+#         "serverid": "304",
+#         "type": 3,
+#         "player":"fake lexi sending fake commands",
+#         "globalmessage": True,
+#         "overridechannel": "commandlogchannel",
+#         "messagecontent": content,
+#         "metadata": {"type":"tf1command"},
+#         "servername" :context["serveridnamelinks"]["304"]
+#         })
+
 if DISCORDBOTLOGSTATS == "1":
     threading.Thread(target=playerpoll).start()
 threading.Thread(target=messageloop).start()
 threading.Thread(target=recieveflaskprintrequests).start()
 threading.Thread(target=tf1relay).start()
+# threading.Thread(target=tf1inputemulator).start()
 
 
 

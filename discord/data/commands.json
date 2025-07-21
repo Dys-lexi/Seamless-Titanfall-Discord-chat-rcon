@@ -35,9 +35,8 @@
                 "tf1",
                 "tf2"
             ],
-            "function": "togglestats",
-            "run": "thread",
-            "description": "toggle auto showing of stats on map change / join",
+            "run": "togglestat",
+            "description": "True = disable auto showing of stats",
             "shouldblock": true,
             "rcon": false
         },
