@@ -12,6 +12,7 @@ discord/discordtitanfall/**
 discord/data/*
 !discord/data/commands.json
 discord/venv
+discord/db
 
 .venv
 .env

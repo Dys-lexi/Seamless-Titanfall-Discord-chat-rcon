@@ -61,7 +61,8 @@ array <discordlogcommand functionref(discordlogcommand)> function getregisteredf
 		getconvar,
 		extmessagesendtester,
 		discordlogimpersonate,
-		reloadpersistentsettings
+		reloadpersistentsettings,
+		discordloghostiletitanfall
 		]
 		 //add functions here, and they'll work with / commands (if they fill criteria above)
 }
@@ -984,7 +985,7 @@ discordlogcommand function reloadpersistentsettings(discordlogcommand commandin)
 	for( i = 0; i < commandin.commandargs.len()-1; i++) {
 		username = username + commandin.commandargs[i] + " "
 	}
-	string uid = commandin.commandargs[1]
+	string uid = commandin.commandargs[0]
 	foreach (player in GetPlayerArray()){
 		if (player.GetUID() == uid){
 			thread checkshouldblockmessages(player)

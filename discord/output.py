@@ -2595,7 +2595,7 @@ async def show_color_what(ctx, colour: Option(str, "Enter a normal/hex color, or
 def setcolour(colours,discorduid,type = "choseningamecolour"):
     global colourslink
     colourslist = []
-    colours = colours.replce(","," ")
+    colours = colours.replace(","," ")
     for colour in colours.split(" "):
         # print(colour)
         if not re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour) and colour.lower() not in CSS_COLOURS.keys() and colour != "reset":
@@ -2824,7 +2824,7 @@ async def on_message(message):
         initdiscordtotitanfall(serverid)
         if (
             len(
-                f"{ANSICOLOUR}{message.author.nick if message.author.nick is not None else message.author.display_name}: {RGBCOLOUR['NEUTRAL']}{message.content}"
+                f"{ANSICOLOUR}{message.author.nick if message.author.nick is not None else message.author.display_name}: {PREFIXES['neutral']}{message.content}"
             )
             > 254 - bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract
         ):
@@ -2837,12 +2837,12 @@ async def on_message(message):
         # elif discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5:
         #     dotreacted = "🟡" 
         if message.content != "": #and not context["istf1server"].get(serverid,False):
-            print(len(f"{authornick}: {RGBCOLOUR['NEUTRAL']}{message.content}"),f"{authornick}: {RGBCOLOUR['NEUTRAL']}{message.content}\033[0m")
-            # print(len(f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}{RGBCOLOUR['NEUTRAL']}{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}"))
+            print(len(f"{authornick}: {PREFIXES['neutral']}{message.content}"),f"{authornick}: {PREFIXES['neutral']}{message.content}\033[0m")
+            # print(len(f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}"))
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": message.id,
-                    "content": f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}{RGBCOLOUR['NEUTRAL']}{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}",
+                    "content": f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}",
                     # "teamoverride": 4,
                     # "isteammessage": False,
                     # "uidoverride": []
@@ -2858,7 +2858,7 @@ async def on_message(message):
             image = await createimage(message)
             await returncommandfeedback(*sendrconcommand(serverid,f"!sendimage {' '.join(image)}"), message, iscommandnotmessage = False)
         # messagestosend[serverid].append(
-        #     f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {RGBCOLOUR['NEUTRAL']}{message.content}"
+        #     f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {PREFIXES['neutral']}{message.content}"
         # )
 def pullid(uid,force = False):
     global context
@@ -2904,11 +2904,11 @@ def colourmessage(message,serverid):
                 return False
             elif  not link or not link[0] :
                 # print("ee")
-                return {"both":f"{RGBCOLOUR['NEUTRAL']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
+                return {"both":f"{PREFIXES['neutral']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
             discorduid = link[0]
         # if not colourslink.get(discorduid,False).get("ingamecolour",False) and message["metadata"]["blockedmessage"]:
         #     # print("edwqdqw")
-        #     return {"both":f"{RGBCOLOUR['NEUTRAL']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
+        #     return {"both":f"{PREFIXES['neutral']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
         if not colourslink.get(discorduid,{}).get("ingamecolour",False) and not message["metadata"]["blockedmessage"]:
             # print("e")
             return False
@@ -2924,7 +2924,7 @@ def colourmessage(message,serverid):
         authornicks["friendly"] = computeauthornick(message["player"],discorduid,"[111m[TEAM] " +message["messagecontent"],serverid,"FRIENDLY","ingamecolour",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254)
     output = {}
     for key, value in authornicks.items():
-        output[key] = f"{'[111m[TEAM] ' if message['metadata']['teamtype'] != 'not team' else ''}{value}: {RGBCOLOUR['NEUTRAL']}{message['messagecontent']}"
+        output[key] = f"{'[111m[TEAM] ' if message['metadata']['teamtype'] != 'not team' else ''}{value}: {PREFIXES['neutral']}{message['messagecontent']}"
     # print(output)
     if not colourslink.get(discorduid,{}).get("ingamecolour",False) and message["metadata"]["blockedmessage"]:
         output["uid"] = str(message["metadata"]["uid"])
@@ -2942,7 +2942,7 @@ def computeauthornick (name,idauthor,content,serverid = False,rgbcolouroverride 
     counter = 0
     while authornick == 2 and counter < len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])]):
         # print(counter)
-        authornick = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {RGBCOLOUR['NEUTRAL']}{content}")- bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract)
+        authornick = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {PREFIXES['neutral']}{content}")- bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract)
         counter +=1
     if authornick == 2:
         print("MESSAGE TOO LONG IN A WEIRD WAY, BIG PANIC")
@@ -4605,6 +4605,7 @@ def tftodiscordcommand(specificommand,command,serverid):
     if not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in context["commands"]["ingamecommands"].keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"] and (not context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]].get("serversenabled",False) or int(serverid) in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["serversenabled"]):
         specificommand = command["originalmessage"][1:].split(" ")[0].lower()
         commandargs = command["originalmessage"][1:].split(" ")[1:]
+        # print( "e",context["commands"]["ingamecommands"][specificommand].get("permsneeded",False) and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"]),context["commands"]["ingamecommands"][specificommand].get("permsneeded",False)))
         if context["commands"]["ingamecommands"][specificommand].get("permsneeded",False) and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"]),context["commands"]["ingamecommands"][specificommand].get("permsneeded",False)):
             return
         if not istf1 and bool(getpriority(command,["meta","blockedcommand"])) !=  bool(context["commands"]["ingamecommands"][specificommand]["shouldblock"]):
@@ -4650,7 +4651,7 @@ def ingamesetusercolour(message,serverid,isfromserver):
     istf1 = context["istf1server"].get(serverid,False) != False
     name = getpriority(message,"originalname","name")
 
-    if len(message.get("originalmessage","w").split(" ") == 1):
+    if len(message.get("originalmessage","w").split(" ")) == 1:
         discordtotitanfall[serverid]["messages"].append(
         {
             "content":f"{PREFIXES['discord']} You need to speciy colours! put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to choose, after the command",
@@ -4680,10 +4681,18 @@ def ingamesetusercolour(message,serverid,isfromserver):
         return
     
     colours = (" ".join(message["originalmessage"].split(" ")[1:]))
-    setcolour(colours,discorduid,"choseningamecolour")
+    discordtotitanfall[serverid]["messages"].append(
+    {
+        "content":f"{PREFIXES['discord']} {setcolour(colours,discorduid,'choseningamecolour')}",
+        "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+    }
+    )
+    return
+    
 
 
 def shownamecolours(message,serverid,isfromserver):
+    # print("HERHEHRHE")
     istf1 = context["istf1server"].get(serverid,False) != False
     name = getpriority(message,"originalname","name")
     if len(message.get("originalmessage","w").split(" ")) > 1:
@@ -4709,14 +4718,17 @@ def shownamecolours(message,serverid,isfromserver):
         return
     
     for colour in RGBCOLOUR:
-        message = f"{PREFIXES['discord']}{colour}: "
+        
         colourtype = "ingamecolour"
         if colour == "DISCORD":
             colourtype = "discordcolour"
-        message += computeauthornick(name,discorduid,message,False,colour,colourtype)
+            messageout = f"{PREFIXES['discord']}{PREFIXES['discordcolour']}{colour}: "
+        else:
+            messageout = f"{PREFIXES['discord']}{PREFIXES[colour.lower()]}{colour}: "
+        messageout += computeauthornick(name["name"],discorduid,messageout,False,colour,colourtype)
         discordtotitanfall[serverid]["messages"].append(
         {
-            "content":message,
+            "content":messageout,
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         }
         )
@@ -5062,12 +5074,14 @@ def ingamehelp(message,serverid,isfromserver):
     for i, ( name, command) in enumerate(context["commands"]["ingamecommands"].items()):
         # print("CHECKING COMMAND", (getpriority(command,"uid",["meta","uid"])),command)
         # print("tf1" if istf1 else "tf2","tf1" if istf1 else "tf2" in command["games"])
-        if (not commandoverride or commandoverride.lower() in name) and ("tf1" if istf1 else "tf2") in command["games"] and (not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"])),command.get("permsneeded",False)) and (not command.get("serversenabled",False) or int(serverid) in command["serversenabled"]):
+        # print("BLEH",(not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]))))
+        # print(  (not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"])),command.get("permsneeded",False)) )
+        if (not commandoverride or commandoverride.lower() in name) and ("tf1" if istf1 else "tf2") in command["games"] and (not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]),command.get("permsneeded",False))) and (not command.get("serversenabled",False) or int(serverid) in command["serversenabled"]):
             cmdcounter +=1
             discordtotitanfall[serverid]["messages"].append(
                 {
                     # "id": str(i) + str(int(time.time()*100)),
-                    "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2']+command.get('permsneeded',False) if command.get('permsneeded',False) else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{name}{PREFIXES['chatcolour'] if not istf1 else PREFIXES['chatcolour']}: {command['description']}",
+                    "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2']+command.get('permsneeded',False)+ ' ' if command.get('permsneeded',False) else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{name}{PREFIXES['chatcolour'] if not istf1 else PREFIXES['chatcolour']}: {command['description']}",
                     # "teamoverride": 4,
                     # "isteammessage": False,
                     "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -5558,10 +5572,14 @@ def checkrconallowed(author,typeof = "rconrole"):
     global context
     # if author.id not in context["RCONallowedusers"]:
     #     return False
-    return (not hasattr(author, "roles") and  author.id in context["overriderolesuids"][typeof]) or(hasattr(author, "roles") and (( typeof == "rconrole" and author.guild_permissions.administrator) or (typeof == "coolperksrole" and OVVERRIDEROLEREQUIRMENT == "1") or functools.reduce(lambda a, x: a or x in list(map (lambda w: w.id ,author.roles)) ,[context["overrideroles"][typeof]] if isinstance(context["overrideroles"][typeof], int) else context["overrideroles"][typeof] ,False)))
+    # author.guild_permissions.administrator (THERE IS A "and False" here, it used to be "and author.guild_permissions.administrator")
+    return (not hasattr(author, "roles") and  author.id in context["overriderolesuids"][typeof]) or(hasattr(author, "roles") and (( typeof == "rconrole" and False) or (typeof == "coolperksrole" and OVVERRIDEROLEREQUIRMENT == "1") or functools.reduce(lambda a, x: a or x in list(map (lambda w: w.id ,author.roles)) ,[context["overrideroles"][typeof]] if isinstance(context["overrideroles"][typeof], int) else context["overrideroles"][typeof] ,False)))
 # command slop
 def checkrconallowedtfuid(uid, typeof="rconrole"):
     global context
+    # return False
+    if OVVERRIDEROLEREQUIRMENT == "1" and typeof == "coolperksrole":
+        return True
     # print("CHECKING UID",uid)
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()

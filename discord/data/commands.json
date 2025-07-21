@@ -4,7 +4,8 @@
             "games": [
                 "tf2"
             ],
-            "run": "ingamesetusercolour",
+            "function": "ingamesetusercolour",
+            "run": "thread",
             "description": "Change the colour of your name",
             "shouldblock": true,
             "permsneeded": "coolperksrole"
@@ -13,9 +14,10 @@
             "games": [
                 "tf2"
             ],
-            "run": "shownamecolours",
-            "description": "Shows your name colours (because normally you cannot see enemy team ver)",
-            "shouldblock": true,
+            "function": "shownamecolours",
+            "run": "thread",
+            "description": "Shows your name colours",
+            "shouldblock": false,
             "permsneeded": "coolperksrole"
         },
         "hostiletf": {
@@ -55,7 +57,7 @@
             ],
             "run": "togglestat",
             "description": "True = disable auto showing of stats",
-            "shouldblock": true
+            "shouldblock": false
         },
         "helpdc": {
             "games": [

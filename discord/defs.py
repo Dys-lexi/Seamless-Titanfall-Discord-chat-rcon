@@ -277,10 +277,11 @@ MAP_NAME_TABLE = {
 }
 
 ANSICOLOUR = "\x1b[38;5;105m"
-RGBCOLOUR = {"DISCORD":(135, 135, 255),"FRIENDLY":(80, 229, 255),"ENEMY":(213, 80, 16),"NEUTRAL":"[110m"}
+RGBCOLOUR = {"DISCORD":(135, 135, 255),"FRIENDLY":(80, 229, 255),"ENEMY":(213, 80, 16),"NEUTRAL":(200,200,200)}
 PREFIXES = {"lexicmdprivate":"\x1b[38;5;213m[Lexicmd]\x1b[38;5;254m "
         ,"discord":"[38;2;135;135;254m[Discord]\x1b[38;5;254m ",
         "chatcolour":"\x1b[110m",
+        "neutral":"\x1b[110m",
         "stat":"\x1b[38;5;189m",
         "stat2":"\x1b[38;5;244m",
         "gold":"\x1b[38;5;220m",
@@ -289,7 +290,10 @@ PREFIXES = {"lexicmdprivate":"\x1b[38;5;213m[Lexicmd]\x1b[38;5;254m "
         "0":"\x1b[38;5;220m",
         "1":"\x1b[38;5;251m",
         "2":"\x1b[38;5;208m",
-        "commandname":"\x1b[38;5;219m"
+        "commandname":"\x1b[38;5;219m",
+        "friendly":"\x1b[111m",
+        "enemy":"\x1b[112m",
+        "discordcolour":"[38;2;135;135;254m"
         
         }
 
