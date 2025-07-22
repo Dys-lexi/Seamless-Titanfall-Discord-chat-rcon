@@ -32,89 +32,6 @@ from psycopg2 import pool
 # import tracemalloc
 # tracemalloc.start()
 
-pgpool = pool.ThreadedConnectionPool(
-    1, 10,
-    dsn="postgresql://pguser:hiddenpassword@127.0.0.1:3452/realdb"
-)
-
-
-class sqliteem:
-    def __init__(self, path = None):
-        self.conn = sqlite3.connect(path)
-        self.cursor = self.conn.cursor()
-        self.closed = False
-
-    def execute(self, query, params=None):
-        self.cursor.execute(query, params or ())
-
-    def fetchall(self):
-        return self.cursor.fetchall()
-
-    def fetchone(self):
-        return self.cursor.fetchone()
-
-    def commit(self):
-        self.conn.commit()
-
-    def close(self):
-        if self.closed:return
-        self.closed = True
-        self.cursor.close()
-        self.conn.close()
-
-class postgresem:
-    def __init__(self, pool):
-        self.pool = pgpool
-        self.conn = self.pool.getconn()
-        self.cursor = self.conn.cursor()
-        self.closed = False
-
-    def execute(self, query, params=None):
-        query = query.replace("?", "%s")
-        query = re.sub(r'\s+COLLATE\s+NOCASE', '', query, flags=re.IGNORECASE)
-        query = re.sub(r'\bLIKE\b', 'ILIKE', query, flags=re.IGNORECASE)
-
-        try:
-            self.cursor.execute(query, params or ())
-        except psycopg2.errors.InvalidTextRepresentation as e:
-            # Check if error is about bigint and query is SELECT
-            if "invalid input syntax for type bigint" in str(e) and query.strip().upper().startswith("SELECT"):
-                # Return empty results for this query to avoid crash
-                self._empty_result = True
-            else:
-                raise
-        else:
-            self._empty_result = False
-
-    def fetchall(self):
-        if getattr(self, "_empty_result", False):
-            return []
-        return self.cursor.fetchall()
-
-    def fetchone(self):
-        if getattr(self, "_empty_result", False):
-            return []
-        return self.cursor.fetchone()
-
-    def commit(self):
-        self.conn.commit()
-
-    def close(self):
-        if self.closed:
-            return
-        self.closed = True
-        try:
-            self.cursor.close()
-        except Exception:
-            pass
-        try:
-            self.pool.putconn(self.conn)
-        except Exception:
-            pass
-
-    def __del__(self):
-        self.close()
-
 def create_all_indexes():
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
@@ -612,12 +529,99 @@ SHOWIMPERSONATEDMESSAGESINDISCORD = os.getenv("SHOW_IMPERSONATED_MESSAGES_IN_DIS
 KILLSTREAKNOTIFYTHRESHOLD = int(os.getenv("KILL_STREAK_NOTIFY_THRESHOLD","5"))
 KILLSTREAKNOTIFYSTEP = int(os.getenv("KILL_STREAK_NOTIFY_STEP","5"))
 REACTONMENTION = os.getenv("REACT_EMOJI_ON_MENTION","0")
+POSTGRESQLDBURL = os.getenv("POSTGRESQL_DB_URL","0")
 
 GLOBALIP = 0
 if OVERRIDEIPFORCDNLEADERBOARD == "use_actual_ip":
     GLOBALIP ="http://"+requests.get('https://api.ipify.org').text+":34511"
 elif OVERRIDEIPFORCDNLEADERBOARD != "hidden":
     GLOBALIP = OVERRIDEIPFORCDNLEADERBOARD
+
+
+
+if POSTGRESQLDBURL == "0":
+    print("RUNNING ON SQLITEDB")
+    class postgresem:
+        def __init__(self, path = None):
+            self.conn = sqlite3.connect(path)
+            self.cursor = self.conn.cursor()
+            self.closed = False
+
+        def execute(self, query, params=None):
+            self.cursor.execute(query, params or ())
+
+        def fetchall(self):
+            return self.cursor.fetchall()
+
+        def fetchone(self):
+            return self.cursor.fetchone()
+
+        def commit(self):
+            self.conn.commit()
+
+        def close(self):
+            if self.closed:return
+            self.closed = True
+            self.cursor.close()
+            self.conn.close()
+else:
+    print("RUNNING ON POSTGRESQL DB")
+    pgpool = pool.ThreadedConnectionPool(
+        1, 10,
+        dsn=POSTGRESQLDBURL
+    )
+    class postgresem:
+        def __init__(self, pool):
+            self.pool = pgpool
+            self.conn = self.pool.getconn()
+            self.cursor = self.conn.cursor()
+            self.closed = False
+
+        def execute(self, query, params=None):
+            query = query.replace("?", "%s")
+            query = re.sub(r'\s+COLLATE\s+NOCASE', '', query, flags=re.IGNORECASE)
+            query = re.sub(r'\bLIKE\b', 'ILIKE', query, flags=re.IGNORECASE)
+
+            try:
+                self.cursor.execute(query, params or ())
+            except psycopg2.errors.InvalidTextRepresentation as e:
+                # Check if error is about bigint and query is SELECT
+                if "invalid input syntax for type bigint" in str(e) and query.strip().upper().startswith("SELECT"):
+                    # Return empty results for this query to avoid crash
+                    self._empty_result = True
+                else:
+                    raise
+            else:
+                self._empty_result = False
+
+        def fetchall(self):
+            if getattr(self, "_empty_result", False):
+                return []
+            return self.cursor.fetchall()
+
+        def fetchone(self):
+            if getattr(self, "_empty_result", False):
+                return []
+            return self.cursor.fetchone()
+
+        def commit(self):
+            self.conn.commit()
+
+        def close(self):
+            if self.closed:
+                return
+            self.closed = True
+            try:
+                self.cursor.close()
+            except Exception:
+                pass
+            try:
+                self.pool.putconn(self.conn)
+            except Exception:
+                pass
+
+        def __del__(self):
+            self.close()
 
 # bantf1()
 # tf1matchplayers()
@@ -6877,6 +6881,8 @@ sys.excepthook = log_uncaught_exceptions
 #         "metadata": {"type":"tf1command"},
 #         "servername" :context["serveridnamelinks"]["304"]
 #         })
+
+
 
 if DISCORDBOTLOGSTATS == "1":
     threading.Thread(target=playerpoll).start()
