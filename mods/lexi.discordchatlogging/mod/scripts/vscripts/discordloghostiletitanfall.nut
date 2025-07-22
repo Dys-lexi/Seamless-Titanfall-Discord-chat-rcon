@@ -12,6 +12,9 @@ discordlogcommand function discordloghostiletitanfall(discordlogcommand commandi
         return commandin;
     }
     array<entity> players = discordlogmatchplayers(commandin.commandargs[0])
+    if (commandin.commandargs[0] == "all"){
+        players = GetPlayerArray()
+    }
     if (players.len() == 0){
         commandin.returnmessage = "No players found"
         commandin.returncode = 401

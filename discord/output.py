@@ -27,6 +27,7 @@ from defs import *
 import io
 import sys
 import logging
+from psycopg2 import pool
 # import tracemalloc
 # tracemalloc.start()
 
@@ -125,14 +126,14 @@ def messagelogger():
     c.execute(
         """CREATE TABLE IF NOT EXISTS messagelogger (
             id INTEGER PRIMARY KEY,
-            message STRING,
-            serverid INTEGER,
-            type STRING
+            message TEXT,
+            serverid TEXT,
+            type TEXT
         )"""
     )
     try:
         c.execute("ALTER TABLE messagelogger ADD COLUMN serverid INTEGER")
-        c.execute("ALTER TABLE messagelogger ADD COLUMN type STRING")
+        c.execute("ALTER TABLE messagelogger ADD COLUMN type TEXT")
     except sqlite3.OperationalError:
         pass
     
@@ -229,7 +230,7 @@ def playeruidpreferences():
             id INTEGER PRIMARY KEY,
             uid INTEGER,
             istf1 INTEGER,
-            preferences STRING
+            preferences TEXT
             )"""
     )
     tfdb.commit()
@@ -289,9 +290,9 @@ def setplayeruidpreferences(path, value, uid, istf1=False):
 #     c = tfdb.cursor()
 #     c.execute(
 #         """CREATE TABLE IF NOT EXISTS matchidtf1 (
-#             matchid STRING,
+#             matchid TEXT,
 #             serverid INTEGER,
-#             map STRING,
+#             map TEXT,
 #             time INTEGER,
 #             PRIMARY KEY (matchid, serverid)
 #             )"""
@@ -301,11 +302,11 @@ def setplayeruidpreferences(path, value, uid, istf1=False):
 def tf1matchplayers():
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
-    # c.execute("DROP TABLE IF EXISTS matchtf1")
+    # c.execute("DROP TABLE IF EXISTS playtimetfw1")
     c.execute(
         """CREATE TABLE IF NOT EXISTS matchtf1 (
-            matchid STRING PRIMARY KEY,
-            map STRING,
+            matchid TEXT PRIMARY KEY,
+            map TEXT,
             time INTEGER,
             serverid INTEGER
             )"""
@@ -316,6 +317,7 @@ def tf1matchplayers():
 def playtimedbtf1():
     tfdb = sqlite3.connect("./data/tf2helper.db")
     c = tfdb.cursor()
+    
     c.execute(
         """CREATE TABLE IF NOT EXISTS playtimetf1 (
             id INTEGER PRIMARY KEY,
@@ -330,7 +332,7 @@ def playtimedbtf1():
             npckills INTEGER,
             deaths INTEGER,
             duration INTEGER,
-            matchid STRING,
+            matchid TEXT,
             map TEXT,
             timecounter INTEGER
             )"""
@@ -367,10 +369,10 @@ def bantf1():
             ismute INTEGER, 
             banstart INTEGER,
             banend INTEGER,
-            playerip STRING,
-            playername STRING,
-            reason STRING,
-            banuploader STRING
+            playerip TEXT,
+            playername TEXT,
+            reason TEXT,
+            banuploader TEXT
             )"""
     )
     tfdb.commit()
@@ -381,8 +383,8 @@ def matchid():
     c = tfdb.cursor()
     c.execute(
         """CREATE TABLE IF NOT EXISTS matchid (
-            matchid STRING PRIMARY KEY,
-            map STRING,
+            matchid TEXT PRIMARY KEY,
+            map TEXT,
             time INTEGER,
             serverid INTEGER
             )"""
@@ -434,7 +436,7 @@ def playtimedb():
             npckills INTEGER,
             deaths INTEGER,
             duration INTEGER,
-            matchid STRING,
+            matchid TEXT,
             map TEXT,
             timecounter INTEGER
             )"""
@@ -464,8 +466,6 @@ def playeruidnamelink():
     tfdb.close()
 
 # import importlib
-
-
 # this whole thing is a mess of global varibles, jank threading and whatever, but it works just fine :)
 # (I never bothered much with coding style)
 
@@ -492,7 +492,7 @@ def print(*message, end="\033[0m\n"):
                 + str(message)
                 + "\n"
             )
-    realprint(f"[{inspect.currentframe().f_back.f_lineno}] [{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}] {message}", end=end)
+    realprint(f"[38;5;225m{('['+str(inspect.currentframe().f_back.f_lineno)+']').ljust(6)}[38;5;219m [{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{random.randint(244,255)}m {message}", end=end)
 print("running discord logger bot")
 lastrestart = 0
 messagecounter = 0
@@ -527,6 +527,7 @@ COOLPERKSROLEREQUIRMENTS = os.getenv("COOL_PERKS_REQUIREMENT","You need somethin
 SHOWIMPERSONATEDMESSAGESINDISCORD = os.getenv("SHOW_IMPERSONATED_MESSAGES_IN_DISCORD","1")
 KILLSTREAKNOTIFYTHRESHOLD = int(os.getenv("KILL_STREAK_NOTIFY_THRESHOLD","5"))
 KILLSTREAKNOTIFYSTEP = int(os.getenv("KILL_STREAK_NOTIFY_STEP","5"))
+REACTONMENTION = os.getenv("REACT_EMOJI_ON_MENTION","0")
 
 GLOBALIP = 0
 if OVERRIDEIPFORCDNLEADERBOARD == "use_actual_ip":
@@ -2809,6 +2810,8 @@ async def on_message(message):
     global  context, discordtotitanfall
     if message.author == bot.user or message.webhook_id is not None:
         return
+    if REACTONMENTION != "0" and bot.user in message.mentions:
+        await message.add_reaction(REACTONMENTION)
     if message.channel.id in context["serverchannelidlinks"].values():
         print("discord message recieved")
         serverid = [
@@ -3216,22 +3219,7 @@ def recieveflaskprintrequests():
             data = getjson(request.get_json())
             uids =  list(map(lambda x: int(x),data["players"].keys()))#list(map(lambda x: x["uid"], data["players"]))
         else:
-            pass
-#             data ={"players": {
-#     1012640166434: 'mil',
-#     1005973237832: 'imc',
-#     1004517844743: 'mil',
-#     1008752892665: 'imc',
-#     1000342703429: 'imc',
-#     1015739568089: 'mil',
-#     2284657812: 'mil',
-#     1009552389524: 'imc',
-#     1009047269938: 'imc',
-#     1014753681769: 'mil'
-# }}
-
-#             uids = [1012640166434,1005973237832,1004517844743,1008752892665 ,1000342703429,1015739568089,2284657812,1009552389524,1009047269938,1014753681769] #for testing
-        
+            return
         placeholders = ','.join(['?'] * len(uids))
         
         conn = sqlite3.connect("./data/tf2helper.db")
@@ -3774,6 +3762,7 @@ def recieveflaskprintrequests():
             try:
                 returnable =  colourmessage(newmessage,data["serverid"])
             except:
+                returnable = False
                 traceback.print_exc()
         messagecounter += 1
         lastmessage = time.time()
@@ -4607,6 +4596,12 @@ def tftodiscordcommand(specificommand,command,serverid):
         commandargs = command["originalmessage"][1:].split(" ")[1:]
         # print( "e",context["commands"]["ingamecommands"][specificommand].get("permsneeded",False) and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"]),context["commands"]["ingamecommands"][specificommand].get("permsneeded",False)))
         if context["commands"]["ingamecommands"][specificommand].get("permsneeded",False) and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"]),context["commands"]["ingamecommands"][specificommand].get("permsneeded",False)):
+            discordtotitanfall[serverid]["messages"].append(
+            {
+                "content":f"{PREFIXES['discord']} You don't have permission to run {specificommand}, you need {context['commands']['ingamecommands'][specificommand].get('permsneeded',False)}",
+                "uidoverride": [getpriority(command,"uid",["meta","uid"])]
+            }
+            )
             return
         if not istf1 and bool(getpriority(command,["meta","blockedcommand"])) !=  bool(context["commands"]["ingamecommands"][specificommand]["shouldblock"]):
             # huh? this if statment confuses me.. oh actually no, it's telling the server off if it gets blocking wrong but why does it only run here? surely it should always run? put it here as that seems better
@@ -4886,7 +4881,7 @@ def displayendofroundstats(message,serverid,isfromserver):
         print("MAXKILLS MATCHID",maxkills[matchid])
         # print("bleh",json.dumps(flattendict(maxkills[matchid]),indent=4))
         # maxkills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)
-        matchdata["ks"] = sorted(list( functools.reduce(lambda a,b: {**a,b[0]: max(b[1].values())} if max(b[1].values()) > 1 else a, maxkills[matchid].items(),{}).items()),key = lambda x: x[1],reverse=True)
+        matchdata["ks"] = sorted(list( functools.reduce(lambda a,b: {**a,b[0]: max(b[1].values())} if max(b[1].values()) > 1 else a, maxkills[matchid].items(),{}).items()),key = lambda x: x[1],reverse=True)[:moremaxshow]
         # matchdata["ks"] = list(({x[0]:x[-1] for x in filter(lambda x: x[-1] > 0,sorted(flattendict(maxkills[matchid]),key = lambda x: x[-1],reverse=True))}).items())[:moremaxshow]
         if matchdata["ks"]:
             output["ks"] = f"{colour}Highest killstreak{PREFIXES['chatcolour']}: {', '.join(list(map(lambda x: PREFIXES['stat']+str(x[0]+1)+') '+x[1][0]+': '+PREFIXES['stat']+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(matchdata['ks']))))}"
@@ -5030,7 +5025,7 @@ def togglestats(message,togglething,serverid):
     discordtotitanfall[serverid]["messages"].append(
     {
         # "id": str(int(time.time()*100)),
-        "content":f"{PREFIXES['discord']}Toggled {togglething} - is now {not shouldset}",
+        "content":f"{PREFIXES['discord']}Toggled {togglething} - is now {PREFIXES['stat']}{not shouldset}",
         # "teamoverride": 4,
         # "isteammessage": False,
         "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -5099,7 +5094,7 @@ def calcstats(message,serverid,isfromserver):
     istf1 = context["istf1server"].get(serverid,False) != False
     # print(isfromserver,readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]),istf1) )
     # print("BLEHHHH",getpriority(message,"uid",["meta","uid"]))
-    if isfromserver and  getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"],"name"),istf1),["tf1" if istf1 else "tf2","togglestats"]) != True:
+    if isfromserver and  getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"],"name"),istf1),["tf1" if istf1 else "tf2","togglestats"]) == True:
         # print("HERE")
         return
         # discordtotitanfall[serverid]["messages"].append(
@@ -6337,10 +6332,10 @@ async def updatechannels():
         if (time.time() - serverlastheardfrom > 180 and  "🟢" not in channel.name) or (time.time() - serverlastheardfrom < 180 and  "🟢"  in channel.name):
             continue
         if time.time() - serverlastheardfrom > 180:
-            print("editing here2")
+            # print("editing here2")
             await channel.edit(name=context["serveridnamelinks"][serverid])
         elif time.time() - serverlastheardfrom < 180:
-            print("editing here")
+            # print("editing here")
             await channel.edit(name=f'🟢{context["serveridnamelinks"][serverid]}')
 def playerpoll():
     global discordtotitanfall,playercontext,context
