@@ -211,6 +211,13 @@ def specifickilltrackerdb():
             attacker_type           TEXT
         )"""
     )
+    if POSTGRESQLDBURL != "0":
+        c.execute("""
+        ALTER TABLE specifickilltracker
+        ALTER COLUMN playeruid TYPE BIGINT  USING playeruid::BIGINT ,
+        ALTER COLUMN victim_id TYPE BIGINT  USING victim_id::BIGINT ;
+        """)
+        c.commit()
     
     # c.execute("PRAGMA table_info(specifickilltracker)")
     # columns = [row[1] for row in c.fetchall()]
@@ -591,11 +598,13 @@ else:
             try:
                 self.cursor.execute(query, params or ())
             except psycopg2.errors.InvalidTextRepresentation as e:
+                self.conn.rollback()
                 if "invalid input syntax for type bigint" in str(e) and query.strip().upper().startswith("SELECT"):
                     self._empty_result = True
                 else:
                     raise
             except psycopg2.errors.UndefinedFunction as e:
+                self.conn.rollback()
                 # Handle "operator does not exist" errors due to type mismatches in comparisons
                 # Only swallow for SELECT queries (to avoid hiding real errors)
                 if "operator does not exist" in str(e) and query.strip().upper().startswith("SELECT"):
@@ -843,6 +852,7 @@ async def updateroles():
 async def pullmessagelogs(ctx, filterword: str = ""):
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
+    await ctx.defer()
     c.execute("""
         SELECT message, type, serverid
         FROM messagelogger
@@ -3342,7 +3352,7 @@ def recieveflaskprintrequests():
                 (leftatunix - joinatunix) AS session_duration
             FROM playtime
             WHERE leftatunix > joinatunix
-                AND playeruid IN ({placeholders})
+            AND playeruid IN ({placeholders})
         ),
         match_stats AS (
             SELECT
@@ -3352,7 +3362,7 @@ def recieveflaskprintrequests():
                 SUM(session_duration) AS total_playtime_seconds
             FROM session_durations
             GROUP BY playeruid, matchid
-            HAVING total_playtime_seconds > 0
+            HAVING SUM(session_duration) > 0
         ),
         match_kph AS (
             SELECT
@@ -3375,14 +3385,14 @@ def recieveflaskprintrequests():
                 *,
                 CASE
                     WHEN total_matches < 5 THEN total_matches
-                    ELSE CEIL(total_matches * 0.4)
+                    ELSE CAST(total_matches * 0.4 + 0.9999999 AS INTEGER)
                 END AS matches_to_include
             FROM ranked_matches
         ),
         top_matches_data AS (
             SELECT
                 playeruid,
-                MAX(matches_to_include) AS matches_used,  -- Critical fix: Get per-player value
+                MAX(matches_to_include) AS matches_used,
                 SUM(total_pilotkills) AS total_kills_top,
                 SUM(total_playtime_seconds) AS total_seconds_top
             FROM filtered_matches
@@ -3395,11 +3405,12 @@ def recieveflaskprintrequests():
             matches_used
         FROM top_matches_data;
         """, tuple(uids))
+
         
         results = c.fetchall()
         tfdb.close()
         
-        stats_list = sorted([{"uid": row[0], "kph": row[1], "gamesplayed": row[2]} for row in results],key = lambda x: -x["kph"])
+        stats_list = sorted([{"uid": row[0], "kph": float(row[1]) if row[1] is not None else 0.0, "gamesplayed": row[2]} for row in results], key=lambda x: -x["kph"])
         # zippp ittt
         # this is half meant to support more than two teams, but lets be honest, we're not getting that update any time soon
         outputtedteams = [[],[]]
@@ -4704,6 +4715,14 @@ def tftodiscordcommand(specificommand,command,serverid):
         commandargs = command["originalmessage"][1:].split(" ")[1:]
         # print( "e",context["commands"]["ingamecommands"][specificommand].get("permsneeded",False) and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"]),context["commands"]["ingamecommands"][specificommand].get("permsneeded",False)))
         if context["commands"]["ingamecommands"][specificommand].get("permsneeded",False) and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"]),context["commands"]["ingamecommands"][specificommand].get("permsneeded",False)):
+            if context['commands']['ingamecommands'][specificommand].get('permsneeded',False) == "coolperksrole":
+                discordtotitanfall[serverid]["messages"].append(
+                {
+                    "content":f"{PREFIXES['discord']} To use {specific} go to {COOLPERKSROLEREQUIRMENTS}",
+                    "uidoverride": [getpriority(command,"uid",["meta","uid"])]
+                }
+                )
+                return
             discordtotitanfall[serverid]["messages"].append(
             {
                 "content":f"{PREFIXES['discord']} You don't have permission to run {specificommand}, you need {context['commands']['ingamecommands'][specificommand].get('permsneeded',False)}",
@@ -6107,6 +6126,18 @@ def savestats(saveinfo):
     istf1 = context["istf1server"].get(saveinfo["serverid"],False) # {"tf2" if istf1 else ""}
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
+    # params = (
+    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],
+    #     saveinfo["endtype"],
+    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],
+    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],
+    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],
+    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],
+    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"] - playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],
+    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"],
+    # )
+
+    # print("Params before execute:", params)
     try:
         c.execute(f"SELECT playername FROM uidnamelink{'tf1' if istf1 else ''} WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],))
         playernames = c.fetchall()
@@ -6121,7 +6152,7 @@ def savestats(saveinfo):
             lastrowid = playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"]
         else:
             c.execute(f"INSERT INTO playtime{'tf1' if istf1 else ''} (playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,matchid,timecounter ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["serverid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["npckills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["map"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["matchid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["timecounter"]))
-            lastrowid = c.lastrowid
+            lastrowid = c.lastrowid()
     except Exception as e:
         print("error in saving",e)
         traceback.print_exc()
@@ -6558,74 +6589,100 @@ def getstats(playeruid):
         c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ? AND timeofkill > ? AND (victim_type = 'player' OR victim_type IS NULL)",(playeruid,now-timeoffset))
         output["total"]["deathstoday"] = len(c.fetchall())
         c.execute("""
-            SELECT MAX(CASE WHEN playeruid = ? THEN position END) AS player_position
-            FROM (
-                SELECT playeruid, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
+            WITH player_kills AS (
+                SELECT playeruid, COUNT(*) AS kill_count
                 FROM specifickilltracker
                 WHERE timeofkill > ?
                 AND (victim_type = 'player' OR victim_type IS NULL)
                 GROUP BY playeruid
-            ) x;
-        """, (playeruid,now-timeoffset))
+            ),
+            ranked AS (
+                SELECT playeruid,
+                    RANK() OVER (ORDER BY kill_count DESC) AS position
+                FROM player_kills
+            )
+            SELECT position FROM ranked WHERE playeruid = ?
+        """, (now - timeoffset, playeruid))
         killspos = c.fetchone()
-        if killspos:
-            output["total"]["killslasthourpos"] = killspos[0]
+        output["total"]["killslasthourpos"] = killspos[0] if killspos else None
+
         c.execute("""
-            SELECT MAX(CASE WHEN victim_id = ? THEN position END) AS player_position
-            FROM (
-                SELECT victim_id, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
+            WITH player_deaths AS (
+                SELECT victim_id, COUNT(*) AS death_count
                 FROM specifickilltracker
                 WHERE timeofkill > ?
                 AND (victim_type = 'player' OR victim_type IS NULL)
                 GROUP BY victim_id
-            ) x;
-        """, (playeruid,now-timeoffset))
+            ),
+            ranked AS (
+                SELECT victim_id,
+                    RANK() OVER (ORDER BY death_count DESC) AS position
+                FROM player_deaths
+            )
+            SELECT position FROM ranked WHERE victim_id = ?
+        """, (now - timeoffset, playeruid))
         killspos = c.fetchone()
-        if killspos:
-            output["total"]["deathslasthourpos"] = killspos[0]
+        output["total"]["deathslasthourpos"] = killspos[0] if killspos else None
+
         c.execute("""
-        SELECT MAX(CASE WHEN playeruid = ? THEN position END) AS player_position
-        FROM (
-            SELECT playeruid, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
-            FROM specifickilltracker
-            WHERE (victim_type = 'player' OR victim_type IS NULL)
-            GROUP BY playeruid
-        ) x;
+            WITH player_kills AS (
+                SELECT playeruid, COUNT(*) AS kill_count
+                FROM specifickilltracker
+                WHERE (victim_type = 'player' OR victim_type IS NULL)
+                GROUP BY playeruid
+            ),
+            ranked AS (
+                SELECT playeruid,
+                    RANK() OVER (ORDER BY kill_count DESC) AS position
+                FROM player_kills
+            )
+            SELECT position FROM ranked WHERE playeruid = ?
         """, (playeruid,))
         killspos = c.fetchone()
-        if killspos:
-            output["total"]["killspos"] = killspos[0]
+        output["total"]["killspos"] = killspos[0] if killspos else None
+
         c.execute("""
-        SELECT MAX(CASE WHEN playeruid = ? THEN position END) AS player_position
-        FROM (
-            SELECT playeruid, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
-            FROM specifickilltracker
-            WHERE cause_of_death = (
+            WITH recent_weapon AS (
                 SELECT cause_of_death
                 FROM specifickilltracker
                 WHERE playeruid = ?
                 AND (victim_type = 'player' OR victim_type IS NULL)
                 ORDER BY timeofkill DESC
                 LIMIT 1
+            ),
+            weapon_kills AS (
+                SELECT playeruid, COUNT(*) AS kill_count
+                FROM specifickilltracker
+                WHERE cause_of_death = (SELECT cause_of_death FROM recent_weapon)
+                GROUP BY playeruid
+            ),
+            ranked AS (
+                SELECT playeruid,
+                    RANK() OVER (ORDER BY kill_count DESC) AS position
+                FROM weapon_kills
             )
-            GROUP BY playeruid
-        ) x;
+            SELECT position FROM ranked WHERE playeruid = ?
         """, (playeruid, playeruid))
         killspos = c.fetchone()
-        if killspos:
-            output["total"]["recentweaponkillspos"] = killspos[0]
+        output["total"]["recentweaponkillspos"] = killspos[0] if killspos else None
+
         c.execute("""
-        SELECT MAX(CASE WHEN victim_id = ? THEN position END) AS player_position
-        FROM (
-            SELECT victim_id, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS position
-            FROM specifickilltracker
-            WHERE (victim_type = 'player' OR victim_type IS NULL)
-            GROUP BY victim_id
-        ) x;
+            WITH player_deaths AS (
+                SELECT victim_id, COUNT(*) AS death_count
+                FROM specifickilltracker
+                WHERE (victim_type = 'player' OR victim_type IS NULL)
+                GROUP BY victim_id
+            ),
+            ranked AS (
+                SELECT victim_id,
+                    RANK() OVER (ORDER BY death_count DESC) AS position
+                FROM player_deaths
+            )
+            SELECT position FROM ranked WHERE victim_id = ?
         """, (playeruid,))
         killspos = c.fetchone()
-        if killspos:
-            output["total"]["deathspos"] = killspos[0]
+        output["total"]["deathspos"] = killspos[0] if killspos else None
+
         c.execute("""
             SELECT cause_of_death, COUNT(*) as kill_count
             FROM specifickilltracker
@@ -6637,14 +6694,14 @@ def getstats(playeruid):
         """, (playeruid,))
         top_weapons = c.fetchall()
         c.execute("""
-            SELECT matchid, pilotkills
+            SELECT matchid, SUM(pilotkills) AS total_pilotkills
             FROM playtime
             WHERE playeruid = ?
             GROUP BY matchid
-            ORDER BY pilotkills DESC
+            ORDER BY total_pilotkills DESC
             LIMIT 1
         """, (playeruid,))
-        highest_pilotkills_match = c.fetchone()
+
         c.execute("""
             SELECT matchid, map, MIN(joinatunix) as start_time, SUM(pilotkills) as total_pilotkills
             FROM playtime
@@ -6740,7 +6797,7 @@ def getstats(playeruid):
         # if len(messages):
             # output["messages"] = messages
         print({**output,**messages},"colour",colour)
-   
+        # print("EEEEEEEEEE")
         return {**output,**messages}
        
 
@@ -6969,11 +7026,6 @@ sys.excepthook = log_uncaught_exceptions
 #         print(f"  Auto-increment setup complete for '{table}'.")
 
 db = postgresem(pgpool)
-# db.execute("""
-# ALTER TABLE specifickilltracker
-# ALTER COLUMN playeruid TYPE BIGINT  USING playeruid::BIGINT ,
-# ALTER COLUMN victim_id TYPE BIGINT  USING victim_id::BIGINT ;
-# """)
 # ensure_id_autoincrement_for_all_tables(db)
 # db.execute(f"INSERT INTO matchid{'tf1' if True else ''} (matchid,serverid,map,time) VALUES (?,?,?,?)",("wqdq","123","thaw",int(time.time())))
 # db.execute("""
