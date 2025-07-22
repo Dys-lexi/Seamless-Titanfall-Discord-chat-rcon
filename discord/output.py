@@ -86,9 +86,9 @@ def create_all_indexes():
     c.execute("CREATE INDEX IF NOT EXISTS idx_matchtf1_map_time ON matchtf1(map, time);")
 
     # --- banstf1 ---
-    c.execute("CREATE INDEX IF NOT EXISTS idx_banstf1_playerip ON banstf1(playerip);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_banstf1_playername ON banstf1(playername);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_banstf1_banid ON banstf1(banid);")
+    # c.execute("CREATE INDEX IF NOT EXISTS idx_banstf1_playerip ON banstf1(playerip);")
+    # c.execute("CREATE INDEX IF NOT EXISTS idx_banstf1_playername ON banstf1(playername);")
+    # c.execute("CREATE INDEX IF NOT EXISTS idx_banstf1_banid ON banstf1(banid);")
 
     # --- messagelogger ---
     c.execute("CREATE INDEX IF NOT EXISTS idx_messagelogger_serverid ON messagelogger(serverid);")
@@ -126,7 +126,7 @@ def messagelogger():
     c = tfdb
     c.execute(
         """CREATE TABLE IF NOT EXISTS messagelogger (
-            id INTEGER PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             message TEXT,
             serverid TEXT,
             type TEXT
@@ -173,12 +173,12 @@ def specifickilltrackerdb():
     # Create the table if it doesn't exist
     c.execute(
         """CREATE TABLE IF NOT EXISTS specifickilltracker (
-            id INTEGER PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             serverid               TEXT,
             attacker_z              REAL,
             attacker_x              REAL,
             attacker_y              REAL,
-            victim_id               TEXT,
+            victim_id               INTEGER,
             victim_name             TEXT,
             victim_offhand_weapon_2 TEXT,
             attacker_titan          TEXT,
@@ -197,7 +197,7 @@ def specifickilltrackerdb():
             game_time               REAL,
             attacker_current_weapon TEXT,
             victim_weapon_3         TEXT,
-            playeruid               TEXT,
+            playeruid               INTEGER,
             game_mode               TEXT,
             victim_x                REAL,
             attacker_weapon_1       TEXT,
@@ -228,7 +228,7 @@ def playeruidpreferences():
     # c.execute("DROP TABLE IF EXISTS playeruidpreferences")
     c.execute(
         """CREATE TABLE IF NOT EXISTS playeruidpreferences (
-            id INTEGER PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             uid INTEGER,
             istf1 INTEGER,
             preferences TEXT
@@ -321,7 +321,7 @@ def playtimedbtf1():
     
     c.execute(
         """CREATE TABLE IF NOT EXISTS playtimetf1 (
-            id INTEGER PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             playeruid INTEGER,
             joinatunix INTEGER,
             leftatunix INTEGER,
@@ -346,7 +346,7 @@ def playeruidnamelinktf1():
     c = tfdb
     c.execute(
         """CREATE TABLE IF NOT EXISTS uidnamelinktf1 (
-            id INTEGER PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             playeruid INTEGER,
             playername TEXT,
             lastseenunix INTEGER,
@@ -360,22 +360,23 @@ def playeruidnamelinktf1():
     tfdb.commit()
     tfdb.close()
 def bantf1():
-    tfdb = postgresem("./data/tf2helper.db")
+    tfdb = postgresem("./data/tf2helper")
     c = tfdb
     # banid is because the bot automatically bans new names / ips
-    c.execute(
-        """CREATE TABLE IF NOT EXISTS banstf1 (
-            id INTEGER PRIMARY KEY,
-            banid INTEGER,
-            ismute INTEGER, 
-            banstart INTEGER,
-            banend INTEGER,
-            playerip TEXT,
-            playername TEXT,
-            reason TEXT,
-            banuploader TEXT
-            )"""
-    )
+    c.execute("DROP TABLE IF EXISTS banstf1")
+    # c.execute(
+    #     """CREATE TABLE IF NOT EXISTS banstf1 (
+    #         id SERIAL PRIMARY KEY,
+    #         banid INTEGER,
+    #         ismute INTEGER, 
+    #         banstart INTEGER,
+    #         banend INTEGER,
+    #         playerip TEXT,
+    #         playername TEXT,
+    #         reason TEXT,
+    #         banuploader TEXT
+    #         )"""
+    # )
     tfdb.commit()
     tfdb.close()
 
@@ -425,7 +426,7 @@ def playtimedb():
     c = tfdb
     c.execute(
         """CREATE TABLE IF NOT EXISTS playtime (
-            id INTEGER PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             playeruid INTEGER,
             joinatunix INTEGER,
             leftatunix INTEGER,
@@ -452,7 +453,7 @@ def playeruidnamelink():
     # c.execute("DROP TABLE IF EXISTS uidnamelink")
     c.execute(
         """CREATE TABLE IF NOT EXISTS uidnamelink (
-            id INTEGER PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             playeruid INTEGER,
             playername TEXT,
             lastseenunix INTEGER,
@@ -537,18 +538,17 @@ if OVERRIDEIPFORCDNLEADERBOARD == "use_actual_ip":
 elif OVERRIDEIPFORCDNLEADERBOARD != "hidden":
     GLOBALIP = OVERRIDEIPFORCDNLEADERBOARD
 
-
-
 if POSTGRESQLDBURL == "0":
     print("RUNNING ON SQLITEDB")
     class postgresem:
-        def __init__(self, path = None):
+        def __init__(self, path=None):
+            self.closed = False
             self.conn = sqlite3.connect(path)
             self.cursor = self.conn.cursor()
-            self.closed = False
+            
 
         def execute(self, query, params=None):
-            self.cursor.execute(query, params or ())
+            self.cursor.execute(query.replace("id SERIAL PRIMARY KEY", "id INTEGER PRIMARY KEY"), params or ())
 
         def fetchall(self):
             return self.cursor.fetchall()
@@ -559,23 +559,29 @@ if POSTGRESQLDBURL == "0":
         def commit(self):
             self.conn.commit()
 
+        def lastrowid(self):
+            return self.cursor.lastrowid
+
         def close(self):
-            if self.closed:return
+            if self.closed:
+                return
             self.closed = True
             self.cursor.close()
             self.conn.close()
+
 else:
     print("RUNNING ON POSTGRESQL DB")
     pgpool = pool.ThreadedConnectionPool(
-        1, 10,
+        1, 100,
         dsn=POSTGRESQLDBURL
     )
     class postgresem:
-        def __init__(self, pool):
+        def __init__(self, what=False):
+            self.closed = False
             self.pool = pgpool
             self.conn = self.pool.getconn()
             self.cursor = self.conn.cursor()
-            self.closed = False
+            
 
         def execute(self, query, params=None):
             query = query.replace("?", "%s")
@@ -585,9 +591,14 @@ else:
             try:
                 self.cursor.execute(query, params or ())
             except psycopg2.errors.InvalidTextRepresentation as e:
-                # Check if error is about bigint and query is SELECT
                 if "invalid input syntax for type bigint" in str(e) and query.strip().upper().startswith("SELECT"):
-                    # Return empty results for this query to avoid crash
+                    self._empty_result = True
+                else:
+                    raise
+            except psycopg2.errors.UndefinedFunction as e:
+                # Handle "operator does not exist" errors due to type mismatches in comparisons
+                # Only swallow for SELECT queries (to avoid hiding real errors)
+                if "operator does not exist" in str(e) and query.strip().upper().startswith("SELECT"):
                     self._empty_result = True
                 else:
                     raise
@@ -606,6 +617,14 @@ else:
 
         def commit(self):
             self.conn.commit()
+
+        def lastrowid(self):
+            # PostgreSQL doesn't support lastrowid directly like SQLite.
+            # So we assume that you use "RETURNING id" on insert
+            try:
+                return self.cursor.fetchone()[0]
+            except Exception:
+                return None
 
         def close(self):
             if self.closed:
@@ -1331,7 +1350,7 @@ if DISCORDBOTLOGSTATS == "1":
 
             wherestring = " AND ".join(where_clauses)
         else:
-            wherestring = eval(leaderboardfilters)
+            wherestring = eval(leaderboardfilters).replace('"',"'")
         if not specificuidsearch:
             print("Updating leaderboard:",leaderboardname)
 
@@ -1353,7 +1372,7 @@ if DISCORDBOTLOGSTATS == "1":
         # print("wherestring",f"{base_query} WHERE {wherestring}")
         quote = "'"
         query = f"{base_query} WHERE{' (victim_type = '+quote+'player'+quote+ 'OR victim_type IS NULL)' + 'AND' if leaderboarddatabase == 'specifickilltracker' else ''} {wherestring}" if wherestring else f"{base_query} {'WHERE (victim_type = '+quote+'player'+quote+ 'OR victim_type IS NULL)' if leaderboarddatabase == 'specifickilltracker' else ''}"
-
+        # print(query)
         # print("Executing query:", query)
         c.execute(query, params)
         data = c.fetchall()
@@ -6124,13 +6143,13 @@ def addmatchtodb(matchid,serverid,currentmap):
     print("adding match to db",matchid,serverid)
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
-    c.execute(f"SELECT matchid FROM matchid{'tf1' if istf1 else ''} WHERE matchid = ?",(matchid,))
+    c.execute(f"SELECT matchid FROM matchid{'tf1' if istf1 else ''} WHERE matchid = ?",(str(matchid),))
     matchidcheck = c.fetchone()
     if matchidcheck:
         if serverid not in playercontext.keys():
             playercontext[serverid] = {}
         print("already in db, loading data")
-        c.execute(f"SELECT playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,id,timecounter FROM playtime{'tf1' if istf1 else ''} WHERE matchid = ?",(matchid,))
+        c.execute(f"SELECT playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,id,timecounter FROM playtime{'tf1' if istf1 else ''} WHERE matchid = ?",(str(matchid),))
         matchdata = c.fetchall()
         c.execute(f"SELECT playername,playeruid FROM uidnamelink{'tf1' if istf1 else ''}")
         playernames = c.fetchall()
@@ -6884,6 +6903,86 @@ sys.excepthook = log_uncaught_exceptions
 
 
 
+# def ensure_id_autoincrement_for_all_tables(db: postgresem):
+#     # Get all tables with an 'id' column of integer type
+#     db.execute("""
+#         SELECT table_name
+#         FROM information_schema.columns
+#         WHERE column_name = 'id'
+#           AND data_type IN ('integer', 'bigint')
+#           AND table_schema = 'public';
+#     """)
+#     tables = [row[0] for row in db.fetchall()]
+
+#     for table in tables:
+#         print(f"Checking table '{table}'...")
+#         db.execute(f"""
+#             SELECT column_default
+#             FROM information_schema.columns
+#             WHERE table_name = %s
+#               AND column_name = 'id';
+#         """, (table,))
+#         default = db.fetchone()
+
+#         if default and default[0] and 'nextval' in default[0]:
+#             print(f"  Table '{table}': id column is already auto-incrementing.")
+#             continue
+
+#         print(f"  Setting up auto-increment for '{table}.id'...")
+
+#         seq_name = f"{table}_id_seq"
+
+#         # Create sequence if not exists
+#         try:
+#             db.execute(f"""
+#                 DO $$
+#                 BEGIN
+#                     IF NOT EXISTS (
+#                         SELECT 1 FROM pg_class
+#                         WHERE relkind = 'S' AND relname = '{seq_name}'
+#                     ) THEN
+#                         CREATE SEQUENCE {seq_name};
+#                     END IF;
+#                 END
+#                 $$;
+#             """)
+#             # No fetch here!
+
+#             # Alter the id column to use the sequence as default
+#             db.execute(f"""
+#                 ALTER TABLE {table}
+#                 ALTER COLUMN id SET DEFAULT nextval('{seq_name}');
+#             """)
+#             # No fetch here!
+
+#             # Set sequence value to max existing id to avoid conflicts
+#             db.execute(f"""
+#                 SELECT setval('{seq_name}', COALESCE((SELECT MAX(id) FROM {table}), 0));
+#             """)
+#             # This is a SELECT, fetch one to complete transaction
+#             db.fetchone()
+
+#             db.commit()
+#         except:
+#             db.commit()
+#             print("failed")
+#         print(f"  Auto-increment setup complete for '{table}'.")
+
+db = postgresem(pgpool)
+# db.execute("""
+# ALTER TABLE specifickilltracker
+# ALTER COLUMN playeruid TYPE BIGINT  USING playeruid::BIGINT ,
+# ALTER COLUMN victim_id TYPE BIGINT  USING victim_id::BIGINT ;
+# """)
+# ensure_id_autoincrement_for_all_tables(db)
+# db.execute(f"INSERT INTO matchid{'tf1' if True else ''} (matchid,serverid,map,time) VALUES (?,?,?,?)",("wqdq","123","thaw",int(time.time())))
+# db.execute("""
+# SELECT column_default
+# FROM information_schema.columns
+# WHERE table_name = 'messagelogger' AND column_name = 'id';""")
+# print(db.fetchall())
+
+
 if DISCORDBOTLOGSTATS == "1":
     threading.Thread(target=playerpoll).start()
 threading.Thread(target=messageloop).start()
@@ -6898,6 +6997,5 @@ def shutdown_handler(sig, frame):
 
 signal.signal(signal.SIGINT, shutdown_handler)
 signal.signal(signal.SIGTERM, shutdown_handler)
-
 
 bot.run(TOKEN)
