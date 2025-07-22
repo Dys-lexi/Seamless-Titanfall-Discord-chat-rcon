@@ -27,13 +27,97 @@ from defs import *
 import io
 import sys
 import logging
+import psycopg2
 from psycopg2 import pool
 # import tracemalloc
 # tracemalloc.start()
 
+pgpool = pool.ThreadedConnectionPool(
+    1, 10,
+    dsn="postgresql://pguser:hiddenpassword@127.0.0.1:3452/realdb"
+)
+
+
+class sqliteem:
+    def __init__(self, path = None):
+        self.conn = sqlite3.connect(path)
+        self.cursor = self.conn.cursor()
+        self.closed = False
+
+    def execute(self, query, params=None):
+        self.cursor.execute(query, params or ())
+
+    def fetchall(self):
+        return self.cursor.fetchall()
+
+    def fetchone(self):
+        return self.cursor.fetchone()
+
+    def commit(self):
+        self.conn.commit()
+
+    def close(self):
+        if self.closed:return
+        self.closed = True
+        self.cursor.close()
+        self.conn.close()
+
+class postgresem:
+    def __init__(self, pool):
+        self.pool = pgpool
+        self.conn = self.pool.getconn()
+        self.cursor = self.conn.cursor()
+        self.closed = False
+
+    def execute(self, query, params=None):
+        query = query.replace("?", "%s")
+        query = re.sub(r'\s+COLLATE\s+NOCASE', '', query, flags=re.IGNORECASE)
+        query = re.sub(r'\bLIKE\b', 'ILIKE', query, flags=re.IGNORECASE)
+
+        try:
+            self.cursor.execute(query, params or ())
+        except psycopg2.errors.InvalidTextRepresentation as e:
+            # Check if error is about bigint and query is SELECT
+            if "invalid input syntax for type bigint" in str(e) and query.strip().upper().startswith("SELECT"):
+                # Return empty results for this query to avoid crash
+                self._empty_result = True
+            else:
+                raise
+        else:
+            self._empty_result = False
+
+    def fetchall(self):
+        if getattr(self, "_empty_result", False):
+            return []
+        return self.cursor.fetchall()
+
+    def fetchone(self):
+        if getattr(self, "_empty_result", False):
+            return []
+        return self.cursor.fetchone()
+
+    def commit(self):
+        self.conn.commit()
+
+    def close(self):
+        if self.closed:
+            return
+        self.closed = True
+        try:
+            self.cursor.close()
+        except Exception:
+            pass
+        try:
+            self.pool.putconn(self.conn)
+        except Exception:
+            pass
+
+    def __del__(self):
+        self.close()
+
 def create_all_indexes():
-    conn = sqlite3.connect("./data/tf2helper.db")
-    c = conn.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
 
     # --- specifickilltracker ---
     c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_victim_id ON specifickilltracker(victim_id);")
@@ -102,12 +186,12 @@ def create_all_indexes():
     # --- playeruidpreferences ---
     c.execute("CREATE INDEX IF NOT EXISTS idx_playeruidpreferences_uid_istf1 ON playeruidpreferences(uid, istf1);")
 
-    conn.commit()
-    conn.close()
+    tfdb.commit()
+    tfdb.close()
 
 def creatediscordlinkdb():
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     
     c.execute(
         """CREATE TABLE IF NOT EXISTS discordlinkdata (
@@ -121,8 +205,8 @@ def creatediscordlinkdb():
     tfdb.close()
 
 def messagelogger():
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     c.execute(
         """CREATE TABLE IF NOT EXISTS messagelogger (
             id INTEGER PRIMARY KEY,
@@ -131,19 +215,19 @@ def messagelogger():
             type TEXT
         )"""
     )
-    try:
-        c.execute("ALTER TABLE messagelogger ADD COLUMN serverid INTEGER")
-        c.execute("ALTER TABLE messagelogger ADD COLUMN type TEXT")
-    except sqlite3.OperationalError:
-        pass
+    # try:
+    #     c.execute("ALTER TABLE messagelogger ADD COLUMN serverid INTEGER")
+    #     c.execute("ALTER TABLE messagelogger ADD COLUMN type TEXT")
+    # except sqlite3.OperationalError:
+    #     pass
     
     tfdb.commit()
     tfdb.close()
 
 def discorduidinfodb():
     global colourslink
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     # c.execute("DROP TABLE IF EXISTS discorduiddata")
     # c.execute("DELETE FROM discorduiddata WHERE choseningamecolour = 'reset'")
     c.execute(
@@ -166,8 +250,8 @@ def discorduidinfodb():
     tfdb.commit()
     tfdb.close()
 def specifickilltrackerdb():
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     
     # Create the table if it doesn't exist
     c.execute(
@@ -211,19 +295,19 @@ def specifickilltrackerdb():
         )"""
     )
     
-    c.execute("PRAGMA table_info(specifickilltracker)")
-    columns = [row[1] for row in c.fetchall()]
+    # c.execute("PRAGMA table_info(specifickilltracker)")
+    # columns = [row[1] for row in c.fetchall()]
     
-    if "victim_type" not in columns:
-        c.execute("ALTER TABLE specifickilltracker ADD COLUMN victim_type TEXT")
+    # if "victim_type" not in columns:
+    #     c.execute("ALTER TABLE specifickilltracker ADD COLUMN victim_type TEXT")
     
     tfdb.commit()
     c.close()
     tfdb.close()
 
 def playeruidpreferences():
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     # c.execute("DROP TABLE IF EXISTS playeruidpreferences")
     c.execute(
         """CREATE TABLE IF NOT EXISTS playeruidpreferences (
@@ -238,8 +322,8 @@ def playeruidpreferences():
 
 def readplayeruidpreferences(uid,istf1 = False):
     # uid = int(uid)
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     c.execute("SELECT preferences FROM playeruidpreferences WHERE uid = ? AND istf1 = ?",(uid,1 if istf1 else 0))
     output = c.fetchone()
     try:
@@ -256,8 +340,8 @@ def deep_set(d, keys, value):
     d[keys[-1]] = value
 
 def setplayeruidpreferences(path, value, uid, istf1=False):
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     istf1_int = 1 if istf1 else 0
 
     c.execute("SELECT preferences FROM playeruidpreferences WHERE uid = ? AND istf1 = ?", (uid, istf1_int))
@@ -286,8 +370,8 @@ def setplayeruidpreferences(path, value, uid, istf1=False):
     
 
 # def matchidtf1():
-#     tfdb = sqlite3.connect("./data/tf2helper.db")
-#     c = tfdb.cursor()
+#     tfdb = postgresem("./data/tf2helper.db")
+#     c = tfdb
 #     c.execute(
 #         """CREATE TABLE IF NOT EXISTS matchidtf1 (
 #             matchid TEXT,
@@ -300,8 +384,8 @@ def setplayeruidpreferences(path, value, uid, istf1=False):
 #     tfdb.commit()
 #     tfdb.close()
 def tf1matchplayers():
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     # c.execute("DROP TABLE IF EXISTS playtimetfw1")
     c.execute(
         """CREATE TABLE IF NOT EXISTS matchtf1 (
@@ -315,8 +399,8 @@ def tf1matchplayers():
     tfdb.close()
 
 def playtimedbtf1():
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     
     c.execute(
         """CREATE TABLE IF NOT EXISTS playtimetf1 (
@@ -341,8 +425,8 @@ def playtimedbtf1():
     tfdb.commit()
     tfdb.close()
 def playeruidnamelinktf1():
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     c.execute(
         """CREATE TABLE IF NOT EXISTS uidnamelinktf1 (
             id INTEGER PRIMARY KEY,
@@ -352,15 +436,15 @@ def playeruidnamelinktf1():
             firstseenunix INTEGER
             )"""
     )
-    try:
-        c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN firstseenunix INTEGER")
-        c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN lastseenunix INTEGER") 
-    except:pass
+    # try:
+    #     c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN firstseenunix INTEGER")
+    #     c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN lastseenunix INTEGER") 
+    # except:pass
     tfdb.commit()
     tfdb.close()
 def bantf1():
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     # banid is because the bot automatically bans new names / ips
     c.execute(
         """CREATE TABLE IF NOT EXISTS banstf1 (
@@ -379,8 +463,8 @@ def bantf1():
     tfdb.close()
 
 def matchid():
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     c.execute(
         """CREATE TABLE IF NOT EXISTS matchid (
             matchid TEXT PRIMARY KEY,
@@ -393,8 +477,8 @@ def matchid():
     tfdb.close()
 
 def notifydb():
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     c.execute(
         """CREATE TABLE IF NOT EXISTS joinnotify (
             discordidnotify INTEGER,
@@ -405,8 +489,8 @@ def notifydb():
     tfdb.commit()
     tfdb.close()
 def joincounterdb():
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     c.execute(
         """CREATE TABLE IF NOT EXISTS joincounter (
             playeruid INTEGER,
@@ -420,8 +504,8 @@ def joincounterdb():
     tfdb.close()
 
 def playtimedb():
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     c.execute(
         """CREATE TABLE IF NOT EXISTS playtime (
             id INTEGER PRIMARY KEY,
@@ -445,9 +529,9 @@ def playtimedb():
     tfdb.commit()
     tfdb.close()
 def playeruidnamelink():
-    tfdb = sqlite3.connect("./data/tf2helper.db")
+    tfdb = postgresem("./data/tf2helper.db")
 
-    c = tfdb.cursor()
+    c = tfdb
     # c.execute("DROP TABLE IF EXISTS uidnamelink")
     c.execute(
         """CREATE TABLE IF NOT EXISTS uidnamelink (
@@ -458,10 +542,10 @@ def playeruidnamelink():
             firstseenunix INTEGER
             )"""
     )
-    try:
-        c.execute("ALTER TABLE uidnamelink ADD COLUMN firstseenunix INTEGER")
-        c.execute("ALTER TABLE uidnamelink ADD COLUMN lastseenunix INTEGER") 
-    except:pass
+    # try:
+    #     c.execute("ALTER TABLE uidnamelink ADD COLUMN firstseenunix INTEGER")
+    #     c.execute("ALTER TABLE uidnamelink ADD COLUMN lastseenunix INTEGER") 
+    # except:pass
     tfdb.commit()
     tfdb.close()
 
@@ -492,7 +576,7 @@ def print(*message, end="\033[0m\n"):
                 + str(message)
                 + "\n"
             )
-    realprint(f"[38;5;225m{('['+str(inspect.currentframe().f_back.f_lineno)+']').ljust(6)}[38;5;219m [{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{random.randint(244,255)}m {message}", end=end)
+    realprint(f"[38;5;61m{('['+str(inspect.currentframe().f_back.f_code.co_name)[:9]+']').ljust(11)}[38;5;225m{('['+str(inspect.currentframe().f_back.f_lineno)+']').ljust(6)}[38;5;173m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{random.randint(250,255)}m {message}", end=end)
 print("running discord logger bot")
 lastrestart = 0
 messagecounter = 0
@@ -689,8 +773,8 @@ async def autocompletenamesfromingamenowildcard(ctx):
     return output
 @functools.cache
 def getallweaponnames(weapon):
-    conn = sqlite3.connect("./data/tf2helper.db")
-    c = conn.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     c.execute("SELECT DISTINCT cause_of_death FROM specifickilltracker ORDER BY cause_of_death")
     return sorted(list(map(lambda x: WEAPON_NAMES.get(x[0],x[0]),list(filter(lambda x: (WEAPON_NAMES.get(x[0],False) and weapon.lower() in WEAPON_NAMES.get(x[0],"").lower()) or weapon.lower() in x[0].lower(),c.fetchall())))),key = lambda x: x.lower().startswith(weapon.lower())* 50 ,reverse = True)[:30]
 async def weaponnamesautocomplete(ctx):
@@ -734,8 +818,8 @@ async def updateroles():
     description="Pull all non command message logs with a given filter"
 )
 async def pullmessagelogs(ctx, filterword: str = ""):
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     c.execute("""
         SELECT message, type, serverid
         FROM messagelogger
@@ -887,8 +971,8 @@ if DISCORDBOTLOGSTATS == "1":
             asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} No discord UID found, stats logging disabled"),"fake context",None,True,False), bot.loop)
             return
         
-        specifickillbase = sqlite3.connect("./data/tf2helper.db")
-        c = specifickillbase.cursor()
+        tfdb = postgresem("./data/tf2helper.db")
+        c = tfdb
         c.execute("SELECT playername FROM uidnamelinktf1 WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(playerdiscorduid,))
         playernamereal = c.fetchone()
         c.execute("SELECT SUM(pilotkills), SUM(duration), SUM(deaths), SUM(titankills) FROM playtimetf1 WHERE playeruid = ?",(playerdiscorduid,))
@@ -1225,8 +1309,8 @@ if DISCORDBOTLOGSTATS == "1":
                 serveroverride = True       
 
 
-        tfdb = sqlite3.connect("./data/tf2helper.db")
-        c = tfdb.cursor()
+        tfdb = postgresem("./data/tf2helper.db")
+        c = tfdb
 
         # Build WHERE clause
         where_clauses = []
@@ -1554,11 +1638,12 @@ if DISCORDBOTLOGSTATS == "1":
         # print(specificweapon)
         if not specificweapon:
             # weapon_images = [f for f in os.listdir(IMAGE_DIR) if (f.startswith("mp_") or f.startswith("melee_")) and f.endswith(".png")]
-            conn = sqlite3.connect("./data/tf2helper.db")
-            c = conn.cursor()
+            tfdb = postgresem("./data/tf2helper.db")
+            c = tfdb
             c.execute("SELECT DISTINCT cause_of_death FROM specifickilltracker ORDER BY cause_of_death")
             weaponsused = c.fetchall()
             weapon_images = list(map(lambda x: f"{x[0]}.png", weaponsused))
+            tfdb.close()
 
         else:
             weapon_images = [f for f in os.listdir(IMAGE_DIR) if f.endswith(".png")]
@@ -1572,23 +1657,23 @@ if DISCORDBOTLOGSTATS == "1":
 
         def fetch_kill_data(timecutoff = 0):
             timecutoff = int(time.time() - timecutoff)
-            conn = sqlite3.connect("./data/tf2helper.db")
-            c = conn.cursor()
+            tfdb = postgresem("./data/tf2helper.db")
+            c = tfdb
             c.execute("SELECT cause_of_death ,playeruid,weapon_mods FROM specifickilltracker WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL)",(timecutoff,))
             rows = c.fetchall()
-            conn.close()
+            tfdb.close()
             return rows
         def bvsuggestedthistome(timecutoff = 0,swoptovictims = False):
             timecutoff = int(time.time() - timecutoff)
-            conn = sqlite3.connect("./data/tf2helper.db")
-            c = conn.cursor()
+            tfdb = postgresem("./data/tf2helper.db")
+            c = tfdb
             if not swoptovictims:
                 c.execute("SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, playeruid, weapon_mods, attacker_type",(timecutoff,))
             else:
                 c.execute("SELECT cause_of_death, victim_id, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, victim_id, weapon_mods, attacker_type",(timecutoff,))
 
             rows = c.fetchall()
-            conn.close()
+            tfdb.close()
             return rows
         # print("calculated pngleaderboard in", (int(time.time()*100)-now)/100,"seconds")
         if specificweapon:
@@ -1942,8 +2027,8 @@ if DISCORDBOTLOGSTATS == "1":
         MAXALIASESSHOWN = 22
         originalname = name
         print("whois command from", ctx.author.id, "to", name)
-        tfdb = sqlite3.connect("./data/tf2helper.db")
-        c = tfdb.cursor()
+        tfdb = postgresem("./data/tf2helper.db")
+        c = tfdb
         c.execute("SELECT playeruid, playername FROM uidnamelink")
         data = c.fetchall()
         
@@ -2055,8 +2140,8 @@ if DISCORDBOTLOGSTATS == "1":
         description="Toggle if you are notified when a player joins",
     )
     async def togglejoinnotify(ctx,name: Option(str, "The playername to toggle",autocomplete=autocompletenamesfromdb)):
-        tfdb = sqlite3.connect("./data/tf2helper.db")
-        c = tfdb.cursor()
+        tfdb = postgresem("./data/tf2helper.db")
+        c = tfdb
         c.execute("SELECT playeruid, playername FROM uidnamelink")
         data = c.fetchall()
         if not data:
@@ -2614,8 +2699,8 @@ def setcolour(colours,discorduid,type = "choseningamecolour"):
         colourslist.append(rgba)
         rgba = "|".join(map(str, colourslist))
 
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     c.execute(
         """
         INSERT INTO discorduiddata (discorduid, choseningamecolour)
@@ -2670,8 +2755,8 @@ async def show_color_why(ctx, colour: Option(str, "Enter a normal/hex color, or 
         colourslist.append(rgba)
         rgba = "|".join(map(str, colourslist))
 
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     c.execute(
         """
         INSERT INTO discorduiddata (discorduid, chosencolour)
@@ -2866,8 +2951,8 @@ async def on_message(message):
 def pullid(uid,force = False):
     global context
     result = None
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     if not force or force == "discord":
         c.execute("SELECT discordid FROM discordlinkdata WHERE uid = ?", (uid,))
         result = c.fetchone()
@@ -2889,16 +2974,16 @@ def colourmessage(message,serverid):
     # print("ew")
     discorduid = discorduidnamelink.get(message["metadata"]["uid"],False)
     if message["metadata"].get("type",False) == "impersonate" and not discorduid:
-            specifickillbase = sqlite3.connect("./data/tf2helper.db")
-            c = specifickillbase.cursor()
+            tfdb = postgresem("./data/tf2helper.db")
+            c = tfdb
             c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (message["metadata"]["uid"],))
             link = c.fetchone()
             discorduidnamelink[message["metadata"]["uid"]] = link[0] if link and link[0] else False
             discorduid = discorduidnamelink.get(message["metadata"]["uid"],False)
     elif message["metadata"].get("type",False) != "impersonate" :  
         if not discorduid:
-            specifickillbase = sqlite3.connect("./data/tf2helper.db")
-            c = specifickillbase.cursor()
+            tfdb = postgresem("./data/tf2helper.db")
+            c = tfdb
             c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (message["metadata"]["uid"],))
             link = c.fetchone()
             discorduidnamelink[message["metadata"]["uid"]] = link[0] if link and link[0] else False
@@ -2985,8 +3070,8 @@ def recieveflaskprintrequests():
             return {"message":"sorry, wrong pass"}
         discorduid = discorduidnamelink.get(data["uid"],False)
         if not discorduid:
-            specifickillbase = sqlite3.connect("./data/tf2helper.db")
-            c = specifickillbase.cursor()
+            tfdb = postgresem("./data/tf2helper.db")
+            c = tfdb
             c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (data["uid"],))
             link = c.fetchone()
             if not link:
@@ -3017,7 +3102,7 @@ def recieveflaskprintrequests():
         return output
             
     @app.route("/cdn/<filename>", methods=["GET"])
-    def get_cdn_image(filename):
+    def pullcdn(filename):
         global imagescdn
         # print("retrieving")
         istest = False
@@ -3222,8 +3307,8 @@ def recieveflaskprintrequests():
             return
         placeholders = ','.join(['?'] * len(uids))
         
-        conn = sqlite3.connect("./data/tf2helper.db")
-        c = conn.cursor()
+        tfdb = postgresem("./data/tf2helper.db")
+        c = tfdb
         
         c.execute(f"""
         WITH session_durations AS (
@@ -3289,7 +3374,7 @@ def recieveflaskprintrequests():
         """, tuple(uids))
         
         results = c.fetchall()
-        conn.close()
+        tfdb.close()
         
         stats_list = sorted([{"uid": row[0], "kph": row[1], "gamesplayed": row[2]} for row in results],key = lambda x: -x["kph"])
         # zippp ittt
@@ -3322,8 +3407,8 @@ def recieveflaskprintrequests():
 
     # @app.route("/players/<playeruid>", methods=["GET", "POST"])
     # def getplayerstats(playeruid):
-    #     tfdb = sqlite3.connect("./data/tf2helper.db")
-    #     c = tfdb.cursor()
+    #     tfdb = postgresem("./data/tf2helper.db")
+    #     c = tfdb
     #     try:
     #         output = resolveplayeruidfromdb(playeruid, None, True)[0]
     #         name = output["name"]
@@ -3609,8 +3694,8 @@ def recieveflaskprintrequests():
 
             })
 
-        specifickillbase = sqlite3.connect("./data/tf2helper.db")
-        c = specifickillbase.cursor()
+        tfdb = postgresem("./data/tf2helper.db")
+        c = tfdb
         c.execute(
             """
             INSERT INTO specifickilltracker (
@@ -3690,9 +3775,9 @@ def recieveflaskprintrequests():
             )
 
         )
-        specifickillbase.commit()
+        tfdb.commit()
         c.close()
-        specifickillbase.close()
+        tfdb.close()
         return {"message": "ok"}
 
     @app.route("/servermessagein", methods=["POST"])
@@ -3855,8 +3940,8 @@ def getmessagewidget(metadata,serverid,messagecontent,message):
     elif metadata["type"] == "connect" and DISCORDBOTLOGSTATS == "1":
         pass
         uid = metadata["uid"]
-        tfdb = sqlite3.connect("./data/tf2helper.db")
-        c = tfdb.cursor()
+        tfdb = postgresem("./data/tf2helper.db")
+        c = tfdb
         c.execute("SELECT count FROM joincounter WHERE playeruid = ? AND serverid = ?", (uid,serverid))
         data = c.fetchone()
         c.execute("SELECT leftatunix,joinatunix FROM playtime WHERE playeruid = ? AND serverid = ?", (uid,serverid))
@@ -4742,8 +4827,8 @@ def displayendofroundstats(message,serverid,isfromserver):
 
 
     if not isfromserver:
-        tfdb = sqlite3.connect("./data/tf2helper.db")
-        c = tfdb.cursor()
+        tfdb = postgresem("./data/tf2helper.db")
+        c = tfdb
         c.execute(
             """SELECT matchid
         FROM matchid
@@ -4821,8 +4906,8 @@ def displayendofroundstats(message,serverid,isfromserver):
         pass # quering this db takes a long time, and doing this is really time sensitive
         # I do want this though..
         # try:
-        #     tfdb = sqlite3.connect("./data/tf2helper.db")
-        #     c = tfdb.cursor()
+        #     tfdb = postgresem("./data/tf2helper.db")
+        #     c = tfdb
 
         #     c.execute(
         #         """
@@ -5147,8 +5232,8 @@ def calcstats(message,serverid,isfromserver):
             )
 
 def savemessages(message,serverid):
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     
     c.execute(
         """INSERT INTO messagelogger (message,type,serverid)
@@ -5174,8 +5259,8 @@ async def checkverify(message):
     #     return
     verify_data = accountlinker.get(str(content).strip(),False)
     if not verify_data: return
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
 
     c.execute(
         """INSERT INTO discordlinkdata (uid, discordid, linktime)
@@ -5470,8 +5555,8 @@ def defaultoverride(data, serverid, statuscode):
 
 def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 = False):
     name = str(name)
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
 
     name_like = f"%{name}%"
     query = f"""
@@ -5576,8 +5661,8 @@ def checkrconallowedtfuid(uid, typeof="rconrole"):
     if OVVERRIDEROLEREQUIRMENT == "1" and typeof == "coolperksrole":
         return True
     # print("CHECKING UID",uid)
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     c.execute("SELECT discordid FROM discordlinkdata WHERE uid = ?", (uid,))
     result = c.fetchone()
 
@@ -5873,8 +5958,8 @@ playerjoinlist = {}
 def checkandaddtouidnamelink(uid, playername, istf1 = False):
     global playercontext
     now = int(time.time())
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     c.execute(
         f"SELECT id, playername FROM uidnamelink{'tf1' if istf1 else ''} WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
     row = c.fetchone()
@@ -5899,8 +5984,8 @@ def onplayerjoin(uid,serverid,nameof = False):
     if istf1:
         return
     print("joincommand", uid, serverid)
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     c.execute("SELECT discordidnotify FROM joinnotify WHERE uidnotify = ?",(uid,))
     discordnotify = c.fetchall()
     c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
@@ -5956,8 +6041,8 @@ def onplayerleave(uid,serverid):
     if istf1:
         return
     print("leavecommand",uid,serverid)
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     c.execute("SELECT discordidnotify FROM joinnotify WHERE uidnotify = ?",(uid,))
     discordnotify = c.fetchall()
     c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
@@ -5997,8 +6082,8 @@ def savestats(saveinfo):
     global playercontext
     print("saving playerinfo",saveinfo)
     istf1 = context["istf1server"].get(saveinfo["serverid"],False) # {"tf2" if istf1 else ""}
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     try:
         c.execute(f"SELECT playername FROM uidnamelink{'tf1' if istf1 else ''} WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],))
         playernames = c.fetchall()
@@ -6033,8 +6118,8 @@ def addmatchtodb(matchid,serverid,currentmap):
     global matchids,playercontext
     istf1 = context["istf1server"].get(serverid,False) # {'tf1' if istf1 else ''}
     print("adding match to db",matchid,serverid)
-    tfdb = sqlite3.connect("./data/tf2helper.db")
-    c = tfdb.cursor()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
     c.execute(f"SELECT matchid FROM matchid{'tf1' if istf1 else ''} WHERE matchid = ?",(matchid,))
     matchidcheck = c.fetchone()
     if matchidcheck:
@@ -6426,8 +6511,8 @@ def convansi(rgb):
 
 def getstats(playeruid):
 # print(int(time.time()))
-        specifickillbase = sqlite3.connect("./data/tf2helper.db")
-        c = specifickillbase.cursor()
+        tfdb = postgresem("./data/tf2helper.db")
+        c = tfdb
         # print(int(time.time()/))
         now = int(time.time())
         timeoffset = 86400
