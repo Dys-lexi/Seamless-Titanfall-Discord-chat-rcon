@@ -42,6 +42,7 @@ discordlog:
       - SHOW_IMPERSONATED_MESSAGES_IN_DISCORD="1" # display an IMPERSONATED tag after an impersonated message, only in discord
       - KILL_STREAK_NOTIFY_THRESHOLD="5" #min kill requirment to start a killstreak. set to "0" to disable.
       - KILL_STREAK_NOTIFY_STEP="5" #how many kills needed for the next ks notification
+      - POSTGRESQL_DB_URL="0" # 0 = use sqlite. the sqlite db was dying though (it had about 700k kills in it, so a postgress url here uses a postgresql db)
     volumes:
       - ./discord/data:/app/data:rw
     restart: always

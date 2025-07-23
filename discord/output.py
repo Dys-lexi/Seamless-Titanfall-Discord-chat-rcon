@@ -501,7 +501,7 @@ def print(*message, end="\033[0m\n"):
                 + str(message)
                 + "\n"
             )
-    realprint(f"[38;5;61m{('['+str(inspect.currentframe().f_back.f_code.co_name)[:9]+']').ljust(11)}[38;5;225m{('['+str(inspect.currentframe().f_back.f_lineno)+']').ljust(6)}[38;5;173m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{random.randint(250,255)}m {message}", end=end)
+    realprint(f"[38;2;215;22;105m{('['+str(inspect.currentframe().f_back.f_code.co_name)[:9]+']').ljust(11)}[38;2;126;89;140m{('['+str(inspect.currentframe().f_back.f_lineno)+']').ljust(6)}[38;2;27;64;152m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{random.randint(250,255)}m {message}", end=end)
 print("running discord logger bot")
 lastrestart = 0
 messagecounter = 0
@@ -579,7 +579,7 @@ if POSTGRESQLDBURL == "0":
 else:
     print("RUNNING ON POSTGRESQL DB")
     pgpool = pool.ThreadedConnectionPool(
-        1, 100,
+        1, 1000,
         dsn=POSTGRESQLDBURL
     )
     class postgresem:
@@ -1614,6 +1614,9 @@ if DISCORDBOTLOGSTATS == "1":
         print("getting pngleaderboard")
         now = int(time.time()*100)
         FONT_PATH = "./fonts/DejaVuSans-Bold.ttf"
+
+        if not os.path.isfile(FONT_PATH):
+            print(f"Font not found at {FONT_PATH}")
         FONT_SIZE = 16
         LINE_SPACING = 10
         GOLD = (255, 215, 0)
@@ -1786,8 +1789,10 @@ if DISCORDBOTLOGSTATS == "1":
         if not playeroverride:
             weapon_names.sort(key=lambda w: max([0,*list(weapon_kills["main"].get(w, {}).values())]), reverse=True)
         else:
-            weapon_names = list(filter(lambda w: weapon_kills["main"].get(w, {}).get(str(playeroverride),0) ,weapon_names))
-            weapon_names.sort(key=lambda w: weapon_kills["main"].get(w, {}).get(str(playeroverride),0), reverse=True)
+            # print(playeroverride,list(filter(lambda w: weapon_kills["main"].get(w, {}).get(playeroverride,0) ,weapon_names)))
+            # print(weapon_kills["main"])
+            weapon_names = list(filter(lambda w: weapon_kills["main"].get(w, {}).get(playeroverride,0) ,weapon_names))
+            weapon_names.sort(key=lambda w: weapon_kills["main"].get(w, {}).get(playeroverride,0), reverse=True)
         # print(weapon_names)
         weapon_names = list(filter(lambda w: weapon_kills["main"].get(w, False) != False, weapon_names))
         try:
@@ -1810,7 +1815,7 @@ if DISCORDBOTLOGSTATS == "1":
                 draw = ImageDraw.Draw(gun_img)
 
                 text = weapon
-                font_path = "arial.ttf"  # Replace or leave as None to use default
+                font_path = FONT_PATH  # Replace or leave as None to use default
 
                 font = get_max_font_size(draw, text, maxwidth, 128, font_path)
 
@@ -1859,7 +1864,7 @@ if DISCORDBOTLOGSTATS == "1":
                 sorted_player_index = -1
             else:
                 sorted_players = sorted(counts.items(), key=lambda item: item[1]["kills"], reverse=True)
-                sorted_player_index = functools.reduce(lambda a,b: (a[0] + 1,a[1]) if  not a[1] and b[0] != str(playeroverride) else (a[0],True)  , sorted_players,(0,False))
+                sorted_player_index = functools.reduce(lambda a,b: (a[0] + 1,a[1]) if  not a[1] and b[0] != playeroverride else (a[0],True)  , sorted_players,(0,False))
                 # print("SORQWDIQWD",sorted_player_index)
                 if not sorted_player_index[1]:
                     sorted_player_index = 0
@@ -1996,23 +2001,27 @@ if DISCORDBOTLOGSTATS == "1":
           
 
     def get_max_font_size(draw, text, max_width, max_height, font_path=None):
-        font_size = 1
-        while True:
-            try:
-                font = ImageFont.truetype(font_path, font_size) if font_path else ImageFont.load_default()
-            except:
-                font = ImageFont.load_default()
-                break
+        # font_size = 1
+        # best_font = None
 
-            bbox = draw.textbbox((0, 0), text, font=font)
-            width = bbox[2] - bbox[0]
-            height = bbox[3] - bbox[1]
+        # while True:
+        #     try:
+        #         font = ImageFont.truetype(font_path, font_size) if font_path else ImageFont.load_default()
+        #     except Exception as e:
+        #         print(f"Failed to load font from {font_path}: {e}")
+        #         return ImageFont.load_default()
 
-            if width > max_width or height > max_height:
-                font_size -= 1
-                break
-            font_size += 1
-            return ImageFont.truetype(font_path, font_size) if font_path else ImageFont.load_default()
+        #     bbox = draw.textbbox((0, 0), text, font=font)
+        #     width = bbox[2] - bbox[0]
+        #     height = bbox[3] - bbox[1]
+
+        #     if width > max_width or height > max_height:
+        #         break  # current font is too big; return previous one
+
+        #     best_font = font
+        #     font_size += 1
+        return ImageFont.truetype(font_path, 16) if font_path else ImageFont.load_default()
+        return best_font if best_font else ImageFont.load_default()
     def modifyvalue(value, format, calculation=None):
         if format is None:
             return value
@@ -3187,6 +3196,7 @@ def recieveflaskprintrequests():
                 # print("ASKING TO SEND ENDOFSTATS")
                 output = tftodiscordcommand(data["command"],data.get("paramaters",False),str(data["serverid"]))
         except:
+            traceback.print_exc()
             pass
         # print("ASKING SERVER TO STOP")
         stoprequestsforserver[data["serverid"]] = True
@@ -6122,7 +6132,7 @@ def savestats(saveinfo):
     # 3 is server crash
     # 4 is tempory save
     global playercontext
-    print("saving playerinfo",saveinfo)
+    # print("saving playerinfo",saveinfo)
     istf1 = context["istf1server"].get(saveinfo["serverid"],False) # {"tf2" if istf1 else ""}
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
@@ -6189,7 +6199,7 @@ def addmatchtodb(matchid,serverid,currentmap):
             player = list(player)
             player[0] = str(player[0])
             player[4] = str(player[4])
-            print("loading player data",player[0])
+            # print("loading player data",player[0])
             if player[0] not in playercontext[serverid]:
                 playercontext[serverid][player[0]] = {}
             if player[0] in playernames.keys() and playernames[player[0]] not in playercontext[serverid][player[0]].keys():
@@ -7049,5 +7059,7 @@ def shutdown_handler(sig, frame):
 
 signal.signal(signal.SIGINT, shutdown_handler)
 signal.signal(signal.SIGTERM, shutdown_handler)
+
+
 
 bot.run(TOKEN)
