@@ -563,7 +563,7 @@ KILLSTREAKNOTIFYTHRESHOLD = int(os.getenv("KILL_STREAK_NOTIFY_THRESHOLD","5"))
 KILLSTREAKNOTIFYSTEP = int(os.getenv("KILL_STREAK_NOTIFY_STEP","5"))
 REACTONMENTION = os.getenv("REACT_EMOJI_ON_MENTION","0")
 POSTGRESQLDBURL = os.getenv("POSTGRESQL_DB_URL","0")
-
+POSTGRESQLDBURL = "0"
 GLOBALIP = 0
 if OVERRIDEIPFORCDNLEADERBOARD == "use_actual_ip":
     GLOBALIP ="http://"+requests.get('https://api.ipify.org').text+":34511"
@@ -1240,6 +1240,7 @@ if DISCORDBOTLOGSTATS == "1":
         
     @tasks.loop(seconds=LEADERBOARDUPDATERATE)
     async def updateleaderboards():
+        await asyncio.sleep(120)
         # print("leaderboardchannelmessages",context["leaderboardchannelmessages"])
         if context["overridechannels"]["leaderboardchannel"] == 0:
             return
@@ -2269,6 +2270,7 @@ async def help(
         embed.add_field(name="tf2ingamechatcolour",value="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your in game tf2 name, seperate multiple colours with spaces")
         embed.add_field(name="messagelogs",value="Pull all non command message logs with a given filter")
         embed.add_field(name="pngleaderboard",value="Gets pngleaderboard for a player, takes a LONG time to calculate on the wildcard.")
+        embed.add_field(name="tf2ingamesettag",value="Sets your in game tag")
         if SHOULDUSETHROWAI == "1":
             embed.add_field(name="thrownonrcon", value="Throw a player, after being persuasive", inline=False)
         if SANCTIONAPIBANKEY != "":
@@ -2570,7 +2572,7 @@ async def bind_global_channel(
                     ]
                 }
             },
-            "filters": "f'cause_of_death = \"mp_weapon_frag_grenade\" AND timeofkill > {int((datetime.now(datetime.UTC).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=datetime.now(datetime.UTC).replace(hour=0, minute=0, second=0, microsecond=0).weekday())).timestamp())}'",
+            "filters": "f'cause_of_death = \"mp_weapon_frag_grenade\" AND timeofkill > {int((datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).weekday())).timestamp())}'",
             "merge": "name",
             "maxshown": 10,
             "id": 0
@@ -2814,15 +2816,17 @@ def setcolour(colours,discorduid,type = "choseningamecolour"):
 
     tfdb.commit()
     tfdb.close()
-    
+    warn = ""
+    if pullid(discorduid,"tf"):
+        warn = "**titanfall account not linked, use /linktf2account to link it**"
     if discorduid not in colourslink.keys():
         colourslink[discorduid] = {}
     if rgba == "reset":
         colourslink[discorduid]["ingamecolour"] = []
-        return (f"reset ingame colour to default")
+        return (f"reset ingame colour to default {warn}")
         return
     colourslink[discorduid]["ingamecolour"] = colourslist
-    return f"Set ingame colour to {', '.join(map(str, colourslist))}"
+    return f"Set ingame colour to {', '.join(map(str, colourslist))} {warn}"
 
 @bot.slash_command(
     name="discordtotf2chatcolour",
@@ -4880,7 +4884,7 @@ def ingamesetusercolour(message,serverid,isfromserver):
     if not discorduid:
         discordtotitanfall[serverid]["messages"].append(
         {
-            "content":f"{PREFIXES['discord']} Name: {name} does not have a discord account linked",
+            "content":f"{PREFIXES['discord']} Name: {name} does not have a discord account linked - use /linktf2account on discord!",
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         }
         )
@@ -7111,7 +7115,6 @@ sys.excepthook = log_uncaught_exceptions
 #             print("failed")
 #         print(f"  Auto-increment setup complete for '{table}'.")
 
-db = postgresem(pgpool)
 # ensure_id_autoincrement_for_all_tables(db)
 # db.execute(f"INSERT INTO matchid{'tf1' if True else ''} (matchid,serverid,map,time) VALUES (?,?,?,?)",("wqdq","123","thaw",int(time.time())))
 # db.execute("""

@@ -225,7 +225,7 @@ void function discordloggerinit() {
 
 void function LogConnect( entity player )
 {
-	thread checkshouldblockmessages(player)
+	checkshouldblockmessages(player)
 	if(!IsValid(player))
 	{
 		return
