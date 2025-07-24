@@ -29,6 +29,8 @@ import sys
 import logging
 import psycopg2
 from psycopg2 import pool
+# from rich.traceback import install
+# install(show_locals=True)
 # import tracemalloc
 # tracemalloc.start()
 
@@ -168,7 +170,7 @@ def discorduidinfodb():
     c.execute("SELECT discorduid, chosencolour,choseningamecolour, nameprefix FROM discorduiddata")
     output = c.fetchall()
     # print(output)
-    colourslink = {x[0]:{"nameprefix":json.loads(x[3]) if x[3] or x[3] == "reset" else None,"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,"ingamecolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) if x[2] is not None and x[2] != "reset" else []}  for x in output}
+    colourslink = {x[0]:{"nameprefix":(x[3]) if x[3] or x[3] == "reset" else None,"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,"ingamecolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) if x[2] is not None and x[2] != "reset" else []}  for x in output}
     
     c.execute("SELECT discorduid, choseningamecolour FROM discorduiddata")
     # output = c.fetchall()
@@ -563,10 +565,10 @@ KILLSTREAKNOTIFYTHRESHOLD = int(os.getenv("KILL_STREAK_NOTIFY_THRESHOLD","5"))
 KILLSTREAKNOTIFYSTEP = int(os.getenv("KILL_STREAK_NOTIFY_STEP","5"))
 REACTONMENTION = os.getenv("REACT_EMOJI_ON_MENTION","0")
 POSTGRESQLDBURL = os.getenv("POSTGRESQL_DB_URL","0")
-POSTGRESQLDBURL = "0"
+PORT = os.getenv("BOT_PORT","3451")
 GLOBALIP = 0
 if OVERRIDEIPFORCDNLEADERBOARD == "use_actual_ip":
-    GLOBALIP ="http://"+requests.get('https://api.ipify.org').text+":34511"
+    GLOBALIP ="http://"+requests.get('https://api.ipify.org').text+":"+PORT
 elif OVERRIDEIPFORCDNLEADERBOARD != "hidden":
     GLOBALIP = OVERRIDEIPFORCDNLEADERBOARD
 
@@ -1296,7 +1298,7 @@ if DISCORDBOTLOGSTATS == "1":
                     except:
                         print("FAILED TO CONNECT TO CDN TO SEND LEADERBOARDIMAGE")
                 # print("here2")
-                embed = discord.Embed(title=leaderboardname,color=leaderboarddcolor,description =leaderboarddescription )
+                embed = discord.Embed(title=leaderboardname,color=leaderboarddcolor,description =f"{leaderboarddescription}\nLast Updated: {getdiscordtimestamp()}" )
                 if image_available:
                     embed.set_image(url=cdn_url)
 
@@ -1497,7 +1499,7 @@ if DISCORDBOTLOGSTATS == "1":
             embed = discord.Embed(
                 title=f"{leaderboardname}",
                 color=leaderboarddcolor,
-                description=f"{leaderboarddescription} **{len(displayoutput)} Entrys**"
+                description=f"{leaderboarddescription} **{len(displayoutput)} Entrys**\nLast Updated: {getdiscordtimestamp()}"
             )
 
         # print(leaderboardcategorysshown)
@@ -2239,7 +2241,10 @@ if DISCORDBOTLOGSTATS == "1":
             await ctx.respond(f"{player['name']} removed from notify list", ephemeral=True)
         tfdb.commit()
         tfdb.close()
-   
+
+
+def getdiscordtimestamp(timestamp = None):
+    return f"<t:{timestamp if timestamp else  int(time.time())}:R>"
 
 @bot.slash_command(name="help", description="Show help for commands")
 async def help(
@@ -2746,13 +2751,17 @@ async def show_color_what(ctx, tag: Option(str, "Enter a 1 - 4 character tag, or
     #     await ctx.respond(f"You do not have the coolperksrole, so cannot use this command :) to get it: {COOLPERKSROLEREQUIRMENTS}", ephemeral=False)
     #     return
     
-    await ctx.respond(setcolour(tag,ctx.author.id),ephemeral=False)
+    await ctx.respond(settag(tag,ctx.author.id),ephemeral=False)
 
 def settag(tag,discorduid):
     global colourslink
     if tag != "reset" and (len(tag) < 1 or len(tag) > 4):
         return "Tags have to be bettween 4 and 6 digits"
-    c.execute(
+    warn = ""
+    if not pullid(discorduid,"tf"):
+        warn = "**titanfall account not linked, use /linktf2account to link it**"
+    tfdb = postgresem("./data/tf2helper.db")
+    tfdb.execute(
         """
         INSERT INTO discorduiddata (discorduid, nameprefix)
         VALUES (?, ?)
@@ -2760,10 +2769,13 @@ def settag(tag,discorduid):
         """,
         (discorduid, str(tag) if tag != "reset" else "reset")
     )
+    tfdb.commit()
+    tfdb.close()
     if tag == "reset" and getpriority(colourslink,[discorduid,"nameprefix"]):
         colourslink[discorduid]["nameprefix"] = None
     else:
-        colourslink.setdefault(discorduid,{}).update("nameprefix",tag)
+        colourslink.setdefault(discorduid,{}).update({"nameprefix":tag})
+    return f"Set prefix to [{tag}] {warn}" 
     
     
     
@@ -2817,7 +2829,7 @@ def setcolour(colours,discorduid,type = "choseningamecolour"):
     tfdb.commit()
     tfdb.close()
     warn = ""
-    if pullid(discorduid,"tf"):
+    if not pullid(discorduid,"tf"):
         warn = "**titanfall account not linked, use /linktf2account to link it**"
     if discorduid not in colourslink.keys():
         colourslink[discorduid] = {}
@@ -3070,7 +3082,7 @@ def pullid(uid,force = False):
         c.execute("SELECT discordid FROM discordlinkdata WHERE uid = ?", (uid,))
         result = c.fetchone()
     if result is None and (not force or force == "tf"):
-        c.execute("SELECT discordid FROM discordlinkdata WHERE discordid = ?", (uid,))
+        c.execute("SELECT uid FROM discordlinkdata WHERE discordid = ?", (uid,))
         result = c.fetchone()
     c.close()
     tfdb.close()
@@ -3964,12 +3976,13 @@ def recieveflaskprintrequests():
                 onplayerleave(data["metadata"]["uid"],data["serverid"])
         if addtomessageflush:
             # print(json.dumps(newmessage,indent =4))
-            messageflush.append(newmessage)     
+            
             try:
                 returnable =  colourmessage(newmessage,data["serverid"])
             except:
                 returnable = False
                 traceback.print_exc()
+            messageflush.append(newmessage)     
         messagecounter += 1
         lastmessage = time.time()
 
@@ -3986,7 +3999,7 @@ def recieveflaskprintrequests():
             return {"message": "success",**returnable}
         return {"message": "success"}
 
-    serve(app, host="0.0.0.0", port=3451, threads=120,connection_limit=200)  # prod
+    serve(app, host="0.0.0.0", port=PORT, threads=120,connection_limit=200)  # prod
     #app.run(host="0.0.0.0", port=3451)  #dev
 
 
@@ -4046,6 +4059,8 @@ def getmessagewidget(metadata,serverid,messagecontent,message):
     output = messagecontent
     player = str(message.get("player","Unknown player"))
 
+    if getpriority(colourslink,[discorduidnamelink.get(getpriority(message,["metadata","uid"]),False),"nameprefix"]):
+        player = f"[{colourslink[discorduidnamelink.get(getpriority(message,["metadata","uid"]),False)]["nameprefix"]}] {player}"
     # print("metadata",metadata)
     if metadata.get("teamtype","not team") != "not team":
         player = f"{player} {metadata.get('teamtype','not team')}"
@@ -4246,7 +4261,7 @@ def tf1readsend(serverid,checkstatus):
             
             for messageid in list(map(lambda x: str(x["id"]),list(filter(lambda x: True ,discordtotitanfall[serverid]["messages"])))):
                 discordtotitanfall[serverid]["returnids"]["messages"].setdefault(messageid,[now])
-            print("RETURNIDS",discordtotitanfall[serverid]["returnids"]["messages"])
+            # print("RETURNIDS",discordtotitanfall[serverid]["returnids"]["messages"])
             # discordtotitanfall[serverid]["returnids"]["messages"][now] = list(map(lambda x: x["id"],list(filter(lambda x: x["id"] not in reactedyellowtoo ,discordtotitanfall[serverid]["messages"]))))
         # I don't recall why I needed this grouping system. hence, I am removing it.
         # what if a message is sent, and it fails? oh that's why I had it isn't it.
@@ -4548,7 +4563,10 @@ def tf1relay():
             if discordtotitanfall[server].get("serveronline",True) == True or i % 10 == 0:
                 # try:print((discordtotitanfall[server]["serveronline"]))
                 # except:print(list(discordtotitanfall[server].keys()))
-                threading.Thread(target=tf1readsend, daemon=True, args=(server,i%10 == 0)).start()
+                try:
+                    threading.Thread(target=tf1readsend, daemon=True, args=(server,i%10 == 0)).start()
+                except KeyboardInterrupt:
+                    return
         i += 1
 
   
