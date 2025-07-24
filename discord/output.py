@@ -165,10 +165,10 @@ def discorduidinfodb():
     except:
         pass
     # c.execute("ALTER TABLE discorduiddata ADD COLUMN choseningamecolour TEXT")
-    c.execute("SELECT discorduid, chosencolour,choseningamecolour,nameprefix FROM discorduiddata")
+    c.execute("SELECT discorduid, chosencolour,choseningamecolour, nameprefix FROM discorduiddata")
     output = c.fetchall()
     # print(output)
-    colourslink = {x[0]:{"nameprefix":json.loads(x[3]) if x[3] else None,"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,"ingamecolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) if x[2] is not None and x[2] != "reset" else []}  for x in output}
+    colourslink = {x[0]:{"nameprefix":json.loads(x[3]) if x[3] or x[3] == "reset" else None,"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,"ingamecolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) if x[2] is not None and x[2] != "reset" else []}  for x in output}
     
     c.execute("SELECT discorduid, choseningamecolour FROM discorduiddata")
     # output = c.fetchall()
@@ -636,6 +636,8 @@ else:
                     self._empty_result = True
                 else:
                     raise
+            except psycopg2.Error as e:
+                self.conn.rollback() 
             else:
                 self._empty_result = False
 
@@ -2732,6 +2734,39 @@ async def linktfaccount(ctx):
     await ctx.respond(f"Trying to link {ctx.author.nick if hasattr(ctx.author, 'nick') and ctx.author.nick is not None else ctx.author.display_name} '{linkcode}' in any server chat to link in next 5 mins",ephemeral = True)
     
 @bot.slash_command(
+    name="tf2ingamesettag",
+    description="Set your tag in tf2"
+)
+async def show_color_what(ctx, tag: Option(str, "Enter a 1 - 4 character tag, or 'reset' to reset")):
+
+    # if not checkrconallowed(ctx.author,"coolperksrole"):
+    #     await asyncio.sleep (SLEEPTIME_ON_FAILED_COMMAND)
+    #     await ctx.respond(f"You do not have the coolperksrole, so cannot use this command :) to get it: {COOLPERKSROLEREQUIRMENTS}", ephemeral=False)
+    #     return
+    
+    await ctx.respond(setcolour(tag,ctx.author.id),ephemeral=False)
+
+def settag(tag,discorduid):
+    global colourslink
+    if tag != "reset" and (len(tag) < 1 or len(tag) > 4):
+        return "Tags have to be bettween 4 and 6 digits"
+    c.execute(
+        """
+        INSERT INTO discorduiddata (discorduid, nameprefix)
+        VALUES (?, ?)
+        ON CONFLICT(discorduid) DO UPDATE SET nameprefix = excluded.nameprefix
+        """,
+        (discorduid, str(tag) if tag != "reset" else "reset")
+    )
+    if tag == "reset" and getpriority(colourslink,[discorduid,"nameprefix"]):
+        colourslink[discorduid]["nameprefix"] = None
+    else:
+        colourslink.setdefault(discorduid,{}).update("nameprefix",tag)
+    
+    
+    
+
+@bot.slash_command(
     name="tf2ingamechatcolour",
     description="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your tf2 name"
 )
@@ -3071,7 +3106,7 @@ def colourmessage(message,serverid):
         # if not colourslink.get(discorduid,False).get("ingamecolour",False) and message["metadata"]["blockedmessage"]:
         #     # print("edwqdqw")
         #     return {"both":f"{PREFIXES['neutral']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
-        if not colourslink.get(discorduid,{}).get("ingamecolour",False) and not message["metadata"]["blockedmessage"]:
+        if not colourslink.get(discorduid,{}).get("ingamecolour",False) and not  getpriority(colourslink,[discorduid,"nameprefix"]) and not message["metadata"]["blockedmessage"]:
             # print("e")
             return False
     # print("HEHRHEE")
@@ -3088,7 +3123,7 @@ def colourmessage(message,serverid):
     for key, value in authornicks.items():
         output[key] = f"{'[111m[TEAM] ' if message['metadata']['teamtype'] != 'not team' else ''}{value}: {PREFIXES['neutral']}{message['messagecontent']}"
     # print(output)
-    if not colourslink.get(discorduid,{}).get("ingamecolour",False) and message["metadata"]["blockedmessage"]:
+    if not colourslink.get(discorduid,{}).get("ingamecolour",False) and not getpriority(colourslink,[discorduid,"nameprefix"]) and message["metadata"]["blockedmessage"]:
         output["uid"] = str(message["metadata"]["uid"])
         output["forceblock"] = False 
     elif not message["metadata"]["blockedmessage"]:
@@ -3107,7 +3142,8 @@ def computeauthornick (name,idauthor,content,serverid = False,rgbcolouroverride 
         if not getpriority(colourslink,[idauthor,"nameprefix"]):
             authornick = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {PREFIXES['neutral']}{content}")- bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract)
         else:
-            authornick = "["+colourslink[idauthor]["nameprefix"]+"]" + gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {PREFIXES['neutral']}{content}" + "["+colourslink[idauthor]["nameprefix"]+"]")- bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract,True)
+            nameof,firstcolour = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {PREFIXES['neutral']}{content}" + "["+colourslink[idauthor]["nameprefix"]+"]")- bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract,True)
+            authornick = firstcolour+ "["+colourslink[idauthor]["nameprefix"]+"] " + nameof
         counter +=1
     if authornick == 2:
         print("MESSAGE TOO LONG IN A WEIRD WAY, BIG PANIC")
