@@ -151,14 +151,24 @@ def discorduidinfodb():
         """CREATE TABLE IF NOT EXISTS discorduiddata (
             discorduid INTEGER PRIMARY KEY,
             chosencolour TEXT,
-            choseningamecolour TEXT
+            choseningamecolour TEXT,
+            nameprefix TEXT
             )"""
     )
+    if POSTGRESQLDBURL != "0":
+        c.execute("""
+        ALTER TABLE discorduiddata
+        ALTER COLUMN discorduid TYPE BIGINT USING discorduid::BIGINT;
+        """)
+    try:
+        c.execute("ALTER TABLE discorduiddata ADD COLUMN nameprefix TEXT")
+    except:
+        pass
     # c.execute("ALTER TABLE discorduiddata ADD COLUMN choseningamecolour TEXT")
-    c.execute("SELECT discorduid, chosencolour,choseningamecolour FROM discorduiddata")
+    c.execute("SELECT discorduid, chosencolour,choseningamecolour,nameprefix FROM discorduiddata")
     output = c.fetchall()
     # print(output)
-    colourslink = {x[0]:{"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,"ingamecolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) if x[2] is not None and x[2] != "reset" else []}  for x in output}
+    colourslink = {x[0]:{"nameprefix":json.loads(x[3]) if x[3] else None,"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,"ingamecolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) if x[2] is not None and x[2] != "reset" else []}  for x in output}
     
     c.execute("SELECT discorduid, choseningamecolour FROM discorduiddata")
     # output = c.fetchall()
@@ -241,6 +251,11 @@ def playeruidpreferences():
             preferences TEXT
             )"""
     )
+    if POSTGRESQLDBURL != "0":
+        c.execute("""
+        ALTER TABLE playeruidpreferences
+        ALTER COLUMN uid TYPE BIGINT USING uid::BIGINT;
+        """)
     tfdb.commit()
     tfdb.close()
 
@@ -360,6 +375,11 @@ def playeruidnamelinktf1():
             firstseenunix INTEGER
             )"""
     )
+    if POSTGRESQLDBURL != "0":
+        c.execute("""
+        ALTER TABLE uidnamelinktf1
+        ALTER COLUMN playeruid TYPE BIGINT USING playeruid::BIGINT;
+        """)
     # try:
     #     c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN firstseenunix INTEGER")
     #     c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN lastseenunix INTEGER") 
@@ -467,6 +487,11 @@ def playeruidnamelink():
             firstseenunix INTEGER
             )"""
     )
+    if POSTGRESQLDBURL != "0":
+        c.execute("""
+        ALTER TABLE uidnamelink
+        ALTER COLUMN playeruid TYPE BIGINT USING playeruid::BIGINT;
+        """)
     # try:
     #     c.execute("ALTER TABLE uidnamelink ADD COLUMN firstseenunix INTEGER")
     #     c.execute("ALTER TABLE uidnamelink ADD COLUMN lastseenunix INTEGER") 
@@ -2156,7 +2181,7 @@ if DISCORDBOTLOGSTATS == "1":
         embed = discord.Embed(
             title=f"Aliases for uid {player['uid']} ({len(alsomatching.keys()) + 1} match{'es' if len(alsomatching.keys()) > 0 else ''} for '{originalname}')",
             color=0xff70cb,
-            description=f"Most recent to oldest, si playtime **{modifyvalue(totalplaytime,'time') if totalplaytime else 'unknown'}**",
+            description=f"Most recent to oldest, total playtime **{modifyvalue(totalplaytime,'time') if totalplaytime else 'unknown'}**",
         )
 
         for y, x in enumerate(aliases[0:MAXALIASESSHOWN]):
@@ -2543,7 +2568,7 @@ async def bind_global_channel(
                     ]
                 }
             },
-            "filters": "f'cause_of_death = \"mp_weapon_frag_grenade\" AND timeofkill > {int((datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0).weekday())).timestamp())}'",
+            "filters": "f'cause_of_death = \"mp_weapon_frag_grenade\" AND timeofkill > {int((datetime.now(datetime.UTC).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=datetime.now(datetime.UTC).replace(hour=0, minute=0, second=0, microsecond=0).weekday())).timestamp())}'",
             "merge": "name",
             "maxshown": 10,
             "id": 0
@@ -2820,7 +2845,7 @@ async def show_color_why(ctx, colour: Option(str, "Enter a normal/hex color, or 
     await ctx.respond(f"Set discord -> tf2 colour to {', '.join(map(str, colourslist))}")
 
 # lifted straight from my chat colours thing
-def gradient(message,colours, maxlen):
+def gradient(message,colours, maxlen,stripfirstcolour = False):
     """gradient colouring (Two colours)"""
     # print(message)
     # message = message.split(" ")
@@ -2868,6 +2893,7 @@ def gradient(message,colours, maxlen):
         # print("here")
         counter = 0
         messagecounter = 0
+        firstcolour = stripfirstcolour
         for i in range(len(groupedletters)):
             counter2 = 0
             letters = groupedletters[i]
@@ -2890,7 +2916,11 @@ def gradient(message,colours, maxlen):
                     colours[i][2]
                     + int(differences[i][2] * (counter2) / (len(letters))),
                 )
-                outputmessage.append(rgb_to_ansi(Colour, 0) + letter)
+                if firstcolour != True:
+                    outputmessage.append(rgb_to_ansi(Colour, 0) + letter)
+                else:
+                    outputmessage.append(letter)
+                    firstcolour = rgb_to_ansi(Colour, 0)
                 counter += 1
                 counter2 += 1
                 messagecounter += 1
@@ -2901,6 +2931,8 @@ def gradient(message,colours, maxlen):
             overcharlimit = False
         if encodelength > maxlen / 2:
             return 2
+    if firstcolour:
+        return "".join(outputmessage), firstcolour
     return "".join(outputmessage)
 
 def rgb_to_ansi(value, vary=0):
@@ -2940,7 +2972,7 @@ async def on_message(message):
     if REACTONMENTION != "0" and bot.user in message.mentions:
         await message.add_reaction(REACTONMENTION)
     if message.channel.id in context["serverchannelidlinks"].values():
-        print("discord message recieved")
+        # print("discord message recieved")
         serverid = [
             key
             for key, value in context["serverchannelidlinks"].items()
@@ -3072,7 +3104,10 @@ def computeauthornick (name,idauthor,content,serverid = False,rgbcolouroverride 
     counter = 0
     while authornick == 2 and counter < len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])]):
         # print(counter)
-        authornick = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {PREFIXES['neutral']}{content}")- bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract)
+        if not getpriority(colourslink,[idauthor,"nameprefix"]):
+            authornick = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {PREFIXES['neutral']}{content}")- bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract)
+        else:
+            authornick = "["+colourslink[idauthor]["nameprefix"]+"]" + gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {PREFIXES['neutral']}{content}" + "["+colourslink[idauthor]["nameprefix"]+"]")- bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract,True)
         counter +=1
     if authornick == 2:
         print("MESSAGE TOO LONG IN A WEIRD WAY, BIG PANIC")
@@ -3873,9 +3908,11 @@ def recieveflaskprintrequests():
             addtomessageflush = False
         newmessage["messagecontent"] = data["messagecontent"].strip()
         if not newmessage["globalmessage"]:
-            print("message request from", newmessage["serverid"], newmessage["servername"])
+            pass
+            # print("message request from", newmessage["serverid"], newmessage["servername"])
         else:
-            print("global message request from", newmessage["serverid"], newmessage["servername"],"True" if addtomessageflush else "False")
+            pass
+            # print("global message request from", newmessage["serverid"], newmessage["servername"],"True" if addtomessageflush else "False")
         newmessage["metadata"] = {"type": None}
         #print(list(data.keys()))
         if "metadata" in data.keys() and data["metadata"] != "None":
@@ -4711,7 +4748,7 @@ def tftodiscordcommand(specificommand,command,serverid):
     global context
     istf1 = context["istf1server"].get(serverid,False) != False
     if specificommand:
-        print("SPECIFIC COMMAND REQUESTED",[serverid],specificommand)
+        print("SERVER COMMAND REQUESTED",[serverid],specificommand)
     # return
 
 
@@ -4722,6 +4759,7 @@ def tftodiscordcommand(specificommand,command,serverid):
     # print(not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
     if not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in context["commands"]["ingamecommands"].keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"] and (not context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]].get("serversenabled",False) or int(serverid) in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["serversenabled"]):
         specificommand = command["originalmessage"][1:].split(" ")[0].lower()
+        print("CLIENT COMMAND REQUESTED",[serverid],specificommand)
         commandargs = command["originalmessage"][1:].split(" ")[1:]
         # print( "e",context["commands"]["ingamecommands"][specificommand].get("permsneeded",False) and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"]),context["commands"]["ingamecommands"][specificommand].get("permsneeded",False)))
         if context["commands"]["ingamecommands"][specificommand].get("permsneeded",False) and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"]),context["commands"]["ingamecommands"][specificommand].get("permsneeded",False)):
@@ -4819,7 +4857,9 @@ def ingamesetusercolour(message,serverid,isfromserver):
         "uidoverride": [getpriority(message,"uid",["meta","uid"])]
     }
     )
-    return
+    
+    asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {getpriority(message,"uid",["meta","uid"],"originalname","name")}'),"fake context",None,True,False), bot.loop)
+
     
 
 
@@ -5614,7 +5654,7 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
     query = f"""
         SELECT playeruid, playername FROM uidnamelink{'tf1' if istf1 else ''}
         WHERE LOWER(playername) LIKE LOWER(?)
-        ORDER BY LENGTH(playername), playername COLLATE NOCASE
+        ORDER BY id DESC, playername COLLATE NOCASE
     """
     c.execute(query, (name_like,))
     data = c.fetchall()
@@ -5635,6 +5675,7 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
     # Deduplicate UIDs if requested
     seen_uids = set()
     results = []
+    # print(data)
     for uid, pname in data:
         if not oneuidpermatch or uid not in seen_uids:
             results.append({"name": pname, "uid": uid})
@@ -6035,7 +6076,7 @@ def onplayerjoin(uid,serverid,nameof = False):
     istf1 = context["istf1server"].get(serverid,False) # {"tf2" if istf1 else ""}
     if istf1:
         return
-    print("joincommand", uid, serverid)
+    # print("joincommand", uid, serverid)
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
     c.execute("SELECT discordidnotify FROM joinnotify WHERE uidnotify = ?",(uid,))
@@ -6470,7 +6511,7 @@ async def updatechannels():
     global context,discordtotitanfall
     # print("MEOWOWOW")
     # await asyncio.sleep(30)
-    print("running server update")
+    # print("running server activity update")
     for serverid in context["serveridnamelinks"].keys():
         channel = bot.get_channel(context["serverchannelidlinks"][serverid])
         serverlastheardfrom = getpriority(discordtotitanfall,[serverid,"lastheardfrom"])
@@ -6499,7 +6540,7 @@ def playerpoll():
         counter +=1
         # print("counter",counter,autosaveinterval/pinginterval)
         if not counter % int(autosaveinterval/pinginterval):
-            print("autosaving")
+            # print("autosaving")
             for serverid,data in playercontext.items():
                 for uid,value in data.items():
                     for name, value2 in value.items():
@@ -6588,7 +6629,6 @@ def getstats(playeruid):
             name = "unknown"
             return {"sob":"sobbing Unknown player"}
         messages = {}
-        print(name)
         output = {"name":name,"uid":str(playeruid),"total":{}}
         c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ? AND (victim_type = 'player' OR victim_type IS NULL)",(playeruid,))
         output["total"]["deaths"] = len(c.fetchall())
@@ -6769,7 +6809,7 @@ def getstats(playeruid):
         else:
             kd = 1
         kd = int(kd*100)/100
-        print("getting killdata for",name,playeruid,output)
+        # print("getting killdata for",name,playeruid,output)
         while True:
             colour = random.randint(0, 255)
             # colour = random.choice([254,219,87])
@@ -6806,7 +6846,7 @@ def getstats(playeruid):
 
         # if len(messages):
             # output["messages"] = messages
-        print({**output,**messages},"colour",colour)
+        print("stats: name",name,"colour",colour)
         # print("EEEEEEEEEE")
         return {**output,**messages}
        
