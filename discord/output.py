@@ -29,8 +29,9 @@ import sys
 import logging
 import psycopg2
 from psycopg2 import pool
-# from rich.traceback import install
-# install(show_locals=True)
+from rich.traceback import install
+from rich.status import Status
+install(show_locals=True)
 # import tracemalloc
 # tracemalloc.start()
 
@@ -170,7 +171,7 @@ def discorduidinfodb():
     c.execute("SELECT discorduid, chosencolour,choseningamecolour, nameprefix FROM discorduiddata")
     output = c.fetchall()
     # print(output)
-    colourslink = {x[0]:{"nameprefix":(x[3]) if x[3] or x[3] == "reset" else None,"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,"ingamecolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) if x[2] is not None and x[2] != "reset" else []}  for x in output}
+    colourslink = {x[0]:{"nameprefix":(x[3]) if x[3] and x[3] != "reset" else None,"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,"ingamecolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) if x[2] is not None and x[2] != "reset" else []}  for x in output}
     
     c.execute("SELECT discorduid, choseningamecolour FROM discorduiddata")
     # output = c.fetchall()
@@ -518,7 +519,9 @@ reactedyellowtoo = []
 #     with open("./data/" + log_file, "w") as f:
 #         f.write("")
 realprint = print
+linecolours = {}
 def print(*message, end="\033[0m\n"):
+    global linecolours
     message = " ".join([str(i) for i in message])
     if len(message) < 1000000 and False:
         with open("./data/" + log_file, "a") as file:
@@ -528,7 +531,17 @@ def print(*message, end="\033[0m\n"):
                 + str(message)
                 + "\n"
             )
-    realprint(f"[38;2;215;22;105m{('['+str(inspect.currentframe().f_back.f_code.co_name)[:9]+']').ljust(11)}[38;2;126;89;140m{('['+str(inspect.currentframe().f_back.f_lineno)+']').ljust(6)}[38;2;27;64;152m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{random.randint(250,255)}m {message}", end=end)
+        
+
+    function = str(inspect.currentframe().f_back.f_code.co_name)
+    line = str(inspect.currentframe().f_back.f_lineno)
+    if line not in linecolours:
+        while True:
+            colour = random.randint(0, 255)
+            if colour not in DISALLOWED_COLOURS:
+                break
+        linecolours[line] = colour
+    realprint(f"[38;2;215;22;105m{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}[38;2;126;89;140m{('['+line+']').ljust(6)}[38;2;27;64;152m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{linecolours[line]}m {message}", end=end)
 print("running discord logger bot")
 lastrestart = 0
 messagecounter = 0
@@ -2744,7 +2757,7 @@ async def linktfaccount(ctx):
     name="tf2ingamesettag",
     description="Set your tag in tf2"
 )
-async def show_color_what(ctx, tag: Option(str, "Enter a 1 - 4 character tag, or 'reset' to reset")):
+async def chooseatag(ctx, tag: Option(str, "Enter a 1 - 6 character tag, or 'reset' to reset")):
 
     # if not checkrconallowed(ctx.author,"coolperksrole"):
     #     await asyncio.sleep (SLEEPTIME_ON_FAILED_COMMAND)
@@ -2755,11 +2768,11 @@ async def show_color_what(ctx, tag: Option(str, "Enter a 1 - 4 character tag, or
 
 def settag(tag,discorduid):
     global colourslink
-    if tag != "reset" and (len(tag) < 1 or len(tag) > 4):
-        return "Tags have to be bettween 4 and 6 digits"
+    if tag != "reset" and (len(tag) < 1 or len(tag) > 6):
+        return "Tags have to be bettween 1 and 6 digits"
     warn = ""
     if not pullid(discorduid,"tf"):
-        warn = "**titanfall account not linked, use /linktf2account to link it**"
+        warn = "** BUT titanfall account not linked, use /linktf2account to link one, so this tag appears**"
     tfdb = postgresem("./data/tf2helper.db")
     tfdb.execute(
         """
@@ -2773,6 +2786,7 @@ def settag(tag,discorduid):
     tfdb.close()
     if tag == "reset" and getpriority(colourslink,[discorduid,"nameprefix"]):
         colourslink[discorduid]["nameprefix"] = None
+        return f"reset tag {warn}"
     else:
         colourslink.setdefault(discorduid,{}).update({"nameprefix":tag})
     return f"Set prefix to [{tag}] {warn}" 
@@ -2830,7 +2844,7 @@ def setcolour(colours,discorduid,type = "choseningamecolour"):
     tfdb.close()
     warn = ""
     if not pullid(discorduid,"tf"):
-        warn = "**titanfall account not linked, use /linktf2account to link it**"
+        warn = "**BUT titanfall account not linked, use /linktf2account to link one, so these colours appear**"
     if discorduid not in colourslink.keys():
         colourslink[discorduid] = {}
     if rgba == "reset":
@@ -2975,7 +2989,7 @@ def gradient(message,colours, maxlen,stripfirstcolour = False):
                 counter += 1
                 counter2 += 1
                 messagecounter += 1
-        if len("".join(outputmessage)) > maxlen:
+        if (not stripfirstcolour and len("".join(outputmessage)) > maxlen) or (stripfirstcolour and len(firstcolour)+len("".join(outputmessage)) > maxlen):
             encodelength += 1
             outputmessage = []
         else:
@@ -3131,14 +3145,15 @@ def colourmessage(message,serverid):
     # print(json.dumps(message))
     # print(colourslink[discorduid])
     if message["metadata"]["teamtype"] == "not team":
-        authornicks["friendly"] = computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"FRIENDLY","ingamecolour",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254)
-        authornicks["enemy"]= computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"ENEMY","ingamecolour",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254)
+        authornicks["friendly"] = computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"FRIENDLY","ingamecolour",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254,True)
+        authornicks["enemy"]= computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"ENEMY","ingamecolour",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254,True)
     else:
-        authornicks["friendly"] = computeauthornick(message["player"],discorduid,"[111m[TEAM] " +message["messagecontent"],serverid,"FRIENDLY","ingamecolour",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254)
+        authornicks["friendly"] = computeauthornick(message["player"],discorduid,"[111m[TEAM] " +message["messagecontent"],serverid,"FRIENDLY","ingamecolour",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254,True)
     output = {}
     for key, value in authornicks.items():
         output[key] = f"{'[111m[TEAM] ' if message['metadata']['teamtype'] != 'not team' else ''}{value}: {PREFIXES['neutral']}{message['messagecontent']}"
     # print(output)
+
     if not colourslink.get(discorduid,{}).get("ingamecolour",False) and not getpriority(colourslink,[discorduid,"nameprefix"]) and message["metadata"]["blockedmessage"]:
         output["uid"] = str(message["metadata"]["uid"])
         output["forceblock"] = False 
@@ -3149,16 +3164,16 @@ def colourmessage(message,serverid):
     print(f"OUTPUT {output}")
     
     return {**output,"messageteam":message["metadata"]["teamint"]}
-def computeauthornick (name,idauthor,content,serverid = False,rgbcolouroverride = "DISCORD",colourlinksovverride = "discordcolour",lenoverride = 254):
+def computeauthornick (name,idauthor,content,serverid = False,rgbcolouroverride = "DISCORD",colourlinksovverride = "discordcolour",lenoverride = 254,usetagifathing = False):
     # print("DETAILS",name,idauthor,content,serverid,colourslink.get(idauthor,{}))
     authornick = 2
     counter = 0
     while authornick == 2 and counter < len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])]):
         # print(counter)
-        if not getpriority(colourslink,[idauthor,"nameprefix"]):
+        if not (usetagifathing and getpriority(colourslink,[idauthor,"nameprefix"])):
             authornick = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {PREFIXES['neutral']}{content}")- bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract)
         else:
-            nameof,firstcolour = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {PREFIXES['neutral']}{content}" + "["+colourslink[idauthor]["nameprefix"]+"]")- bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract,True)
+            nameof,firstcolour = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {PREFIXES['neutral']}{content}" +"["+colourslink[idauthor]["nameprefix"]+"]")- bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract,True)
             authornick = firstcolour+ "["+colourslink[idauthor]["nameprefix"]+"] " + nameof
         counter +=1
     if authornick == 2:
@@ -3215,7 +3230,7 @@ def recieveflaskprintrequests():
         # if colourslink[str(data["uid"])]:
         # print(colourslink[596713937626595382])
         # print({"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",[]) != []},"uid":data["uid"],"otherdata":{x: str(y) for x,y in readplayeruidpreferences(data["uid"],False)["tf2"].items()}})
-        return {"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",[]) != []},"uid":data["uid"],"otherdata":{x: str(y) for x,y in list(filter(lambda x:  not getpriority(context,["commands","ingamecommands",x[0],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",x[0],"serversenabled"])  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))}}
+        return {"output":{"shouldblockmessages":(colourslink.get(discorduid,{}).get("ingamecolour",[]) != [] or colourslink.get(discorduid,{}).get("nameprefix",[]))},"uid":data["uid"],"otherdata":{x: str(y) for x,y in list(filter(lambda x:  not getpriority(context,["commands","ingamecommands",x[0],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",x[0],"serversenabled"])  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))}}
         # return output
     @app.route("/getrunningservers", methods=["POST"])
     def getrunningservers():
@@ -4564,7 +4579,7 @@ def tf1relay():
                 # try:print((discordtotitanfall[server]["serveronline"]))
                 # except:print(list(discordtotitanfall[server].keys()))
                 try:
-                    threading.Thread(target=tf1readsend, daemon=True, args=(server,i%10 == 0)).start()
+                    threading.Thread(target=threadwrap, daemon=True, args=(tf1readsend, server, i%10 == 0)).start()
                 except KeyboardInterrupt:
                     return
         i += 1
@@ -4713,9 +4728,8 @@ def messageloop():
                         # extra functions hooked onto messages
                         # asyncio.run_coroutine_threadsafe(colourmessage(message,serverid),bot.loop)
                         asyncio.run_coroutine_threadsafe(checkverify(message),bot.loop)
-                        threading.Thread(target=tftodiscordcommand, daemon=True, args=(False,message,message["oserverid"])).start()
-                        thready = threading.Thread(target=savemessages, daemon=True, args=(message,serverid))
-                        thready.start()
+                        threading.Thread(target=threadwrap, daemon=True, args=(tftodiscordcommand, False, message, message["oserverid"])).start()
+                        threading.Thread(target=threadwrap, daemon=True, args=(savemessages, message, serverid)).start()
                         isbad = checkifbad(message)
                         if isbad[0]:
                             print("horrible message found")
@@ -4868,7 +4882,7 @@ def tftodiscordcommand(specificommand,command,serverid):
     # print(specificommand)
     
     elif context["commands"]["ingamecommands"][specificommand]["run"] == "thread":
-        threading.Thread(target=globals()[context["commands"]["ingamecommands"][specificommand]["function"]], daemon=True, args=(command,serverid,servercommand)).start()
+        threading.Thread(target=threadwrap, daemon=True, args=(globals()[context["commands"]["ingamecommands"][specificommand]["function"]], command, serverid, servercommand)).start()
     elif context["commands"]["ingamecommands"][specificommand]["run"] == "async":
         asyncio.run_coroutine_threadsafe(globals()[context["commands"]["ingamecommands"][specificommand]["function"]](command,serverid,servercommand),bot.loop)
     elif context["commands"]["ingamecommands"][specificommand]["run"] == "seq":
@@ -5616,7 +5630,7 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
             pfp = MODEL_DICT.get(str(value["pfp"]),random.choice(UNKNOWNPFPS))
             if pfp in UNKNOWNPFPS and (str(value["pfp"].startswith("true")) or str(value["pfp"].startswith("false"))):
                 print("FALLING BACK TO GUESSING")
-                username = f"{username} - pfp not found - {value['pfp']}"
+                username = f"{username} pfperror {value['pfp']}"
                 for model, valuew in MODEL_DICT.items():
                     if str(value["pfp"])[6:] in model:
                         pfp = valuew
@@ -5629,7 +5643,7 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
                 # print(pilotstates[serverid])
                 message = await actualwebhooks[pilotstates[serverid]["webhook"]].send(discord.utils.escape_mentions(
                     "\n".join(list(map(lambda x: x["message"],value["messages"])))),#+" "+pilotstates[serverid]["webhook"],
-                    username=f"{username}",
+                    username=f"{username[0:80]}",
                     avatar_url=f'{PFPROUTE}{pfp}',
                     wait = True
                 )
@@ -6048,8 +6062,7 @@ your past responses:
 '''             # TO BE DONE, SAY HOW MANY DENYS AND HOW MANY ALLOWS, AND HOW MANY WERE IN PAST HOUR. LEARN ABOUT SANDBOXING IMPLEMENT THE SHORT TIME WHITELIST, AND ALSO THE 60 SECONDS DENY
             # print(f'{"The last time the user tried to use this command was: " + str(time.time()-lasttimethrown["specificusers"][ctx.author.id][-1]["timestamp"]) + " seconds ago, and it was " + lasttimethrown["specificusers"][ctx.author.id][-1]["button"] if ctx.author.id in lasttimethrown["specificusers"].keys() else "This is the first time the user has tried to use this command. since bot restart"}')
             print(prompt)
-            thready = threading.Thread(target=respondtotext, daemon=True, args=(message,prompt,keyaireply))
-            thready.start()
+            threading.Thread(target=threadwrap, daemon=True, args=(respondtotext, message, prompt, keyaireply)).start()
             count += 1
 
             while count != len(aibotmessageresponses[keyaireply]):
@@ -6530,6 +6543,8 @@ def playerpolllog(data,serverid,statuscode):
     #     playercontext[pinfo["uid"]+pinfo["name"]]["titankills"] = pinfo["titankills"]
     #     playercontext[pinfo["uid"]+pinfo["name"]]["npckills"] = pinfo["npckills"]
     #     playercontext[pinfo["uid"]+pinfo["name"]]["score"] = pinfo["score"]
+def threadwrap(function,*args):
+        function(*args)
 
 def flattendict(current, path=[], result=[]):
     if isinstance(current, dict):
@@ -7143,11 +7158,11 @@ sys.excepthook = log_uncaught_exceptions
 
 
 if DISCORDBOTLOGSTATS == "1":
-    threading.Thread(target=playerpoll).start()
-threading.Thread(target=messageloop).start()
-threading.Thread(target=recieveflaskprintrequests).start()
-threading.Thread(target=tf1relay).start()
-# threading.Thread(target=tf1inputemulator).start()
+    threading.Thread(target=threadwrap, daemon=True, args=(playerpoll,)).start()
+threading.Thread(target=threadwrap, daemon=True, args=(messageloop,)).start()
+threading.Thread(target=threadwrap, daemon=True, args=(recieveflaskprintrequests,)).start()
+threading.Thread(target=threadwrap, daemon=True, args=(tf1relay,)).start()
+# threading.Thread(target=threadwrap(tf1inputemulator).start()
 
 
 
