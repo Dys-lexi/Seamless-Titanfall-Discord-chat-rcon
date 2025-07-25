@@ -48,6 +48,8 @@ MODEL_DICT = {
     "unknown": "unknown/unkownpfp.png",
     "confused": "unknown/confused.jpg",
     "brute":"kevstitans/Brutekev.png",
+    "false models/robots/spectre/imc_spectre.mdl":"titanfall1/pilots/tf1spectre.png",
+    "true models/robots/spectre/imc_spectre.mdl":"titanfall1/pilots/tf1spectre.png"
 }
 
 UNKNOWNPFPS = [

@@ -29,9 +29,6 @@ import sys
 import logging
 import psycopg2
 from psycopg2 import pool
-from rich.traceback import install
-from rich.status import Status
-install(show_locals=True)
 # import tracemalloc
 # tracemalloc.start()
 
@@ -3230,7 +3227,7 @@ def recieveflaskprintrequests():
         # if colourslink[str(data["uid"])]:
         # print(colourslink[596713937626595382])
         # print({"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",[]) != []},"uid":data["uid"],"otherdata":{x: str(y) for x,y in readplayeruidpreferences(data["uid"],False)["tf2"].items()}})
-        return {"output":{"shouldblockmessages":(colourslink.get(discorduid,{}).get("ingamecolour",[]) != [] or colourslink.get(discorduid,{}).get("nameprefix",[]))},"uid":data["uid"],"otherdata":{x: str(y) for x,y in list(filter(lambda x:  not getpriority(context,["commands","ingamecommands",x[0],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",x[0],"serversenabled"])  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))}}
+        return {"output":{"shouldblockmessages":bool(colourslink.get(discorduid,{}).get("ingamecolour",[]) != [] or colourslink.get(discorduid,{}).get("nameprefix",[]))},"uid":data["uid"],"otherdata":{x: str(y) for x,y in list(filter(lambda x:  not getpriority(context,["commands","ingamecommands",x[0],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",x[0],"serversenabled"])  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))}}
         # return output
     @app.route("/getrunningservers", methods=["POST"])
     def getrunningservers():
