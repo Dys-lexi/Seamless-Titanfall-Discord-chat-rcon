@@ -73,7 +73,17 @@ void function calcmessage ( entity player, string message, bool isTeam = false){
 	newmessage.typeofmsg = 1
 	table meta
 	if (IsAlive(player)){
-	meta["pfp"] <- player.GetModelName() + ""}
+
+			if ( discordlogpullplayerstat(player.GetUID(),"togglebrute") == "True" && (player.GetModelName() == $"models/titans/light/titan_light_northstar_prime.mdl" || player.GetModelName() == $"models/titans/light/titan_light_raptor.mdl"))
+		{
+			meta["pfp"] <- "brute"}
+		else if ( discordlogpullplayerstat(player.GetUID(),"toggleexpi") == "True" && player.GetModelName() == $"models/titans/medium/titan_medium_vanguard.mdl" )
+		{
+			meta["pfp"] <-  "expedition"
+		}
+		else{
+			meta["pfp"] <- player.GetModelName() + ""}
+	}
 	else{
 		// array<string> knownuids = expect array<string>(TableKeysToArray(lastmodels.playermodels))
 		// if (knownuids.contains(message.player.GetUID())){

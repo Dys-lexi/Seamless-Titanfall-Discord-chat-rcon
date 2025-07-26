@@ -276,6 +276,10 @@ void function playerstabbedmodelsaver( entity player, entity attacker, var damag
 	{
 		discordloglastmodels.playermodels[player.GetUID()] <- "brute"
 	}
+	else if ( discordlogpullplayerstat(player.GetUID(),"toggleexpi") == "True" && player.GetModelName() == $"models/titans/medium/titan_medium_vanguard.mdl" )
+	{
+		discordloglastmodels.playermodels[player.GetUID()] <- "expedition"
+	}
 	float respawntime = Time()
 	int methodOfDeath = DamageInfo_GetDamageSourceIdentifier( damageInfo )
 	float replayLength = CalculateLengthOfKillReplay( player, methodOfDeath )
@@ -319,6 +323,10 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 		if ( discordlogpullplayerstat(message.player.GetUID(),"togglebrute") == "True" && (message.player.GetModelName() == $"models/titans/light/titan_light_northstar_prime.mdl" || message.player.GetModelName() == $"models/titans/light/titan_light_raptor.mdl"))
 		{
 			meta["pfp"] <- "brute"}
+		else if ( discordlogpullplayerstat(message.player.GetUID(),"toggleexpi") == "True" && message.player.GetModelName() == $"models/titans/medium/titan_medium_vanguard.mdl" )
+		{
+			meta["pfp"] <-  "expedition"
+		}
 		else{
 			meta["pfp"] <- message.player.GetModelName() + ""}
 		}
@@ -749,7 +757,7 @@ void function DiscordClientMessageinloop()
     request.url = serverdetails.Requestpath + "/askformessage"
 	request.body = EncodeJSON(params)
 
-	int timeout = 60
+	int timeout = 10
 	if (check.denylogging == 1){
 		break
 	}

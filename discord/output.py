@@ -391,19 +391,16 @@ def bantf1():
     c = tfdb
     # banid is because the bot automatically bans new names / ips
     c.execute("DROP TABLE IF EXISTS banstf1")
-    # c.execute(
-    #     """CREATE TABLE IF NOT EXISTS banstf1 (
-    #         id SERIAL PRIMARY KEY,
-    #         banid INTEGER,
-    #         ismute INTEGER, 
-    #         banstart INTEGER,
-    #         banend INTEGER,
-    #         playerip TEXT,
-    #         playername TEXT,
-    #         reason TEXT,
-    #         banuploader TEXT
-    #         )"""
-    # )
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS banstf1 (
+            id SERIAL PRIMARY KEY,
+            baninfo TEXT
+            playerip TEXT,
+            playername TEXT,
+            playeruid TEXT,
+            lastseen INT
+            )"""
+    )
     tfdb.commit()
     tfdb.close()
 
@@ -565,7 +562,7 @@ SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
 TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass") 
 USEDYNAMICPFPS = os.getenv("USE_DYNAMIC_PFPS","1")
 PFPROUTE = os.getenv("PFP_ROUTE","https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/")
-FILTERNAMESINMESSAGES = os.getenv("FILTER_NAMES_IN_MESSAGES","usermessagepfp,chat_message,command,tf1command,botcommand")
+FILTERNAMESINMESSAGES = os.getenv("FILTER_NAMES_IN_MESSAGES","usermessagepfp,chat_message,command,tf1command,botcommand,connecttf1")
 SENDKILLFEED = os.getenv("SEND_KILL_FEED","1")
 OVERRIDEIPFORCDNLEADERBOARD = os.getenv("OVERRIDE_IP_FOR_CDN_LEADERBOARD","use_actual_ip")
 OVVERRIDEROLEREQUIRMENT = os.getenv("OVERRIDE_ROLE_REQUIREMENT","1")
@@ -623,11 +620,44 @@ else:
         def __init__(self, what=False):
             self.closed = False
             self.pool = pgpool
-            self.conn = self.pool.getconn()
-            self.cursor = self.conn.cursor()
+            self.conn = None
+            self.cursor = None
+            self._empty_result = False
+            # Establish connection immediately like original code
+            try:
+                self.conn = self.pool.getconn()
+                self.cursor = self.conn.cursor()
+            except Exception:
+                self._cleanup()
+                raise
+                    
+        def __enter__(self):
+            return self
             
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            self._cleanup()
+            
+        def _cleanup(self):
+            if self.closed:
+                return
+            self.closed = True
+            if self.cursor:
+                try:
+                    self.cursor.close()
+                except Exception:
+                    pass
+            if self.conn:
+                try:
+                    self.pool.putconn(self.conn)
+                except Exception:
+                    pass
+            self.cursor = None
+            self.conn = None
 
         def execute(self, query, params=None):
+            if self.closed or not self.cursor:
+                raise RuntimeError("Database connection is closed")
+                
             query = query.replace("?", "%s")
             query = re.sub(r'\s+COLLATE\s+NOCASE', '', query, flags=re.IGNORECASE)
             query = re.sub(r'\bLIKE\b', 'ILIKE', query, flags=re.IGNORECASE)
@@ -642,54 +672,49 @@ else:
                     raise
             except psycopg2.errors.UndefinedFunction as e:
                 self.conn.rollback()
-                # Handle "operator does not exist" errors due to type mismatches in comparisons
-                # Only swallow for SELECT queries (to avoid hiding real errors)
                 if "operator does not exist" in str(e) and query.strip().upper().startswith("SELECT"):
                     self._empty_result = True
                 else:
                     raise
             except psycopg2.Error as e:
                 self.conn.rollback() 
+                raise
             else:
                 self._empty_result = False
 
         def fetchall(self):
             if getattr(self, "_empty_result", False):
                 return []
+            if self.closed or not self.cursor:
+                raise RuntimeError("Database connection is closed")
             return self.cursor.fetchall()
 
         def fetchone(self):
             if getattr(self, "_empty_result", False):
                 return []
+            if self.closed or not self.cursor:
+                raise RuntimeError("Database connection is closed")
             return self.cursor.fetchone()
 
         def commit(self):
+            if self.closed or not self.conn:
+                raise RuntimeError("Database connection is closed")
             self.conn.commit()
 
         def lastrowid(self):
-            # PostgreSQL doesn't support lastrowid directly like SQLite.
-            # So we assume that you use "RETURNING id" on insert
+            if self.closed or not self.cursor:
+                return None
             try:
                 return self.cursor.fetchone()[0]
             except Exception:
                 return None
 
         def close(self):
-            if self.closed:
-                return
-            self.closed = True
-            try:
-                self.cursor.close()
-            except Exception:
-                pass
-            try:
-                self.pool.putconn(self.conn)
-            except Exception:
-                pass
+            self._cleanup()
 
         def __del__(self):
-            self.close()
-
+            self._cleanup()
+            self._cleanup()
 # bantf1()
 # tf1matchplayers()
 # matchidtf1()
@@ -816,6 +841,59 @@ async def autocompletenamesfromdb(ctx):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["No one matches"]
     return output
+
+async def autocompletenamesfromtf1bans(ctx):
+    if not checkrconallowed(ctx.interaction.user):
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        return ["You don't have permission to use this command"]
+    
+    if not ctx.value:
+        return []
+    
+    try:
+        c = tfdb
+        c.execute("""
+            SELECT b.id, b.playername, b.playerip, b.playeruid, b.lastseen
+            FROM banstf1 b
+            WHERE LOWER(b.playername) LIKE ?
+            ORDER BY 
+                CASE WHEN LOWER(b.playername) LIKE ? THEN 0 ELSE 1 END,
+                LENGTH(b.playername)
+            LIMIT 25
+        """, (f"%{ctx.value.lower()}%", f"{ctx.value.lower()}%"))
+        
+        results = c.fetchall()
+        
+        if not results:
+            await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+            return ["No matches found"]
+        
+        options = []
+        current_time = int(time.time())
+        
+        for ban_id, name, ip, uid, lastseen in results:
+            if lastseen:
+                time_diff = current_time - lastseen
+                days = time_diff // 86400
+                hours = (time_diff % 86400) // 3600
+                minutes = (time_diff % 3600) // 60
+                time_ago = f"{days}d {hours}h {minutes}m ago"
+            else:
+                time_ago = "unknown"
+            
+            uid_str = str(uid) if uid else "unknown"
+            ip_str = ip if ip else "unknown"
+            
+            name_with_id = f"{name} ({ban_id})"
+            option = f"{name_with_id} | {ip_str} | {uid_str} | {time_ago}"
+            options.append(option[:100])
+        
+        return options
+        
+    except Exception as e:
+        print(f"Error in autocompletenamesfromtf1bans: {e}")
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        return ["Database error"]
 
 async def autocompletenamesfromingame(ctx):
     channel = getchannelidfromname(False,ctx.interaction)
@@ -948,6 +1026,31 @@ async def bind_logging_to_category(ctx, category_name: str):
         f"Logging channel created under category '{category_name}' with channel ID {context['logging_cat_id']}.",
         ephemeral=False,
     )
+@bot.slash_command(
+    name="sanctiontf1",
+    description="Sanctions a tf1 player",
+)
+async def sanctiontf1(
+    ctx,
+    name: Option(str, "The playername", autocomplete=autocompletenamesfromtf1bans),
+    sanctiontype: Option(str, "The type of sanction to apply", choices=["mute", "ban"] ),
+    reason: Option(str,  "The reason for the sanction", required=True),
+    expiry:Option(str,"The expiry time of the sanction in format yyyy-mm-dd, omit is forever (uses gmt time)")
+    ):
+    banid = name.lsplit("|",1)[0].strip().rsplit(" ",1)[1:-1]
+    baninfo = {"uploadtime":int(time.time()),"uploaded by":ctx.author.name,"type":sanctiontype,"reason":reason}
+    
+    if expiry:
+        try:
+            expiry_date = datetime.strptime(expiry, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            baninfo["expiry"] = int(expiry_date.timestamp())
+        except ValueError:
+            await ctx.respond("Invalid expiry date format. Use yyyy-mm-dd", ephemeral=True)
+            return
+    else:
+        baninfo["expiry"] = None
+
+
 if SANCTIONAPIBANKEY != "":
     @bot.slash_command(
         name="serverlesssanction",
@@ -960,7 +1063,7 @@ if SANCTIONAPIBANKEY != "":
         
         sanctiontype: Option(
             str, "The type of sanction to apply", choices=["mute", "ban"] ),
-        reason: Option(str, "The reason for the sanction", required=False) = None,
+        reason: Option(str, "The reason for the sanction", required=True),
         expiry: Option(str, "The expiry time of the sanction in format yyyy-mm-dd, omit is forever") = None,
     ):
         global context,messageflush
@@ -3170,7 +3273,7 @@ def computeauthornick (name,idauthor,content,serverid = False,rgbcolouroverride 
         if not (usetagifathing and getpriority(colourslink,[idauthor,"nameprefix"])):
             authornick = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {PREFIXES['neutral']}{content}")- bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract)
         else:
-            nameof,firstcolour = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {PREFIXES['neutral']}{content}" +"["+colourslink[idauthor]["nameprefix"]+"]")- bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract,True)
+            nameof,firstcolour = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {PREFIXES['neutral']}{content}" +" ["+colourslink[idauthor]["nameprefix"]+"]")- bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract,True)
             authornick = firstcolour+ "["+colourslink[idauthor]["nameprefix"]+"] " + nameof
         counter +=1
     if authornick == 2:
@@ -4893,7 +4996,7 @@ def ingamesetusercolour(message,serverid,isfromserver):
     if len(message.get("originalmessage","w").split(" ")) == 1:
         discordtotitanfall[serverid]["messages"].append(
         {
-            "content":f"{PREFIXES['discord']} You need to speciy colours! put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to choose, after the command",
+            "content":f"{PREFIXES['discord']} You need to specify colours! put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to choose, after the command",
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         }
         )
@@ -4929,7 +5032,57 @@ def ingamesetusercolour(message,serverid,isfromserver):
     
     asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {getpriority(message,"uid",["meta","uid"],"originalname","name")}'),"fake context",None,True,False), bot.loop)
 
+def ingamesetusertag(message,serverid,isfromserver):
+    istf1 = context["istf1server"].get(serverid,False) != False
+    name = getpriority(message,"originalname","name")
+
+    if len(message.get("originalmessage","w").split(" ")) == 1:
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content":f"{PREFIXES['discord']} You need to specify a tag",
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+        }
+        )
+        return
+
+    name = resolveplayeruidfromdb(name,None,True)
+    if not name:
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content":f"{PREFIXES['discord']} Name: {' '.join(message['originalmessage'].split(' ')[1:])} could not be found",
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+        }
+        )
+        return
+    name = name[0]
+    discorduid =  pullid(name["uid"],"discord")
+    if not discorduid:
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content":f"{PREFIXES['discord']} Name: {name} does not have a discord account linked - use /linktf2account on discord!",
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+        }
+        )
+        return
     
+    colours = (" ".join(message["originalmessage"].split(" ")[1:]))
+    if len(colours) < 1 or len(colours) > 6:
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content":f"{PREFIXES['discord']} {colours} is too long, it must be bettween 1 and 6 chars or type 'reset' as the arg to reset it",
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+        }
+        )
+        return
+    discordtotitanfall[serverid]["messages"].append(
+    {
+        "content":f"{PREFIXES['discord']} {settag(colours,discorduid)}",
+        "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+    }
+    )
+    
+    asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {getpriority(message,"uid",["meta","uid"],"originalname","name")}'),"fake context",None,True,False), bot.loop)
+  
 
 
 def shownamecolours(message,serverid,isfromserver):
@@ -5167,20 +5320,24 @@ def displayendofroundstats(message,serverid,isfromserver):
                 matchdata["deaths"][playername] = deaths
                 matchdata["kpm"][playername] = float(f"{(kills / (timeplayed / 60) if timeplayed else 0):.2f}")
                 matchdata["kd"][playername] = float(f"{(kills / deaths if deaths else kills):.2f}")
-        matchdata["kd"] = dict(sorted(matchdata["kd"].items() ,key = lambda x: x[1],reverse=True))
-        matchdata["kpm"] = dict(sorted(matchdata["kpm"].items() ,key = lambda x: x[1],reverse=True))
-        matchdata["deaths"] = dict(sorted(matchdata["deaths"].items() ,key = lambda x: x[1],reverse=True))
+        
+        if "kd" in matchdata:
+            matchdata["kd"] = dict(sorted(matchdata["kd"].items() ,key = lambda x: x[1],reverse=True))
+        if "kpm" in matchdata:
+            matchdata["kpm"] = dict(sorted(matchdata["kpm"].items() ,key = lambda x: x[1],reverse=True))
+        if "deaths" in matchdata:
+            matchdata["deaths"] = dict(sorted(matchdata["deaths"].items() ,key = lambda x: x[1],reverse=True))
 
         if matchdata['tkills']:
             stringslist["general"].append(f"{colour}Total kills: {PREFIXES['stat']}{matchdata['tkills']}")
         if matchdata["tdeaths"]:
             stringslist["general"].append(f"{colour}Total deaths: {PREFIXES['stat']}{matchdata['tdeaths']}")
         # print(list(matchdata["kd"].values()))
-        if matchdata["kd"] and max(matchdata["kd"].values()) > 0:
+        if matchdata.get("kd",False) and max(matchdata["kd"].values()) > 0:
             stringslist["personal"].append(f"{colour}K/D: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +x[1][0]+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kd'].items())[:maxshow]))))}")
-        if matchdata["kpm"] and max(matchdata["kpm"].values()) > 0:
+        if matchdata.get("kpm",False) and max(matchdata["kpm"].values()) > 0:
             stringslist["personal"].append(f"{colour}K/min: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +x[1][0]+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kpm'].items())[:maxshow]))))}")
-        if matchdata["deaths"] and max(matchdata["deaths"].values()) > 0:
+        if matchdata.get("deaths",False) and max(matchdata["deaths"].values()) > 0:
             stringslist["personal"].append(f"{colour}Deaths: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +x[1][0]+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['deaths'].items())[:maxshow]))))}")
 
 
@@ -5280,7 +5437,17 @@ def togglestats(message,togglething,serverid):
     )
     if not istf1:
         asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {getpriority(message,"uid",["meta","uid"],"originalname","name")}'),"fake context",None,True,False), bot.loop)
-
+    for stat in context["commands"]["ingamecommands"][togglething].get("extendeddesc",[]):
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            # "id": str(int(time.time()*100)),
+            "content":f"{PREFIXES['discord']}{PREFIXES["offchatcolour"]}{stat}",
+            # "teamoverride": 4,
+            # "isteammessage": False,
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+            # "dotreacted": dotreacted
+        }
+        )
 
 # def throwplayer(message,serverid,isfromserver):
 #     # print("RUNNNING THROW")
@@ -5317,18 +5484,30 @@ def ingamehelp(message,serverid,isfromserver):
         # print("tf1" if istf1 else "tf2","tf1" if istf1 else "tf2" in command["games"])
         # print("BLEH",(not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]))))
         # print(  (not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"])),command.get("permsneeded",False)) )
-        if (not commandoverride or commandoverride.lower() in name) and ("tf1" if istf1 else "tf2") in command["games"] and (not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]),command.get("permsneeded",False))) and (not command.get("serversenabled",False) or int(serverid) in command["serversenabled"]):
+        if name != "helpdc" and (not commandoverride or commandoverride.lower() in name) and ("tf1" if istf1 else "tf2") in command["games"] and (not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]),command.get("permsneeded",False))) and (not command.get("serversenabled",False) or int(serverid) in command["serversenabled"]):
             cmdcounter +=1
+            
             discordtotitanfall[serverid]["messages"].append(
                 {
                     # "id": str(i) + str(int(time.time()*100)),
-                    "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2']+command.get('permsneeded',False)+ ' ' if command.get('permsneeded',False) else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{name}{PREFIXES['chatcolour'] if not istf1 else PREFIXES['chatcolour']}: {command['description']}",
+                    "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2']+command.get('permsneeded',False)+ ' ' if command.get('permsneeded',False) else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{name}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
                     # "teamoverride": 4,
                     # "isteammessage": False,
                     "uidoverride": [getpriority(message,"uid",["meta","uid"])]
                     # "dotreacted": dotreacted
                 }
                 )
+    if cmdcounter > 11:
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            # "id": str(int(time.time()*100)),
+            "content":f"{PREFIXES['discord']}{PREFIXES['commandname']}\x1b[38;5;201m[{cmdcounter-10}]{PREFIXES["warning"]} More command{"s" if cmdcounter - 10 > 1 else ""} hidden above.{PREFIXES['commandname']} open chat box and press up arrow {PREFIXES['warning']}to see them!",
+            # "teamoverride": 4,
+            # "isteammessage": False,
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+            # "dotreacted": dotreacted
+        }
+        )
 
 def senddiscordcommands(message,serverid,isfromserver):
     print("COMMANDS REQUESTED",f'!senddiscordcommands {" ".join(functools.reduce(lambda a,b: [*a,b[0],str(int(b[1]["shouldblock"]))],context["commands"]["ingamecommands"].items(),[]))}')
@@ -5467,13 +5646,13 @@ def checkifbad(message):
     elif checknono(notifywords, lowered):
         # print("here2",checknono(notifywords, lowered))
         return [1,checknono(notifywords, lowered)]
-    if message.get("name") and False:                    #disable name check 
+    if message.get("name"):                    #disable name check #it's enabled now, but only for ban words
         # print("MESSAGENAME",message["name"])
         name_lowered = message["name"].lower()
         if checknono(banwords, name_lowered):
             # print("here3")
             return [2,checknono(banwords, name_lowered)]
-        elif checknono(notifywords, name_lowered):
+        elif checknono(notifywords, name_lowered) and False: #see!
             # print("here4")
             return [1,checknono(notifywords, name_lowered)]
 
@@ -5627,7 +5806,7 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
             pfp = MODEL_DICT.get(str(value["pfp"]),random.choice(UNKNOWNPFPS))
             if pfp in UNKNOWNPFPS and (str(value["pfp"].startswith("true")) or str(value["pfp"].startswith("false"))):
                 print("FALLING BACK TO GUESSING")
-                username = f"{username} pfperror {value['pfp']}"
+                # username = f"{username} pfperror {value['pfp']}"
                 for model, valuew in MODEL_DICT.items():
                     if str(value["pfp"])[6:] in model:
                         pfp = valuew
@@ -6245,16 +6424,16 @@ def savestats(saveinfo):
     istf1 = context["istf1server"].get(saveinfo["serverid"],False) # {"tf2" if istf1 else ""}
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
-    # params = (
-    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],
-    #     saveinfo["endtype"],
-    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],
-    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],
-    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],
-    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],
-    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"] - playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],
-    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"],
-    # )
+    params = (
+        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],
+        saveinfo["endtype"],
+        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],
+        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],
+        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],
+        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],
+        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"] - playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],
+        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"],
+    )
 
     # print("Params before execute:", params)
     try:
@@ -6601,7 +6780,7 @@ def playerpoll():
     global discordtotitanfall,playercontext,context
     Ithinktheserverhascrashed = 180
     autosaveinterval = 120
-    pinginterval = 10
+    pinginterval = 7
     # if the player leaves and rejoins, continue their streak.
     # if the server does not respond for this time, assume it crashed.
     counter = 0

@@ -10,6 +10,15 @@
             "shouldblock": true,
             "permsneeded": "coolperksrole"
         },
+        "nametag": {
+            "games": [
+                "tf2"
+            ],
+            "function": "ingamesetusertag",
+            "run": "thread",
+            "description": "Change your tag",
+            "shouldblock": false
+        },
         "showname": {
             "games": [
                 "tf2"

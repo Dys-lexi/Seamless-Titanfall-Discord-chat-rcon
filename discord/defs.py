@@ -49,7 +49,8 @@ MODEL_DICT = {
     "confused": "unknown/confused.jpg",
     "brute":"kevstitans/Brutekev.png",
     "false models/robots/spectre/imc_spectre.mdl":"titanfall1/pilots/tf1spectre.png",
-    "true models/robots/spectre/imc_spectre.mdl":"titanfall1/pilots/tf1spectre.png"
+    "true models/robots/spectre/imc_spectre.mdl":"titanfall1/pilots/tf1spectre.png",
+    "expedition":"kevstitans/Expeditionkev.png"
 }
 
 UNKNOWNPFPS = [
@@ -67,7 +68,8 @@ TITAN_NAMES = {
     "legion":"Legion",
     "ion":"Ion",
     "vanguard":"Monarch",
-    "brute":"Brute"
+    "brute":"Brute",
+    "expedition":"Expedition"
 }
 
 WEAPON_NAMES = {
@@ -284,6 +286,7 @@ PREFIXES = {"lexicmdprivate":"\x1b[38;5;213m[Lexicmd]\x1b[38;5;254m "
         ,"discord":"[38;2;135;135;254m[Discord]\x1b[38;5;254m ",
         "chatcolour":"\x1b[110m",
         "neutral":"\x1b[110m",
+        "offchatcolour":"\x1b[38;5;249m",
         "stat":"\x1b[38;5;189m",
         "stat2":"\x1b[38;5;244m",
         "gold":"\x1b[38;5;220m",
@@ -295,7 +298,8 @@ PREFIXES = {"lexicmdprivate":"\x1b[38;5;213m[Lexicmd]\x1b[38;5;254m "
         "commandname":"\x1b[38;5;219m",
         "friendly":"\x1b[111m",
         "enemy":"\x1b[112m",
-        "discordcolour":"[38;2;135;135;254m"
+        "discordcolour":"[38;2;135;135;254m",
+        "warning":"\x1b[38;5;203m"
         
         }
 
