@@ -2872,7 +2872,7 @@ def settag(tag,discorduid):
         return "Tags have to be bettween 1 and 6 digits"
     warn = ""
     if not pullid(discorduid,"tf"):
-        warn = "** BUT titanfall account not linked, use /linktf2account to link one, so this tag appears**"
+        warn = "\n** BUT titanfall account not linked, use /linktf2account to link one, so this tag appears**\n(you don't have to set your tag again after you link)"
     tfdb = postgresem("./data/tf2helper.db")
     tfdb.execute(
         """
@@ -2944,7 +2944,7 @@ def setcolour(colours,discorduid,type = "choseningamecolour"):
     tfdb.close()
     warn = ""
     if not pullid(discorduid,"tf"):
-        warn = "**BUT titanfall account not linked, use /linktf2account to link one, so these colours appear**"
+        warn = "\n**BUT titanfall account not linked, use /linktf2account to link one, so these colours appear**\n(you don't have to set your tag again after you link)"
     if discorduid not in colourslink.keys():
         colourslink[discorduid] = {}
     if rgba == "reset":
@@ -5119,18 +5119,13 @@ def shownamecolours(message,serverid,isfromserver):
             messageout = f"{PREFIXES['discord']}{PREFIXES['discordcolour']}{colour}: "
         else:
             messageout = f"{PREFIXES['discord']}{PREFIXES[colour.lower()]}{colour}: "
-        messageout += computeauthornick(name["name"],discorduid,messageout,False,colour,colourtype)
+        messageout += computeauthornick(name["name"],discorduid,messageout,False,colour,colourtype,254,colour != "DISCORD")
         discordtotitanfall[serverid]["messages"].append(
         {
             "content":messageout,
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         }
         )
-
-
-    
-
-    
 
 
 

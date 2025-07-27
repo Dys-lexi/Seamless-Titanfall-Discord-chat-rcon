@@ -25,9 +25,8 @@
             ],
             "function": "shownamecolours",
             "run": "thread",
-            "description": "Shows your name colours",
-            "shouldblock": false,
-            "permsneeded": "coolperksrole"
+            "description": "Shows somones name colours. put somones name to specify who",
+            "shouldblock": false
         },
         "hostiletf": {
             "games": [
