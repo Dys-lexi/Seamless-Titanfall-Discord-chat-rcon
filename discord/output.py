@@ -573,6 +573,7 @@ KILLSTREAKNOTIFYSTEP = int(os.getenv("KILL_STREAK_NOTIFY_STEP","5"))
 REACTONMENTION = os.getenv("REACT_EMOJI_ON_MENTION","0")
 POSTGRESQLDBURL = os.getenv("POSTGRESQL_DB_URL","0")
 PORT = os.getenv("BOT_PORT","3451")
+MAXTAGLEN = int(os.getenv("MAX_TAG_LEN","6"))
 GLOBALIP = 0
 if OVERRIDEIPFORCDNLEADERBOARD == "use_actual_ip":
     GLOBALIP ="http://"+requests.get('https://api.ipify.org').text+":"+PORT
@@ -2857,7 +2858,7 @@ async def linktfaccount(ctx):
     name="tf2ingamesettag",
     description="Set your tag in tf2"
 )
-async def chooseatag(ctx, tag: Option(str, "Enter a 1 - 6 character tag, or 'reset' to reset")):
+async def chooseatag(ctx, tag: Option(str, f"Enter a 1 - {MAXTAGLEN} character tag, or 'reset' to reset")):
 
     # if not checkrconallowed(ctx.author,"coolperksrole"):
     #     await asyncio.sleep (SLEEPTIME_ON_FAILED_COMMAND)
@@ -2868,8 +2869,8 @@ async def chooseatag(ctx, tag: Option(str, "Enter a 1 - 6 character tag, or 'res
 
 def settag(tag,discorduid):
     global colourslink
-    if tag != "reset" and (len(tag) < 1 or len(tag) > 6):
-        return "Tags have to be bettween 1 and 6 digits"
+    if tag != "reset" and (len(tag) < 1 or len(tag) > MAXTAGLEN):
+        return f"Tags have to be bettween 1 and {MAXTAGLEN} digits"
     warn = ""
     if not pullid(discorduid,"tf"):
         warn = "\n** BUT titanfall account not linked, use /linktf2account to link one, so this tag appears**\n(you don't have to set your tag again after you link)"
@@ -5066,14 +5067,14 @@ def ingamesetusertag(message,serverid,isfromserver):
         return
     
     colours = (" ".join(message["originalmessage"].split(" ")[1:]))
-    if len(colours) < 1 or len(colours) > 6:
-        discordtotitanfall[serverid]["messages"].append(
-        {
-            "content":f"{PREFIXES['discord']} {colours} is too long, it must be bettween 1 and 6 chars or type 'reset' as the arg to reset it",
-            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
-        }
-        )
-        return
+    # if len(colours) < 1 or len(colours) > 6:
+    #     discordtotitanfall[serverid]["messages"].append(
+    #     {
+    #         "content":f"{PREFIXES['discord']} {colours} is too long, it must be bettween 1 and 6 chars or type 'reset' as the arg to reset it",
+    #         "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+    #     }
+    #     )
+    #     return
     discordtotitanfall[serverid]["messages"].append(
     {
         "content":f"{PREFIXES['discord']} {settag(colours,discorduid)}",
