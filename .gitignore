@@ -13,6 +13,6 @@ discord/data/*
 !discord/data/commands.json
 discord/venv
 discord/db
-
+discord/CLAUDE.md
 .venv
 .env

@@ -33,243 +33,235 @@ from psycopg2 import pool
 # tracemalloc.start()
 
 def create_all_indexes():
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
 
-    # --- specifickilltracker ---
-    c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_victim_id ON specifickilltracker(victim_id);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_playeruid ON specifickilltracker(playeruid);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_timeofkill ON specifickilltracker(timeofkill);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_cause_of_death ON specifickilltracker(cause_of_death);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_combined_player_time ON specifickilltracker(playeruid, timeofkill);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_combined_victim_time ON specifickilltracker(victim_id, timeofkill);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_victim_type ON specifickilltracker(victim_type);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_attacker_type ON specifickilltracker(attacker_type);")
+        # --- specifickilltracker ---
+        c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_victim_id ON specifickilltracker(victim_id);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_playeruid ON specifickilltracker(playeruid);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_timeofkill ON specifickilltracker(timeofkill);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_cause_of_death ON specifickilltracker(cause_of_death);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_combined_player_time ON specifickilltracker(playeruid, timeofkill);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_combined_victim_time ON specifickilltracker(victim_id, timeofkill);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_victim_type ON specifickilltracker(victim_type);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_specifickilltracker_attacker_type ON specifickilltracker(attacker_type);")
 
 
-    # --- playtime ---
-    c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_playeruid ON playtime(playeruid);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_matchid ON playtime(matchid);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_serverid ON playtime(serverid);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_joinatunix ON playtime(joinatunix);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_map ON playtime(map);")
+        # --- playtime ---
+        c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_playeruid ON playtime(playeruid);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_matchid ON playtime(matchid);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_serverid ON playtime(serverid);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_joinatunix ON playtime(joinatunix);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_playtime_map ON playtime(map);")
 
-    # --- uidnamelink ---
-    c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelink_playeruid ON uidnamelink(playeruid);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelink_playername ON uidnamelink(playername);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelink_lastseenunix ON uidnamelink(lastseenunix);")
+        # --- uidnamelink ---
+        c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelink_playeruid ON uidnamelink(playeruid);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelink_playername ON uidnamelink(playername);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelink_lastseenunix ON uidnamelink(lastseenunix);")
 
-    # --- uidnamelinktf1 ---
-    c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelinktf1_playeruid ON uidnamelinktf1(playeruid);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelinktf1_playername ON uidnamelinktf1(playername);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelinktf1_lastseenunix ON uidnamelinktf1(lastseenunix);")
+        # --- uidnamelinktf1 ---
+        c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelinktf1_playeruid ON uidnamelinktf1(playeruid);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelinktf1_playername ON uidnamelinktf1(playername);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_uidnamelinktf1_lastseenunix ON uidnamelinktf1(lastseenunix);")
 
-    # --- discordlinkdata ---
-    c.execute("CREATE INDEX IF NOT EXISTS idx_discordlinkdata_discordid ON discordlinkdata(discordid);")
+        # --- discordlinkdata ---
+        c.execute("CREATE INDEX IF NOT EXISTS idx_discordlinkdata_discordid ON discordlinkdata(discordid);")
 
-    # --- discorduiddata ---
-    c.execute("CREATE INDEX IF NOT EXISTS idx_discorduiddata_discorduid ON discorduiddata(discorduid);")
+        # --- discorduiddata ---
+        c.execute("CREATE INDEX IF NOT EXISTS idx_discorduiddata_discorduid ON discorduiddata(discorduid);")
 
-    # --- joinnotify ---
-    c.execute("CREATE INDEX IF NOT EXISTS idx_joinnotify_uidnotify ON joinnotify(uidnotify);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_joinnotify_discordidnotify ON joinnotify(discordidnotify);")
+        # --- joinnotify ---
+        c.execute("CREATE INDEX IF NOT EXISTS idx_joinnotify_uidnotify ON joinnotify(uidnotify);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_joinnotify_discordidnotify ON joinnotify(discordidnotify);")
 
-    # --- joincounter ---
-    c.execute("CREATE INDEX IF NOT EXISTS idx_joincounter_playeruid_serverid ON joincounter(playeruid, serverid);")
+        # --- joincounter ---
+        c.execute("CREATE INDEX IF NOT EXISTS idx_joincounter_playeruid_serverid ON joincounter(playeruid, serverid);")
 
-    # --- matchid ---
-    c.execute("CREATE INDEX IF NOT EXISTS idx_matchid_serverid ON matchid(serverid);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_matchid_map_time ON matchid(map, time);")
+        # --- matchid ---
+        c.execute("CREATE INDEX IF NOT EXISTS idx_matchid_serverid ON matchid(serverid);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_matchid_map_time ON matchid(map, time);")
 
-    # --- matchtf1 ---
-    c.execute("CREATE INDEX IF NOT EXISTS idx_matchtf1_serverid ON matchtf1(serverid);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_matchtf1_map_time ON matchtf1(map, time);")
+        # --- matchtf1 ---
+        c.execute("CREATE INDEX IF NOT EXISTS idx_matchtf1_serverid ON matchtf1(serverid);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_matchtf1_map_time ON matchtf1(map, time);")
 
-    # --- banstf1 ---
-    # c.execute("CREATE INDEX IF NOT EXISTS idx_banstf1_playerip ON banstf1(playerip);")
-    # c.execute("CREATE INDEX IF NOT EXISTS idx_banstf1_playername ON banstf1(playername);")
-    # c.execute("CREATE INDEX IF NOT EXISTS idx_banstf1_banid ON banstf1(banid);")
+        # --- banstf1 ---
+        # c.execute("CREATE INDEX IF NOT EXISTS idx_banstf1_playerip ON banstf1(playerip);")
+        # c.execute("CREATE INDEX IF NOT EXISTS idx_banstf1_playername ON banstf1(playername);")
+        # c.execute("CREATE INDEX IF NOT EXISTS idx_banstf1_banid ON banstf1(banid);")
 
-    # --- messagelogger ---
-    c.execute("CREATE INDEX IF NOT EXISTS idx_messagelogger_serverid ON messagelogger(serverid);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_messagelogger_type ON messagelogger(type);")
+        # --- messagelogger ---
+        c.execute("CREATE INDEX IF NOT EXISTS idx_messagelogger_serverid ON messagelogger(serverid);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_messagelogger_type ON messagelogger(type);")
 
-    # --- playtimetf1 ---
-    c.execute("CREATE INDEX IF NOT EXISTS idx_playtimetf1_playeruid ON playtimetf1(playeruid);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_playtimetf1_matchid ON playtimetf1(matchid);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_playtimetf1_serverid ON playtimetf1(serverid);")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_playtimetf1_joinatunix ON playtimetf1(joinatunix);")
+        # --- playtimetf1 ---
+        c.execute("CREATE INDEX IF NOT EXISTS idx_playtimetf1_playeruid ON playtimetf1(playeruid);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_playtimetf1_matchid ON playtimetf1(matchid);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_playtimetf1_serverid ON playtimetf1(serverid);")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_playtimetf1_joinatunix ON playtimetf1(joinatunix);")
 
-    # --- playeruidpreferences ---
-    c.execute("CREATE INDEX IF NOT EXISTS idx_playeruidpreferences_uid_istf1 ON playeruidpreferences(uid, istf1);")
+        # --- playeruidpreferences ---
+        c.execute("CREATE INDEX IF NOT EXISTS idx_playeruidpreferences_uid_istf1 ON playeruidpreferences(uid, istf1);")
 
-    tfdb.commit()
-    tfdb.close()
+        tfdb.commit()
 
 def creatediscordlinkdb():
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    
-    c.execute(
-        """CREATE TABLE IF NOT EXISTS discordlinkdata (
-            uid INTEGER PRIMARY KEY,
-            discordid INTEGER,
-            linktime INTEGER
-        )"""
-    )
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS discordlinkdata (
+                uid INTEGER PRIMARY KEY,
+                discordid INTEGER,
+                linktime INTEGER
+            )"""
+        )
 
-    tfdb.commit()
-    tfdb.close()
+        tfdb.commit()
 
 def messagelogger():
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    c.execute(
-        """CREATE TABLE IF NOT EXISTS messagelogger (
-            id SERIAL PRIMARY KEY,
-            message TEXT,
-            serverid TEXT,
-            type TEXT
-        )"""
-    )
-    # try:
-    #     c.execute("ALTER TABLE messagelogger ADD COLUMN serverid INTEGER")
-    #     c.execute("ALTER TABLE messagelogger ADD COLUMN type TEXT")
-    # except sqlite3.OperationalError:
-    #     pass
-    
-    tfdb.commit()
-    tfdb.close()
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS messagelogger (
+                id SERIAL PRIMARY KEY,
+                message TEXT,
+                serverid TEXT,
+                type TEXT
+            )"""
+        )
+        # try:
+        #     c.execute("ALTER TABLE messagelogger ADD COLUMN serverid INTEGER")
+        #     c.execute("ALTER TABLE messagelogger ADD COLUMN type TEXT")
+        # except sqlite3.OperationalError:
+        #     pass
+        
+        tfdb.commit()
 
 def discorduidinfodb():
     global colourslink
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    # c.execute("DROP TABLE IF EXISTS discorduiddata")
-    # c.execute("DELETE FROM discorduiddata WHERE choseningamecolour = 'reset'")
-    c.execute(
-        """CREATE TABLE IF NOT EXISTS discorduiddata (
-            discorduid INTEGER PRIMARY KEY,
-            chosencolour TEXT,
-            choseningamecolour TEXT,
-            nameprefix TEXT
-            )"""
-    )
-    if POSTGRESQLDBURL != "0":
-        c.execute("""
-        ALTER TABLE discorduiddata
-        ALTER COLUMN discorduid TYPE BIGINT USING discorduid::BIGINT;
-        """)
-    try:
-        c.execute("ALTER TABLE discorduiddata ADD COLUMN nameprefix TEXT")
-    except:
-        pass
-    # c.execute("ALTER TABLE discorduiddata ADD COLUMN choseningamecolour TEXT")
-    c.execute("SELECT discorduid, chosencolour,choseningamecolour, nameprefix FROM discorduiddata")
-    output = c.fetchall()
-    # print(output)
-    colourslink = {x[0]:{"nameprefix":(x[3]) if x[3] and x[3] != "reset" else None,"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,"ingamecolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) if x[2] is not None and x[2] != "reset" else []}  for x in output}
-    
-    c.execute("SELECT discorduid, choseningamecolour FROM discorduiddata")
-    # output = c.fetchall()
-    # colourslink = {x[0]:list(map(lambda y: eval(y), x[1].split("|"))) if x[1] != "reset" else RGBCOLOUR['DISCORD']  for x in output}
-    # print("COLOURSLINK",colourslink) 
-    tfdb.commit()
-    tfdb.close()
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        # c.execute("DROP TABLE IF EXISTS discorduiddata")
+        # c.execute("DELETE FROM discorduiddata WHERE choseningamecolour = 'reset'")
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS discorduiddata (
+                discorduid INTEGER PRIMARY KEY,
+                chosencolour TEXT,
+                choseningamecolour TEXT,
+                nameprefix TEXT
+                )"""
+        )
+        if POSTGRESQLDBURL != "0":
+            c.execute("""
+            ALTER TABLE discorduiddata
+            ALTER COLUMN discorduid TYPE BIGINT USING discorduid::BIGINT;
+            """)
+        try:
+            c.execute("ALTER TABLE discorduiddata ADD COLUMN nameprefix TEXT")
+        except:
+            pass
+        # c.execute("ALTER TABLE discorduiddata ADD COLUMN choseningamecolour TEXT")
+        c.execute("SELECT discorduid, chosencolour,choseningamecolour, nameprefix FROM discorduiddata")
+        output = c.fetchall()
+        # print(output)
+        colourslink = {x[0]:{"nameprefix":(x[3]) if x[3] and x[3] != "reset" else None,"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,"ingamecolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) if x[2] is not None and x[2] != "reset" else []}  for x in output}
+        
+        c.execute("SELECT discorduid, choseningamecolour FROM discorduiddata")
+        # output = c.fetchall()
+        # colourslink = {x[0]:list(map(lambda y: eval(y), x[1].split("|"))) if x[1] != "reset" else RGBCOLOUR['DISCORD']  for x in output}
+        # print("COLOURSLINK",colourslink) 
+        tfdb.commit()
 def specifickilltrackerdb():
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    
-    # Create the table if it doesn't exist
-    c.execute(
-        """CREATE TABLE IF NOT EXISTS specifickilltracker (
-            id SERIAL PRIMARY KEY,
-            serverid               TEXT,
-            attacker_z              REAL,
-            attacker_x              REAL,
-            attacker_y              REAL,
-            victim_id               INTEGER,
-            victim_name             TEXT,
-            victim_offhand_weapon_2 TEXT,
-            attacker_titan          TEXT,
-            map                     TEXT,
-            attacker_offhand_weapon_1 TEXT,
-            attacker_offhand_weapon_2 TEXT,
-            victim_offhand_weapon_1 TEXT,
-            attacker_weapon_3       TEXT,
-            attacker_name           TEXT,
-            match_id                TEXT,
-            victim_titan            TEXT,
-            distance                REAL,
-            victim_current_weapon   TEXT,
-            victim_z                REAL,
-            attacker_weapon_2       TEXT,
-            game_time               REAL,
-            attacker_current_weapon TEXT,
-            victim_weapon_3         TEXT,
-            playeruid               INTEGER,
-            game_mode               TEXT,
-            victim_x                REAL,
-            attacker_weapon_1       TEXT,
-            victim_weapon_1         TEXT,
-            victim_weapon_2         TEXT,
-            timeofkill              INTEGER,
-            cause_of_death          TEXT,
-            victim_y                REAL,
-            weapon_mods             TEXT,
-            victim_type             TEXT,
-            attacker_type           TEXT
-        )"""
-    )
-    if POSTGRESQLDBURL != "0":
-        c.execute("""
-        ALTER TABLE specifickilltracker
-        ALTER COLUMN playeruid TYPE BIGINT  USING playeruid::BIGINT ,
-        ALTER COLUMN victim_id TYPE BIGINT  USING victim_id::BIGINT ;
-        """)
-        c.commit()
-    
-    # c.execute("PRAGMA table_info(specifickilltracker)")
-    # columns = [row[1] for row in c.fetchall()]
-    
-    # if "victim_type" not in columns:
-    #     c.execute("ALTER TABLE specifickilltracker ADD COLUMN victim_type TEXT")
-    
-    tfdb.commit()
-    c.close()
-    tfdb.close()
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        
+        # Create the table if it doesn't exist
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS specifickilltracker (
+                id SERIAL PRIMARY KEY,
+                serverid               TEXT,
+                attacker_z              REAL,
+                attacker_x              REAL,
+                attacker_y              REAL,
+                victim_id               INTEGER,
+                victim_name             TEXT,
+                victim_offhand_weapon_2 TEXT,
+                attacker_titan          TEXT,
+                map                     TEXT,
+                attacker_offhand_weapon_1 TEXT,
+                attacker_offhand_weapon_2 TEXT,
+                victim_offhand_weapon_1 TEXT,
+                attacker_weapon_3       TEXT,
+                attacker_name           TEXT,
+                match_id                TEXT,
+                victim_titan            TEXT,
+                distance                REAL,
+                victim_current_weapon   TEXT,
+                victim_z                REAL,
+                attacker_weapon_2       TEXT,
+                game_time               REAL,
+                attacker_current_weapon TEXT,
+                victim_weapon_3         TEXT,
+                playeruid               INTEGER,
+                game_mode               TEXT,
+                victim_x                REAL,
+                attacker_weapon_1       TEXT,
+                victim_weapon_1         TEXT,
+                victim_weapon_2         TEXT,
+                timeofkill              INTEGER,
+                cause_of_death          TEXT,
+                victim_y                REAL,
+                weapon_mods             TEXT,
+                victim_type             TEXT,
+                attacker_type           TEXT
+            )"""
+        )
+        if POSTGRESQLDBURL != "0":
+            c.execute("""
+            ALTER TABLE specifickilltracker
+            ALTER COLUMN playeruid TYPE BIGINT  USING playeruid::BIGINT ,
+            ALTER COLUMN victim_id TYPE BIGINT  USING victim_id::BIGINT ;
+            """)
+            c.commit()
+        
+        # c.execute("PRAGMA table_info(specifickilltracker)")
+        # columns = [row[1] for row in c.fetchall()]
+        
+        # if "victim_type" not in columns:
+        #     c.execute("ALTER TABLE specifickilltracker ADD COLUMN victim_type TEXT")
+        
+        tfdb.commit()
 
 def playeruidpreferences():
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    # c.execute("DROP TABLE IF EXISTS playeruidpreferences")
-    c.execute(
-        """CREATE TABLE IF NOT EXISTS playeruidpreferences (
-            id SERIAL PRIMARY KEY,
-            uid INTEGER,
-            istf1 INTEGER,
-            preferences TEXT
-            )"""
-    )
-    if POSTGRESQLDBURL != "0":
-        c.execute("""
-        ALTER TABLE playeruidpreferences
-        ALTER COLUMN uid TYPE BIGINT USING uid::BIGINT;
-        """)
-    tfdb.commit()
-    tfdb.close()
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        # c.execute("DROP TABLE IF EXISTS playeruidpreferences")
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS playeruidpreferences (
+                id SERIAL PRIMARY KEY,
+                uid INTEGER,
+                istf1 INTEGER,
+                preferences TEXT
+                )"""
+        )
+        if POSTGRESQLDBURL != "0":
+            c.execute("""
+            ALTER TABLE playeruidpreferences
+            ALTER COLUMN uid TYPE BIGINT USING uid::BIGINT;
+            """)
+        tfdb.commit()
 
 def readplayeruidpreferences(uid,istf1 = False):
     # uid = int(uid)
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    c.execute("SELECT preferences FROM playeruidpreferences WHERE uid = ? AND istf1 = ?",(uid,1 if istf1 else 0))
-    output = c.fetchone()
-    try:
-        output = json.loads(output[0]) if output else {}
-    except: pass
-    tfdb.close()
-    return output
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        c.execute("SELECT preferences FROM playeruidpreferences WHERE uid = ? AND istf1 = ?",(uid,1 if istf1 else 0))
+        output = c.fetchone()
+        try:
+            output = json.loads(output[0]) if output else {}
+        except: pass
+        return output
 
 
 def deep_set(d, keys, value):
@@ -279,33 +271,32 @@ def deep_set(d, keys, value):
     d[keys[-1]] = value
 
 def setplayeruidpreferences(path, value, uid, istf1=False):
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    istf1_int = 1 if istf1 else 0
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        istf1_int = 1 if istf1 else 0
 
-    c.execute("SELECT preferences FROM playeruidpreferences WHERE uid = ? AND istf1 = ?", (uid, istf1_int))
-    row = c.fetchone()
+        c.execute("SELECT preferences FROM playeruidpreferences WHERE uid = ? AND istf1 = ?", (uid, istf1_int))
+        row = c.fetchone()
 
-    if row:
-        preferences_json = json.loads(row[0])
-    else:
-        preferences_json = {}
+        if row:
+            preferences_json = json.loads(row[0])
+        else:
+            preferences_json = {}
 
-    deep_set(preferences_json, path, value)
+        deep_set(preferences_json, path, value)
 
-    if row:
-        c.execute(
-            "UPDATE playeruidpreferences SET preferences = ? WHERE uid = ? AND istf1 = ?",
-            (json.dumps(preferences_json), uid, istf1_int)
-        )
-    else:
-        c.execute(
-            "INSERT INTO playeruidpreferences (uid, istf1, preferences) VALUES (?, ?, ?)",
-            (uid, istf1_int, json.dumps(preferences_json))
-        )
+        if row:
+            c.execute(
+                "UPDATE playeruidpreferences SET preferences = ? WHERE uid = ? AND istf1 = ?",
+                (json.dumps(preferences_json), uid, istf1_int)
+            )
+        else:
+            c.execute(
+                "INSERT INTO playeruidpreferences (uid, istf1, preferences) VALUES (?, ?, ?)",
+                (uid, istf1_int, json.dumps(preferences_json))
+            )
 
-    tfdb.commit()
-    tfdb.close()
+        tfdb.commit()
     
 
 # def matchidtf1():
@@ -323,178 +314,169 @@ def setplayeruidpreferences(path, value, uid, istf1=False):
 #     tfdb.commit()
 #     tfdb.close()
 def tf1matchplayers():
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    # c.execute("DROP TABLE IF EXISTS playtimetfw1")
-    c.execute(
-        """CREATE TABLE IF NOT EXISTS matchtf1 (
-            matchid TEXT PRIMARY KEY,
-            map TEXT,
-            time INTEGER,
-            serverid INTEGER
-            )"""
-    )
-    tfdb.commit()
-    tfdb.close()
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        # c.execute("DROP TABLE IF EXISTS playtimetfw1")
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS matchtf1 (
+                matchid TEXT PRIMARY KEY,
+                map TEXT,
+                time INTEGER,
+                serverid INTEGER
+                )"""
+        )
+        tfdb.commit()
 
 def playtimedbtf1():
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    
-    c.execute(
-        """CREATE TABLE IF NOT EXISTS playtimetf1 (
-            id SERIAL PRIMARY KEY,
-            playeruid INTEGER,
-            joinatunix INTEGER,
-            leftatunix INTEGER,
-            endtype INTEGER,
-            serverid INTEGER,
-            scoregained INTEGER,
-            titankills INTEGER,
-            pilotkills INTEGER,
-            npckills INTEGER,
-            deaths INTEGER,
-            duration INTEGER,
-            matchid TEXT,
-            map TEXT,
-            timecounter INTEGER
-            )"""
-    )
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS playtimetf1 (
+                id SERIAL PRIMARY KEY,
+                playeruid INTEGER,
+                joinatunix INTEGER,
+                leftatunix INTEGER,
+                endtype INTEGER,
+                serverid INTEGER,
+                scoregained INTEGER,
+                titankills INTEGER,
+                pilotkills INTEGER,
+                npckills INTEGER,
+                deaths INTEGER,
+                duration INTEGER,
+                matchid TEXT,
+                map TEXT,
+                timecounter INTEGER
+                )"""
+        )
 
-    tfdb.commit()
-    tfdb.close()
+        tfdb.commit()
 def playeruidnamelinktf1():
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    c.execute(
-        """CREATE TABLE IF NOT EXISTS uidnamelinktf1 (
-            id SERIAL PRIMARY KEY,
-            playeruid INTEGER,
-            playername TEXT,
-            lastseenunix INTEGER,
-            firstseenunix INTEGER
-            )"""
-    )
-    if POSTGRESQLDBURL != "0":
-        c.execute("""
-        ALTER TABLE uidnamelinktf1
-        ALTER COLUMN playeruid TYPE BIGINT USING playeruid::BIGINT;
-        """)
-    # try:
-    #     c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN firstseenunix INTEGER")
-    #     c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN lastseenunix INTEGER") 
-    # except:pass
-    tfdb.commit()
-    tfdb.close()
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS uidnamelinktf1 (
+                id SERIAL PRIMARY KEY,
+                playeruid INTEGER,
+                playername TEXT,
+                lastseenunix INTEGER,
+                firstseenunix INTEGER
+                )"""
+        )
+        if POSTGRESQLDBURL != "0":
+            c.execute("""
+            ALTER TABLE uidnamelinktf1
+            ALTER COLUMN playeruid TYPE BIGINT USING playeruid::BIGINT;
+            """)
+        # try:
+        #     c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN firstseenunix INTEGER")
+        #     c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN lastseenunix INTEGER") 
+        # except:pass
+        tfdb.commit()
 def bantf1():
-    tfdb = postgresem("./data/tf2helper")
-    c = tfdb
-    # banid is because the bot automatically bans new names / ips
-    c.execute("DROP TABLE IF EXISTS banstf1")
-    c.execute(
-        """CREATE TABLE IF NOT EXISTS banstf1 (
-            id SERIAL PRIMARY KEY,
-            baninfo TEXT
-            playerip TEXT,
-            playername TEXT,
-            playeruid TEXT,
-            lastseen INT
-            )"""
-    )
-    tfdb.commit()
-    tfdb.close()
+    with postgresem("./data/tf2helper") as tfdb:
+        c = tfdb
+        # banid is because the bot automatically bans new names / ips
+        c.execute("DROP TABLE IF EXISTS banstf1")
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS banstf1 (
+                id SERIAL PRIMARY KEY,
+                baninfo TEXT
+                playerip TEXT,
+                playername TEXT,
+                playeruid TEXT,
+                lastseen INT
+                )"""
+        )
+        tfdb.commit()
 
 def matchid():
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    c.execute(
-        """CREATE TABLE IF NOT EXISTS matchid (
-            matchid TEXT PRIMARY KEY,
-            map TEXT,
-            time INTEGER,
-            serverid INTEGER
-            )"""
-    )
-    tfdb.commit()
-    tfdb.close()
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS matchid (
+                matchid TEXT PRIMARY KEY,
+                map TEXT,
+                time INTEGER,
+                serverid INTEGER
+                )"""
+        )
+        tfdb.commit()
 
 def notifydb():
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    c.execute(
-        """CREATE TABLE IF NOT EXISTS joinnotify (
-            discordidnotify INTEGER,
-            uidnotify INTEGER,
-            PRIMARY KEY (discordidnotify, uidnotify)
-            )"""
-    )
-    tfdb.commit()
-    tfdb.close()
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS joinnotify (
+                discordidnotify INTEGER,
+                uidnotify INTEGER,
+                PRIMARY KEY (discordidnotify, uidnotify)
+                )"""
+        )
+        tfdb.commit()
 def joincounterdb():
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    c.execute(
-        """CREATE TABLE IF NOT EXISTS joincounter (
-            playeruid INTEGER,
-            serverid INTEGER,
-            count INTEGER,
-            PRIMARY KEY (playeruid, serverid)
-        )"""
-    )
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS joincounter (
+                playeruid INTEGER,
+                serverid INTEGER,
+                count INTEGER,
+                PRIMARY KEY (playeruid, serverid)
+            )"""
+        )
 
-    tfdb.commit()
-    tfdb.close()
+        tfdb.commit()
 
 def playtimedb():
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    c.execute(
-        """CREATE TABLE IF NOT EXISTS playtime (
-            id SERIAL PRIMARY KEY,
-            playeruid INTEGER,
-            joinatunix INTEGER,
-            leftatunix INTEGER,
-            endtype INTEGER,
-            serverid INTEGER,
-            scoregained INTEGER,
-            titankills INTEGER,
-            pilotkills INTEGER,
-            npckills INTEGER,
-            deaths INTEGER,
-            duration INTEGER,
-            matchid TEXT,
-            map TEXT,
-            timecounter INTEGER
-            )"""
-    )
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS playtime (
+                id SERIAL PRIMARY KEY,
+                playeruid INTEGER,
+                joinatunix INTEGER,
+                leftatunix INTEGER,
+                endtype INTEGER,
+                serverid INTEGER,
+                scoregained INTEGER,
+                titankills INTEGER,
+                pilotkills INTEGER,
+                npckills INTEGER,
+                deaths INTEGER,
+                duration INTEGER,
+                matchid TEXT,
+                map TEXT,
+                timecounter INTEGER
+                )"""
+        )
 
-    tfdb.commit()
-    tfdb.close()
+        tfdb.commit()
 def playeruidnamelink():
-    tfdb = postgresem("./data/tf2helper.db")
+    with postgresem("./data/tf2helper.db") as tfdb:
 
-    c = tfdb
-    # c.execute("DROP TABLE IF EXISTS uidnamelink")
-    c.execute(
-        """CREATE TABLE IF NOT EXISTS uidnamelink (
-            id SERIAL PRIMARY KEY,
-            playeruid INTEGER,
-            playername TEXT,
-            lastseenunix INTEGER,
-            firstseenunix INTEGER
-            )"""
-    )
-    if POSTGRESQLDBURL != "0":
-        c.execute("""
-        ALTER TABLE uidnamelink
-        ALTER COLUMN playeruid TYPE BIGINT USING playeruid::BIGINT;
-        """)
-    # try:
-    #     c.execute("ALTER TABLE uidnamelink ADD COLUMN firstseenunix INTEGER")
-    #     c.execute("ALTER TABLE uidnamelink ADD COLUMN lastseenunix INTEGER") 
-    # except:pass
-    tfdb.commit()
-    tfdb.close()
+        c = tfdb
+        # c.execute("DROP TABLE IF EXISTS uidnamelink")
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS uidnamelink (
+                id SERIAL PRIMARY KEY,
+                playeruid INTEGER,
+                playername TEXT,
+                lastseenunix INTEGER,
+                firstseenunix INTEGER
+                )"""
+        )
+        if POSTGRESQLDBURL != "0":
+            c.execute("""
+            ALTER TABLE uidnamelink
+            ALTER COLUMN playeruid TYPE BIGINT USING playeruid::BIGINT;
+            """)
+        # try:
+        #     c.execute("ALTER TABLE uidnamelink ADD COLUMN firstseenunix INTEGER")
+        #     c.execute("ALTER TABLE uidnamelink ADD COLUMN lastseenunix INTEGER") 
+        # except:pass
+        tfdb.commit()
 
 # import importlib
 # this whole thing is a mess of global varibles, jank threading and whatever, but it works just fine :)
@@ -922,10 +904,10 @@ async def autocompletenamesfromingamenowildcard(ctx):
     return output
 @functools.cache
 def getallweaponnames(weapon):
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    c.execute("SELECT DISTINCT cause_of_death FROM specifickilltracker ORDER BY cause_of_death")
-    return sorted(list(map(lambda x: WEAPON_NAMES.get(x[0],x[0]),list(filter(lambda x: (WEAPON_NAMES.get(x[0],False) and weapon.lower() in WEAPON_NAMES.get(x[0],"").lower()) or weapon.lower() in x[0].lower(),c.fetchall())))),key = lambda x: x.lower().startswith(weapon.lower())* 50 ,reverse = True)[:30]
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        c.execute("SELECT DISTINCT cause_of_death FROM specifickilltracker ORDER BY cause_of_death")
+        return sorted(list(map(lambda x: WEAPON_NAMES.get(x[0],x[0]),list(filter(lambda x: (WEAPON_NAMES.get(x[0],False) and weapon.lower() in WEAPON_NAMES.get(x[0],"").lower()) or weapon.lower() in x[0].lower(),c.fetchall())))),key = lambda x: x.lower().startswith(weapon.lower())* 50 ,reverse = True)[:30]
 async def weaponnamesautocomplete(ctx):
     return getallweaponnames(ctx.value)
 
@@ -967,24 +949,23 @@ async def updateroles():
     description="Pull all non command message logs with a given filter"
 )
 async def pullmessagelogs(ctx, filterword: str = ""):
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    await ctx.defer()
-    c.execute("""
-        SELECT message, type, serverid
-        FROM messagelogger
-        WHERE message LIKE ? COLLATE NOCASE
-        AND type NOT IN ('command', 'tf1command', 'botcommand')
-    """, ('%' + filterword + '%',))
-    matches = [
-        {**(getjson(row[0])),"serverid":row[2]}
-        for row in c.fetchall()
-    ][::-1]
-    truncationmessage = ""
-    if len (matches) > 1000:
-        truncationmessage = f" {len(matches) - 1000} messages truncated"
-    matches = matches[:1000] 
-    tfdb.close()
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        await ctx.defer()
+        c.execute("""
+            SELECT message, type, serverid
+            FROM messagelogger
+            WHERE message LIKE ? COLLATE NOCASE
+            AND type NOT IN ('command', 'tf1command', 'botcommand')
+        """, ('%' + filterword + '%',))
+        matches = [
+            {**(getjson(row[0])),"serverid":row[2]}
+            for row in c.fetchall()
+        ][::-1]
+        truncationmessage = ""
+        if len (matches) > 1000:
+            truncationmessage = f" {len(matches) - 1000} messages truncated"
+        matches = matches[:1000]
     if matches:
         file_obj = io.BytesIO(json.dumps(matches, indent=4).encode('utf-8'))
         file_obj.seek(0)
@@ -1146,21 +1127,21 @@ if DISCORDBOTLOGSTATS == "1":
             asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} No discord UID found, stats logging disabled"),"fake context",None,True,False), bot.loop)
             return
         
-        tfdb = postgresem("./data/tf2helper.db")
-        c = tfdb
-        c.execute("SELECT playername FROM uidnamelinktf1 WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(playerdiscorduid,))
-        playernamereal = c.fetchone()
-        c.execute("SELECT SUM(pilotkills), SUM(duration), SUM(deaths), SUM(titankills) FROM playtimetf1 WHERE playeruid = ?",(playerdiscorduid,))
-        playerstats = c.fetchone()
-        c.execute("""
-            SELECT matchid, map, MIN(joinatunix) as start_time, SUM(pilotkills) as total_pilotkills
-            FROM playtimetf1
-            WHERE playeruid = ?
-            GROUP BY matchid, map
-            ORDER BY total_pilotkills DESC
-            LIMIT 1
-        """, (playerdiscorduid,))
-        bestgame = c.fetchone()
+        with postgresem("./data/tf2helper.db") as tfdb:
+            c = tfdb
+            c.execute("SELECT playername FROM uidnamelinktf1 WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(playerdiscorduid,))
+            playernamereal = c.fetchone()
+            c.execute("SELECT SUM(pilotkills), SUM(duration), SUM(deaths), SUM(titankills) FROM playtimetf1 WHERE playeruid = ?",(playerdiscorduid,))
+            playerstats = c.fetchone()
+            c.execute("""
+                SELECT matchid, map, MIN(joinatunix) as start_time, SUM(pilotkills) as total_pilotkills
+                FROM playtimetf1
+                WHERE playeruid = ?
+                GROUP BY matchid, map
+                ORDER BY total_pilotkills DESC
+                LIMIT 1
+            """, (playerdiscorduid,))
+            bestgame = c.fetchone()
         if not playerstats or not playernamereal:
             asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} Stats for {playername} not found :("),"fake context",None,True,False), bot.loop)
             return
@@ -1485,53 +1466,53 @@ if DISCORDBOTLOGSTATS == "1":
                 serveroverride = True       
 
 
-        tfdb = postgresem("./data/tf2helper.db")
-        c = tfdb
+        with postgresem("./data/tf2helper.db") as tfdb:
+            c = tfdb
 
-        # Build WHERE clause
-        where_clauses = []
-        params = []
-        if not isinstance(leaderboardfilters, str):
-            for key, values in leaderboardfilters.items():
-                if len(values) == 1:
-                    where_clauses.append(f"{key} = ?")
-                    params.append(values[0])
-                else:
-                    placeholders = ",".join(["?"] * len(values))
-                    where_clauses.append(f"{key} IN ({placeholders})")
-                    params.extend(values)
+            # Build WHERE clause
+            where_clauses = []
+            params = []
+            if not isinstance(leaderboardfilters, str):
+                for key, values in leaderboardfilters.items():
+                    if len(values) == 1:
+                        where_clauses.append(f"{key} = ?")
+                        params.append(values[0])
+                    else:
+                        placeholders = ",".join(["?"] * len(values))
+                        where_clauses.append(f"{key} IN ({placeholders})")
+                        params.extend(values)
 
-            wherestring = " AND ".join(where_clauses)
-        else:
-            wherestring = eval(leaderboardfilters).replace('"',"'")
-        if not specificuidsearch:
-            print("Updating leaderboard:",leaderboardname)
+                wherestring = " AND ".join(where_clauses)
+            else:
+                wherestring = eval(leaderboardfilters).replace('"',"'")
+            if not specificuidsearch:
+                print("Updating leaderboard:",leaderboardname)
 
-        orderbyiscolumn = leaderboardorderby not in [x for x in leaderboardcategorysshown.keys()]
+            orderbyiscolumn = leaderboardorderby not in [x for x in leaderboardcategorysshown.keys()]
 
-        leaderboardcategorys = list(set([
-            *( [leaderboardorderby] if orderbyiscolumn else [] ),
-            *leaderboardmerge,
-            *[col for x in leaderboardcategorysshown.values() for col in x["columnsbound"]]
-        ]))
-        # print("leaderboardcats",leaderboardcategorys)
-        countadd = False
-        if "matchcount" in leaderboardcategorys:
-            countadd = True
-            del(leaderboardcategorys[leaderboardcategorys.index("matchcount")])
-        # print("leaderboardcategorys",leaderboardcategorys)
-        # leaderboardcategorys = sorted(leaderboardcategorys, key=lambda x: list(leaderboardcategorysshown.keys()).index(x) if x in leaderboardcategorysshown else len(leaderboardcategorysshown))
-        base_query = f"SELECT {','.join(leaderboardcategorys)} FROM {leaderboarddatabase}"
-        # print("wherestring",f"{base_query} WHERE {wherestring}")
-        quote = "'"
-        query = f"{base_query} WHERE{' (victim_type = '+quote+'player'+quote+ 'OR victim_type IS NULL)' + 'AND' if leaderboarddatabase == 'specifickilltracker' else ''} {wherestring}" if wherestring else f"{base_query} {'WHERE (victim_type = '+quote+'player'+quote+ 'OR victim_type IS NULL)' if leaderboarddatabase == 'specifickilltracker' else ''}"
-        # print(query)
-        # print("Executing query:", query)
-        c.execute(query, params)
-        data = c.fetchall()
+            leaderboardcategorys = list(set([
+                *( [leaderboardorderby] if orderbyiscolumn else [] ),
+                *leaderboardmerge,
+                *[col for x in leaderboardcategorysshown.values() for col in x["columnsbound"]]
+            ]))
+            # print("leaderboardcats",leaderboardcategorys)
+            countadd = False
+            if "matchcount" in leaderboardcategorys:
+                countadd = True
+                del(leaderboardcategorys[leaderboardcategorys.index("matchcount")])
+            # print("leaderboardcategorys",leaderboardcategorys)
+            # leaderboardcategorys = sorted(leaderboardcategorys, key=lambda x: list(leaderboardcategorysshown.keys()).index(x) if x in leaderboardcategorysshown else len(leaderboardcategorysshown))
+            base_query = f"SELECT {','.join(leaderboardcategorys)} FROM {leaderboarddatabase}"
+            # print("wherestring",f"{base_query} WHERE {wherestring}")
+            quote = "'"
+            query = f"{base_query} WHERE{' (victim_type = '+quote+'player'+quote+ 'OR victim_type IS NULL)' + 'AND' if leaderboarddatabase == 'specifickilltracker' else ''} {wherestring}" if wherestring else f"{base_query} {'WHERE (victim_type = '+quote+'player'+quote+ 'OR victim_type IS NULL)' if leaderboarddatabase == 'specifickilltracker' else ''}"
+            # print(query)
+            # print("Executing query:", query)
+            c.execute(query, params)
+            data = c.fetchall()
 
-        if not data:
-            pass
+            if not data:
+                pass
             # tfdb.close() (if this is uncommented, it will not update leaderboard if no data found, else it will display no data message)
             # return
             
@@ -1592,20 +1573,18 @@ if DISCORDBOTLOGSTATS == "1":
             try: itemname = int(itemname)
             except:  return "Some Unknown NPC"
             return str(namemap.get((itemname), context["serveridnamelinks"].get(str(itemname),itemname)))
-        displayoutput = []
-        nameuidmap = []
-        if nameoverride:
-            c.execute("SELECT playername, playeruid FROM uidnamelink ORDER BY id")
-            namemap = {uid: name for name, uid in c.fetchall()}
-            for uid, rowdata in actualoutput:
-                uid = uid.split(SEPERATOR)#horrible jank
-                displayname = SEPERATOR.join(list(map( swopper,uid )))
-                nameuidmap.append(uid[0])
-                displayoutput.append((displayname, rowdata))
-        else:
-            displayoutput = actualoutput
-
-        tfdb.close()
+            displayoutput = []
+            nameuidmap = []
+            if nameoverride:
+                c.execute("SELECT playername, playeruid FROM uidnamelink ORDER BY id")
+                namemap = {uid: name for name, uid in c.fetchall()}
+                for uid, rowdata in actualoutput:
+                    uid = uid.split(SEPERATOR)#horrible jank
+                    displayname = SEPERATOR.join(list(map( swopper,uid )))
+                    nameuidmap.append(uid[0])
+                    displayoutput.append((displayname, rowdata))
+            else:
+                displayoutput = actualoutput
 
         # Build embed
         if not specificuidsearch:
@@ -1817,12 +1796,11 @@ if DISCORDBOTLOGSTATS == "1":
         # print(specificweapon)
         if not specificweapon:
             # weapon_images = [f for f in os.listdir(IMAGE_DIR) if (f.startswith("mp_") or f.startswith("melee_")) and f.endswith(".png")]
-            tfdb = postgresem("./data/tf2helper.db")
-            c = tfdb
-            c.execute("SELECT DISTINCT cause_of_death FROM specifickilltracker ORDER BY cause_of_death")
-            weaponsused = c.fetchall()
-            weapon_images = list(map(lambda x: f"{x[0]}.png", weaponsused))
-            tfdb.close()
+            with postgresem("./data/tf2helper.db") as tfdb:
+                c = tfdb
+                c.execute("SELECT DISTINCT cause_of_death FROM specifickilltracker ORDER BY cause_of_death")
+                weaponsused = c.fetchall()
+                weapon_images = list(map(lambda x: f"{x[0]}.png", weaponsused))
 
         else:
             weapon_images = [f for f in os.listdir(IMAGE_DIR) if f.endswith(".png")]
@@ -1836,24 +1814,22 @@ if DISCORDBOTLOGSTATS == "1":
 
         def fetch_kill_data(timecutoff = 0):
             timecutoff = int(time.time() - timecutoff)
-            tfdb = postgresem("./data/tf2helper.db")
-            c = tfdb
-            c.execute("SELECT cause_of_death ,playeruid,weapon_mods FROM specifickilltracker WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL)",(timecutoff,))
-            rows = c.fetchall()
-            tfdb.close()
-            return rows
+            with postgresem("./data/tf2helper.db") as tfdb:
+                c = tfdb
+                c.execute("SELECT cause_of_death ,playeruid,weapon_mods FROM specifickilltracker WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL)",(timecutoff,))
+                rows = c.fetchall()
+                return rows
         def bvsuggestedthistome(timecutoff = 0,swoptovictims = False):
             timecutoff = int(time.time() - timecutoff)
-            tfdb = postgresem("./data/tf2helper.db")
-            c = tfdb
-            if not swoptovictims:
-                c.execute("SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, playeruid, weapon_mods, attacker_type",(timecutoff,))
-            else:
-                c.execute("SELECT cause_of_death, victim_id, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, victim_id, weapon_mods, attacker_type",(timecutoff,))
+            with postgresem("./data/tf2helper.db") as tfdb:
+                c = tfdb
+                if not swoptovictims:
+                    c.execute("SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, playeruid, weapon_mods, attacker_type",(timecutoff,))
+                else:
+                    c.execute("SELECT cause_of_death, victim_id, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, victim_id, weapon_mods, attacker_type",(timecutoff,))
 
-            rows = c.fetchall()
-            tfdb.close()
-            return rows
+                rows = c.fetchall()
+                return rows
         # print("calculated pngleaderboard in", (int(time.time()*100)-now)/100,"seconds")
         if specificweapon:
             specificweaponsallowed = list(map(lambda x: x["weapon_name"],specificweapon))
@@ -2212,83 +2188,80 @@ if DISCORDBOTLOGSTATS == "1":
         MAXALIASESSHOWN = 22
         originalname = name
         print("whois command from", ctx.author.id, "to", name)
-        tfdb = postgresem("./data/tf2helper.db")
-        c = tfdb
-        c.execute("SELECT playeruid, playername FROM uidnamelink")
-        data = c.fetchall()
-        
-        if not data:
-            tfdb.commit()
-            tfdb.close()
-            asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-            await ctx.respond("No players in the database", ephemeral=False)
-            return
-
-        unsortedata = [{"name": x[1], "uid": x[0]} for x in data]
-        data = sorted(unsortedata, key=lambda x: len(x["name"]))
-        data = sorted(data, key=lambda x: not x["name"].lower().startswith(name.lower()))
-        data = [x for x in data if name.lower() in x["name"].lower()]
-        unsortedata = [x for x in unsortedata if name.lower() in x["name"].lower()]
-
-        if len(data) == 0:
-            c.execute("SELECT playeruid FROM uidnamelink WHERE playeruid = ?", (name,))
-            output = c.fetchone()
-            if not output:
+        with postgresem("./data/tf2helper.db") as tfdb:
+            c = tfdb
+            c.execute("SELECT playeruid, playername FROM uidnamelink")
+            data = c.fetchall()
+            
+            if not data:
                 tfdb.commit()
-                tfdb.close()
-                await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-                await ctx.respond("No players found", ephemeral=False)
+                asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+                await ctx.respond("No players in the database", ephemeral=False)
                 return
-            player = {"uid": output[0]}
-        else:
-            player = data[0]
 
-        c.execute("""
-            SELECT playername, firstseenunix, lastseenunix 
-            FROM uidnamelink 
-            WHERE playeruid = ? 
-            ORDER BY id DESC
-        """, (player["uid"],))
-        aliases_raw = list(map(list,c.fetchall()))
-        c.execute("""
-            SELECT SUM(duration)
-            FROM playtime
-            WHERE playeruid = ?""",(player["uid"],))
-        totalplaytime = c.fetchone()
-        if totalplaytime and totalplaytime[0]:
-            totalplaytime = totalplaytime[0]
-        else: totalplaytime = False
-        for i, alias in enumerate(aliases_raw):
-            if not alias[1] or not alias[2]:
-                aliases_raw[i].append(-1)
-                continue
+            unsortedata = [{"name": x[1], "uid": x[0]} for x in data]
+            data = sorted(unsortedata, key=lambda x: len(x["name"]))
+            data = sorted(data, key=lambda x: not x["name"].lower().startswith(name.lower()))
+            data = [x for x in data if name.lower() in x["name"].lower()]
+            unsortedata = [x for x in unsortedata if name.lower() in x["name"].lower()]
+
+            if len(data) == 0:
+                c.execute("SELECT playeruid FROM uidnamelink WHERE playeruid = ?", (name,))
+                output = c.fetchone()
+                if not output:
+                    tfdb.commit()
+                    await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+                    await ctx.respond("No players found", ephemeral=False)
+                    return
+                player = {"uid": output[0]}
+            else:
+                player = data[0]
+
+            c.execute("""
+                SELECT playername, firstseenunix, lastseenunix 
+                FROM uidnamelink 
+                WHERE playeruid = ? 
+                ORDER BY id DESC
+            """, (player["uid"],))
+            aliases_raw = list(map(list,c.fetchall()))
             c.execute("""
                 SELECT SUM(duration)
                 FROM playtime
-                WHERE playeruid = ?
-                AND (joinatunix > ? OR leftatunix > ?)
-                AND joinatunix < ?
-            """, (player["uid"], alias[1], alias[1], alias[2]))
-            timespent = c.fetchone()
-            if not timespent or not timespent[0]:
-                aliases_raw[i].append(-1)
-                continue
-            # print([timespent])
-            aliases_raw[i].append(timespent[0])
+                WHERE playeruid = ?""",(player["uid"],))
+            totalplaytime = c.fetchone()
+            if totalplaytime and totalplaytime[0]:
+                totalplaytime = totalplaytime[0]
+            else: totalplaytime = False
+            for i, alias in enumerate(aliases_raw):
+                if not alias[1] or not alias[2]:
+                    aliases_raw[i].append(-1)
+                    continue
+                c.execute("""
+                    SELECT SUM(duration)
+                    FROM playtime
+                    WHERE playeruid = ?
+                    AND (joinatunix > ? OR leftatunix > ?)
+                    AND joinatunix < ?
+                """, (player["uid"], alias[1], alias[1], alias[2]))
+                timespent = c.fetchone()
+                if not timespent or not timespent[0]:
+                    aliases_raw[i].append(-1)
+                    continue
+                # print([timespent])
+                aliases_raw[i].append(timespent[0])
 
 
-        
+            
 
-        
+            
 
-        aliases = []
-        for name, first, last,playtime in aliases_raw:
-            first_str = f"<t:{first}:R>" if first else "unknown"
-            last_str = f"<t:{last}:R>" if last else "unknown"
-            aliases.append(f"{name} *(first seen: {first_str}, last seen: {last_str}, time played: **{modifyvalue(playtime,'time') if playtime != -1 else 'unknown'}**)*")
+            aliases = []
+            for name, first, last,playtime in aliases_raw:
+                first_str = f"<t:{first}:R>" if first else "unknown"
+                last_str = f"<t:{last}:R>" if last else "unknown"
+                aliases.append(f"{name} *(first seen: {first_str}, last seen: {last_str}, time played: **{modifyvalue(playtime,'time') if playtime != -1 else 'unknown'}**)*")
 
-        tfdb.commit()
-        tfdb.close()
+            tfdb.commit()
 
         alsomatching = {}
         for entry in unsortedata:
@@ -2325,35 +2298,32 @@ if DISCORDBOTLOGSTATS == "1":
         description="Toggle if you are notified when a player joins",
     )
     async def togglejoinnotify(ctx,name: Option(str, "The playername to toggle",autocomplete=autocompletenamesfromdb)):
-        tfdb = postgresem("./data/tf2helper.db")
-        c = tfdb
-        c.execute("SELECT playeruid, playername FROM uidnamelink")
-        data = c.fetchall()
-        if not data:
-            tfdb.commit()
-            tfdb.close()
-            await ctx.respond("No players in the database", ephemeral=True)
-            return
-        data = [{"name": x[1], "uid": x[0]} for x in data]
-        data = sorted(data, key=lambda x: len(x["name"]))
+        with postgresem("./data/tf2helper.db") as tfdb:
+            c = tfdb
+            c.execute("SELECT playeruid, playername FROM uidnamelink")
+            data = c.fetchall()
+            if not data:
+                tfdb.commit()
+                await ctx.respond("No players in the database", ephemeral=True)
+                return
+            data = [{"name": x[1], "uid": x[0]} for x in data]
+            data = sorted(data, key=lambda x: len(x["name"]))
 
-        data = [x for x in data if name.lower() in x["name"].lower()]
-        if len(data) == 0:
+            data = [x for x in data if name.lower() in x["name"].lower()]
+            if len(data) == 0:
+                tfdb.commit()
+                await ctx.respond("No players found", ephemeral=True)
+                return
+            player = data[0]
+            c.execute("SELECT * FROM joinnotify WHERE discordidnotify = ? AND uidnotify = ?", (ctx.author.id,player["uid"]))
+            data = c.fetchone()
+            if data is None:
+                c.execute("INSERT INTO joinnotify (discordidnotify, uidnotify) VALUES (?,?)",(ctx.author.id,player["uid"]))
+                await ctx.respond(f"{player['name']} added to notify list", ephemeral=True)
+            else:
+                c.execute("DELETE FROM joinnotify WHERE discordidnotify = ? AND uidnotify = ?", (ctx.author.id,player["uid"]))
+                await ctx.respond(f"{player['name']} removed from notify list", ephemeral=True)
             tfdb.commit()
-            tfdb.close()
-            await ctx.respond("No players found", ephemeral=True)
-            return
-        player = data[0]
-        c.execute("SELECT * FROM joinnotify WHERE discordidnotify = ? AND uidnotify = ?", (ctx.author.id,player["uid"]))
-        data = c.fetchone()
-        if data is None:
-            c.execute("INSERT INTO joinnotify (discordidnotify, uidnotify) VALUES (?,?)",(ctx.author.id,player["uid"]))
-            await ctx.respond(f"{player['name']} added to notify list", ephemeral=True)
-        else:
-            c.execute("DELETE FROM joinnotify WHERE discordidnotify = ? AND uidnotify = ?", (ctx.author.id,player["uid"]))
-            await ctx.respond(f"{player['name']} removed from notify list", ephemeral=True)
-        tfdb.commit()
-        tfdb.close()
 
 
 def getdiscordtimestamp(timestamp = None):
@@ -2873,17 +2843,16 @@ def settag(tag,discorduid):
     warn = ""
     if not pullid(discorduid,"tf"):
         warn = "\n** BUT titanfall account not linked, use /linktf2account to link one, so this tag appears**\n(you don't have to set your tag again after you link)"
-    tfdb = postgresem("./data/tf2helper.db")
-    tfdb.execute(
-        """
-        INSERT INTO discorduiddata (discorduid, nameprefix)
-        VALUES (?, ?)
-        ON CONFLICT(discorduid) DO UPDATE SET nameprefix = excluded.nameprefix
-        """,
-        (discorduid, str(tag) if tag != "reset" else "reset")
-    )
-    tfdb.commit()
-    tfdb.close()
+    with postgresem("./data/tf2helper.db") as tfdb:
+        tfdb.execute(
+            """
+            INSERT INTO discorduiddata (discorduid, nameprefix)
+            VALUES (?, ?)
+            ON CONFLICT(discorduid) DO UPDATE SET nameprefix = excluded.nameprefix
+            """,
+            (discorduid, str(tag) if tag != "reset" else "reset")
+        )
+        tfdb.commit()
     if tag == "reset" and getpriority(colourslink,[discorduid,"nameprefix"]):
         colourslink[discorduid]["nameprefix"] = None
         return f"reset tag {warn}"
@@ -2929,19 +2898,18 @@ def setcolour(colours,discorduid,type = "choseningamecolour"):
         colourslist.append(rgba)
         rgba = "|".join(map(str, colourslist))
 
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    c.execute(
-        """
-        INSERT INTO discorduiddata (discorduid, choseningamecolour)
-        VALUES (?, ?)
-        ON CONFLICT(discorduid) DO UPDATE SET choseningamecolour = excluded.choseningamecolour
-        """,
-        (discorduid, str(rgba) if rgba != "reset" else "reset")
-    )
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        c.execute(
+            """
+            INSERT INTO discorduiddata (discorduid, choseningamecolour)
+            VALUES (?, ?)
+            ON CONFLICT(discorduid) DO UPDATE SET choseningamecolour = excluded.choseningamecolour
+            """,
+            (discorduid, str(rgba) if rgba != "reset" else "reset")
+        )
 
-    tfdb.commit()
-    tfdb.close()
+        tfdb.commit()
     warn = ""
     if not pullid(discorduid,"tf"):
         warn = "\n**BUT titanfall account not linked, use /linktf2account to link one, so these colours appear**\n(you don't have to set your tag again after you link)"
@@ -2987,19 +2955,18 @@ async def show_color_why(ctx, colour: Option(str, "Enter a normal/hex color, or 
         colourslist.append(rgba)
         rgba = "|".join(map(str, colourslist))
 
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    c.execute(
-        """
-        INSERT INTO discorduiddata (discorduid, chosencolour)
-        VALUES (?, ?)
-        ON CONFLICT(discorduid) DO UPDATE SET chosencolour = excluded.chosencolour
-        """,
-        (ctx.author.id, str(rgba) if rgba != "reset" else "reset")
-    )
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        c.execute(
+            """
+            INSERT INTO discorduiddata (discorduid, chosencolour)
+            VALUES (?, ?)
+            ON CONFLICT(discorduid) DO UPDATE SET chosencolour = excluded.chosencolour
+            """,
+            (ctx.author.id, str(rgba) if rgba != "reset" else "reset")
+        )
 
-    tfdb.commit()
-    tfdb.close()
+        tfdb.commit()
     if ctx.author.id not in colourslink.keys():
         colourslink[ctx.author.id] = {}
     if rgba == "reset":
@@ -3190,16 +3157,14 @@ async def on_message(message):
 def pullid(uid,force = False):
     global context
     result = None
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    if not force or force == "discord":
-        c.execute("SELECT discordid FROM discordlinkdata WHERE uid = ?", (uid,))
-        result = c.fetchone()
-    if result is None and (not force or force == "tf"):
-        c.execute("SELECT uid FROM discordlinkdata WHERE discordid = ?", (uid,))
-        result = c.fetchone()
-    c.close()
-    tfdb.close()
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        if not force or force == "discord":
+            c.execute("SELECT discordid FROM discordlinkdata WHERE uid = ?", (uid,))
+            result = c.fetchone()
+        if result is None and (not force or force == "tf"):
+            c.execute("SELECT uid FROM discordlinkdata WHERE discordid = ?", (uid,))
+            result = c.fetchone()
     if not result:
         return False
     return result[0]
@@ -3213,26 +3178,26 @@ def colourmessage(message,serverid):
     # print("ew")
     discorduid = discorduidnamelink.get(message["metadata"]["uid"],False)
     if message["metadata"].get("type",False) == "impersonate" and not discorduid:
-            tfdb = postgresem("./data/tf2helper.db")
-            c = tfdb
-            c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (message["metadata"]["uid"],))
-            link = c.fetchone()
-            discorduidnamelink[message["metadata"]["uid"]] = link[0] if link and link[0] else False
-            discorduid = discorduidnamelink.get(message["metadata"]["uid"],False)
+            with postgresem("./data/tf2helper.db") as tfdb:
+                c = tfdb
+                c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (message["metadata"]["uid"],))
+                link = c.fetchone()
+                discorduidnamelink[message["metadata"]["uid"]] = link[0] if link and link[0] else False
+                discorduid = discorduidnamelink.get(message["metadata"]["uid"],False)
     elif message["metadata"].get("type",False) != "impersonate" :  
         if not discorduid:
-            tfdb = postgresem("./data/tf2helper.db")
-            c = tfdb
-            c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (message["metadata"]["uid"],))
-            link = c.fetchone()
-            discorduidnamelink[message["metadata"]["uid"]] = link[0] if link and link[0] else False
-            if (not link or  not link[0]) and not message["metadata"]["blockedmessage"]:
-                # print("eee")
-                return False
-            elif  not link or not link[0] :
-                # print("ee")
-                return {"both":f"{PREFIXES['neutral']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
-            discorduid = link[0]
+            with postgresem("./data/tf2helper.db") as tfdb:
+                c = tfdb
+                c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (message["metadata"]["uid"],))
+                link = c.fetchone()
+                discorduidnamelink[message["metadata"]["uid"]] = link[0] if link and link[0] else False
+                if (not link or  not link[0]) and not message["metadata"]["blockedmessage"]:
+                    # print("eee")
+                    return False
+                elif  not link or not link[0] :
+                    # print("ee")
+                    return {"both":f"{PREFIXES['neutral']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
+                discorduid = link[0]
         # if not colourslink.get(discorduid,False).get("ingamecolour",False) and message["metadata"]["blockedmessage"]:
         #     # print("edwqdqw")
         #     return {"both":f"{PREFIXES['neutral']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
@@ -3314,19 +3279,19 @@ def recieveflaskprintrequests():
             return {"message":"sorry, wrong pass"}
         discorduid = discorduidnamelink.get(data["uid"],False)
         if not discorduid:
-            tfdb = postgresem("./data/tf2helper.db")
-            c = tfdb
-            c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (data["uid"],))
-            link = c.fetchone()
-            if not link:
-                pass
-                # return {"notfound":True}
-            elif link[0]:
-                discorduidnamelink[data["uid"]] = link[0] if link[0] else False
-                discorduid = link[0]
-            else:
-                pass
-                # return {"notfound":True}
+            with postgresem("./data/tf2helper.db") as tfdb:
+                c = tfdb
+                c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (data["uid"],))
+                link = c.fetchone()
+                if not link:
+                    pass
+                    # return {"notfound":True}
+                elif link[0]:
+                    discorduidnamelink[data["uid"]] = link[0] if link[0] else False
+                    discorduid = link[0]
+                else:
+                    pass
+                    # return {"notfound":True}
         # if colourslink[str(data["uid"])]:
         # print(colourslink[596713937626595382])
         # print({"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",[]) != []},"uid":data["uid"],"otherdata":{x: str(y) for x,y in readplayeruidpreferences(data["uid"],False)["tf2"].items()}})
@@ -3552,75 +3517,74 @@ def recieveflaskprintrequests():
             return
         placeholders = ','.join(['?'] * len(uids))
         
-        tfdb = postgresem("./data/tf2helper.db")
-        c = tfdb
-        
-        c.execute(f"""
-        WITH session_durations AS (
+        with postgresem("./data/tf2helper.db") as tfdb:
+            c = tfdb
+            
+            c.execute(f"""
+            WITH session_durations AS (
+                SELECT
+                    playeruid,
+                    matchid,
+                    pilotkills,
+                    (leftatunix - joinatunix) AS session_duration
+                FROM playtime
+                WHERE leftatunix > joinatunix
+                AND playeruid IN ({placeholders})
+            ),
+            match_stats AS (
+                SELECT
+                    playeruid,
+                    matchid,
+                    SUM(pilotkills) AS total_pilotkills,
+                    SUM(session_duration) AS total_playtime_seconds
+                FROM session_durations
+                GROUP BY playeruid, matchid
+                HAVING SUM(session_duration) > 0
+            ),
+            match_kph AS (
+                SELECT
+                    playeruid,
+                    matchid,
+                    total_pilotkills,
+                    total_playtime_seconds,
+                    1.0 * total_pilotkills * 3600 / total_playtime_seconds AS kills_per_hour
+                FROM match_stats
+            ),
+            ranked_matches AS (
+                SELECT
+                    *,
+                    ROW_NUMBER() OVER (PARTITION BY playeruid ORDER BY kills_per_hour DESC) AS match_rank,
+                    COUNT(*) OVER (PARTITION BY playeruid) AS total_matches
+                FROM match_kph
+            ),
+            filtered_matches AS (
+                SELECT
+                    *,
+                    CASE
+                        WHEN total_matches < 5 THEN total_matches
+                        ELSE CAST(total_matches * 0.4 + 0.9999999 AS INTEGER)
+                    END AS matches_to_include
+                FROM ranked_matches
+            ),
+            top_matches_data AS (
+                SELECT
+                    playeruid,
+                    MAX(matches_to_include) AS matches_used,
+                    SUM(total_pilotkills) AS total_kills_top,
+                    SUM(total_playtime_seconds) AS total_seconds_top
+                FROM filtered_matches
+                WHERE match_rank <= matches_to_include
+                GROUP BY playeruid
+            )
             SELECT
                 playeruid,
-                matchid,
-                pilotkills,
-                (leftatunix - joinatunix) AS session_duration
-            FROM playtime
-            WHERE leftatunix > joinatunix
-            AND playeruid IN ({placeholders})
-        ),
-        match_stats AS (
-            SELECT
-                playeruid,
-                matchid,
-                SUM(pilotkills) AS total_pilotkills,
-                SUM(session_duration) AS total_playtime_seconds
-            FROM session_durations
-            GROUP BY playeruid, matchid
-            HAVING SUM(session_duration) > 0
-        ),
-        match_kph AS (
-            SELECT
-                playeruid,
-                matchid,
-                total_pilotkills,
-                total_playtime_seconds,
-                1.0 * total_pilotkills * 3600 / total_playtime_seconds AS kills_per_hour
-            FROM match_stats
-        ),
-        ranked_matches AS (
-            SELECT
-                *,
-                ROW_NUMBER() OVER (PARTITION BY playeruid ORDER BY kills_per_hour DESC) AS match_rank,
-                COUNT(*) OVER (PARTITION BY playeruid) AS total_matches
-            FROM match_kph
-        ),
-        filtered_matches AS (
-            SELECT
-                *,
-                CASE
-                    WHEN total_matches < 5 THEN total_matches
-                    ELSE CAST(total_matches * 0.4 + 0.9999999 AS INTEGER)
-                END AS matches_to_include
-            FROM ranked_matches
-        ),
-        top_matches_data AS (
-            SELECT
-                playeruid,
-                MAX(matches_to_include) AS matches_used,
-                SUM(total_pilotkills) AS total_kills_top,
-                SUM(total_playtime_seconds) AS total_seconds_top
-            FROM filtered_matches
-            WHERE match_rank <= matches_to_include
-            GROUP BY playeruid
-        )
-        SELECT
-            playeruid,
-            ROUND((total_kills_top * 3600.0) / NULLIF(total_seconds_top, 0), 2) AS kph,
-            matches_used
-        FROM top_matches_data;
-        """, tuple(uids))
+                ROUND((total_kills_top * 3600.0) / NULLIF(total_seconds_top, 0), 2) AS kph,
+                matches_used
+            FROM top_matches_data;
+            """, tuple(uids))
 
-        
-        results = c.fetchall()
-        tfdb.close()
+            
+            results = c.fetchall()
         
         stats_list = sorted([{"uid": row[0], "kph": float(row[1]) if row[1] is not None else 0.0, "gamesplayed": row[2]} for row in results], key=lambda x: -x["kph"])
         # zippp ittt
@@ -3940,90 +3904,89 @@ def recieveflaskprintrequests():
 
             })
 
-        tfdb = postgresem("./data/tf2helper.db")
-        c = tfdb
-        c.execute(
-            """
-            INSERT INTO specifickilltracker (
-                serverid,
-                attacker_z,
-                attacker_x,
-                attacker_y,
-                victim_id,
-                victim_name,
-                victim_offhand_weapon_2,
-                attacker_titan,
-                map,
-                attacker_offhand_weapon_1,
-                attacker_offhand_weapon_2,
-                victim_offhand_weapon_1,
-                attacker_weapon_3,
-                attacker_name,
-                match_id,
-                victim_titan,
-                distance,
-                victim_current_weapon,
-                victim_z,
-                attacker_weapon_2,
-                game_time,
-                attacker_current_weapon,
-                victim_weapon_3,
-                playeruid,
-                game_mode,
-                victim_x,
-                attacker_weapon_1,
-                victim_weapon_1,
-                victim_weapon_2,
-                timeofkill,
-                cause_of_death,
-                victim_y,
-                weapon_mods,
-                victim_type,
-                attacker_type
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                data.get("server_id", None),
-                data.get("attacker_z", None),
-                data.get("attacker_x", None),
-                data.get("attacker_y", None),
-                data.get("victim_id", None),
-                data.get("victim_name", None) if  data.get("victim_name", None) else data.get("victim_type", None),
-                data.get("victim_offhand_weapon_2", None),
-                data.get("attacker_titan", None),
-                data.get("map", None),
-                data.get("attacker_offhand_weapon_1", None),
-                data.get("attacker_offhand_weapon_2", None),
-                data.get("victim_offhand_weapon_1", None),
-                data.get("attacker_weapon_3", None),
-                data.get("attacker_name", None) if  data.get("attacker_name", None) else data.get("attacker_type", None),
-                data.get("match_id", None),
-                data.get("victim_titan", None),
-                data.get("distance", None),
-                data.get("victim_current_weapon", None),
-                data.get("victim_z", None),
-                data.get("attacker_weapon_2", None),
-                data.get("game_time", None),
-                data.get("attacker_current_weapon", None),
-                data.get("victim_weapon_3", None),
-                data.get("attacker_id", None),
-                data.get("game_mode", None),
-                data.get("victim_x", None),
-                data.get("attacker_weapon_1", None),
-                data.get("victim_weapon_1", None),
-                data.get("victim_weapon_2", None),
-                data.get("timeofkill", None),
-                data.get("cause_of_death", None),
-                data.get("victim_y", None),
-                " ".join(data.get("modsused", [])),
-                data.get("victim_type", None),
-                data.get("attacker_type", None)
-            )
+        with postgresem("./data/tf2helper.db") as tfdb:
+            c = tfdb
+            c.execute(
+                """
+                INSERT INTO specifickilltracker (
+                    serverid,
+                    attacker_z,
+                    attacker_x,
+                    attacker_y,
+                    victim_id,
+                    victim_name,
+                    victim_offhand_weapon_2,
+                    attacker_titan,
+                    map,
+                    attacker_offhand_weapon_1,
+                    attacker_offhand_weapon_2,
+                    victim_offhand_weapon_1,
+                    attacker_weapon_3,
+                    attacker_name,
+                    match_id,
+                    victim_titan,
+                    distance,
+                    victim_current_weapon,
+                    victim_z,
+                    attacker_weapon_2,
+                    game_time,
+                    attacker_current_weapon,
+                    victim_weapon_3,
+                    playeruid,
+                    game_mode,
+                    victim_x,
+                    attacker_weapon_1,
+                    victim_weapon_1,
+                    victim_weapon_2,
+                    timeofkill,
+                    cause_of_death,
+                    victim_y,
+                    weapon_mods,
+                    victim_type,
+                    attacker_type
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    data.get("server_id", None),
+                    data.get("attacker_z", None),
+                    data.get("attacker_x", None),
+                    data.get("attacker_y", None),
+                    data.get("victim_id", None),
+                    data.get("victim_name", None) if  data.get("victim_name", None) else data.get("victim_type", None),
+                    data.get("victim_offhand_weapon_2", None),
+                    data.get("attacker_titan", None),
+                    data.get("map", None),
+                    data.get("attacker_offhand_weapon_1", None),
+                    data.get("attacker_offhand_weapon_2", None),
+                    data.get("victim_offhand_weapon_1", None),
+                    data.get("attacker_weapon_3", None),
+                    data.get("attacker_name", None) if  data.get("attacker_name", None) else data.get("attacker_type", None),
+                    data.get("match_id", None),
+                    data.get("victim_titan", None),
+                    data.get("distance", None),
+                    data.get("victim_current_weapon", None),
+                    data.get("victim_z", None),
+                    data.get("attacker_weapon_2", None),
+                    data.get("game_time", None),
+                    data.get("attacker_current_weapon", None),
+                    data.get("victim_weapon_3", None),
+                    data.get("attacker_id", None),
+                    data.get("game_mode", None),
+                    data.get("victim_x", None),
+                    data.get("attacker_weapon_1", None),
+                    data.get("victim_weapon_1", None),
+                    data.get("victim_weapon_2", None),
+                    data.get("timeofkill", None),
+                    data.get("cause_of_death", None),
+                    data.get("victim_y", None),
+                    " ".join(data.get("modsused", [])),
+                    data.get("victim_type", None),
+                    data.get("attacker_type", None)
+                )
 
-        )
-        tfdb.commit()
-        c.close()
-        tfdb.close()
+            )
+            tfdb.commit()
+            c.close()
         return {"message": "ok"}
 
     @app.route("/servermessagein", methods=["POST"])
@@ -4191,20 +4154,20 @@ def getmessagewidget(metadata,serverid,messagecontent,message):
     elif metadata["type"] == "connect" and DISCORDBOTLOGSTATS == "1":
         pass
         uid = metadata["uid"]
-        tfdb = postgresem("./data/tf2helper.db")
-        c = tfdb
-        c.execute("SELECT count FROM joincounter WHERE playeruid = ? AND serverid = ?", (uid,serverid))
-        data = c.fetchone()
-        c.execute("SELECT leftatunix,joinatunix FROM playtime WHERE playeruid = ? AND serverid = ?", (uid,serverid))
-        data2 = c.fetchall()
-        
-        if data:
-            data = data[0]
-            output += f"\n({data}{get_ordinal(data)} time joining"
-            if data2:
-                data2 = sum(list(map(lambda x: x[0]-x[1], data2)))
-                output += f" - {data2//3600}h {data2//60%60}m time playing"
-            output += ")"
+        with postgresem("./data/tf2helper.db") as tfdb:
+            c = tfdb
+            c.execute("SELECT count FROM joincounter WHERE playeruid = ? AND serverid = ?", (uid,serverid))
+            data = c.fetchone()
+            c.execute("SELECT leftatunix,joinatunix FROM playtime WHERE playeruid = ? AND serverid = ?", (uid,serverid))
+            data2 = c.fetchall()
+            
+            if data:
+                data = data[0]
+                output += f"\n({data}{get_ordinal(data)} time joining"
+                if data2:
+                    data2 = sum(list(map(lambda x: x[0]-x[1], data2)))
+                    output += f" - {data2//3600}h {data2//60%60}m time playing"
+                output += ")"
     elif metadata["type"] in ["command","botcommand","tf1command"]:
         if DISCORDBOTLOGCOMMANDS != "1":
             return "",player
@@ -5136,18 +5099,17 @@ def displayendofroundstats(message,serverid,isfromserver):
 
 
     if not isfromserver:
-        tfdb = postgresem("./data/tf2helper.db")
-        c = tfdb
-        c.execute(
-            """SELECT matchid
-        FROM matchid
-        WHERE serverid = ?
-        ORDER BY time DESC
-        LIMIT 1;""",(serverid,))
-        matchid = c.fetchone()
-        if matchid:
-            matchid = matchid[0]
-        tfdb.close()
+        with postgresem("./data/tf2helper.db") as tfdb:
+            c = tfdb
+            c.execute(
+                """SELECT matchid
+            FROM matchid
+            WHERE serverid = ?
+            ORDER BY time DESC
+            LIMIT 1;""",(serverid,))
+            matchid = c.fetchone()
+            if matchid:
+                matchid = matchid[0]
     else:
         matchid = message.get("matchid",False)
             #     messageflush.append({
@@ -5567,18 +5529,17 @@ def calcstats(message,serverid,isfromserver):
             )
 
 def savemessages(message,serverid):
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    
-    c.execute(
-        """INSERT INTO messagelogger (message,type,serverid)
-            VALUES (?,?,?)
-        """,
-        (json.dumps(message),message.get("type","Unknown type"),serverid)
-    )
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        
+        c.execute(
+            """INSERT INTO messagelogger (message,type,serverid)
+                VALUES (?,?,?)
+            """,
+            (json.dumps(message),message.get("type","Unknown type"),serverid)
+        )
 
-    tfdb.commit()
-    tfdb.close()
+        tfdb.commit()
 async def checkverify(message):
     global accountlinker
     if len(accountlinker.keys()) == 0:
@@ -5594,19 +5555,18 @@ async def checkverify(message):
     #     return
     verify_data = accountlinker.get(str(content).strip(),False)
     if not verify_data: return
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
 
-    c.execute(
-        """INSERT INTO discordlinkdata (uid, discordid, linktime)
-            VALUES (?, ?, ?)
-            ON CONFLICT(uid) DO UPDATE SET discordid=excluded.discordid, linktime=excluded.linktime
-        """,
-        (uid, verify_data["account"], int(time.time()))
-    )
+        c.execute(
+            """INSERT INTO discordlinkdata (uid, discordid, linktime)
+                VALUES (?, ?, ?)
+                ON CONFLICT(uid) DO UPDATE SET discordid=excluded.discordid, linktime=excluded.linktime
+            """,
+            (uid, verify_data["account"], int(time.time()))
+        )
 
-    tfdb.commit()
-    tfdb.close()
+        tfdb.commit()
     await verify_data["ctx"].followup.send(
     f"linked <@{verify_data['account']}> to **{name}** (UID `{uid}`)",ephemeral = True)
 
@@ -5890,27 +5850,25 @@ def defaultoverride(data, serverid, statuscode):
 
 def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 = False):
     name = str(name)
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
 
-    name_like = f"%{name}%"
-    query = f"""
-        SELECT playeruid, playername FROM uidnamelink{'tf1' if istf1 else ''}
-        WHERE LOWER(playername) LIKE LOWER(?)
-        ORDER BY id DESC, playername COLLATE NOCASE
-    """
-    c.execute(query, (name_like,))
-    data = c.fetchall()
-    if not data and (uidnameforce == "uid" or uidnameforce is None):
-        # print("HERE BLURP",name,'tf1' if istf1 else 'tf2')
-        c.execute(f"""
+        name_like = f"%{name}%"
+        query = f"""
             SELECT playeruid, playername FROM uidnamelink{'tf1' if istf1 else ''}
-            WHERE playeruid = ?
-            ORDER BY id DESC
-        """, (name,))
+            WHERE LOWER(playername) LIKE LOWER(?)
+            ORDER BY id DESC, playername COLLATE NOCASE
+        """
+        c.execute(query, (name_like,))
         data = c.fetchall()
-
-    tfdb.close()
+        if not data and (uidnameforce == "uid" or uidnameforce is None):
+            # print("HERE BLURP",name,'tf1' if istf1 else 'tf2')
+            c.execute(f"""
+                SELECT playeruid, playername FROM uidnamelink{'tf1' if istf1 else ''}
+                WHERE playeruid = ?
+                ORDER BY id DESC
+            """, (name,))
+            data = c.fetchall()
 
     if not data:
         return []
@@ -5997,19 +5955,19 @@ def checkrconallowedtfuid(uid, typeof="rconrole"):
     if OVVERRIDEROLEREQUIRMENT == "1" and typeof == "coolperksrole":
         return True
     # print("CHECKING UID",uid)
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    c.execute("SELECT discordid FROM discordlinkdata WHERE uid = ?", (uid,))
-    result = c.fetchone()
-
-    if result is None:
-        c.execute("SELECT discordid FROM discordlinkdata WHERE discordid = ?", (uid,))
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        c.execute("SELECT discordid FROM discordlinkdata WHERE uid = ?", (uid,))
         result = c.fetchone()
-        if result is None:
-            return False
 
-    discordid = result[0]
-    return discordid in context["overriderolesuids"].get(typeof, [])
+        if result is None:
+            c.execute("SELECT discordid FROM discordlinkdata WHERE discordid = ?", (uid,))
+            result = c.fetchone()
+            if result is None:
+                return False
+
+        discordid = result[0]
+        return discordid in context["overriderolesuids"].get(typeof, [])
 def create_dynamic_command(command_name, description = None, rcon = False, parameters = [], commandparaminputoverride = {}, outputfunc=None,regularconsolecommand=False):
     param_list = []
     for param in parameters:
@@ -6293,24 +6251,23 @@ playerjoinlist = {}
 def checkandaddtouidnamelink(uid, playername, istf1 = False):
     global playercontext
     now = int(time.time())
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    c.execute(
-        f"SELECT id, playername FROM uidnamelink{'tf1' if istf1 else ''} WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
-    row = c.fetchone()
-    if row:
-        last_id, last_name = row
-        if str(playername) == str(last_name):
-            c.execute(
-                f"UPDATE uidnamelink{'tf1' if istf1 else ''} SET lastseenunix = ? WHERE id = ?",(now, last_id))
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        c.execute(
+            f"SELECT id, playername FROM uidnamelink{'tf1' if istf1 else ''} WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
+        row = c.fetchone()
+        if row:
+            last_id, last_name = row
+            if str(playername) == str(last_name):
+                c.execute(
+                    f"UPDATE uidnamelink{'tf1' if istf1 else ''} SET lastseenunix = ? WHERE id = ?",(now, last_id))
+            else:
+                c.execute(
+                    f"INSERT INTO uidnamelink{'tf1' if istf1 else ''} (playeruid, playername, firstseenunix, lastseenunix) VALUES (?, ?, ?, ?)",(uid, playername, now, now))
         else:
             c.execute(
                 f"INSERT INTO uidnamelink{'tf1' if istf1 else ''} (playeruid, playername, firstseenunix, lastseenunix) VALUES (?, ?, ?, ?)",(uid, playername, now, now))
-    else:
-        c.execute(
-            f"INSERT INTO uidnamelink{'tf1' if istf1 else ''} (playeruid, playername, firstseenunix, lastseenunix) VALUES (?, ?, ?, ?)",(uid, playername, now, now))
-    tfdb.commit()
-    tfdb.close()
+        tfdb.commit()
 
 
 def onplayerjoin(uid,serverid,nameof = False):
@@ -6319,53 +6276,52 @@ def onplayerjoin(uid,serverid,nameof = False):
     if istf1:
         return
     # print("joincommand", uid, serverid)
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    c.execute("SELECT discordidnotify FROM joinnotify WHERE uidnotify = ?",(uid,))
-    discordnotify = c.fetchall()
-    c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
-    # c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ?",(uid,))
-    playernames = c.fetchall()
-    if playernames:
-        playernames = [x[0] for x in playernames]
-    if nameof not in playernames or not playernames:
-        # c.execute("INSERT INTO uidnamelink (playeruid,playername) VALUES (?,?)",(uid,nameof))
-        checkandaddtouidnamelink(uid,nameof)
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        c.execute("SELECT discordidnotify FROM joinnotify WHERE uidnotify = ?",(uid,))
+        discordnotify = c.fetchall()
+        c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
+        # c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ?",(uid,))
+        playernames = c.fetchall()
+        if playernames:
+            playernames = [x[0] for x in playernames]
+        if nameof not in playernames or not playernames:
+            # c.execute("INSERT INTO uidnamelink (playeruid,playername) VALUES (?,?)",(uid,nameof))
+            checkandaddtouidnamelink(uid,nameof)
+            tfdb.commit()
+        if nameof:
+            playername = nameof
+        else:
+            playername = f"Unknown user by uid {uid}"
+        # print(f"{uid}{playername}",playerjoinlist)
+        if f"{uid}{playername}" in playerjoinlist.keys() and playerjoinlist[f"{uid}{playername}"]:
+            print("already in list")
+            return
+        c.execute("SELECT count FROM joincounter WHERE playeruid = ? AND serverid = ?",(uid,serverid))
+        count = c.fetchone()
+        if count:
+            count = count[0] + 1
+            c.execute("UPDATE joincounter SET count = ? WHERE playeruid = ? AND serverid = ?",(count,uid,serverid))
+        else:
+            c.execute("INSERT INTO joincounter (playeruid,serverid,count) VALUES (?,?,1)",(uid,serverid))
         tfdb.commit()
-    if nameof:
-        playername = nameof
-    else:
-        playername = f"Unknown user by uid {uid}"
-    # print(f"{uid}{playername}",playerjoinlist)
-    if f"{uid}{playername}" in playerjoinlist.keys() and playerjoinlist[f"{uid}{playername}"]:
-        print("already in list")
-        return
-    c.execute("SELECT count FROM joincounter WHERE playeruid = ? AND serverid = ?",(uid,serverid))
-    count = c.fetchone()
-    if count:
-        count = count[0] + 1
-        c.execute("UPDATE joincounter SET count = ? WHERE playeruid = ? AND serverid = ?",(count,uid,serverid))
-    else:
-        c.execute("INSERT INTO joincounter (playeruid,serverid,count) VALUES (?,?,1)",(uid,serverid))
-    tfdb.commit()
 
-    
-    if discordnotify:
-        discordnotify = [x[0] for x in discordnotify]
-    servername = context["serveridnamelinks"][serverid]
+        
+        if discordnotify:
+            discordnotify = [x[0] for x in discordnotify]
+        servername = context["serveridnamelinks"][serverid]
 
-    playerjoinlist[f"{uid}{playername}"] = True
-    for discordid in discordnotify:
-        print("notifying join",discordid)
-        messageflushnotify.append(
-            {
-                "servername": servername,
-                "player": playername,
-                "userid": discordid,
-                "sendingmessage": f"[JOINNOTIFY] {playername} has joined {servername}, disable this with /togglejoinnotify",
-            }
-        )
-    tfdb.close()
+        playerjoinlist[f"{uid}{playername}"] = True
+        for discordid in discordnotify:
+            print("notifying join",discordid)
+            messageflushnotify.append(
+                {
+                    "servername": servername,
+                    "player": playername,
+                    "userid": discordid,
+                    "sendingmessage": f"[JOINNOTIFY] {playername} has joined {servername}, disable this with /togglejoinnotify",
+                }
+            )
     
     
     
@@ -6376,33 +6332,32 @@ def onplayerleave(uid,serverid):
     if istf1:
         return
     print("leavecommand",uid,serverid)
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    c.execute("SELECT discordidnotify FROM joinnotify WHERE uidnotify = ?",(uid,))
-    discordnotify = c.fetchall()
-    c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
-    playername = c.fetchone()
-    if playername:
-        playername = playername[0]
-    else:
-        playername = f"Unkown user by uid {uid}"
-    if discordnotify:
-        discordnotify = [x[0] for x in discordnotify]
-    servername = context["serveridnamelinks"][serverid]
-    if f"{uid}{playername}" in playerjoinlist.keys() and not playerjoinlist[f"{uid}{playername}"]:
-        return
-    playerjoinlist[f"{uid}{playername}"] = False
-    for discordid in discordnotify:
-        print("notifying leave",discordid)
-        messageflushnotify.append(
-            {
-                "servername": servername,
-                "player": playername,
-                "userid": discordid,
-                "sendingmessage": f"[JOINNOTIFY] {playername} has left {servername}, disable this with /togglejoinnotify",
-            }
-        )
-    tfdb.close()
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        c.execute("SELECT discordidnotify FROM joinnotify WHERE uidnotify = ?",(uid,))
+        discordnotify = c.fetchall()
+        c.execute("SELECT playername FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(uid,))
+        playername = c.fetchone()
+        if playername:
+            playername = playername[0]
+        else:
+            playername = f"Unkown user by uid {uid}"
+        if discordnotify:
+            discordnotify = [x[0] for x in discordnotify]
+        servername = context["serveridnamelinks"][serverid]
+        if f"{uid}{playername}" in playerjoinlist.keys() and not playerjoinlist[f"{uid}{playername}"]:
+            return
+        playerjoinlist[f"{uid}{playername}"] = False
+        for discordid in discordnotify:
+            print("notifying leave",discordid)
+            messageflushnotify.append(
+                {
+                    "servername": servername,
+                    "player": playername,
+                    "userid": discordid,
+                    "sendingmessage": f"[JOINNOTIFY] {playername} has left {servername}, disable this with /togglejoinnotify",
+                }
+            )
     # if str(uid)+playername in playercontext.keys():
     #     savestats(playercontext[str(uid)+playername],1)
     #     playercontext[str(uid)+playername] = {}
@@ -6417,109 +6372,107 @@ def savestats(saveinfo):
     global playercontext
     # print("saving playerinfo",saveinfo)
     istf1 = context["istf1server"].get(saveinfo["serverid"],False) # {"tf2" if istf1 else ""}
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    params = (
-        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],
-        saveinfo["endtype"],
-        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],
-        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],
-        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],
-        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],
-        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"] - playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],
-        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"],
-    )
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        params = (
+            playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],
+            saveinfo["endtype"],
+            playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],
+            playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],
+            playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],
+            playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],
+            playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"] - playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],
+            playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"],
+        )
 
-    # print("Params before execute:", params)
-    try:
-        c.execute(f"SELECT playername FROM uidnamelink{'tf1' if istf1 else ''} WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],))
-        playernames = c.fetchall()
-        if playernames:
-            playernames = [x[0] for x in playernames]
-        if playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"] not in playernames or not playernames:
-            # c.execute("INSERT INTO uidnamelink (playeruid,playername) VALUES (?,?)",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"]))
+        # print("Params before execute:", params)
+        try:
+            c.execute(f"SELECT playername FROM uidnamelink{'tf1' if istf1 else ''} WHERE playeruid = ? ORDER BY id DESC LIMIT 1",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],))
+            playernames = c.fetchall()
+            if playernames:
+                playernames = [x[0] for x in playernames]
+            if playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"] not in playernames or not playernames:
+                # c.execute("INSERT INTO uidnamelink (playeruid,playername) VALUES (?,?)",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"]))
 
-            checkandaddtouidnamelink(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"],istf1)
-        if playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"] != 0:
-            c.execute(f"UPDATE playtime{'tf1' if istf1 else ''} SET leftatunix = ?, endtype = ?, scoregained = ?, titankills = ?, pilotkills = ?, deaths = ?, duration = ? WHERE id = ?",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"]))
-            lastrowid = playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"]
-        else:
-            c.execute(f"INSERT INTO playtime{'tf1' if istf1 else ''} (playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,matchid,timecounter ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["serverid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["npckills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["map"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["matchid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["timecounter"]))
-            lastrowid = c.lastrowid()
-    except Exception as e:
-        print("error in saving",e)
-        traceback.print_exc()
-        return 0
-    if saveinfo["endtype"] == 1 or saveinfo["endtype"] == 2:
-        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["playerhasleft"] = True
-    if saveinfo["endtype"] != 4:
-        pass
-    playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["mostrecentsave"] = True
-    playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"] = lastrowid
-    
-    tfdb.commit()
-    tfdb.close()
+                checkandaddtouidnamelink(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"],istf1)
+            if playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"] != 0:
+                c.execute(f"UPDATE playtime{'tf1' if istf1 else ''} SET leftatunix = ?, endtype = ?, scoregained = ?, titankills = ?, pilotkills = ?, deaths = ?, duration = ? WHERE id = ?",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"]))
+                lastrowid = playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"]
+            else:
+                c.execute(f"INSERT INTO playtime{'tf1' if istf1 else ''} (playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,matchid,timecounter ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["serverid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["npckills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["map"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["matchid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["timecounter"]))
+                lastrowid = c.lastrowid()
+        except Exception as e:
+            print("error in saving",e)
+            traceback.print_exc()
+            return 0
+        if saveinfo["endtype"] == 1 or saveinfo["endtype"] == 2:
+            playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["playerhasleft"] = True
+        if saveinfo["endtype"] != 4:
+            pass
+        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["mostrecentsave"] = True
+        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"] = lastrowid
+        
+        tfdb.commit()
     return lastrowid
 
 def addmatchtodb(matchid,serverid,currentmap):
     global matchids,playercontext
     istf1 = context["istf1server"].get(serverid,False) # {'tf1' if istf1 else ''}
     print("adding match to db",matchid,serverid)
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    c.execute(f"SELECT matchid FROM matchid{'tf1' if istf1 else ''} WHERE matchid = ?",(str(matchid),))
-    matchidcheck = c.fetchone()
-    if matchidcheck:
-        if serverid not in playercontext.keys():
-            playercontext[serverid] = {}
-        print("already in db, loading data")
-        c.execute(f"SELECT playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,id,timecounter FROM playtime{'tf1' if istf1 else ''} WHERE matchid = ?",(str(matchid),))
-        matchdata = c.fetchall()
-        c.execute(f"SELECT playername,playeruid FROM uidnamelink{'tf1' if istf1 else ''}")
-        playernames = c.fetchall()
-        playernames = {str(x[1]):x[0] for x in playernames}
-        for player in matchdata:
-            player = list(player)
-            player[0] = str(player[0])
-            player[4] = str(player[4])
-            # print("loading player data",player[0])
-            if player[0] not in playercontext[serverid]:
-                playercontext[serverid][player[0]] = {}
-            if player[0] in playernames.keys() and playernames[player[0]] not in playercontext[serverid][player[0]].keys():
-                playercontext[serverid][player[0]][playernames[player[0]]] = {}
-            else:
-                pass
-                # print("panic")
-                # print(player[0],playernames[player[0]],playercontext[serverid][player[0]],playernames, player[0] in playernames.keys(),playernames[player[0]] not in playercontext[serverid][player[0]].keys())
-                #print(list(playernames.keys()),[ player[0]])
-                continue
-            if matchid not in playercontext[serverid][player[0]][playernames[player[0]]]:
-                playercontext[serverid][player[0]][playernames[player[0]]][matchid] = []
-            playercontext[serverid][player[0]][playernames[player[0]]][matchid].append({
-                "uid":player[0],
-                "name":playernames[player[0]],
-                "joined":player[1],
-                "endtime":player[2],
-                "serverid":player[4],
-                "score":player[5],
-                "titankills":player[6],
-                "kills":player[7],
-                "npckills":player[8],
-                "deaths":player[9],
-                "map":player[10],
-                "idoverride":player[12],
-                "matchid":matchid,
-                "playerhasleft": player[3] == 1,
-                "mostrecentsave": True,
-                "loadedfromsave": True,
-                "timecounter": player[13]
-            })
-        matchids.append(matchid)
-        return
-    c.execute(f"INSERT INTO matchid{'tf1' if istf1 else ''} (matchid,serverid,map,time) VALUES (?,?,?,?)",(matchid,serverid,currentmap,int(time.time())))
-    
-    tfdb.commit()
-    tfdb.close()
+    with postgresem("./data/tf2helper.db") as tfdb:
+        c = tfdb
+        c.execute(f"SELECT matchid FROM matchid{'tf1' if istf1 else ''} WHERE matchid = ?",(str(matchid),))
+        matchidcheck = c.fetchone()
+        if matchidcheck:
+            if serverid not in playercontext.keys():
+                playercontext[serverid] = {}
+            print("already in db, loading data")
+            c.execute(f"SELECT playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,id,timecounter FROM playtime{'tf1' if istf1 else ''} WHERE matchid = ?",(str(matchid),))
+            matchdata = c.fetchall()
+            c.execute(f"SELECT playername,playeruid FROM uidnamelink{'tf1' if istf1 else ''}")
+            playernames = c.fetchall()
+            playernames = {str(x[1]):x[0] for x in playernames}
+            for player in matchdata:
+                player = list(player)
+                player[0] = str(player[0])
+                player[4] = str(player[4])
+                # print("loading player data",player[0])
+                if player[0] not in playercontext[serverid]:
+                    playercontext[serverid][player[0]] = {}
+                if player[0] in playernames.keys() and playernames[player[0]] not in playercontext[serverid][player[0]].keys():
+                    playercontext[serverid][player[0]][playernames[player[0]]] = {}
+                else:
+                    pass
+                    # print("panic")
+                    # print(player[0],playernames[player[0]],playercontext[serverid][player[0]],playernames, player[0] in playernames.keys(),playernames[player[0]] not in playercontext[serverid][player[0]].keys())
+                    #print(list(playernames.keys()),[ player[0]])
+                    continue
+                if matchid not in playercontext[serverid][player[0]][playernames[player[0]]]:
+                    playercontext[serverid][player[0]][playernames[player[0]]][matchid] = []
+                playercontext[serverid][player[0]][playernames[player[0]]][matchid].append({
+                    "uid":player[0],
+                    "name":playernames[player[0]],
+                    "joined":player[1],
+                    "endtime":player[2],
+                    "serverid":player[4],
+                    "score":player[5],
+                    "titankills":player[6],
+                    "kills":player[7],
+                    "npckills":player[8],
+                    "deaths":player[9],
+                    "map":player[10],
+                    "idoverride":player[12],
+                    "matchid":matchid,
+                    "playerhasleft": player[3] == 1,
+                    "mostrecentsave": True,
+                    "loadedfromsave": True,
+                    "timecounter": player[13]
+                })
+            matchids.append(matchid)
+            return
+        c.execute(f"INSERT INTO matchid{'tf1' if istf1 else ''} (matchid,serverid,map,time) VALUES (?,?,?,?)",(matchid,serverid,currentmap,int(time.time())))
+        
+        tfdb.commit()
     matchids.append(matchid)
 
 def playerpolllog(data,serverid,statuscode):
@@ -6860,8 +6813,8 @@ def convansi(rgb):
 
 def getstats(playeruid):
 # print(int(time.time()))
-        tfdb = postgresem("./data/tf2helper.db")
-        c = tfdb
+        with postgresem("./data/tf2helper.db") as tfdb:
+                c = tfdb
         # print(int(time.time()/))
         now = int(time.time())
         timeoffset = 86400
