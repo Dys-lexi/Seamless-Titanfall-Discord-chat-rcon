@@ -16,5 +16,6 @@ discord/db
 discord/CLAUDE.md
 .claude
 discord/.claude
+*claude*
 .venv
 .env
