@@ -616,7 +616,7 @@ if POSTGRESQLDBURL == "0":
 else:
     print("RUNNING ON POSTGRESQL DB")
     pgpool = pool.ThreadedConnectionPool(
-        1, 1000,
+        20, 200,
         dsn=POSTGRESQLDBURL
     )
     class postgresem:
@@ -714,7 +714,11 @@ else:
             if self.closed or not self.cursor:
                 return None
             try:
-                return self.cursor.fetchone()[0]
+                if self.cursor.description:
+                    row = self.cursor.fetchone()
+                    return row[0] if row else None
+                else:
+                    return None
             except Exception:
                 traceback.print_exc()
                 return None
@@ -3534,7 +3538,7 @@ def recieveflaskprintrequests():
                 # print((texts), (textvalidation))
                 # print("REALLY STOPPING")
                 if textsv3:
-                    print(json.dumps(textsv3,indent=4))
+                    print(json.dumps(textsv3,indent=1))
                 return {
                     "texts": {a: b for a, b in zip(textvalidation,texts)},
                     "textsv2":textsv2,
@@ -5975,7 +5979,7 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride,
                     except Exception as e:
                         print("error in defaultoverride", e)
                         overridemsg = None
-            if iscommandnotmessage:
+            if iscommandnotmessage and  not isinstance(ctx,str):
                 try:
                     await ctx.respond(
                         f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]['output']}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None,
@@ -5986,22 +5990,23 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride,
                     await ctx.reply(
                     f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]['output']}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None
                 )
-            else:
+            elif  not isinstance(ctx,str):
                 await reactomessages([ctx.id], serverid, "🟢"   )
                 
             break
 
         i += 1
     else:
-        if iscommandnotmessage:
-            try:
-                await ctx.respond("Command response timed out - server is unresponsive", ephemeral=False)
-            except:
-                traceback.print_exc()
-                await ctx.reply("Command response timed out - server is unresponsive")
+        if not isinstance(ctx,str):
+            if iscommandnotmessage:
+                try:
+                    await ctx.respond("Command response timed out - server is unresponsive", ephemeral=False)
+                except:
+                    traceback.print_exc()
+                    await ctx.reply("Command response timed out - server is unresponsive")
 
-        else:
-            await reactomessages([ctx.id], serverid, "🔴"   )
+            else:
+                await reactomessages([ctx.id], serverid, "🔴"   )
 
 def checkrconallowed(author,typeof = "rconrole"):
     global context
