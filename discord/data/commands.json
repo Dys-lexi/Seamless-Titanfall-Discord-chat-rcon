@@ -7,7 +7,7 @@
             "function": "ingamesetusercolour",
             "run": "thread",
             "description": "Change the colour of your name",
-            "shouldblock": true,
+            "shouldblock": false,
             "permsneeded": "coolperksrole"
         },
         "nametag": {

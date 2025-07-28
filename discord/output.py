@@ -538,6 +538,7 @@ def print(*message, end="\033[0m\n"):
     realprint(f"[38;2;215;22;105m{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}[38;2;126;89;140m{('['+line+']').ljust(6)}[38;2;27;64;152m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{linecolours[line]}m {message}", end=end)
 print("running discord logger bot")
 lastrestart = 0
+botisalreadyready = False
 messagecounter = 0
 SLEEPTIME_ON_FAILED_COMMAND = 2.5 #for when you are running multiple versions of the bot (like a dev version). if one bot cannot fulfill the command,
 # the other bot that can has time too, instead of the first responding with failure
@@ -935,18 +936,20 @@ async def weaponnamesautocomplete(ctx):
 @bot.event
 async def on_ready():
     global context
+    global botisalreadyready
     print(f"{bot.user} Connected!!")
     if context["logging_cat_id"] != 0:
         # get all channels in the category and store in serverchannels
         guild = bot.get_guild(context["activeguild"])
         category = guild.get_channel(context["logging_cat_id"])
         serverchannels = category.channels
-
-    if DISCORDBOTLOGSTATS == "1":
-        updateleaderboards.start()
-    await asyncio.sleep(30)
-    updatechannels.start()
-    updateroles.start()
+    if not botisalreadyready:
+        if DISCORDBOTLOGSTATS == "1":
+            updateleaderboards.start()
+        await asyncio.sleep(30)
+        updatechannels.start()
+        updateroles.start()
+    botisalreadyready = True
 
 @tasks.loop(seconds=1800)
 async def updateroles():
@@ -3395,9 +3398,10 @@ def recieveflaskprintrequests():
         
         output = ""
         try:
-            if data.get("command",False):
-                # print("ASKING TO SEND ENDOFSTATS")
-                output = tftodiscordcommand(data["command"],data.get("paramaters",False),str(data["serverid"]))
+            pass
+            # if data.get("command",False):
+            #     # print("ASKING TO SEND ENDOFSTATS")
+            #     output = tftodiscordcommand(data["command"],data.get("paramaters",False),str(data["serverid"]))
         except:
             traceback.print_exc()
             pass
@@ -6716,7 +6720,15 @@ def playerpolllog(data,serverid,statuscode):
     #     playercontext[pinfo["uid"]+pinfo["name"]]["npckills"] = pinfo["npckills"]
     #     playercontext[pinfo["uid"]+pinfo["name"]]["score"] = pinfo["score"]
 def threadwrap(function,*args):
+    try:
         function(*args)
+    except Exception as e:
+        print(f"Exception in thread {threading.current_thread().name}: {e}")
+        traceback.print_exc()
+    except KeyboardInterrupt:
+        print(f"Thread {threading.current_thread().name} interrupted")
+    finally:
+        pass
 
 def flattendict(current, path=[], result=[]):
     if isinstance(current, dict):
