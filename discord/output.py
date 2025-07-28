@@ -160,10 +160,10 @@ def discorduidinfodb():
         ALTER TABLE discorduiddata
         ALTER COLUMN discorduid TYPE BIGINT USING discorduid::BIGINT;
         """)
-    try:
-        c.execute("ALTER TABLE discorduiddata ADD COLUMN nameprefix TEXT")
-    except:
-        pass
+    # try:
+    #     c.execute("ALTER TABLE discorduiddata ADD COLUMN nameprefix TEXT")
+    # except:
+    #     pass
     # c.execute("ALTER TABLE discorduiddata ADD COLUMN choseningamecolour TEXT")
     c.execute("SELECT discorduid, chosencolour,choseningamecolour, nameprefix FROM discorduiddata")
     output = c.fetchall()
@@ -267,7 +267,8 @@ def readplayeruidpreferences(uid,istf1 = False):
     output = c.fetchone()
     try:
         output = json.loads(output[0]) if output else {}
-    except: pass
+    except:
+        traceback.print_exc()
     tfdb.close()
     return output
 
@@ -630,6 +631,7 @@ else:
                 self.conn = self.pool.getconn()
                 self.cursor = self.conn.cursor()
             except Exception:
+                traceback.print_exc()
                 self._cleanup()
                 raise
                     
@@ -647,11 +649,13 @@ else:
                 try:
                     self.cursor.close()
                 except Exception:
+                    traceback.print_exc()
                     pass
             if self.conn:
                 try:
                     self.pool.putconn(self.conn)
                 except Exception:
+                    traceback.print_exc()
                     pass
             self.cursor = None
             self.conn = None
@@ -667,18 +671,21 @@ else:
             try:
                 self.cursor.execute(query, params or ())
             except psycopg2.errors.InvalidTextRepresentation as e:
+                traceback.print_exc()
                 self.conn.rollback()
                 if "invalid input syntax for type bigint" in str(e) and query.strip().upper().startswith("SELECT"):
                     self._empty_result = True
                 else:
                     raise
             except psycopg2.errors.UndefinedFunction as e:
+                traceback.print_exc()
                 self.conn.rollback()
                 if "operator does not exist" in str(e) and query.strip().upper().startswith("SELECT"):
                     self._empty_result = True
                 else:
                     raise
             except psycopg2.Error as e:
+                traceback.print_exc()
                 self.conn.rollback() 
                 raise
             else:
@@ -709,13 +716,13 @@ else:
             try:
                 return self.cursor.fetchone()[0]
             except Exception:
+                traceback.print_exc()
                 return None
 
         def close(self):
             self._cleanup()
 
         def __del__(self):
-            self._cleanup()
             self._cleanup()
 # bantf1()
 # tf1matchplayers()
@@ -1217,6 +1224,7 @@ if DISCORDBOTLOGSTATS == "1":
                     if response.status != 200:
                         image_available = False
             except:
+                traceback.print_exc()
                 await ctx.respond("Failed to calculate pngleaderboard - cdn error")
                 return
         await ctx.respond(f"Open in browser for full res (links reset on bot restart, or after some time, request this leaderboard again if that happens)\n{cdn_url}")
@@ -2062,10 +2070,11 @@ if DISCORDBOTLOGSTATS == "1":
                 for i, (attacker, data) in enumerate(sorted_players):
                     count = data["kills"]
                     oldkills = data["killscutoff"]
+                    resolved = resolveplayeruidfromdb(attacker, "uid", True)
                     if not playeroverride:
-                        name = resolveplayeruidfromdb(attacker, "uid", True)[0]["name"] if attacker and resolveplayeruidfromdb(attacker, "uid", True) else attacker
+                        name = resolved[0]["name"] if attacker and resolved else attacker
                     else:
-                        name = f'{i+1+sorted_player_index}) {resolveplayeruidfromdb(attacker, "uid", True)[0]["name"] if attacker and resolveplayeruidfromdb(attacker, "uid", True) else attacker}'
+                        name = f'{i+1+sorted_player_index}) {resolved[0]["name"] if attacker and resolved else attacker}'
                     delta_kills = count - oldkills
                     previous_index = sorted_players_cutoff.index(attacker)
                     delta = previous_index - i
@@ -2458,6 +2467,7 @@ def sanctionoverride(data, serverid,statuscode):
         embed.add_field(name="Targeted player UID", value=f"\u200b {data['UID']}", inline=False)
         embed.add_field(name="Sanction Issuer", value=f"\u200b {data['issueruid']}", inline=False)
     except:
+        traceback.print_exc()
         embed.add_field(name="Response", value=f"\u200b {data}", inline=False)
     return embed
 
@@ -3297,15 +3307,15 @@ def computeauthornick (name,idauthor,content,serverid = False,rgbcolouroverride 
 def recieveflaskprintrequests():
 
     app = Flask(__name__)
-    def handle_flask_exception(e):
-        logging.error(
-            "Flask error during request to %s [%s]: %s",
-            request.path,
-            request.method,
-            str(e),
-            exc_info=True
-        )
-        return "Internal Server Error", 500
+    # def handle_flask_exception(e):
+    #     logging.error(
+    #         "Flask error during request to %s [%s]: %s",
+    #         request.path,
+    #         request.method,
+    #         str(e),
+    #         exc_info=True
+    #     )
+    #     return "Internal Server Error", 500
     # @app.route("/crash")
     # def crash():
     #     raise RuntimeError("bleh")
@@ -3357,6 +3367,7 @@ def recieveflaskprintrequests():
         try:
             filename = int(filename)
         except:
+            # traceback.print_exc()
             # print(filename[0:-4])
             if filename[-4:] == "TEST":
                 filename = filename[0:-4]
@@ -4119,7 +4130,7 @@ def recieveflaskprintrequests():
             return {"message": "success",**returnable}
         return {"message": "success"}
 
-    serve(app, host="0.0.0.0", port=PORT, threads=120,connection_limit=200)  # prod
+    serve(app, host="0.0.0.0", port=PORT, threads=40,connection_limit=200)  # prod
     #app.run(host="0.0.0.0", port=3451)  #dev
 
 
@@ -4684,8 +4695,9 @@ def tf1relay():
                 # try:print((discordtotitanfall[server]["serveronline"]))
                 # except:print(list(discordtotitanfall[server].keys()))
                 try:
-                    threading.Thread(target=threadwrap, daemon=True, args=(tf1readsend, server, i%10 == 0)).start()
-                except KeyboardInterrupt:
+                    tf1readsend( server, i%10 == 0)
+                except:
+                    traceback.print_exc()
                     return
         i += 1
 
@@ -5635,6 +5647,7 @@ def checkifbad(message):
                     if pattern.search(text):
                         return word
                 except re.error:
+                    traceback.print_exc()
                     continue
             else:
                 if word.lower() in text:
@@ -5906,8 +5919,7 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
     """
     c.execute(query, (name_like,))
     data = c.fetchall()
-    if not data and (uidnameforce == "uid" or uidnameforce is None):
-        # print("HERE BLURP",name,'tf1' if istf1 else 'tf2')
+    if not data and (uidnameforce == "uid" or uidnameforce is None) and name.isdigit():
         c.execute(f"""
             SELECT playeruid, playername FROM uidnamelink{'tf1' if istf1 else ''}
             WHERE playeruid = ?
@@ -5970,6 +5982,7 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride,
                         ephemeral=False,
                     )
                 except:
+                    traceback.print_exc()
                     await ctx.reply(
                     f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]['output']}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None
                 )
@@ -5984,6 +5997,7 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride,
             try:
                 await ctx.respond("Command response timed out - server is unresponsive", ephemeral=False)
             except:
+                traceback.print_exc()
                 await ctx.reply("Command response timed out - server is unresponsive")
 
         else:
@@ -6677,6 +6691,7 @@ def playerpolllog(data,serverid,statuscode):
             if not playercontext[serverid][uid]:
                 del playercontext[serverid][uid]
         except KeyError:
+            traceback.print_exc()
             # Optional: log or silently skip in case something was already deleted
             pass
 
@@ -6720,12 +6735,14 @@ def playerpolllog(data,serverid,statuscode):
     #     playercontext[pinfo["uid"]+pinfo["name"]]["npckills"] = pinfo["npckills"]
     #     playercontext[pinfo["uid"]+pinfo["name"]]["score"] = pinfo["score"]
 def threadwrap(function,*args):
+    # print("ACTIVE THREADS",threading.active_count())
     try:
         function(*args)
     except Exception as e:
         print(f"Exception in thread {threading.current_thread().name}: {e}")
         traceback.print_exc()
     except KeyboardInterrupt:
+        traceback.print_exc()
         print(f"Thread {threading.current_thread().name} interrupted")
     finally:
         pass
@@ -6883,6 +6900,7 @@ def getstats(playeruid):
             name = output["name"]
             playeruid = (output["uid"])
         except:
+            traceback.print_exc()
             name = "unknown"
             return {"sob":"sobbing Unknown player"}
         messages = {}
