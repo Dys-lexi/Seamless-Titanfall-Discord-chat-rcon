@@ -29,8 +29,50 @@ import sys
 import logging
 import psycopg2
 from psycopg2 import pool
-# import tracemalloc
-# tracemalloc.start()
+
+# # Execution monitoring for stuck detection
+# import threading
+# stuck_monitor_lock = threading.Lock()
+# current_execution = {'file': None, 'line': None, 'start_time': None}
+
+# def log_stuck_execution(filename, lineno, duration):
+#     """Log stuck execution to ./data/stuck.txt"""
+#     try:
+#         os.makedirs('./data', exist_ok=True)
+#         with open('./data/stuck.txt', 'a') as f:
+#             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+#             f.write(f"[{timestamp}] STUCK: {filename}:{lineno} - {duration:.1f}s\n")
+#     except Exception as e:
+#         print(f"Failed to log stuck execution: {e}")
+
+# def execution_tracer(frame, event, arg):
+#     """Trace function execution and detect stuck lines"""
+#     if event == 'line':
+#         filename = frame.f_code.co_filename
+#         lineno = frame.f_lineno
+#         current_time = time.time()
+        
+#         with stuck_monitor_lock:
+#             # Check if previous line was stuck
+#             if current_execution['start_time'] is not None:
+#                 duration = current_time - current_execution['start_time']
+#                 if duration > 35.0:  # 35 second threshold
+#                     log_stuck_execution(
+#                         current_execution['file'], 
+#                         current_execution['line'], 
+#                         duration
+#                     )
+            
+#             # Update current execution tracking
+#             current_execution['file'] = filename
+#             current_execution['line'] = lineno
+#             current_execution['start_time'] = current_time
+    
+#     return execution_tracer
+
+
+# sys.settrace(execution_tracer)
+
 
 def create_all_indexes():
     tfdb = postgresem("./data/tf2helper.db")
@@ -515,28 +557,28 @@ reactedyellowtoo = []
 #         f.write("")
 realprint = print
 linecolours = {}
-def print(*message, end="\033[0m\n"):
-    global linecolours
-    message = " ".join([str(i) for i in message])
-    if len(message) < 1000000 and False:
-        with open("./data/" + log_file, "a") as file:
-            file.write(
-                datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                + ": "
-                + str(message)
-                + "\n"
-            )
+# def print(*message, end="\033[0m\n"):
+#     global linecolours
+#     message = " ".join([str(i) for i in message])
+#     if len(message) < 1000000 and False:
+#         with open("./data/" + log_file, "a") as file:
+#             file.write(
+#                 datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+#                 + ": "
+#                 + str(message)
+#                 + "\n"
+#             )
         
 
-    function = str(inspect.currentframe().f_back.f_code.co_name)
-    line = str(inspect.currentframe().f_back.f_lineno)
-    if line not in linecolours:
-        while True:
-            colour = random.randint(0, 255)
-            if colour not in DISALLOWED_COLOURS:
-                break
-        linecolours[line] = colour
-    realprint(f"[38;2;215;22;105m{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}[38;2;126;89;140m{('['+line+']').ljust(6)}[38;2;27;64;152m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{linecolours[line]}m {message}", end=end)
+#     function = str(inspect.currentframe().f_back.f_code.co_name)
+#     line = str(inspect.currentframe().f_back.f_lineno)
+#     if line not in linecolours:
+#         while True:
+#             colour = random.randint(0, 255)
+#             if colour not in DISALLOWED_COLOURS:
+#                 break
+#         linecolours[line] = colour
+#     realprint(f"[38;2;215;22;105m{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}[38;2;126;89;140m{('['+line+']').ljust(6)}[38;2;27;64;152m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{linecolours[line]}m {message}", end=end)
 print("running discord logger bot")
 lastrestart = 0
 botisalreadyready = False
@@ -619,6 +661,7 @@ else:
         20, 200,
         dsn=POSTGRESQLDBURL
     )
+    
     class postgresem:
         def __init__(self, what=False):
             self.closed = False
@@ -626,11 +669,19 @@ else:
             self.conn = None
             self.cursor = None
             self._empty_result = False
+            self.connection_id = id(self)  # Track this connection instance
             # Establish connection immediately like original code
             try:
                 self.conn = self.pool.getconn()
                 self.cursor = self.conn.cursor()
+
+                # Print current pool status when acquiring
+                # used = len(pgpool._used) if hasattr(pgpool, '_used') else "?"
+                # free = len(pgpool._pool) if hasattr(pgpool, '_pool') else "?"
+                # function = str(inspect.currentframe().f_back.f_code.co_name)
+                # print(f"[{function}] DB Connection {self.connection_id}: ACQUIRED (Pool now: {free} left, {used} in use)")
             except Exception:
+                print(f"DB Connection {self.connection_id}: FAILED TO ACQUIRE")
                 traceback.print_exc()
                 self._cleanup()
                 raise
@@ -643,6 +694,7 @@ else:
             
         def _cleanup(self):
             if self.closed:
+                # print(f"DB Connection {self.connection_id}: ALREADY CLOSED (double cleanup)")
                 return
             self.closed = True
             if self.cursor:
@@ -954,7 +1006,7 @@ async def on_ready():
         guild = bot.get_guild(context["activeguild"])
         category = guild.get_channel(context["logging_cat_id"])
         serverchannels = category.channels
-    if not botisalreadyready:
+    if not botisalreadyready and False:
         if DISCORDBOTLOGSTATS == "1":
             updateleaderboards.start()
         await asyncio.sleep(30)
@@ -1182,9 +1234,10 @@ if DISCORDBOTLOGSTATS == "1":
         playernamereal = playernamereal[0]
 
         output = f"{playernamereal} has {playerstats[0]} Pilot kills, {playerstats[2]} Deaths, {playerstats[3]} Titan kills and {modifyvalue(int(playerstats[1] if playerstats[1] else 0),'time')} Time played"
-        formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
         asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} {output}"),"fake context",None,True,False), bot.loop)
         if bestgame:
+            formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
+
             asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} {playernamereal} had their best game in {MAP_NAME_TABLE.get(bestgame[1],bestgame[1])} with {bestgame[3]} kills on {formatted_date}"),"fake context",None,True,False), bot.loop)
 
     # @bot.slash_command(name="gunleaderboard",description="Gets leaderboards for a gun")
@@ -6740,7 +6793,6 @@ def playerpolllog(data,serverid,statuscode):
     #     playercontext[pinfo["uid"]+pinfo["name"]]["npckills"] = pinfo["npckills"]
     #     playercontext[pinfo["uid"]+pinfo["name"]]["score"] = pinfo["score"]
 def threadwrap(function,*args):
-    # print("ACTIVE THREADS",threading.active_count())
     try:
         function(*args)
     except Exception as e:
@@ -6810,7 +6862,7 @@ def playerpoll():
     global discordtotitanfall,playercontext,context
     Ithinktheserverhascrashed = 180
     autosaveinterval = 120
-    pinginterval = 7
+    pinginterval = 10
     # if the player leaves and rejoins, continue their streak.
     # if the server does not respond for this time, assume it crashed.
     counter = 0

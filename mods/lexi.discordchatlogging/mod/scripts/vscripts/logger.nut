@@ -757,7 +757,7 @@ void function DiscordClientMessageinloop()
     request.url = serverdetails.Requestpath + "/askformessage"
 	request.body = EncodeJSON(params)
 
-	int timeout = 10
+	int timeout = 60
 	if (check.denylogging == 1){
 		break
 	}
