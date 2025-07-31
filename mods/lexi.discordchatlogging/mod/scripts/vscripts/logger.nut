@@ -343,7 +343,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 		// }
 	}
 	#if SANCTIONAPI_ENABLED
-		meta["ismuted"]  <- CheckMute(message.player)
+		meta["ismuted"]  <- true
 	#endif
 	meta["teamtype"] <- teammessage
 	meta["teamint"] <- message.player.GetTeam()

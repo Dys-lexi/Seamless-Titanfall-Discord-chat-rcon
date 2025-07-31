@@ -442,11 +442,17 @@ def bantf1():
             baninfo TEXT,
             playerip TEXT,
             playername TEXT,
-            playeruid TEXT,
+            playeruid INTEGER,
             lastseen INTEGER,
-            lastserverid INTEGER
+            lastserverid INTEGER,
+            expire INTEGER
             )"""
     )
+    if POSTGRESQLDBURL != "0":
+        c.execute("""
+        ALTER TABLE banstf1
+        ALTER COLUMN playeruid TYPE BIGINT USING playeruid::BIGINT;
+        """)
     # c.execute("ALTER TABLE banstf1 ADD COLUMN lastserverid INTEGER")
 
     tfdb.commit()
@@ -1120,6 +1126,10 @@ async def sanctiontf1(
     expiry:Option(str,"The expiry time of the sanction in format yyyy-mm-dd, omit is forever (uses gmt time)", required = False) = None,
 
     ):
+    if not checkrconallowed(ctx.author):
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        await ctx.respond("You are not allowed to use this command.", ephemeral=False)
+        return
     # banid = name.lsplit("|",1)[0].strip().rsplit(" ",1)[1:-1]
     baninfo = {"uploadtime":int(time.time()),"uploaded by":ctx.author.name,"type":sanctiontype,"reason":reason}
     
@@ -1311,12 +1321,22 @@ if DISCORDBOTLOGSTATS == "1":
         # timestamp = await asyncio.to_thread(getweaponspng, leaderboard_entry.get("displayvictims", False),leaderboardcategorysshown, maxshown, leaderboard_entry.get("columns", False))
         player = resolveplayeruidfromdb(playername,None,True)
         if not player:
-            await ctx.respond(f"{playername}player not found", ephemeral=False)
+            await ctx.respond(f"{playername} player not found", ephemeral=False)
             return
         searchterm = False
         if leaderboard:
-            searchterm = [*ABILITYS_PILOT, *GRENADES, *DEATH_BY_MAP, *MISC_MISC, *MISC_TITAN, *MISC_PILOT, *CORES, *GUNS_TITAN, *GUNS_PILOT, *ABILITYS_TITAN]
-            searchterm = list(filter(lambda x:  leaderboard.lower() in  WEAPON_NAMES.get(x["weapon_name"],x["weapon_name"]).lower(),searchterm))
+        # tfdb = postgresem("./data/tf2helper.db")
+        # c = tfdb
+        # c.execute("SELECT DISTINCT cause_of_death FROM specifickilltracker ORDER BY cause_of_death")
+            searchterm = list(filter(lambda x:  leaderboard.lower() in  WEAPON_NAMES.get(x["weapon_name"],x["weapon_name"]).lower(),[*ABILITYS_PILOT, *GRENADES, *DEATH_BY_MAP, *MISC_MISC, *MISC_TITAN, *MISC_PILOT, *CORES, *GUNS_TITAN, *GUNS_PILOT, *ABILITYS_TITAN]))
+            if not searchterm:
+                searchterm = [{
+                    "weapon_name":leaderboard,
+                    "png_name":leaderboard,
+                    "mods":[],
+                    "modsfiltertype":"include",
+                    "killedby":["player"]
+                }]
         timestamp = await asyncio.to_thread(getweaponspng, fliptovictims != "No",searchterm, 50 if searchterm else 10,False,350,player[0]["uid"])
         cdn_url = f"{GLOBALIP}/cdn/{timestamp}"
         if not timestamp:
@@ -1946,8 +1966,9 @@ if DISCORDBOTLOGSTATS == "1":
         weapon_names = [os.path.splitext(f)[0] for f in weapon_images]
 
         if specificweapon:
-            weapon_names = [w for w in weapon_names if w in list(map(lambda x: x["png_name"],specificweapon))]
+            weapon_names = [w for w in weapon_names if w in list(map(lambda x: x["png_name"],specificweapon)) or True] # if no image, who cares! (might break stuff)
             if not weapon_names:
+                pass
                 print("No matching weapon images found for the given list.")
                 return None
 
@@ -3289,7 +3310,8 @@ async def on_message(message):
         # elif discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5:
         #     dotreacted = "🟡" 
         if message.content != "": #and not context["istf1server"].get(serverid,False):
-            print(len(f"{authornick}: {PREFIXES['neutral']}{message.content}"),f"{authornick}: {PREFIXES['neutral']}{message.content}\033[0m")
+            print(f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {message.content}")
+            # print(len(f"{authornick}: {PREFIXES['neutral']}{message.content}"),f"{authornick}: {PREFIXES['neutral']}{message.content}\033[0m")
             # print(len(f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}"))
             discordtotitanfall[serverid]["messages"].append(
                 {
@@ -3344,7 +3366,7 @@ def colourmessage(message,serverid):
             link = c.fetchone()
             discorduidnamelink[message["metadata"]["uid"]] = link[0] if link and link[0] else False
             discorduid = discorduidnamelink.get(message["metadata"]["uid"],False)
-    elif (not message["metadata"].get("ismuted") and message["metadata"].get("type",False) != "impersonate") :  
+    elif not message["metadata"].get("ismuted") and message["metadata"].get("type",False) != "impersonate" :  
         if not discorduid:
             tfdb = postgresem("./data/tf2helper.db")
             c = tfdb
@@ -3390,7 +3412,7 @@ def colourmessage(message,serverid):
         discordtotitanfall[serverid]["messages"].append(
         {
             "content":output["friendly"],
-            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+            "uidoverride": [getpriority(message,"uid",["metadata","uid"])]
         }
         )
         return False
@@ -4554,6 +4576,7 @@ def tf1readsend(serverid,checkstatus):
                 # print("ONLINE",serverid,"ONLINE",bool (len(statusoutput.keys()) -1),statusoutput)
                 discordtotitanfall[serverid]["serveronline"] = bool (len(statusoutput.keys()) -1)
                 if not discordtotitanfall[serverid]["serveronline"]:
+                    # print("MEOW")
                     offlinethisloop = True
                     return
                 # status = client.run("status")
@@ -4597,6 +4620,7 @@ def tf1readsend(serverid,checkstatus):
             
     
     except ConnectionRefusedError as e:
+        # print(serverid,"CORE BROKEY SOB",e)
         outputstring = ""
         status = ""
         discordtotitanfall[serverid]["serveronline"] = False
@@ -5116,7 +5140,6 @@ def tftodiscordcommand(specificommand,command,serverid):
         )
         asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid, getpriority(command, "originalmessage","messagecontent")), "fake context", sendthingstoplayer, True, True,getpriority(command,"uid",["meta","uid"])), bot.loop)
     # print(specificommand)
-    
     elif context["commands"]["ingamecommands"][specificommand]["run"] == "thread":
         threading.Thread(target=threadwrap, daemon=True, args=(globals()[context["commands"]["ingamecommands"][specificommand]["function"]], command, serverid, servercommand)).start()
     elif context["commands"]["ingamecommands"][specificommand]["run"] == "async":
@@ -5264,8 +5287,9 @@ def shownamecolours(message,serverid,isfromserver):
         )
 
 def checkbantf1(message,serverid,isfromserver):
+    # print("CHECKING BANNNS")
     c = postgresem("./data/tf2helper.db")
-    c.execute("SELECT id FROM banstf1 WHERE playerip = ? AND playername = ? AND playeruid = ?",(message["ip"],message["name"],message["uid"]))
+    c.execute("SELECT id FROM banstf1 WHERE playerip = ? AND playername = ? AND playeruid = ?",(message["ip"],message["name"],int(message["uid"])))
     playerid = c.fetchall()
     if playerid:
         playerid = playerid[0]
@@ -5273,17 +5297,18 @@ def checkbantf1(message,serverid,isfromserver):
     else:
         c.execute("INSERT INTO banstf1 (playerip,playername,playeruid,lastseen,lastserverid) VALUES (?,?,?,?,?)",(message["ip"],message["name"],message["uid"],int(time.time()),serverid))
         playerid = c.lastrowid()
-    
+    c.commit()
     c.execute("SELECT playerip, playername, playeruid,bantype, banlinks, baninfo, expire, id FROM banstf1")
     # banlinks is what must be the same for ban to carry through. imo is better as a number tho
     bans = list(map(lambda x: {"ip":x[0],"name":x[1],"uid":x[2],"bantype":x[3],"banlinks":x[4],"baninfo":x[5],"expire":x[6],"exhaustion":0,"id":x[7]} ,list(c.fetchall())))
 
     bannedpeople = findallbannedpeople(bans,list(filter(lambda x:x["bantype"],bans)),10)
-    if filter(lambda x: playerid == x["id"],bannedpeople):
+    if list(filter(lambda x: playerid == x["id"],bannedpeople)):
         # they're banned! or muted, depends
         if "ban" in list(map(lambda x: x["bantype"],filter(lambda x: playerid == x["id"],bannedpeople))):
+            # print(f'!rcon kickid {message["kickid"]} {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context")
             asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!rcon kickid {message["kickid"]} {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context",None,True,False), bot.loop)
-
+        # print("e",list(filter(lambda x: playerid == x["id"],bannedpeople)))
         asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!muteplayer {message["kickid"]} {str("ban" in list(map(lambda x: x["bantype"],filter(lambda x: playerid == x["id"],bannedpeople))))} {datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]).day % 10, 'th')} of %B %Y")} rsn {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context",None,True,False), bot.loop)
 def findallbannedpeople(bans,originalbans,bandepth):
     newbans = []
@@ -5563,8 +5588,8 @@ def displayendofroundstats(message,serverid,isfromserver):
         
 def togglepersistentvar(message,serverid,isfromserver):
     istf1 = context["istf1server"].get(serverid,False) != False
-    args = message.get("originalmessage".split(" "))[1:]
-    if args and args[0] not in filter(lambda x: x.get("run") == "togglestat",context["commands"]["ingamecommands"]) and args[0] not in ["help","h"]:
+    args = message["originalmessage"].split(" ")[1:]
+    if args and args[0] not in [*list(map(lambda x:x[0],filter(lambda x: x[1].get("run") == "togglestat",context["commands"]["ingamecommands"].items()))),"help","h"]:
         discordtotitanfall[serverid]["messages"].append(
         {
             # "id": str(int(time.time()*100)),
@@ -5576,11 +5601,11 @@ def togglepersistentvar(message,serverid,isfromserver):
         }
         )
     
-    if not len(args) or args[0] not in filter(lambda x: x.get("run") == "togglestat",context["commands"]["ingamecommands"]):
+    if not len(args) or args[0] not in [*list(map(lambda x:x[0],filter(lambda x: x[1].get("run") == "togglestat",context["commands"]["ingamecommands"].items())))]:
         # we need to find all the toggle commands! they all run toggle stats.
         cmdcounter = 0
         for name,command in context["commands"]["ingamecommands"].items():
-            if command.get("run") != "togglestat" or ("tf1" if istf1 else "tf2",internaltoggle) not in command.get("games"):
+            if command.get("run") != "togglestat" or ("tf1" if istf1 else "tf2") not in command.get("games"):
                 continue
             cmdcounter +=1
             discordtotitanfall[serverid]["messages"].append(
@@ -5593,7 +5618,7 @@ def togglepersistentvar(message,serverid,isfromserver):
                     # "dotreacted": dotreacted
                 }
                 )
-        if cmdcounter > 11 - bool(args and args[0] not in filter(lambda x: x.get("run") == "togglestat",context["commands"]["ingamecommands"]) and args[0] not in ["help","h"]):
+        if cmdcounter > 11 - bool(args and args[0] not in [*list(map(lambda x:x[0],filter(lambda x: x[1].get("run") == "togglestat",context["commands"]["ingamecommands"].items())))] and args[0] not in ["help","h"]):
             discordtotitanfall[serverid]["messages"].append(
             {
                 # "id": str(int(time.time()*100)),
@@ -5646,7 +5671,7 @@ def showingamesettings(message,serverid,isfromserver):
             return
     preferencesuid = getpriority( readplayeruidpreferences(uid,istf1),["tf1" if istf1 else "tf2"])
     if not preferencesuid: preferencesuid = {}
-    discorduid =  pullid(name["uid"],"discord")
+    discorduid =  pullid(uid,"discord")
     if discorduid:
         c = postgresem("./data/tf2helper.db")
         c.execute("SELECT discorduid, chosencolour,choseningamecolour, nameprefix FROM discorduiddata WHERE discorduid = ?",(discorduid,))
@@ -5657,7 +5682,7 @@ def showingamesettings(message,serverid,isfromserver):
         
     else:discorduid = {}
     cmdcounter = 0
-    if not any({**preferencesuid,**discordstats[discorduid]}).values():
+    if not any({**preferencesuid,**discordstats[discorduid]}.values()):
         discordtotitanfall[serverid]["messages"].append(
             {
                 # "id": str(i) + str(int(time.time()*100)),
@@ -5674,7 +5699,7 @@ def showingamesettings(message,serverid,isfromserver):
         discordtotitanfall[serverid]["messages"].append(
             {
                 # "id": str(i) + str(int(time.time()*100)),
-                "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{keyletter}toggle {name}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command}",
+                "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{name}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command}",
                 # "teamoverride": 4,
                 # "isteammessage": False,
                 "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -5787,7 +5812,7 @@ def ingamehelp(message,serverid,isfromserver):
         # print("tf1" if istf1 else "tf2","tf1" if istf1 else "tf2" in command["games"])
         # print("BLEH",(not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]))))
         # print(  (not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"])),command.get("permsneeded",False)) )
-        if name != "helpdc" and (not commandoverride or commandoverride.lower() in name) and ("tf1" if istf1 else "tf2") in command["games"] and (not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]),command.get("permsneeded",False))) and (not command.get("serversenabled",False) or int(serverid) in command["serversenabled"]):
+        if name != "helpdc" and (not commandoverride or commandoverride.lower() in name) and ("tf1" if istf1 else "tf2") in command["games"] and (not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]),command.get("permsneeded",False))) and (not command.get("serversenabled",False) or int(serverid) in command["serversenabled"]) and command.get("run") != "togglestat":
             cmdcounter +=1
             
             discordtotitanfall[serverid]["messages"].append(
@@ -6977,7 +7002,8 @@ def playerpolllog(data,serverid,statuscode):
     for uid, name, matchidofsave in to_delete:
         print("deleting", uid, name, matchidofsave)
         try:
-            del playercontext[serverid][uid][name][matchidofsave]
+            if playercontext[serverid][uid][name].get(matchidofsave):
+                del playercontext[serverid][uid][name][matchidofsave]
             if not playercontext[serverid][uid][name]:
                 del playercontext[serverid][uid][name]
             if not playercontext[serverid][uid]:
