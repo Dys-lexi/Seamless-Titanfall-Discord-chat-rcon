@@ -111,6 +111,13 @@
             "description": "Throw somone, you meanie",
             "shouldblock": true,
             "permsneeded": "rconrole"
+        },
+        "checkbantf1": {
+            "games": [
+            ],
+            "run": "checkbantf1",
+            "description": "internal command to check if somone is banned / muted",
+            "shouldblock": true
         }
     },
     "botcommands": {

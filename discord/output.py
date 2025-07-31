@@ -424,7 +424,7 @@ def playeruidnamelinktf1():
         ALTER COLUMN playeruid TYPE BIGINT USING playeruid::BIGINT;
         """)
     # try:
-    #     c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN firstseenunix INTEGER")
+        # c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN firstseenunix INTEGER")
     #     c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN lastseenunix INTEGER") 
     # except:pass
     tfdb.commit()
@@ -433,17 +433,22 @@ def bantf1():
     tfdb = postgresem("./data/tf2helper")
     c = tfdb
     # banid is because the bot automatically bans new names / ips
-    c.execute("DROP TABLE IF EXISTS banstf1")
+    # c.execute("DROP TABLE IF EXISTS banstf1")
     c.execute(
         """CREATE TABLE IF NOT EXISTS banstf1 (
             id SERIAL PRIMARY KEY,
-            baninfo TEXT
+            banlinks INTEGER,
+            bantype TEXT,
+            baninfo TEXT,
             playerip TEXT,
             playername TEXT,
             playeruid TEXT,
-            lastseen INT
+            lastseen INTEGER,
+            lastserverid INTEGER
             )"""
     )
+    # c.execute("ALTER TABLE banstf1 ADD COLUMN lastserverid INTEGER")
+
     tfdb.commit()
     tfdb.close()
 
@@ -494,6 +499,7 @@ def playtimedb():
     c.execute(
         """CREATE TABLE IF NOT EXISTS playtime (
             id SERIAL PRIMARY KEY,
+            expire INTEGER,
             playeruid INTEGER,
             joinatunix INTEGER,
             leftatunix INTEGER,
@@ -597,7 +603,7 @@ SHOULDUSETHROWAI = os.getenv("DISCORD_BOT_USE_THROWAI", "1")
 LOCALHOSTPATH = os.getenv("DISCORD_BOT_LOCALHOST_PATH","localhost")
 DISCORDBOTAIUSED = os.getenv("DISCORD_BOT_AI_USED","deepseek-r1")
 DISCORDBOTLOGSTATS = os.getenv("DISCORD_BOT_LOG_STATS","1")
-DISCORDBOTLOGSTATS = "1" # I worry about the amount of things that will break if this is off
+DISCORDBOTLOGSTATS = "1" # I worry about the amount of things that will break if this is off (banning,custom messages, stats, every command that needs a name)
 SERVERPASS = os.getenv("DISCORD_BOT_PASSWORD", "*")
 LEADERBOARDUPDATERATE = int(os.getenv("DISCORD_BOT_LEADERBOARD_UPDATERATE", "800"))
 DISCORDBOTLOGCOMMANDS = os.getenv("DISCORD_BOT_LOG_COMMANDS", "1")
@@ -780,7 +786,7 @@ else:
 
         def __del__(self):
             self._cleanup()
-# bantf1()
+bantf1()
 # tf1matchplayers()
 # matchidtf1()
 def savecontext():
@@ -908,7 +914,7 @@ async def autocompletenamesfromdb(ctx):
     return output
 
 async def autocompletenamesanduidsfromdb(ctx):
-    output =  [f"{x["name"]} ({x["uid"]})" if x["name"].strip() else str(x["uid"]) for x in  resolveplayeruidfromdb(ctx.value,None,True)][:20]
+    output =  [f"{x["name"]}->({x["uid"]})" if x["name"].strip() else str(x["uid"]) for x in  resolveplayeruidfromdb(ctx.value,None,True)][:20]
     if len(output) == 0:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["No one matches"]
@@ -918,12 +924,12 @@ async def autocompletenamesfromtf1bans(ctx):
     if not checkrconallowed(ctx.interaction.user):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["You don't have permission to use this command"]
-    
+    # print("meow")
     if not ctx.value:
         return []
     
     try:
-        c = tfdb
+        c = postgresem("./data/tf2helper.db")
         c.execute("""
             SELECT b.id, b.playername, b.playerip, b.playeruid, b.lastseen
             FROM banstf1 b
@@ -935,7 +941,7 @@ async def autocompletenamesfromtf1bans(ctx):
         """, (f"%{ctx.value.lower()}%", f"{ctx.value.lower()}%"))
         
         results = c.fetchall()
-        
+        c.close()
         if not results:
             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
             return ["No matches found"]
@@ -957,9 +963,10 @@ async def autocompletenamesfromtf1bans(ctx):
             ip_str = ip if ip else "unknown"
             
             name_with_id = f"{name} ({ban_id})"
-            option = f"{name_with_id} | {ip_str} | {uid_str} | {time_ago}"
-            options.append(option[:100])
-        
+            
+            option = f"{name} | {ip_str} | {uid_str} | {time_ago}"
+            options.append(option[:80])
+        # print("w",options)
         return options
         
     except Exception as e:
@@ -1013,7 +1020,7 @@ async def on_ready():
         guild = bot.get_guild(context["activeguild"])
         category = guild.get_channel(context["logging_cat_id"])
         serverchannels = category.channels
-    if not botisalreadyready and False:
+    if not botisalreadyready:
         if DISCORDBOTLOGSTATS == "1":
             updateleaderboards.start()
         await asyncio.sleep(30)
@@ -1108,10 +1115,12 @@ async def sanctiontf1(
     ctx,
     name: Option(str, "The playername", autocomplete=autocompletenamesfromtf1bans),
     sanctiontype: Option(str, "The type of sanction to apply", choices=["mute", "ban"] ),
+    banlinks:Option(int, "How many links needed for a ban to persist (DON'T USE IF DON'T KNOW)",choices=[1,2,3]),
     reason: Option(str,  "The reason for the sanction", required=True),
-    expiry:Option(str,"The expiry time of the sanction in format yyyy-mm-dd, omit is forever (uses gmt time)")
+    expiry:Option(str,"The expiry time of the sanction in format yyyy-mm-dd, omit is forever (uses gmt time)", required = False) = None,
+
     ):
-    banid = name.lsplit("|",1)[0].strip().rsplit(" ",1)[1:-1]
+    # banid = name.lsplit("|",1)[0].strip().rsplit(" ",1)[1:-1]
     baninfo = {"uploadtime":int(time.time()),"uploaded by":ctx.author.name,"type":sanctiontype,"reason":reason}
     
     if expiry:
@@ -1123,6 +1132,37 @@ async def sanctiontf1(
             return
     else:
         baninfo["expiry"] = None
+    print(name)
+    print(name.split(" | "))
+    if len(name.split(" | ")) != 4:
+        await ctx.respond("Wrong arg count")
+        return
+    name,ip,uid,lastseen = name.split(" | ")
+    c = postgresem("./data/tf2helper.db")
+    c.execute("UPDATE banstf1 SET banlinks = ?, bantype = ?, baninfo = ? WHERE playername = ? AND playerip = ? AND playeruid = ?",(banlinks,sanctiontype,reason,name,ip,uid))
+    c.execute("SELECT lastserverid FROM banstf1 WHERE playername = ? AND playerip = ? AND playeruid = ?",(name,ip,uid))
+
+    serverid = c.fetchone()[0]
+    c.commit()
+    c.close()
+    messageflush.append(
+        {
+            "servername": "No server",
+            "serverid": "-100",
+            "type": 3,
+            "timestamp": int(time.time()),
+            "globalmessage": True,
+            "overridechannel": "globalchannel",
+            "messagecontent": f"New {sanctiontype} uploaded by {ctx.author.name} for player {name} UID: {"n/a"} {'Expiry: ' + expiry if expiry else ''} {'Reason: ' + reason if reason else ''}",
+            "metadata": {
+                "type": None
+            },
+        }
+    )
+    await ctx.respond(f"Uploaded a ban for {name} {"and tried to kick" if sanctiontype == "ban" else "mute happens on map change"}")
+    if sanctiontype == "ban":
+        await (returncommandfeedback(*sendrconcommand(serverid,f'!rcon kick {name}'),"fake context",None,True,False))
+
 
 
 if SANCTIONAPIBANKEY != "":
@@ -1145,7 +1185,8 @@ if SANCTIONAPIBANKEY != "":
             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
             await ctx.respond("You are not allowed to use this command.", ephemeral=False)
             return
-        matchingplayers = resolveplayeruidfromdb(who, playeroruid,True)
+        if len(who.rsplit("->",1)) > 1: who = who.rsplit("->",1)[1][1:-1]
+        matchingplayers = resolveplayeruidfromdb(who, None,True)
         if len (matchingplayers) > 1:
             multistring = "\n" + "\n".join(f"{i+1}) {p['name']} uid: {p['uid']}" for i, p in enumerate(matchingplayers[0:10]))
             await ctx.respond(f"{len(matchingplayers)} players found, please be more specific: {multistring}", ephemeral=False)
@@ -3488,9 +3529,9 @@ def recieveflaskprintrequests():
         output = ""
         try:
             pass
-            # if data.get("command",False):
-            #     # print("ASKING TO SEND ENDOFSTATS")
-            #     output = tftodiscordcommand(data["command"],data.get("paramaters",False),str(data["serverid"]))
+            if data.get("command",False):
+                # print("ASKING TO SEND ENDOFSTATS")
+                output = tftodiscordcommand(data["command"],data.get("paramaters",False),str(data["serverid"]))
         except:
             traceback.print_exc()
             pass
@@ -5010,7 +5051,7 @@ def sendthingstoplayer(outputstring,serverid,statuscode,uidoverride):
     }
     )
     
-
+keyletter = "!"
 def tftodiscordcommand(specificommand,command,serverid):
     global context
     istf1 = context["istf1server"].get(serverid,False) != False
@@ -5020,7 +5061,7 @@ def tftodiscordcommand(specificommand,command,serverid):
 
 
     servercommand = specificommand != False
-    keyletter = "!"
+    
     # print("HERE")
     # print("HERE", not specificommand,command.get("originalmessage",False) ,command["originalmessage"][0] == keyletter,command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() ,("tf1" if context["istf1server"].get(serverid,False) else "tf2") in  REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
     # print(not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
@@ -5221,6 +5262,44 @@ def shownamecolours(message,serverid,isfromserver):
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         }
         )
+
+def checkbantf1(message,serverid,isfromserver):
+    c = postgresem("./data/tf2helper.db")
+    c.execute("SELECT id FROM banstf1 WHERE playerip = ? AND playername = ? AND playeruid = ?",(message["ip"],message["name"],message["uid"]))
+    playerid = c.fetchall()
+    if playerid:
+        playerid = playerid[0]
+        c.execute("UPDATE banstf1 SET lastseen = ?, lastserverid = ? WHERE id = ?",(int(time.time()),serverid,playerid))
+    else:
+        c.execute("INSERT INTO banstf1 (playerip,playername,playeruid,lastseen,lastserverid) VALUES (?,?,?,?,?)",(message["ip"],message["name"],message["uid"],int(time.time()),serverid))
+        playerid = c.lastrowid()
+    
+    c.execute("SELECT playerip, playername, playeruid,bantype, banlinks, baninfo, expire, id FROM banstf1")
+    # banlinks is what must be the same for ban to carry through. imo is better as a number tho
+    bans = list(map(lambda x: {"ip":x[0],"name":x[1],"uid":x[2],"bantype":x[3],"banlinks":x[4],"baninfo":x[5],"expire":x[6],"exhaustion":0,"id":x[7]} ,list(c.fetchall())))
+
+    bannedpeople = findallbannedpeople(bans,list(filter(lambda x:x["bantype"],bans)),10)
+    if filter(lambda x: playerid == x["id"],bannedpeople):
+        # they're banned! or muted, depends
+        if "ban" in list(map(lambda x: x["bantype"],filter(lambda x: playerid == x["id"],bannedpeople))):
+            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!rcon kickid {message["kickid"]} {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context",None,True,False), bot.loop)
+
+        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!muteplayer {message["kickid"]} {str("ban" in list(map(lambda x: x["bantype"],filter(lambda x: playerid == x["id"],bannedpeople))))} {datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]).day % 10, 'th')} of %B %Y")} rsn {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context",None,True,False), bot.loop)
+def findallbannedpeople(bans,originalbans,bandepth):
+    newbans = []
+    keepbans = []
+    for i, ban in enumerate(bans):
+        for originalban in filter(lambda x: x["exhaustion"] <= bandepth, originalbans):
+            if len(set([ban["ip"],ban["name"],ban["uid"],originalban["ip"],originalban["name"],originalban["uid"]])) < ban["banlinks"]:
+                keepbans.append(ban)
+                continue
+            newbans.append({**ban,"bantype":originalban["bantype"],"baninfo":originalban["baninfo"],"expire":originalban["expire"],"exhaustion":originalban["exhaustion"]+1})
+    if  newbans:
+        return findallbannedpeople(keepbans,[*newbans,*originalbans],bandepth)
+    else:
+        return originalbans
+            
+
 
 
 
@@ -5595,7 +5674,7 @@ def showingamesettings(message,serverid,isfromserver):
         discordtotitanfall[serverid]["messages"].append(
             {
                 # "id": str(i) + str(int(time.time()*100)),
-                "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{name}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command}",
+                "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{keyletter}toggle {name}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command}",
                 # "teamoverride": 4,
                 # "isteammessage": False,
                 "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -6651,16 +6730,16 @@ def savestats(saveinfo):
     istf1 = context["istf1server"].get(saveinfo["serverid"],False) # {"tf2" if istf1 else ""}
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
-    params = (
-        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],
-        saveinfo["endtype"],
-        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],
-        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],
-        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],
-        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],
-        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"] - playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],
-        playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"],
-    )
+    # params = (
+    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],
+    #     saveinfo["endtype"],
+    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],
+    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],
+    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],
+    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],
+    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"] - playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],
+    #     playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"],
+    # )
 
     # print("Params before execute:", params)
     try:
