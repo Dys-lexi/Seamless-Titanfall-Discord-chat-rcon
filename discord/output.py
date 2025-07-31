@@ -557,28 +557,28 @@ reactedyellowtoo = []
 #         f.write("")
 realprint = print
 linecolours = {}
-# def print(*message, end="\033[0m\n"):
-#     global linecolours
-#     message = " ".join([str(i) for i in message])
-#     if len(message) < 1000000 and False:
-#         with open("./data/" + log_file, "a") as file:
-#             file.write(
-#                 datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-#                 + ": "
-#                 + str(message)
-#                 + "\n"
-#             )
+def print(*message, end="\033[0m\n"):
+    global linecolours
+    message = " ".join([str(i) for i in message])
+    if len(message) < 1000000 and False:
+        with open("./data/" + log_file, "a") as file:
+            file.write(
+                datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                + ": "
+                + str(message)
+                + "\n"
+            )
         
 
-#     function = str(inspect.currentframe().f_back.f_code.co_name)
-#     line = str(inspect.currentframe().f_back.f_lineno)
-#     if line not in linecolours:
-#         while True:
-#             colour = random.randint(0, 255)
-#             if colour not in DISALLOWED_COLOURS:
-#                 break
-#         linecolours[line] = colour
-#     realprint(f"[38;2;215;22;105m{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}[38;2;126;89;140m{('['+line+']').ljust(6)}[38;2;27;64;152m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{linecolours[line]}m {message}", end=end)
+    function = str(inspect.currentframe().f_back.f_code.co_name)
+    line = str(inspect.currentframe().f_back.f_lineno)
+    # if line not in linecolours:
+    #     while True:
+    #         colour = random.randint(0, 255)
+    #         if colour not in DISALLOWED_COLOURS:
+    #             break
+    #     linecolours[line] = colour
+    realprint(f"{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}{('['+line+']').ljust(6)}[{datetime.now().strftime('%H:%M:%S %d/%m')}] {message}", end=end)
 print("running discord logger bot")
 lastrestart = 0
 botisalreadyready = False
@@ -907,6 +907,13 @@ async def autocompletenamesfromdb(ctx):
         return ["No one matches"]
     return output
 
+async def autocompletenamesanduidsfromdb(ctx):
+    output =  [f"{x["name"]} ({x["uid"]})" if x["name"].strip() else str(x["uid"]) for x in  resolveplayeruidfromdb(ctx.value,None,True)][:20]
+    if len(output) == 0:
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        return ["No one matches"]
+    return output
+
 async def autocompletenamesfromtf1bans(ctx):
     if not checkrconallowed(ctx.interaction.user):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
@@ -1126,7 +1133,7 @@ if SANCTIONAPIBANKEY != "":
     async def serverlesssanction(
         ctx,
         playeroruid: Option(str, "Sanction a name or uid", required=True, choices=["uid", "name"]),
-        who: Option(str, "The playername/uid to sanction", required=True),
+        who: Option(str, "The playername/uid to sanction", required=True,autocomplete=autocompletenamesanduidsfromdb),
         
         sanctiontype: Option(
             str, "The type of sanction to apply", choices=["mute", "ban"] ),
@@ -2301,15 +2308,21 @@ if DISCORDBOTLOGSTATS == "1":
         unsortedata = [x for x in unsortedata if name.lower() in x["name"].lower()]
 
         if len(data) == 0:
-            c.execute("SELECT playeruid FROM uidnamelink WHERE playeruid = ?", (name,))
-            output = c.fetchone()
-            if not output:
-                tfdb.commit()
-                tfdb.close()
+            if name.isdigit():
+                c.execute("SELECT playeruid FROM uidnamelink WHERE playeruid = ?", (name,))
+                output = c.fetchone()
+                if not output:
+                    tfdb.commit()
+                    tfdb.close()
+                    await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+                    await ctx.respond("No players found", ephemeral=False)
+                    return
+                player = {"uid": output[0]}
+            else:
                 await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
                 await ctx.respond("No players found", ephemeral=False)
                 return
-            player = {"uid": output[0]}
+            
         else:
             player = data[0]
 
@@ -3283,14 +3296,14 @@ def colourmessage(message,serverid):
         return False
     # print("ew")
     discorduid = discorduidnamelink.get(message["metadata"]["uid"],False)
-    if message["metadata"].get("type",False) == "impersonate" and not discorduid:
+    if (message["metadata"].get("ismuted") or message["metadata"].get("type",False) == "impersonate") and not discorduid:
             tfdb = postgresem("./data/tf2helper.db")
             c = tfdb
             c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (message["metadata"]["uid"],))
             link = c.fetchone()
             discorduidnamelink[message["metadata"]["uid"]] = link[0] if link and link[0] else False
             discorduid = discorduidnamelink.get(message["metadata"]["uid"],False)
-    elif message["metadata"].get("type",False) != "impersonate" :  
+    elif (not message["metadata"].get("ismuted") and message["metadata"].get("type",False) != "impersonate") :  
         if not discorduid:
             tfdb = postgresem("./data/tf2helper.db")
             c = tfdb
@@ -3332,6 +3345,14 @@ def colourmessage(message,serverid):
         # str(message["metadata"]["uid"]),"forceblock":False
         output["uid"] = str(message["metadata"]["uid"])
         output["forceblock"] = True
+    if message["metadata"].get("ismuted"):
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content":output["friendly"],
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+        }
+        )
+        return False
     print(f"OUTPUT {output}")
     
     return {**output,"messageteam":message["metadata"]["teamint"]}
@@ -4971,7 +4992,7 @@ def sendthingstoplayer(outputstring,serverid,statuscode,uidoverride):
     discordtotitanfall[serverid]["messages"].append(
     {
         # "id": str(int(time.time()*100)),
-        "content":f"{PREFIXES['discord']} TF|{1 + int(not(istf1))} output: {outputstring}",
+        "content":f"{PREFIXES['discord']}TF|{1 + int(not(istf1))} output: {outputstring}",
         # "teamoverride": 4,
         # "isteammessage": False,
         "uidoverride": [uidoverride]
@@ -5003,7 +5024,7 @@ def tftodiscordcommand(specificommand,command,serverid):
     # print("HERE")
     # print("HERE", not specificommand,command.get("originalmessage",False) ,command["originalmessage"][0] == keyletter,command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() ,("tf1" if context["istf1server"].get(serverid,False) else "tf2") in  REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
     # print(not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
-    if not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in context["commands"]["ingamecommands"].keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"] and (not context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]].get("serversenabled",False) or int(serverid) in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["serversenabled"]):
+    if not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in context["commands"]["ingamecommands"].keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"] and (not context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]].get("serversenabled",False) or int(serverid) in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["serversenabled"]) and context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]].get("run") != "togglestat":
         specificommand = command["originalmessage"][1:].split(" ")[0].lower()
         print("CLIENT COMMAND REQUESTED",[serverid],specificommand)
         commandargs = command["originalmessage"][1:].split(" ")[1:]
@@ -5012,14 +5033,14 @@ def tftodiscordcommand(specificommand,command,serverid):
             if context['commands']['ingamecommands'][specificommand].get('permsneeded',False) == "coolperksrole":
                 discordtotitanfall[serverid]["messages"].append(
                 {
-                    "content":f"{PREFIXES['discord']} To use {specific} go to {COOLPERKSROLEREQUIRMENTS}",
+                    "content":f"{PREFIXES['discord']}To use {specific} go to {COOLPERKSROLEREQUIRMENTS}",
                     "uidoverride": [getpriority(command,"uid",["meta","uid"])]
                 }
                 )
                 return
             discordtotitanfall[serverid]["messages"].append(
             {
-                "content":f"{PREFIXES['discord']} You don't have permission to run {specificommand}, you need {context['commands']['ingamecommands'][specificommand].get('permsneeded',False)}",
+                "content":f"{PREFIXES['discord']}You don't have permission to run {specificommand}, you need {context['commands']['ingamecommands'][specificommand].get('permsneeded',False)}",
                 "uidoverride": [getpriority(command,"uid",["meta","uid"])]
             }
             )
@@ -5038,7 +5059,7 @@ def tftodiscordcommand(specificommand,command,serverid):
 
     if context["commands"]["ingamecommands"][specificommand]["run"] == "togglestat":
         # print("HERE HERE HERE HERE HERE HERE")
-        togglestats(command,specificommand,serverid)
+        togglestats(command,specificommand,serverid) #this code should not run anymore, unless a server directly asks to run it. users themselves cannot run this command :) (replaced with !toggle)
 
     elif context["commands"]["ingamecommands"][specificommand]["run"] == "functionless":
         # pass
@@ -5070,7 +5091,7 @@ def ingamesetusercolour(message,serverid,isfromserver):
     if len(message.get("originalmessage","w").split(" ")) == 1:
         discordtotitanfall[serverid]["messages"].append(
         {
-            "content":f"{PREFIXES['discord']} You need to specify colours! put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to choose, after the command",
+            "content":f"{PREFIXES['discord']}You need to specify colours! put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to choose, after the command",
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         }
         )
@@ -5080,7 +5101,7 @@ def ingamesetusercolour(message,serverid,isfromserver):
     if not name:
         discordtotitanfall[serverid]["messages"].append(
         {
-            "content":f"{PREFIXES['discord']} Name: {' '.join(message['originalmessage'].split(' ')[1:])} could not be found",
+            "content":f"{PREFIXES['discord']}Name: {' '.join(message['originalmessage'].split(' ')[1:])} could not be found",
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         }
         )
@@ -5090,7 +5111,7 @@ def ingamesetusercolour(message,serverid,isfromserver):
     if not discorduid:
         discordtotitanfall[serverid]["messages"].append(
         {
-            "content":f"{PREFIXES['discord']} Name: {name} does not have a discord account linked - use /linktf2account on discord!",
+            "content":f"{PREFIXES['discord']}Name: {name} does not have a discord account linked - use /linktf2account on discord!",
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         }
         )
@@ -5099,7 +5120,7 @@ def ingamesetusercolour(message,serverid,isfromserver):
     colours = (" ".join(message["originalmessage"].split(" ")[1:]))
     discordtotitanfall[serverid]["messages"].append(
     {
-        "content":f"{PREFIXES['discord']} {setcolour(colours,discorduid,'choseningamecolour')}",
+        "content":f"{PREFIXES['discord']}{setcolour(colours,discorduid,'choseningamecolour')}",
         "uidoverride": [getpriority(message,"uid",["meta","uid"])]
     }
     )
@@ -5113,7 +5134,7 @@ def ingamesetusertag(message,serverid,isfromserver):
     if len(message.get("originalmessage","w").split(" ")) == 1:
         discordtotitanfall[serverid]["messages"].append(
         {
-            "content":f"{PREFIXES['discord']} You need to specify a tag",
+            "content":f"{PREFIXES['discord']}You need to specify a tag",
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         }
         )
@@ -5123,7 +5144,7 @@ def ingamesetusertag(message,serverid,isfromserver):
     if not name:
         discordtotitanfall[serverid]["messages"].append(
         {
-            "content":f"{PREFIXES['discord']} Name: {' '.join(message['originalmessage'].split(' ')[1:])} could not be found",
+            "content":f"{PREFIXES['discord']}Name: {' '.join(message['originalmessage'].split(' ')[1:])} could not be found",
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         }
         )
@@ -5133,7 +5154,7 @@ def ingamesetusertag(message,serverid,isfromserver):
     if not discorduid:
         discordtotitanfall[serverid]["messages"].append(
         {
-            "content":f"{PREFIXES['discord']} Name: {name} does not have a discord account linked - use /linktf2account on discord!",
+            "content":f"{PREFIXES['discord']}Name: {name} does not have a discord account linked - use /linktf2account on discord!",
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         }
         )
@@ -5143,14 +5164,14 @@ def ingamesetusertag(message,serverid,isfromserver):
     # if len(colours) < 1 or len(colours) > 6:
     #     discordtotitanfall[serverid]["messages"].append(
     #     {
-    #         "content":f"{PREFIXES['discord']} {colours} is too long, it must be bettween 1 and 6 chars or type 'reset' as the arg to reset it",
+    #         "content":f"{PREFIXES['discord']}{colours} is too long, it must be bettween 1 and 6 chars or type 'reset' as the arg to reset it",
     #         "uidoverride": [getpriority(message,"uid",["meta","uid"])]
     #     }
     #     )
     #     return
     discordtotitanfall[serverid]["messages"].append(
     {
-        "content":f"{PREFIXES['discord']} {settag(colours,discorduid)}",
+        "content":f"{PREFIXES['discord']}{settag(colours,discorduid)}",
         "uidoverride": [getpriority(message,"uid",["meta","uid"])]
     }
     )
@@ -5169,7 +5190,7 @@ def shownamecolours(message,serverid,isfromserver):
     if not name:
         discordtotitanfall[serverid]["messages"].append(
         {
-            "content":f"{PREFIXES['discord']} Name: {' '.join(message['originalmessage'].split(' ')[1:])} could not be found",
+            "content":f"{PREFIXES['discord']}Name: {' '.join(message['originalmessage'].split(' ')[1:])} could not be found",
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         }
         )
@@ -5179,7 +5200,7 @@ def shownamecolours(message,serverid,isfromserver):
     if not discorduid:
         discordtotitanfall[serverid]["messages"].append(
         {
-            "content":f"{PREFIXES['discord']} Name: {name} does not have a discord account linked",
+            "content":f"{PREFIXES['discord']}Name: {name} does not have a discord account linked",
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         }
         )
@@ -5461,6 +5482,140 @@ def displayendofroundstats(message,serverid,isfromserver):
     # }
     # )
         
+def togglepersistentvar(message,serverid,isfromserver):
+    istf1 = context["istf1server"].get(serverid,False) != False
+    args = message.get("originalmessage".split(" "))[1:]
+    if args and args[0] not in filter(lambda x: x.get("run") == "togglestat",context["commands"]["ingamecommands"]) and args[0] not in ["help","h"]:
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            # "id": str(int(time.time()*100)),
+            "content":f"{PREFIXES['discord']}{PREFIXES['commandname']}{PREFIXES["warning"]} Could not find the toggle for {args[0]}",
+            # "teamoverride": 4,
+            # "isteammessage": False,
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+            # "dotreacted": dotreacted
+        }
+        )
+    
+    if not len(args) or args[0] not in filter(lambda x: x.get("run") == "togglestat",context["commands"]["ingamecommands"]):
+        # we need to find all the toggle commands! they all run toggle stats.
+        cmdcounter = 0
+        for name,command in context["commands"]["ingamecommands"].items():
+            if command.get("run") != "togglestat" or ("tf1" if istf1 else "tf2",internaltoggle) not in command.get("games"):
+                continue
+            cmdcounter +=1
+            discordtotitanfall[serverid]["messages"].append(
+                {
+                    # "id": str(i) + str(int(time.time()*100)),
+                    "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2']+command.get('permsneeded',False)+ ' ' if command.get('permsneeded',False) else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{name}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
+                    # "teamoverride": 4,
+                    # "isteammessage": False,
+                    "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+                    # "dotreacted": dotreacted
+                }
+                )
+        if cmdcounter > 11 - bool(args and args[0] not in filter(lambda x: x.get("run") == "togglestat",context["commands"]["ingamecommands"]) and args[0] not in ["help","h"]):
+            discordtotitanfall[serverid]["messages"].append(
+            {
+                # "id": str(int(time.time()*100)),
+                "content":f"{PREFIXES['discord']}{PREFIXES['commandname']}\x1b[38;5;201m[{cmdcounter-10}]{PREFIXES["warning"]} More command{"s" if cmdcounter - 10 > 1 else ""} hidden above.{PREFIXES['commandname']} open chat box and press up arrow {PREFIXES['warning']}to see them!",
+                # "teamoverride": 4,
+                # "isteammessage": False,
+                "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+                # "dotreacted": dotreacted
+            }
+            )
+        return
+    togglestats(message,args[0],serverid)
+
+def showingamesettings(message,serverid,isfromserver):
+    istf1 = context["istf1server"].get(serverid,False) != False
+    if len(message.get("originalmessage","w").split(" ")) > 1:
+        account = resolveplayeruidfromdb((" ".join(message["originalmessage"].split(" ")[1:])),None,True,istf1)
+        if not account:
+            discordtotitanfall[serverid]["messages"].append(
+            {
+                "content":f"{PREFIXES['discord']}Specified player not found {"(They might not have discord linked)" if istf1 else ""}",
+                "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+            }
+            )
+            return
+        name = account[0]["name"]
+        uid = account[0]["uid"]
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content":f"{PREFIXES['discord']}Showing settings for {name}",
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+        }
+        )
+
+        
+    else:
+        name = getpriority(message,"originalname","name")
+        uid = getpriority(message,"uid",["meta","uid"])
+        if not istf1:
+            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {getpriority(message,"uid",["meta","uid"],"originalname","name")}'),"fake context",None,True,False), bot.loop)
+
+            
+    if  istf1 and not len(str(getpriority(message,"uid",["meta","uid"]))) > 15:
+            discordtotitanfall[serverid]["messages"].append(
+            {
+                "content":f"{PREFIXES['discord']}No discord account linked, cannot pull settings",
+                "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+            }
+            )
+            return
+    preferencesuid = getpriority( readplayeruidpreferences(uid,istf1),["tf1" if istf1 else "tf2"])
+    if not preferencesuid: preferencesuid = {}
+    discorduid =  pullid(name["uid"],"discord")
+    if discorduid:
+        c = postgresem("./data/tf2helper.db")
+        c.execute("SELECT discorduid, chosencolour,choseningamecolour, nameprefix FROM discorduiddata WHERE discorduid = ?",(discorduid,))
+        output = c.fetchall()
+        c.close()
+        # print(output)
+        discordstats = {x[0]:{"nameprefix":(x[3]) if x[3] and x[3] != "reset" else None,"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,"ingamecolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) if x[2] is not None and x[2] != "reset" else []}  for x in output}
+        
+    else:discorduid = {}
+    cmdcounter = 0
+    if not any({**preferencesuid,**discordstats[discorduid]}).values():
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                # "id": str(i) + str(int(time.time()*100)),
+                "content":f"{PREFIXES['discord']}No settings found for {PREFIXES['commandname']}{name}",
+                # "teamoverride": 4,
+                # "isteammessage": False,
+                "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+                # "dotreacted": dotreacted
+            }
+            )
+    for name, command in {**preferencesuid,**discordstats[discorduid]}.items():
+        if not command:continue
+        cmdcounter +=1
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                # "id": str(i) + str(int(time.time()*100)),
+                "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{name}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command}",
+                # "teamoverride": 4,
+                # "isteammessage": False,
+                "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+                # "dotreacted": dotreacted
+            }
+            )
+    if cmdcounter > 11:
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            # "id": str(int(time.time()*100)),
+            "content":f"{PREFIXES['discord']}{PREFIXES['commandname']}\x1b[38;5;201m[{cmdcounter-10}]{PREFIXES["warning"]} More Setting{"s" if cmdcounter - 10 > 1 else ""} hidden above.{PREFIXES['commandname']} open chat box and press up arrow {PREFIXES['warning']}to see them!",
+            # "teamoverride": 4,
+            # "isteammessage": False,
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+            # "dotreacted": dotreacted
+        }
+        )
+
+
+
 
 def togglestats(message,togglething,serverid):
     # print(togglething,serverid)
@@ -5470,7 +5625,7 @@ def togglestats(message,togglething,serverid):
             discordtotitanfall[serverid]["messages"].append(
             {
                 # "id": str(int(time.time()*100)),
-                "content":f"{PREFIXES['discord']} No discord account linked, cannot toggle {togglething}",
+                "content":f"{PREFIXES['discord']}No discord account linked, cannot toggle {togglething}",
                 # "teamoverride": 4,
                 # "isteammessage": False,
                 "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -5489,7 +5644,7 @@ def togglestats(message,togglething,serverid):
     if context["commands"]["ingamecommands"][togglething].get("description",False):
         discordtotitanfall[serverid]["messages"].append(
         {
-            "content":f"{PREFIXES['discord']} (desc) {context['commands']['ingamecommands'][togglething]['description']}",
+            "content":f"{PREFIXES['discord']}(desc) {context['commands']['ingamecommands'][togglething]['description']}",
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         }
         )

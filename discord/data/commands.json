@@ -10,6 +10,24 @@
             "shouldblock": false,
             "permsneeded": "coolperksrole"
         },
+        "toggle": {
+            "games": [
+                "tf2","tf1"
+            ],
+            "function": "togglepersistentvar",
+            "run": "thread",
+            "description": "Change a Setting. Run '!toggle help' for info",
+            "shouldblock": false
+        },
+        "showsettings":{
+            "games": [
+                "tf2","tf1"
+            ],
+            "function": "showingamesettings",
+            "run": "thread",
+            "description": "Show all your/somone elses settings. also reloads yours.",
+            "shouldblock": false
+        },
         "nametag": {
             "games": [
                 "tf2"
@@ -58,14 +76,15 @@
             "description": "display your stats. do !stats lexi for a specific player",
             "shouldblock": false
         },
-        "togglestats": {
+        "autostats": {
             "games": [
                 "tf1",
                 "tf2"
             ],
             "run": "togglestat",
             "description": "True = disable auto showing of stats",
-            "shouldblock": false
+            "shouldblock": false,
+            "internaltoggle":"togglestats"
         },
         "helpdc": {
             "games": [
