@@ -569,6 +569,22 @@ reactedyellowtoo = []
 #         f.write("")
 realprint = print
 linecolours = {}
+def removecolourcodes(message):   
+    if (r"\u001b") in message:
+        print("colour codes found in message")
+        while r"\u001b" in message:
+            startpos = message.index(r"\u001b")
+            if "m" not in message[startpos:]:
+                break
+            endpos = (
+                message[startpos:].index("m")
+                + startpos
+            )
+            message = (
+                message[:startpos]
+                + message[endpos + 1 :]
+            )
+    return message
 def print(*message, end="\033[0m\n"):
     global linecolours
     message = " ".join([str(i) for i in message])
@@ -1340,7 +1356,7 @@ if DISCORDBOTLOGSTATS == "1":
         timestamp = await asyncio.to_thread(getweaponspng, fliptovictims != "No",searchterm, 50 if searchterm else 10,False,350,player[0]["uid"])
         cdn_url = f"{GLOBALIP}/cdn/{timestamp}"
         if not timestamp:
-            await ctx.respond("Failed to calculate pngleaderboard - generic error")
+            await ctx.respond(f"Failed to calculate pngleaderboard - generic error (there is probably no data for {player[0]["name"]})")
             return
         image_available = True
         async with aiohttp.ClientSession() as session:
@@ -1966,11 +1982,13 @@ if DISCORDBOTLOGSTATS == "1":
         weapon_names = [os.path.splitext(f)[0] for f in weapon_images]
 
         if specificweapon:
-            weapon_names = [w for w in weapon_names if w in list(map(lambda x: x["png_name"],specificweapon)) or True] # if no image, who cares! (might break stuff)
+            weapon_names = [w for w in list(set([*weapon_names,*list(map(lambda x:x["weapon_name"],specificweapon))])) if w in list(map(lambda x: x["png_name"],specificweapon)) or True] # if no image, who cares! (might break stuff)
             if not weapon_names:
                 pass
                 print("No matching weapon images found for the given list.")
                 return None
+        # print("specificweapon",specificweapon)
+        # print("weapon_names2",weapon_names)
 
         def fetch_kill_data(timecutoff = 0):
             timecutoff = int(time.time() - timecutoff)
@@ -2063,7 +2081,8 @@ if DISCORDBOTLOGSTATS == "1":
         # # if not specificweapon:
         # weapon_names.sort(key=lambda w: max_kill_count(weapon_kills["main"].get(w, [])), reverse=True)
         # weapon_names = list(filter(lambda w: weapon_kills["main"].get(w, False) != False, weapon_names))
-        
+        # print("weapon_names1",weapon_names)
+
 
 
             # if not specificweapon:
@@ -2085,6 +2104,7 @@ if DISCORDBOTLOGSTATS == "1":
         images = {}
         maxheight = 0
         maxwidth = widthoverride
+        # print("weapon_names",weapon_names)
         if not COLUMNS:
             COLUMNS = sqrt_ceil(len(weapon_names))
         for weapon in weapon_names:
@@ -2092,7 +2112,7 @@ if DISCORDBOTLOGSTATS == "1":
                 img_path = os.path.join(IMAGE_DIR, weapon + ".png")
                 gun_img = Image.open(img_path)
             except FileNotFoundError:
-                gun_img = Image.new("RGBA", (maxwidth, 128), color=(0, 0, 0, 0))
+                gun_img = Image.new("RGBA", (maxwidth, 128), color=(0, 0, 0, 200))
                 draw = ImageDraw.Draw(gun_img)
 
                 text = weapon
@@ -2107,7 +2127,7 @@ if DISCORDBOTLOGSTATS == "1":
                 x = (maxwidth - text_width) // 2
                 y = (128 - text_height) // 2
 
-                draw.text((x, y), text, fill=(255, 0, 0, 255), font=font)
+                draw.text((x, y), text, fill=(255, 100, 100, 255), font=font)
 
             images[weapon] = gun_img
             if gun_img.width > maxwidth:
@@ -2174,24 +2194,24 @@ if DISCORDBOTLOGSTATS == "1":
 
             panel_height = maxheight + text_area_height
 
-            panel = Image.new("RGBA", (maxwidth, panel_height), (random.randint(0, 50), random.randint(0, 50), random.randint(0, 50), 80))
+            panel = Image.new("RGBA", (maxwidth, panel_height), (random.randint(0, 50), random.randint(0, 50), random.randint(0, 50), 200))
             draw = ImageDraw.Draw(panel)
             gun_img = images[weapon]
             center_x = (maxwidth - gun_img.width) // 2
-            panel.paste(gun_img, (center_x, 0))
+            panel.paste(gun_img, (center_x, 0),gun_img)
 
             # Stretch leftmost column to the left
             if center_x > 0:
                 left_column = gun_img.crop((0, 0, 1, gun_img.height))
                 left_color = left_column.resize((center_x, gun_img.height))
-                panel.paste(left_color, (0, 0))
+                panel.paste(left_color, (0, 0),left_color)
 
             # Stretch rightmost column to the right
             right_fill_width = maxwidth - center_x - gun_img.width
             if right_fill_width > 0:
                 right_column = gun_img.crop((gun_img.width - 1, 0, gun_img.width, gun_img.height))
                 right_color = right_column.resize((right_fill_width, gun_img.height))
-                panel.paste(right_color, (center_x + gun_img.width, 0))
+                panel.paste(right_color, (center_x + gun_img.width, 0),right_color)
             if playerinleaderboard:
                 for i, (attacker, data) in enumerate(sorted_players):
                     count = data["kills"]
@@ -2256,7 +2276,7 @@ if DISCORDBOTLOGSTATS == "1":
 
         canvas_width = final_columns * maxwidth
         canvas_height = sum(row_heights)
-        canvas = Image.new("RGBA", (canvas_width, canvas_height), (30, 30, 30, 0))
+        canvas = Image.new("RGBA", (canvas_width, canvas_height), (0, 0, 0, 0))
 
         y_offset = 0
         for row in range(rows):
@@ -2281,6 +2301,7 @@ if DISCORDBOTLOGSTATS == "1":
         return imagetimestamp
         # canvas.save(file_path, format="PNG")
           
+ 
 
     def get_max_font_size(draw, text, max_width, max_height, font_path=None):
         # font_size = 1
@@ -2512,44 +2533,39 @@ async def help(
     global context
     print("help requested")
     if command is None:
-        embed = discord.Embed(
-            title="Help",
-            description="Use /help <command> to get help for a specific command",
-            color=0xff70cb,
-        )
+        message = "# Help\nUse /help <command> to get help for a specific command\n\n"
+        
         for key in context["commands"]["botcommands"].keys():
-            embed.add_field(name=key, value=context["commands"]["botcommands"][key]["description"], inline=False)
-        embed.add_field(name="whois", value="Get somones aliases", inline=False)
-        embed.add_field(name="leaderboards", value="Get the leaderboards for a specific player", inline=False)
-        embed.add_field(name="togglejoinnotify", value="Toggle notifying on a player joining / leaving", inline=False)
-        embed.add_field(name="bindloggingtocategory", value="Bind logging to a new category (use for first time init)", inline=False)
-        # embed.add_field(name="bindleaderboardchannel", value="Bind a channel to the leaderboards", inline=False)
-        # embed.add_field(name="rconchangeuserallowed", value="Toggle if a user is allowed to use RCON commands in dms", inline=False)
-        # embed.add_field(name="bindglobalchannel", value="Bind a global channel to the bot (for global messages from servers, like bans)", inline=False)
-        embed.add_field(name="bindrole", value="Bind a role to the bot for other functions, like perkroles and non administrator rcon", inline=False)
-        embed.add_field(name="bindchannel", value="Bind a channel to the bot for other functions, like leaderboards, globalmessages", inline=False)
-        embed.add_field(name="linktf2account", value="link your tf2 account to your discord account", inline=False)
-        embed.add_field(name="discordtotf2chatcolour",value="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your discord -> tf2 name, seperate multiple colours with spaces")
-        embed.add_field(name="tf2ingamechatcolour",value="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your in game tf2 name, seperate multiple colours with spaces")
-        embed.add_field(name="messagelogs",value="Pull all non command message logs with a given filter")
-        embed.add_field(name="pngleaderboard",value="Gets pngleaderboard for a player, takes a LONG time to calculate on the wildcard.")
-        embed.add_field(name="tf2ingamesettag",value="Sets your in game tag")
+            message += f"**{key}**: {context['commands']['botcommands'][key]['description']}\n"
+        
+        message += "**whois**: Get somones aliases\n"
+        message += "**leaderboards**: Get the leaderboards for a specific player\n"
+        message += "**togglejoinnotify**: Toggle notifying on a player joining / leaving\n"
+        message += "**bindloggingtocategory**: Bind logging to a new category (use for first time init)\n"
+        message += "**bindrole**: Bind a role to the bot for other functions, like perkroles and non administrator rcon\n"
+        message += "**bindchannel**: Bind a channel to the bot for other functions, like leaderboards, globalmessages\n"
+        message += "**linktf2account**: link your tf2 account to your discord account\n"
+        message += "**discordtotf2chatcolour**: put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your discord -> tf2 name, seperate multiple colours with spaces\n"
+        message += "**tf2ingamechatcolour**: put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your in game tf2 name, seperate multiple colours with spaces\n"
+        message += "**messagelogs**: Pull all non command message logs with a given filter\n"
+        message += "**pngleaderboard**: Gets pngleaderboard for a player, takes a LONG time to calculate on the wildcard.\n"
+        message += "**tf2ingamesettag**: Sets your in game tag\n"
+        
         if SHOULDUSETHROWAI == "1":
-            embed.add_field(name="thrownonrcon", value="Throw a player, after being persuasive", inline=False)
+            message += "**thrownonrcon**: Throw a player, after being persuasive\n"
         if SANCTIONAPIBANKEY != "":
-            embed.add_field(name="serverlesssanction", value="Sanction a player without a server", inline=False)
-        await ctx.respond(embed=embed)
+            message += "**serverlesssanction**: Sanction a player without a server\n"
+            
+        await ctx.respond(message)
     else:
         defaults = {"description": "No description available", "parameters": [], "rcon": False, "commandparaminputoverride": {}, "outputfunc": None, "regularconsolecommand": False}
-        embed = discord.Embed(
-            title=command,
-            description=context["commands"]["botcommands"][command]["description"],
-            color=0xff70cb,
-        )
+        message = f"# {command}\n{context['commands']['botcommands'][command]['description']}\n\n"
+        
         mergeddescriptions = {**defaults, **context["commands"]["botcommands"][command]}
         for key in mergeddescriptions.keys():
-            embed.add_field(name=key, value=f"```json\n{json.dumps(mergeddescriptions[key],indent=4)}```", inline=False)
-        await ctx.respond(embed=embed)
+            message += f"**{key}**:\n```json\n{json.dumps(mergeddescriptions[key],indent=4)}\n```\n"
+            
+        await ctx.respond(message)
 
 # sanction command. expiry, playername, reason, and a choice bettween ban or mute must be provided
 
@@ -5076,7 +5092,7 @@ def sendthingstoplayer(outputstring,serverid,statuscode,uidoverride):
     )
     
 keyletter = "!"
-def tftodiscordcommand(specificommand,command,serverid):
+def tftodiscordcommand(specificommand,command,serverid): # handles all commands in !helpdc, and generally most recent tf2 commands that execute stuff on discord
     global context
     istf1 = context["istf1server"].get(serverid,False) != False
     if specificommand:
@@ -5085,7 +5101,14 @@ def tftodiscordcommand(specificommand,command,serverid):
 
 
     servercommand = specificommand != False
-    
+    if not specificommand and command["originalmessage"][1:].split(" ")[0] in ("togglebrute","togglestats","toggleexpi","togglephase","togglearcher","togglefpanims"):
+            discordtotitanfall[serverid]["messages"].append(
+            {
+                "content":f"{PREFIXES['discord']}{PREFIXES["warning"]}{ command["originalmessage"][1:].split(" ")[0] } no longer exists - type {PREFIXES["commandname"]}'!toggle' {PREFIXES["warning"]}for more info",
+                "uidoverride": [getpriority(command,"uid",["meta","uid"])]
+            }
+            )
+
     # print("HERE")
     # print("HERE", not specificommand,command.get("originalmessage",False) ,command["originalmessage"][0] == keyletter,command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() ,("tf1" if context["istf1server"].get(serverid,False) else "tf2") in  REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
     # print(not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
@@ -5287,7 +5310,7 @@ def shownamecolours(message,serverid,isfromserver):
         )
 
 def checkbantf1(message,serverid,isfromserver):
-    # print("CHECKING BANNNS")
+    print("CHECKING BANNNS")
     c = postgresem("./data/tf2helper.db")
     c.execute("SELECT id FROM banstf1 WHERE playerip = ? AND playername = ? AND playeruid = ?",(message["ip"],message["name"],int(message["uid"])))
     playerid = c.fetchall()
@@ -5318,7 +5341,7 @@ def findallbannedpeople(bans,originalbans,bandepth):
             if len(set([ban["ip"],ban["name"],ban["uid"],originalban["ip"],originalban["name"],originalban["uid"]])) < ban["banlinks"]:
                 keepbans.append(ban)
                 continue
-            newbans.append({**ban,"bantype":originalban["bantype"],"baninfo":originalban["baninfo"],"expire":originalban["expire"],"exhaustion":originalban["exhaustion"]+1})
+            newbans.append({**ban,"banlinks":originalban["banlinks"],"bantype":originalban["bantype"],"baninfo":originalban["baninfo"],"expire":originalban["expire"],"exhaustion":originalban["exhaustion"]+1})
     if  newbans:
         return findallbannedpeople(keepbans,[*newbans,*originalbans],bandepth)
     else:
@@ -5611,7 +5634,7 @@ def togglepersistentvar(message,serverid,isfromserver):
             discordtotitanfall[serverid]["messages"].append(
                 {
                     # "id": str(i) + str(int(time.time()*100)),
-                    "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2']+command.get('permsneeded',False)+ ' ' if command.get('permsneeded',False) else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{name}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
+                    "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2']+command.get('permsneeded',False)+ ' ' if command.get('permsneeded',False) else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{keyletter}toggle {name}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
                     # "teamoverride": 4,
                     # "isteammessage": False,
                     "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -5672,6 +5695,7 @@ def showingamesettings(message,serverid,isfromserver):
     preferencesuid = getpriority( readplayeruidpreferences(uid,istf1),["tf1" if istf1 else "tf2"])
     if not preferencesuid: preferencesuid = {}
     discorduid =  pullid(uid,"discord")
+    discordstats = {}
     if discorduid:
         c = postgresem("./data/tf2helper.db")
         c.execute("SELECT discorduid, chosencolour,choseningamecolour, nameprefix FROM discorduiddata WHERE discorduid = ?",(discorduid,))
@@ -5694,7 +5718,7 @@ def showingamesettings(message,serverid,isfromserver):
             }
             )
     for name, command in {**preferencesuid,**discordstats[discorduid]}.items():
-        if not command:continue
+        if command in (None,[]):continue
         cmdcounter +=1
         discordtotitanfall[serverid]["messages"].append(
             {
@@ -6134,7 +6158,7 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
             # print("here")
             pfp = MODEL_DICT.get(str(value["pfp"]),random.choice(UNKNOWNPFPS))
             if pfp in UNKNOWNPFPS and (str(value["pfp"].startswith("true")) or str(value["pfp"].startswith("false"))):
-                print("FALLING BACK TO GUESSING")
+                print("FALLING BACK TO GUESSING",value["pfp"])
                 # username = f"{username} pfperror {value['pfp']}"
                 for model, valuew in MODEL_DICT.items():
                     if str(value["pfp"])[6:] in model:

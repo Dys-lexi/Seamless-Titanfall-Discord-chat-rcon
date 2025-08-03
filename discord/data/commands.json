@@ -19,14 +19,14 @@
             "description": "Change a Setting. Run '!toggle help' for info",
             "shouldblock": false
         },
-        "showsettings":{
+        "settings":{
             "games": [
                 "tf2","tf1"
             ],
             "function": "showingamesettings",
             "run": "thread",
             "description": "Show all your/somone elses settings. also reloads yours.",
-            "shouldblock": false
+            "shouldblock": true
         },
         "nametag": {
             "games": [
