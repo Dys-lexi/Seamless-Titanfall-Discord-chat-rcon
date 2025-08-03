@@ -1165,7 +1165,7 @@ async def sanctiontf1(
         return
     name,ip,uid,lastseen = name.split(" | ")
     c = postgresem("./data/tf2helper.db")
-    c.execute("UPDATE banstf1 SET banlinks = ?, bantype = ?, baninfo = ? WHERE playername = ? AND playerip = ? AND playeruid = ?",(banlinks,sanctiontype,reason,name,ip,uid))
+    c.execute("UPDATE banstf1 SET banlinks = ?, bantype = ?, baninfo = ?, expire = ? WHERE playername = ? AND playerip = ? AND playeruid = ?",(banlinks,sanctiontype,reason,baninfo["expiry"],name,ip,uid))
     c.execute("SELECT lastserverid FROM banstf1 WHERE playername = ? AND playerip = ? AND playeruid = ?",(name,ip,uid))
 
     serverid = c.fetchone()[0]
@@ -1187,7 +1187,10 @@ async def sanctiontf1(
     )
     await ctx.respond(f"Uploaded a ban for {name} {"and tried to kick" if sanctiontype == "ban" else "mute happens on map change"}")
     if sanctiontype == "ban":
-        await (returncommandfeedback(*sendrconcommand(serverid,f'!rcon kick {name}'),"fake context",None,True,False))
+        print(serverid,f'kick {name}')
+        await (returncommandfeedback(*sendrconcommand(str(serverid),f'kick {name}'),"fake context",None,True,False))
+    # else: sadly don't know their uid. cannot be bothered to fix tbh I could just kick em but na
+    #     await (returncommandfeedback(*sendrconcommand(str(serverid),f'!muteplayer {message["kickid"]} {PREFIXES["warning"]}{(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"} rsn {PREFIXES["warning"]}{list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context",None,True,False), bot.loop)
 
 
 
@@ -5315,7 +5318,7 @@ def checkbantf1(message,serverid,isfromserver):
     c.execute("SELECT id FROM banstf1 WHERE playerip = ? AND playername = ? AND playeruid = ?",(message["ip"],message["name"],int(message["uid"])))
     playerid = c.fetchall()
     if playerid:
-        playerid = playerid[0]
+        playerid = playerid[0][0]
         c.execute("UPDATE banstf1 SET lastseen = ?, lastserverid = ? WHERE id = ?",(int(time.time()),serverid,playerid))
     else:
         c.execute("INSERT INTO banstf1 (playerip,playername,playeruid,lastseen,lastserverid) VALUES (?,?,?,?,?)",(message["ip"],message["name"],message["uid"],int(time.time()),serverid))
@@ -5324,15 +5327,23 @@ def checkbantf1(message,serverid,isfromserver):
     c.execute("SELECT playerip, playername, playeruid,bantype, banlinks, baninfo, expire, id FROM banstf1")
     # banlinks is what must be the same for ban to carry through. imo is better as a number tho
     bans = list(map(lambda x: {"ip":x[0],"name":x[1],"uid":x[2],"bantype":x[3],"banlinks":x[4],"baninfo":x[5],"expire":x[6],"exhaustion":0,"id":x[7]} ,list(c.fetchall())))
-
-    bannedpeople = findallbannedpeople(bans,list(filter(lambda x:x["bantype"],bans)),10)
+    # print(bans)
+    bannedpeople = findallbannedpeople(bans,list(filter(lambda x:x["bantype"] and (x["expire"] is None or x["expire"] > int(time.time())),bans)),10)
+    # print(bannedpeople)
+    # print([playerid])
+    # print(list(filter(lambda x: playerid == x["id"],bannedpeople)))
     if list(filter(lambda x: playerid == x["id"],bannedpeople)):
+        # print("MEOW")
         # they're banned! or muted, depends
         if "ban" in list(map(lambda x: x["bantype"],filter(lambda x: playerid == x["id"],bannedpeople))):
+            # print("eee",list(filter(lambda x: playerid == x["id"],bannedpeople)))
+            # print(f"banreason {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}")
             # print(f'!rcon kickid {message["kickid"]} {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context")
-            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!rcon kickid {message["kickid"]} {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context",None,True,False), bot.loop)
+            # print(f'kickid {message["kickid"]} You are banned: {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]} Expires: {(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"}')
+            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'kickid {message["kickid"]} You are banned: {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]} Expires: {(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"}'),"fake context",None,True,False), bot.loop)
+            return
         # print("e",list(filter(lambda x: playerid == x["id"],bannedpeople)))
-        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!muteplayer {message["kickid"]} {str("ban" in list(map(lambda x: x["bantype"],filter(lambda x: playerid == x["id"],bannedpeople))))} {datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]).day % 10, 'th')} of %B %Y")} rsn {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context",None,True,False), bot.loop)
+        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!muteplayer {message["kickid"]} {PREFIXES["warning"]}{(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"} rsn {PREFIXES["warning"]}{list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context",None,True,False), bot.loop)
 def findallbannedpeople(bans,originalbans,bandepth):
     newbans = []
     keepbans = []
