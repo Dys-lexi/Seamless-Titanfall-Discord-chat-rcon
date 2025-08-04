@@ -6,7 +6,7 @@
             ],
             "function": "ingamesetusercolour",
             "run": "thread",
-            "description": "Change the colour of your name",
+            "description": "Change name colour. add f / e before name to specify team",
             "shouldblock": false,
             "permsneeded": "coolperksrole"
         },

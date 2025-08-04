@@ -318,7 +318,6 @@ def readplayeruidpreferences(uid,istf1 = False):
 
 
 def deep_set(d, keys, value):
-    """Helper to set nested dictionary value given list of keys."""
     for key in keys[:-1]:
         d = d.setdefault(key, {})
     d[keys[-1]] = value
@@ -3111,7 +3110,7 @@ def setcolour(colours,discorduid,type = "choseningamecolour",teamsetting = "all"
             r = int(colour[1:3], 16)
             g = int(colour[3:5], 16)
             b = int(colour[5:7], 16)
-            rgba = (r, g, b)
+            rgba = [r, g, b]
         elif colour.lower()  in CSS_COLOURS.keys():
             rgba = CSS_COLOURS[colour]
             colourslist.append(rgba) 
@@ -3147,7 +3146,8 @@ def setcolour(colours,discorduid,type = "choseningamecolour",teamsetting = "all"
         return (f"reset ingame colour for {teamsetting} to default {warn}")
         return
     colourslink[discorduid] = colourslist
-    return f"Set ingame colour to {str(colourslist)[1:-1]} {warn}"
+    # print(json.dumps(colourslink,indent = 4))
+    return f"Set ingame colour to {str({x[0].lower(): ''.join(map(str, x[1])) for x in filter(lambda y: y[0] in teams, colourslist.items())})[1:-1].replace("'","")} {warn}"
 
 @bot.slash_command(
     name="discordtotf2chatcolour",
@@ -5208,7 +5208,7 @@ def ingamesetusercolour(message,serverid,isfromserver):
     istf1 = context["istf1server"].get(serverid,False) != False
     name = getpriority(message,"originalname","name")
     teamspecify = False
-    teams = ["all","friendly","enemy","neutral"]
+    teams = {"all":"all","friendly":"friendly","enemy":"enemy","neutral":"neutral","f":"friendly","e":"enemy"}
     if len(message.get("originalmessage","w").split(" ")) == 1:
         discordtotitanfall[serverid]["messages"].append(
         {
@@ -5227,6 +5227,7 @@ def ingamesetusercolour(message,serverid,isfromserver):
         return
     elif len(message.get("originalmessage","w").split(" ")) > 2 and message.get("originalmessage","w").split(" ")[1].lower() in teams:
         teamspecify = True
+
 
 
     name = resolveplayeruidfromdb(name,None,True)
@@ -5252,7 +5253,7 @@ def ingamesetusercolour(message,serverid,isfromserver):
     colours = (" ".join(message["originalmessage"].split(" ")[1+int(teamspecify):]))
     discordtotitanfall[serverid]["messages"].append(
     {
-        "content":f"{PREFIXES['discord']}{setcolour(colours,discorduid,'choseningamecolour',"all" if not teamspecify else message.get("originalmessage","w").split(" ")[1].lower())}",
+        "content":f"{PREFIXES['discord']}{setcolour(colours,discorduid,'choseningamecolour',"all" if not teamspecify else teams[message.get("originalmessage","w").split(" ")[1].lower()])}",
         "uidoverride": [getpriority(message,"uid",["meta","uid"])]
     }
     )
@@ -5363,8 +5364,8 @@ def checkbantf1(message,serverid,isfromserver):
         playerid = playerid[0][0]
         c.execute("UPDATE banstf1 SET lastseen = ?, lastserverid = ? WHERE id = ?",(int(time.time()),serverid,playerid))
     else:
-        c.execute("INSERT INTO banstf1 (playerip,playername,playeruid,lastseen,lastserverid) VALUES (?,?,?,?,?)",(message["ip"],message["name"],message["uid"],int(time.time()),serverid))
-        playerid = c.lastrowid()
+        result = c.execute("INSERT INTO banstf1 (playerip,playername,playeruid,lastseen,lastserverid) VALUES (?,?,?,?,?) RETURNING id",(message["ip"],message["name"],message["uid"],int(time.time()),serverid))
+        playerid = result.fetchone()[0]
     c.commit()
     c.execute("SELECT playerip, playername, playeruid,bantype, banlinks, baninfo, expire, id FROM banstf1")
     # banlinks is what must be the same for ban to carry through. imo is better as a number tho
@@ -6865,8 +6866,8 @@ def savestats(saveinfo):
             c.execute(f"UPDATE playtime{'tf1' if istf1 else ''} SET leftatunix = ?, endtype = ?, scoregained = ?, titankills = ?, pilotkills = ?, deaths = ?, duration = ? WHERE id = ?",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"]))
             lastrowid = playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"]
         else:
-            c.execute(f"INSERT INTO playtime{'tf1' if istf1 else ''} (playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,matchid,timecounter ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["serverid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["npckills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["map"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["matchid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["timecounter"]))
-            lastrowid = c.lastrowid()
+            result = c.execute(f"INSERT INTO playtime{'tf1' if istf1 else ''} (playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,matchid,timecounter ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["serverid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["npckills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["map"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["matchid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["timecounter"]))
+            lastrowid = result.fetchone()[0]
     except Exception as e:
         print("error in saving",e)
         traceback.print_exc()
