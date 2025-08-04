@@ -30,48 +30,48 @@ import logging
 import psycopg2
 from psycopg2 import pool
 
-# # Execution monitoring for stuck detection
+# Execution monitoring for stuck detection
 # import threading
-# stuck_monitor_lock = threading.Lock()
-# current_execution = {'file': None, 'line': None, 'start_time': None}
+stuck_monitor_lock = threading.Lock()
+current_execution = {'file': None, 'line': None, 'start_time': None}
 
-# def log_stuck_execution(filename, lineno, duration):
-#     """Log stuck execution to ./data/stuck.txt"""
-#     try:
-#         os.makedirs('./data', exist_ok=True)
-#         with open('./data/stuck.txt', 'a') as f:
-#             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-#             f.write(f"[{timestamp}] STUCK: {filename}:{lineno} - {duration:.1f}s\n")
-#     except Exception as e:
-#         print(f"Failed to log stuck execution: {e}")
+def log_stuck_execution(filename, lineno, duration):
+    """Log stuck execution to ./data/stuck.txt"""
+    try:
+        os.makedirs('./data', exist_ok=True)
+        with open('./data/stuck.txt', 'a') as f:
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            f.write(f"[{timestamp}] STUCK: {filename}:{lineno} - {duration:.1f}s\n")
+    except Exception as e:
+        print(f"Failed to log stuck execution: {e}")
 
-# def execution_tracer(frame, event, arg):
-#     """Trace function execution and detect stuck lines"""
-#     if event == 'line':
-#         filename = frame.f_code.co_filename
-#         lineno = frame.f_lineno
-#         current_time = time.time()
+def execution_tracer(frame, event, arg):
+    """Trace function execution and detect stuck lines"""
+    if event == 'line':
+        filename = frame.f_code.co_filename
+        lineno = frame.f_lineno
+        current_time = time.time()
         
-#         with stuck_monitor_lock:
-#             # Check if previous line was stuck
-#             if current_execution['start_time'] is not None:
-#                 duration = current_time - current_execution['start_time']
-#                 if duration > 35.0:  # 35 second threshold
-#                     log_stuck_execution(
-#                         current_execution['file'], 
-#                         current_execution['line'], 
-#                         duration
-#                     )
+        with stuck_monitor_lock:
+            # Check if previous line was stuck
+            if current_execution['start_time'] is not None:
+                duration = current_time - current_execution['start_time']
+                if duration > 35.0:  # 35 second threshold
+                    log_stuck_execution(
+                        current_execution['file'], 
+                        current_execution['line'], 
+                        duration
+                    )
             
-#             # Update current execution tracking
-#             current_execution['file'] = filename
-#             current_execution['line'] = lineno
-#             current_execution['start_time'] = current_time
+            # Update current execution tracking
+            current_execution['file'] = filename
+            current_execution['line'] = lineno
+            current_execution['start_time'] = current_time
     
-#     return execution_tracer
+    return execution_tracer
 
 
-# sys.settrace(execution_tracer)
+sys.settrace(execution_tracer)
 
 
 def create_all_indexes():
@@ -304,6 +304,7 @@ def playeruidpreferences():
     tfdb.close()
 
 def readplayeruidpreferences(uid,istf1 = False):
+    """read settings that generally affect gameplay and are linked to a tf|1/2 account, eg toggle stats"""
     # uid = int(uid)
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
@@ -318,11 +319,13 @@ def readplayeruidpreferences(uid,istf1 = False):
 
 
 def deep_set(d, keys, value):
+    """like setdefault, but seeeeets default"""
     for key in keys[:-1]:
         d = d.setdefault(key, {})
     d[keys[-1]] = value
 
 def setplayeruidpreferences(path, value, uid, istf1=False):
+    """see readplayeruidpreferences()"""
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
     istf1_int = 1 if istf1 else 0
@@ -570,23 +573,19 @@ reactedyellowtoo = []
 #         f.write("")
 realprint = print
 linecolours = {}
-def removecolourcodes(message):   
-    if (r"\u001b") in message:
-        print("colour codes found in message")
-        while r"\u001b" in message:
-            startpos = message.index(r"\u001b")
-            if "m" not in message[startpos:]:
-                break
-            endpos = (
-                message[startpos:].index("m")
-                + startpos
-            )
-            message = (
-                message[:startpos]
-                + message[endpos + 1 :]
-            )
+def removecolourcodes(message):
+    import re
+    # Remove all ANSI escape sequences: \x1b[...m, \u001b[...m, and [38;2;R;G;Bm patterns
+    # Pattern matches:
+    # - \x1b[...m (hex escape)
+    # - \u001b[...m (unicode escape) 
+    # - [38;2;R;G;Bm (RGB color codes)
+    # - \033[...m (octal escape)
+    ansi_pattern = r'(\x1b\[[0-9;]*m|\\u001b\[[0-9;]*m|\[38;2;[0-9;]*m|\033\[[0-9;]*m)'
+    message = re.sub(ansi_pattern, '', message)
     return message
 def print(*message, end="\033[0m\n"):
+    """print function with a few extra debug things, used to have colour codes till crashed bot"""
     global linecolours
     message = " ".join([str(i) for i in message])
     original_message = message
@@ -826,6 +825,7 @@ bantf1()
 # tf1matchplayers()
 # matchidtf1()
 def savecontext():
+    """saves varible context to channels.json"""
     global context
     print("saving")
     with open("./data/" + channel_file, "w") as f:
@@ -943,6 +943,7 @@ if os.path.exists("./data/" + nongitcommandfile):
 bot = discord.Bot(intents=intents)
 
 async def autocompletenamesfromdb(ctx):
+    """autocompletes tf2 names"""
     output =  [x["name"] if x["name"].strip() else str(x["uid"]) for x in  resolveplayeruidfromdb(ctx.value,None,True)][:20]
     if len(output) == 0:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
@@ -950,6 +951,7 @@ async def autocompletenamesfromdb(ctx):
     return output
 
 async def autocompletenamesanduidsfromdb(ctx):
+    """autocompletes tf2 names and uids"""
     output =  [f"{x["name"]}->({x["uid"]})" if x["name"].strip() else str(x["uid"]) for x in  resolveplayeruidfromdb(ctx.value,None,True)][:20]
     if len(output) == 0:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
@@ -957,6 +959,7 @@ async def autocompletenamesanduidsfromdb(ctx):
     return output
 
 async def autocompletenamesfromtf1bans(ctx):
+    """autocompletes tf1 bans"""
     if not checkrconallowed(ctx.interaction.user):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["You don't have permission to use this command"]
@@ -1011,6 +1014,7 @@ async def autocompletenamesfromtf1bans(ctx):
         return ["Database error"]
 
 async def autocompletenamesfromingame(ctx):
+    """autocompletes using who is playing on the server. includes all / _ options"""
     channel = getchannelidfromname(False,ctx.interaction)
     main = list(set([str(p) for v in dict(list(filter( lambda x: x[0] == channel or channel == None,titanfall1currentlyplaying.items()))).values() for p in v] +[str(name) for s in dict(list(filter( lambda x: x[0] == channel or channel == None,playercontext.items()))).values() for u in s.values() for name in u.keys()] +["all", "_"]))
     output = sorted(list(filter(lambda x: ctx.value.lower() in x.lower(),main)),key = lambda x: x.lower().startswith(ctx.value.lower())* 50, reverse = True)
@@ -1024,6 +1028,7 @@ async def autocompletenamesfromingame(ctx):
     return output
 
 async def autocompletenamesfromingamenowildcard(ctx):
+    """autocompletes using who is playing. does not include all / _ options"""
     channel = getchannelidfromname(False,ctx.interaction)
     main = list(set([str(p) for v in dict(list(filter( lambda x: x[0] == channel or channel == None,titanfall1currentlyplaying.items()))).values() for p in v] +[str(name) for s in dict(list(filter( lambda x: x[0] == channel or channel == None,playercontext.items()))).values() for u in s.values() for name in u.keys()]))
     output = sorted(list(filter(lambda x: ctx.value.lower() in x.lower(),main)),key = lambda x: x.lower().startswith(ctx.value.lower())* 50, reverse = True)
@@ -1042,6 +1047,7 @@ def getallweaponnames(weapon):
     c.execute("SELECT DISTINCT cause_of_death FROM specifickilltracker ORDER BY cause_of_death")
     return sorted(list(map(lambda x: WEAPON_NAMES.get(x[0],x[0]),list(filter(lambda x: (WEAPON_NAMES.get(x[0],False) and weapon.lower() in WEAPON_NAMES.get(x[0],"").lower()) or weapon.lower() in x[0].lower(),c.fetchall())))),key = lambda x: x.lower().startswith(weapon.lower())* 50 ,reverse = True)[:30]
 async def weaponnamesautocomplete(ctx):
+    """probably should not cache this, due to new guns being added, but this returns all matching guns"""
     return getallweaponnames(ctx.value)
 
 
@@ -1066,6 +1072,7 @@ async def on_ready():
 
 @tasks.loop(seconds=1800)
 async def updateroles():
+    """If a user messages the bot in dms, they have no roles. this serves to check their roles, so if they run a admin command, the bot knows they are admin in a dm"""
     guild = bot.get_guild(context["activeguild"])
     for roletype,potentialrole in context["overrideroles"].items():
             if isinstance(potentialrole, int):
@@ -1084,6 +1091,7 @@ async def updateroles():
     description="Pull all non command message logs with a given filter"
 )
 async def pullmessagelogs(ctx, filterword: str = ""):
+    """ returns all messages with that matching string"""
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
     await ctx.defer()
@@ -1117,6 +1125,7 @@ async def pullmessagelogs(ctx, filterword: str = ""):
     description="Bind logging to a new category (begin logging) can be existing or new",
 )
 async def bind_logging_to_category(ctx, category_name: str):
+    """only used once. tells the bot to use a specific category on discord to add new servers"""
     global context
 
     guild = ctx.guild
@@ -1156,6 +1165,7 @@ async def sanctiontf1(
     expiry:Option(str,"The expiry time of the sanction in format yyyy-mm-dd, omit is forever (uses gmt time)", required = False) = None,
 
     ):
+    """ban somone in tf1 (or mute)"""
     if not checkrconallowed(ctx.author):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
@@ -1223,6 +1233,7 @@ if SANCTIONAPIBANKEY != "":
         reason: Option(str, "The reason for the sanction", required=True),
         expiry: Option(str, "The expiry time of the sanction in format yyyy-mm-dd, omit is forever") = None,
     ):
+        """ mute somone in tf|2, bypassing the servers, so can mute / ban offline people"""
         global context,messageflush
         if not checkrconallowed(ctx.author):
             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
@@ -1282,6 +1293,7 @@ if SANCTIONAPIBANKEY != "":
         await ctx.respond(f"```{jsonresponse}```", ephemeral=False)
 if DISCORDBOTLOGSTATS == "1":
     def tf1pullstats(playerdetails,serverid):
+        """displays a person's stats in game to them."""
         # print("running",playerdetails)
         # playerdetails = getjson(playerdetails.replace("♥",'"'))
         playeruid = playerdetails.get("meta",{}).get("entid",False)
@@ -1355,6 +1367,7 @@ if DISCORDBOTLOGSTATS == "1":
         ) = None,
         fliptovictims: Option(str, "Flip to victims?", choices=["Yes", "No"]) = "No"
     ):
+        """return a specific pngleaderboard to a person"""
         await ctx.defer()
         # def getweaponspng(swoptovictims = False,specificweapon=False, max_players=10, COLUMNS=False):
         # timestamp = await asyncio.to_thread(getweaponspng, leaderboard_entry.get("displayvictims", False),leaderboardcategorysshown, maxshown, leaderboard_entry.get("columns", False))
@@ -1407,6 +1420,7 @@ if DISCORDBOTLOGSTATS == "1":
             str, "Witch leaderboard, omit for all, more specific data when not ommitted", choices=list(map(lambda x:x["name"],list(filter(lambda x:"name" in x.get("merge","none") ,context["leaderboardchannelmessages"]))))
         ) = None
     ):
+        """uses the existing leaderboards in channels.json and finds where the player is, and shows them in it"""
         player = resolveplayeruidfromdb(playername,None,True)
         if not player:
             await ctx.respond(f"{playername}player not found", ephemeral=False)
@@ -1541,6 +1555,7 @@ if DISCORDBOTLOGSTATS == "1":
             await asyncio.sleep(6)
         print("leaderboards updated")
     async def updateleaderboard(logid,specificuidsearch = False,compact = False,maxshownoverride = 5):
+        """updates the leaderboards, also handles people manually requesting a leaderboard"""
         global context
         SEPERATOR = "|"
         now = int(time.time())
@@ -1929,6 +1944,7 @@ if DISCORDBOTLOGSTATS == "1":
 
 
     def getweaponspng(swoptovictims = False,specificweapon=False, max_players=10, COLUMNS=False, widthoverride = 300,playeroverride = False):
+        """calculates all the pngleaderboards"""
         global imagescdn
         print("getting pngleaderboard")
         now = int(time.time()*100)
@@ -2349,6 +2365,7 @@ if DISCORDBOTLOGSTATS == "1":
         return ImageFont.truetype(font_path, 16) if font_path else ImageFont.load_default()
         return best_font if best_font else ImageFont.load_default()
     def modifyvalue(value, format, calculation=None):
+        """takes in a value, and makes it prettier, I should add a way to display dates to ti"""
         if format is None:
             return value
         elif format == "time":
@@ -2392,6 +2409,7 @@ if DISCORDBOTLOGSTATS == "1":
     async def whois(
             ctx,
             name: Option(str, "The playername/uid to Query", autocomplete=autocompletenamesfromdb)):
+        """command to see history of a player"""
         MAXALIASESSHOWN = 22
         originalname = name
         print("whois command from", ctx.author.id, "to", name)
@@ -2517,6 +2535,7 @@ if DISCORDBOTLOGSTATS == "1":
         description="Toggle if you are notified when a player joins",
     )
     async def togglejoinnotify(ctx,name: Option(str, "The playername to toggle",autocomplete=autocompletenamesfromdb)):
+        """when a player joins or leaves, this command will allow you to be notified"""
         tfdb = postgresem("./data/tf2helper.db")
         c = tfdb
         c.execute("SELECT playeruid, playername FROM uidnamelink")
@@ -2556,6 +2575,7 @@ async def help(
     ctx,
     command: Option(str, "The command to get help for", required=False,choices = list(context["commands"]["botcommands"].keys()))
 ):
+    """help me"""
     global context
     print("help requested")
     if command is None:
@@ -2628,6 +2648,7 @@ async def help(
 #     await returncommandfeedback(*sendrconcommand(serverid,commandstring), ctx, sanctionoverride)
 
 def sanctionoverride(data, serverid,statuscode):
+    """ Overrides the default display for a commandreturn. not really needed anymore as the default display is very very similar to how this works now."""
     embed = discord.Embed(
         title="Sanction Result",
         color=0xff70cb,
@@ -2697,6 +2718,7 @@ def sanctionoverride(data, serverid,statuscode):
 #     await returncommandfeedback(*sendrconcommand(serverid, "!playing"), ctx, listplayersoverride)
 
 def listplayersoverride(data, serverid, statuscode):
+    """Overrides the default display for /playing to create a nice, pretty list"""
     if len(data) == 0:
         return discord.Embed(
             title=f"Server status for {context['serveridnamelinks'][serverid]}",
@@ -2785,6 +2807,7 @@ async def bind_global_role(
         discord.Role, "The role to bind to", required=True
     ),
     ):
+    """binds a role, to give it specific powers on the bot."""
     global context
     guild = ctx.guild
     if guild.id != context["activeguild"]:
@@ -2813,6 +2836,7 @@ async def bind_global_channel(
  
     
     ):
+    """binds a channel to a certain output of the bots, like leaderboards, ban messages, nonowordnotifys"""
     global context
     guild = ctx.guild
     if guild.id != context["activeguild"]:
@@ -3035,6 +3059,7 @@ async def bind_global_channel(
     description="link your tf2 account to a discord account"
 )
 async def linktfaccount(ctx):
+    """used generally for nicknames, ingamenamecolours, and helpdc commands that require a special role, like rconrole/coolperksrole"""
     global context, oaccountlinker
     # accounts = resolveplayeruidfromdb(tf2accountname,None,True)
     linkcode = f"!{random.randint(10000,100000)}"
@@ -3046,6 +3071,7 @@ async def linktfaccount(ctx):
     description="Set your tag in tf2"
 )
 async def chooseatag(ctx, tag: Option(str, f"Enter a 1 - {MAXTAGLEN} character tag, or 'reset' to reset")):
+    """set a tag to appear before your name"""
 
     # if not checkrconallowed(ctx.author,"coolperksrole"):
     #     await asyncio.sleep (SLEEPTIME_ON_FAILED_COMMAND)
@@ -3055,6 +3081,8 @@ async def chooseatag(ctx, tag: Option(str, f"Enter a 1 - {MAXTAGLEN} character t
     await ctx.respond(settag(tag,ctx.author.id),ephemeral=False)
 
 def settag(tag,discorduid):
+    # return f"2{tag}2"
+    """helper for above func"""
     global colourslink
     if tag != "reset" and (len(tag) < 1 or len(tag) > MAXTAGLEN):
         return f"Tags have to be bettween 1 and {MAXTAGLEN} digits"
@@ -3087,6 +3115,7 @@ def settag(tag,discorduid):
     description="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your tf2 name"
 )
 async def show_color_what(ctx, colour: Option(str, "Enter a normal/hex color, or 'reset' to reset"), teamsetting: Option(str,"Who sees this",required=False,choices=["all","friendly","enemy","neutral"])="all"):
+    """sets in game chat colour"""
 
     if not checkrconallowed(ctx.author,"coolperksrole"):
         await asyncio.sleep (SLEEPTIME_ON_FAILED_COMMAND)
@@ -3097,6 +3126,7 @@ async def show_color_what(ctx, colour: Option(str, "Enter a normal/hex color, or
 
 
 def setcolour(colours,discorduid,type = "choseningamecolour",teamsetting = "all"):
+    """helper function for above"""
     global colourslink
     colourslist = []
     teamsetting = teamsetting.upper()
@@ -3120,7 +3150,7 @@ def setcolour(colours,discorduid,type = "choseningamecolour",teamsetting = "all"
         
         rgba = "|".join(map(str, colourslist))
     if teamsetting == "ALL":
-        colourslist = {x:colourslist for x in teams}
+        colourslist ={ **getpriority(colourslink,[discorduid],nofind = {}),**{x:colourslist for x in teams}}
     else:
         colourslist = {**getpriority(colourslink,[discorduid],nofind = {}),teamsetting:colourslist}
     tfdb = postgresem("./data/tf2helper.db")
@@ -3141,19 +3171,21 @@ def setcolour(colours,discorduid,type = "choseningamecolour",teamsetting = "all"
         warn = "\n**BUT titanfall account not linked, use /linktf2account to link one, so these colours appear**\n(you don't have to set your tag again after you link)"
     if discorduid not in colourslink.keys():
         colourslink[discorduid] = {}
+    differences = dict(filter(lambda x:str(colourslink[discorduid].get(x[0],False)) != str(x[1]),colourslist.items()))
     if rgba == "reset":
         colourslink[discorduid] = colourslist
         return (f"reset ingame colour for {teamsetting} to default {warn}")
         return
     colourslink[discorduid] = colourslist
     # print(json.dumps(colourslink,indent = 4))
-    return f"Set ingame colour to {str({x[0].lower(): ''.join(map(str, x[1])) for x in filter(lambda y: y[0] in teams, colourslist.items())})[1:-1].replace("'","")} {warn}"
+    return f"Set ingame colour to {str({x[0].lower(): ''.join(map(str, x[1])) for x in filter(lambda y: y[0] in teams, differences.items())})[1:-1].replace("'","")} {warn}"
 
 @bot.slash_command(
     name="discordtotf2chatcolour",
     description="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your tf2 name"
 )
 async def show_color_why(ctx, colour: Option(str, "Enter a normal/hex color, or 'reset' to reset")):
+    """sets discord colour"""
     global colourslink
     colourslist = []
     colours = colour
@@ -3206,7 +3238,7 @@ async def show_color_why(ctx, colour: Option(str, "Enter a normal/hex color, or 
 
 # lifted straight from my chat colours thing
 def gradient(message,colours, maxlen,stripfirstcolour = False):
-    """gradient colouring (Two colours)"""
+    """colours a string as a gradient, ripped straight out of my website"""
     # print(message)
     # message = message.split(" ")
     # if len(message) < 0:
@@ -3296,7 +3328,7 @@ def gradient(message,colours, maxlen,stripfirstcolour = False):
     return "".join(outputmessage)
 
 def rgb_to_ansi(value, vary=0):
-    """conversts an rgb code to an ansi string variance is random variance that is less prominent on brighter,less saturated colours"""
+    """conversts an rgb code to an ansi string variance is random variance that is less prominent on brighter,less saturated colours, also directly from my website"""
     value = list(value)
     # print(value)
     a = max(value)
@@ -3326,6 +3358,7 @@ def rgb_to_ansi(value, vary=0):
 
 @bot.event
 async def on_message(message):
+    """handles capturing a message, colouring it, and sending to the relevant server"""
     global  context, discordtotitanfall
     if message.author == bot.user or message.webhook_id is not None:
         return
@@ -3384,6 +3417,7 @@ async def on_message(message):
         #     f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {PREFIXES['neutral']}{message.content}"
         # )
 def pullid(uid,force = False):
+    """converts a tf2 uid to and from discord"""
     global context
     result = None
     tfdb = postgresem("./data/tf2helper.db")
@@ -3401,6 +3435,7 @@ def pullid(uid,force = False):
     return result[0]
     
 def colourmessage(message,serverid):
+    """handles all in game name modifications to messages, like tags, muted players seeing their own message, message gradients, impersonations"""
     global discorduidnamelink
     # print("HEREHERHERE")
     if not message.get("metadata",False) or not  message["metadata"].get("uid",False) or not message["metadata"].get("type",False) in ["usermessagepfp","chat_message","impersonate"]:
@@ -3432,7 +3467,7 @@ def colourmessage(message,serverid):
         # if not colourslink.get(discorduid,False).get("ingamecolour",False) and message["metadata"]["blockedmessage"]:
         #     # print("edwqdqw")
         #     return {"both":f"{PREFIXES['neutral']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
-        if not any(list(colourslink.get(discorduid,{}).values())) and not message["metadata"]["blockedmessage"]:
+        if not any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items()))) and not message["metadata"]["blockedmessage"]:
             # print("e")
             return False
     # print("HEHRHEE")
@@ -3450,7 +3485,8 @@ def colourmessage(message,serverid):
         output[key] = f"{'[111m[TEAM] ' if message['metadata']['teamtype'] != 'not team' else ''}{value}: {PREFIXES['neutral']}{message['messagecontent']}"
     # print(output)
 
-    if not any(list(colourslink.get(discorduid,{}).values())) and message["metadata"]["blockedmessage"]:
+    if not any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items()))) and message["metadata"]["blockedmessage"]:
+        print("COLOURSLINK",colourslink.get(discorduid))
         output["uid"] = str(message["metadata"]["uid"])
         output["forceblock"] = False 
     elif not message["metadata"]["blockedmessage"]:
@@ -3469,6 +3505,7 @@ def colourmessage(message,serverid):
     
     return {**output,"messageteam":message["metadata"]["teamint"]}
 def computeauthornick (name,idauthor,content,serverid = False,rgbcolouroverride = "DISCORD",colourlinksovverride = "discordcolour",lenoverride = 254,usetagifathing = False):
+    """colours a nickname"""
     # print("DETAILS",name,idauthor,content,serverid,colourslink.get(idauthor,{}))
     authornick = 2
     counter = 0
@@ -3495,7 +3532,7 @@ def computeauthornick (name,idauthor,content,serverid = False,rgbcolouroverride 
 
 
 def recieveflaskprintrequests():
-
+    """all tf2 communication is done here"""
     app = Flask(__name__)
     # def handle_flask_exception(e):
     #     logging.error(
@@ -3511,6 +3548,7 @@ def recieveflaskprintrequests():
     #     raise RuntimeError("bleh")
     @app.route("/playerdetails", methods=["POST"])    
     def getplayerdetails():
+        """returns a players settings, eg should the server block messages as being modified, do they have any persistentsettings"""
         global context,discorduidnamelink
         data = request.get_json()
         if data["password"] != SERVERPASS and SERVERPASS != "*":
@@ -3534,10 +3572,11 @@ def recieveflaskprintrequests():
         # if colourslink[str(data["uid"])]:
         # print(colourslink[596713937626595382])
         # print({"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",[]) != []},"uid":data["uid"],"otherdata":{x: str(y) for x,y in readplayeruidpreferences(data["uid"],False)["tf2"].items()}})
-        return {"output":{"shouldblockmessages":any(list(colourslink.get(discorduid,{}).values()))},"uid":data["uid"],"otherdata":{x: str(y) for x,y in list(filter(lambda x:  not getpriority(context,["commands","ingamecommands",x[0],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",x[0],"serversenabled"])  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))}}
+        return {"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{x: str(y) for x,y in list(filter(lambda x:  not getpriority(context,["commands","ingamecommands",x[0],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",x[0],"serversenabled"])  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))}}
         # return output
     @app.route("/getrunningservers", methods=["POST"])
     def getrunningservers():
+        """unused"""
         global discordtotitanfall
         data = request.get_json()
         if data["password"] != SERVERPASS and SERVERPASS != "*":
@@ -3551,6 +3590,7 @@ def recieveflaskprintrequests():
             
     @app.route("/cdn/<filename>", methods=["GET"])
     def pullcdn(filename):
+        """returns all pngleaderboards to discord. hosted by the bot so you can edit the links in messages to get around being unable to edit attachments"""
         global imagescdn
         # print("retrieving")
         istest = False
@@ -5341,12 +5381,13 @@ def shownamecolours(message,serverid,isfromserver):
     
     for colour in RGBCOLOUR:
         
-        colourtype = RGBCOLOUR
+        colourtype = colour
         if colour == "DISCORD":
             colourtype = "discordcolour"
             messageout = f"{PREFIXES['discord']}{PREFIXES['discordcolour']}{colour}: "
         else:
             messageout = f"{PREFIXES['discord']}{PREFIXES[colour.lower()]}{colour}: "
+        
         messageout += computeauthornick(name["name"],discorduid,messageout,False,colour,colourtype,254,colour != "DISCORD")
         discordtotitanfall[serverid]["messages"].append(
         {
@@ -6866,8 +6907,8 @@ def savestats(saveinfo):
             c.execute(f"UPDATE playtime{'tf1' if istf1 else ''} SET leftatunix = ?, endtype = ?, scoregained = ?, titankills = ?, pilotkills = ?, deaths = ?, duration = ? WHERE id = ?",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"]))
             lastrowid = playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"]
         else:
-            result = c.execute(f"INSERT INTO playtime{'tf1' if istf1 else ''} (playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,matchid,timecounter ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["serverid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["npckills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["map"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["matchid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["timecounter"]))
-            lastrowid = result.fetchone()[0]
+            c.execute(f"INSERT INTO playtime{'tf1' if istf1 else ''} (playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,matchid,timecounter ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["serverid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["npckills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["map"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["matchid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["timecounter"]))
+            lastrowid = c.fetchone()[0]
     except Exception as e:
         print("error in saving",e)
         traceback.print_exc()
