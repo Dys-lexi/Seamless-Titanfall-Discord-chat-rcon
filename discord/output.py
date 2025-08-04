@@ -210,8 +210,10 @@ def discorduidinfodb():
     c.execute("SELECT discorduid, chosencolour,choseningamecolour, nameprefix FROM discorduiddata")
     output = c.fetchall()
     # print(output)
-    colourslink = {x[0]:{"nameprefix":(x[3]) if x[3] and x[3] != "reset" else None,"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,"ingamecolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) if x[2] is not None and x[2] != "reset" else []}  for x in output}
-    
+    teams = ["FRIENDLY","ENEMY","NEUTRAL"]
+    # print(json.dumps(list(output),indent=4))
+    colourslink = {x[0]:{"nameprefix":(x[3]) if x[3] and x[3] != "reset" else None,"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,**(({team:(list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) ) for team in teams}if "[" not in x[2] else json.loads(x[2])) if x[2] is not None and x[2] != "reset" else {})}  for x in output}
+    # print(json.dumps(colourslink,indent=4))
     c.execute("SELECT discorduid, choseningamecolour FROM discorduiddata")
     # output = c.fetchall()
     # colourslink = {x[0]:list(map(lambda y: eval(y), x[1].split("|"))) if x[1] != "reset" else RGBCOLOUR['DISCORD']  for x in output}
@@ -588,25 +590,38 @@ def removecolourcodes(message):
 def print(*message, end="\033[0m\n"):
     global linecolours
     message = " ".join([str(i) for i in message])
-    if len(message) < 1000000 and False:
-        with open("./data/" + log_file, "a") as file:
-            file.write(
-                datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                + ": "
-                + str(message)
-                + "\n"
-            )
-        
-
+    original_message = message
+    
     function = str(inspect.currentframe().f_back.f_code.co_name)
     line = str(inspect.currentframe().f_back.f_lineno)
-    # if line not in linecolours:
-    #     while True:
-    #         colour = random.randint(0, 255)
-    #         if colour not in DISALLOWED_COLOURS:
-    #             break
-    #     linecolours[line] = colour
-    realprint(f"{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}{('['+line+']').ljust(6)}[{datetime.now().strftime('%H:%M:%S %d/%m')}] {message}", end=end)
+    formatted_message = f"{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}{('['+line+']').ljust(6)}[{datetime.now().strftime('%H:%M:%S %d/%m')}] {message}"
+    
+    def print_with_timeout():
+        try:
+            realprint(formatted_message, end=end)
+        except Exception:
+            pass
+    
+    print_thread = threading.Thread(target=print_with_timeout, daemon=True)
+    print_thread.start()
+    print_thread.join(timeout=1.0)
+    
+    if print_thread.is_alive():
+        sys.stdout.flush()
+        
+        
+        if len(original_message) < 1000000:
+            try:
+                with open("./data/" + log_file, "a") as file:
+                    file.write(
+                        datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                        + ": "
+                        + str(original_message)
+                        + "\n"
+                    )
+            except Exception:
+                pass
+        os._exit(1)
 print("running discord logger bot")
 lastrestart = 0
 botisalreadyready = False
@@ -1309,13 +1324,19 @@ if DISCORDBOTLOGSTATS == "1":
             asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} Stats for {playername} not found :("),"fake context",None,True,False), bot.loop)
             return
         playernamereal = playernamereal[0]
-
-        output = f"{playernamereal} has {playerstats[0]} Pilot kills, {playerstats[2]} Deaths, {playerstats[3]} Titan kills and {modifyvalue(int(playerstats[1] if playerstats[1] else 0),'time')} Time played"
+        while True:
+            colour = random.randint(0, 255)
+            # colour = random.choice([254,219,87])
+            # dissallowedcolours colours (unreadable)  (too dark)
+            if colour not in DISALLOWED_COLOURS:
+                break
+        
+        output = f"\x1b[38;5;{colour}m{playernamereal}{PREFIXES["chatcolour"]} has {PREFIXES["stat"]}{playerstats[0]} {PREFIXES["chatcolour"]}Pilot kills, {PREFIXES["stat"]}{playerstats[2]}{PREFIXES["chatcolour"]} Deaths, {PREFIXES["stat"]}{playerstats[3]}{PREFIXES["chatcolour"]} Titan kills and {PREFIXES["stat"]}{modifyvalue(int(playerstats[1] if playerstats[1] else 0),'time')} {PREFIXES["chatcolour"]}Time played"
         asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} {output}"),"fake context",None,True,False), bot.loop)
         if bestgame:
             formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
 
-            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} {playernamereal} had their best game in {MAP_NAME_TABLE.get(bestgame[1],bestgame[1])} with {bestgame[3]} kills on {formatted_date}"),"fake context",None,True,False), bot.loop)
+            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} \x1b[38;5;{colour}m{playernamereal}{PREFIXES["chatcolour"]} had their best game in {PREFIXES["stat"]}{MAP_NAME_TABLE.get(bestgame[1],bestgame[1])}{PREFIXES["chatcolour"]} with {PREFIXES["stat"]}{bestgame[3]}{PREFIXES["chatcolour"]} kills on {PREFIXES["stat"]}{formatted_date}"),"fake context",None,True,False), bot.loop)
 
     # @bot.slash_command(name="gunleaderboard",description="Gets leaderboards for a gun")
     # async def retrieveleaderboardgun(
@@ -2392,6 +2413,9 @@ if DISCORDBOTLOGSTATS == "1":
         data = sorted(data, key=lambda x: not x["name"].lower().startswith(name.lower()))
         data = [x for x in data if name.lower() in x["name"].lower()]
         unsortedata = [x for x in unsortedata if name.lower() in x["name"].lower()]
+        if len(data) == 0:
+            pass
+            # replace characters with closest counterparts
 
         if len(data) == 0:
             if name.isdigit():
@@ -2460,7 +2484,7 @@ if DISCORDBOTLOGSTATS == "1":
         tfdb.close()
 
         alsomatching = {}
-        for entry in unsortedata:
+        for entry in data:
             if entry["uid"] == player["uid"]:
                 continue
             alsomatching[entry["uid"]] = entry["name"]
@@ -3063,19 +3087,21 @@ def settag(tag,discorduid):
     name="tf2ingamechatcolour",
     description="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your tf2 name"
 )
-async def show_color_what(ctx, colour: Option(str, "Enter a normal/hex color, or 'reset' to reset")):
+async def show_color_what(ctx, colour: Option(str, "Enter a normal/hex color, or 'reset' to reset"), teamsetting: Option(str,"Who sees this",required=False,choices=["all","friendly","enemy","neutral"])="all"):
 
     if not checkrconallowed(ctx.author,"coolperksrole"):
         await asyncio.sleep (SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond(f"You do not have the coolperksrole, so cannot use this command :) to get it: {COOLPERKSROLEREQUIRMENTS}", ephemeral=False)
         return
-    await ctx.respond(setcolour(colour,ctx.author.id,"choseningamecolour"),ephemeral=False)
+    await ctx.respond(setcolour(colour,ctx.author.id,"choseningamecolour",teamsetting),ephemeral=False)
 
 
 
-def setcolour(colours,discorduid,type = "choseningamecolour"):
+def setcolour(colours,discorduid,type = "choseningamecolour",teamsetting = "all"):
     global colourslink
     colourslist = []
+    teamsetting = teamsetting.upper()
+    teams = ["FRIENDLY","ENEMY","NEUTRAL"]
     colours = colours.replace(","," ")
     for colour in colours.split(" "):
         # print(colour)
@@ -3088,12 +3114,16 @@ def setcolour(colours,discorduid,type = "choseningamecolour"):
             rgba = (r, g, b)
         elif colour.lower()  in CSS_COLOURS.keys():
             rgba = CSS_COLOURS[colour]
+            colourslist.append(rgba) 
         else:
             rgba = "reset"
             break
-        colourslist.append(rgba)
+        
         rgba = "|".join(map(str, colourslist))
-
+    if teamsetting == "ALL":
+        colourslist = {x:colourslist for x in teams}
+    else:
+        colourslist = {**getpriority(colourslink,[discorduid],nofind = {}),teamsetting:colourslist}
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
     c.execute(
@@ -3102,7 +3132,7 @@ def setcolour(colours,discorduid,type = "choseningamecolour"):
         VALUES (?, ?)
         ON CONFLICT(discorduid) DO UPDATE SET choseningamecolour = excluded.choseningamecolour
         """,
-        (discorduid, str(rgba) if rgba != "reset" else "reset")
+        (discorduid, json.dumps(colourslist) if rgba != "reset" else "reset")
     )
 
     tfdb.commit()
@@ -3113,11 +3143,11 @@ def setcolour(colours,discorduid,type = "choseningamecolour"):
     if discorduid not in colourslink.keys():
         colourslink[discorduid] = {}
     if rgba == "reset":
-        colourslink[discorduid]["ingamecolour"] = []
-        return (f"reset ingame colour to default {warn}")
+        colourslink[discorduid] = colourslist
+        return (f"reset ingame colour for {teamsetting} to default {warn}")
         return
-    colourslink[discorduid]["ingamecolour"] = colourslist
-    return f"Set ingame colour to {', '.join(map(str, colourslist))} {warn}"
+    colourslink[discorduid] = colourslist
+    return f"Set ingame colour to {str(colourslist)[1:-1]} {warn}"
 
 @bot.slash_command(
     name="discordtotf2chatcolour",
@@ -3402,7 +3432,7 @@ def colourmessage(message,serverid):
         # if not colourslink.get(discorduid,False).get("ingamecolour",False) and message["metadata"]["blockedmessage"]:
         #     # print("edwqdqw")
         #     return {"both":f"{PREFIXES['neutral']}{message['player']}: {message['messagecontent']}","messageteam":4,"uid":str(message["metadata"]["uid"]),"forceblock":False}
-        if not colourslink.get(discorduid,{}).get("ingamecolour",False) and not  getpriority(colourslink,[discorduid,"nameprefix"]) and not message["metadata"]["blockedmessage"]:
+        if not any(list(colourslink.get(discorduid,{}).values())) and not message["metadata"]["blockedmessage"]:
             # print("e")
             return False
     # print("HEHRHEE")
@@ -3411,16 +3441,16 @@ def colourmessage(message,serverid):
     # print(json.dumps(message))
     # print(colourslink[discorduid])
     if message["metadata"]["teamtype"] == "not team":
-        authornicks["friendly"] = computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"FRIENDLY","ingamecolour",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254,True)
-        authornicks["enemy"]= computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"ENEMY","ingamecolour",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254,True)
+        authornicks["friendly"] = computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"FRIENDLY","FRIENDLY",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254,True)
+        authornicks["enemy"]= computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"ENEMY","ENEMY",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254,True)
     else:
-        authornicks["friendly"] = computeauthornick(message["player"],discorduid,"[111m[TEAM] " +message["messagecontent"],serverid,"FRIENDLY","ingamecolour",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254,True)
+        authornicks["friendly"] = computeauthornick(message["player"],discorduid,"[111m[TEAM] " +message["messagecontent"],serverid,"FRIENDLY","ENEMY",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254,True)
     output = {}
     for key, value in authornicks.items():
         output[key] = f"{'[111m[TEAM] ' if message['metadata']['teamtype'] != 'not team' else ''}{value}: {PREFIXES['neutral']}{message['messagecontent']}"
     # print(output)
 
-    if not colourslink.get(discorduid,{}).get("ingamecolour",False) and not getpriority(colourslink,[discorduid,"nameprefix"]) and message["metadata"]["blockedmessage"]:
+    if not any(list(colourslink.get(discorduid,{}).values())) and message["metadata"]["blockedmessage"]:
         output["uid"] = str(message["metadata"]["uid"])
         output["forceblock"] = False 
     elif not message["metadata"]["blockedmessage"]:
@@ -3504,7 +3534,7 @@ def recieveflaskprintrequests():
         # if colourslink[str(data["uid"])]:
         # print(colourslink[596713937626595382])
         # print({"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",[]) != []},"uid":data["uid"],"otherdata":{x: str(y) for x,y in readplayeruidpreferences(data["uid"],False)["tf2"].items()}})
-        return {"output":{"shouldblockmessages":bool(colourslink.get(discorduid,{}).get("ingamecolour",[]) != [] or colourslink.get(discorduid,{}).get("nameprefix",[]))},"uid":data["uid"],"otherdata":{x: str(y) for x,y in list(filter(lambda x:  not getpriority(context,["commands","ingamecommands",x[0],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",x[0],"serversenabled"])  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))}}
+        return {"output":{"shouldblockmessages":any(list(colourslink.get(discorduid,{}).values()))},"uid":data["uid"],"otherdata":{x: str(y) for x,y in list(filter(lambda x:  not getpriority(context,["commands","ingamecommands",x[0],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",x[0],"serversenabled"])  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))}}
         # return output
     @app.route("/getrunningservers", methods=["POST"])
     def getrunningservers():
@@ -5177,7 +5207,8 @@ def tftodiscordcommand(specificommand,command,serverid): # handles all commands 
 def ingamesetusercolour(message,serverid,isfromserver):
     istf1 = context["istf1server"].get(serverid,False) != False
     name = getpriority(message,"originalname","name")
-
+    teamspecify = False
+    teams = ["all","friendly","enemy","neutral"]
     if len(message.get("originalmessage","w").split(" ")) == 1:
         discordtotitanfall[serverid]["messages"].append(
         {
@@ -5186,12 +5217,23 @@ def ingamesetusercolour(message,serverid,isfromserver):
         }
         )
         return
+    if len(message.get("originalmessage","w").split(" ")) == 2 and message.get("originalmessage","w").split(" ")[1].lower() in teams:
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content":f"{PREFIXES['discord']}You need to specify colours as well as a team! eg: 'friendly red' or 'enemy #ff30cb'",
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+        }
+        )
+        return
+    elif len(message.get("originalmessage","w").split(" ")) > 2 and message.get("originalmessage","w").split(" ")[1].lower() in teams:
+        teamspecify = True
+
 
     name = resolveplayeruidfromdb(name,None,True)
     if not name:
         discordtotitanfall[serverid]["messages"].append(
         {
-            "content":f"{PREFIXES['discord']}Name: {' '.join(message['originalmessage'].split(' ')[1:])} could not be found",
+            "content":f"{PREFIXES['discord']}Name: {getpriority(message,"originalname","name")} could not be found in db",
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         }
         )
@@ -5207,10 +5249,10 @@ def ingamesetusercolour(message,serverid,isfromserver):
         )
         return
     
-    colours = (" ".join(message["originalmessage"].split(" ")[1:]))
+    colours = (" ".join(message["originalmessage"].split(" ")[1+int(teamspecify):]))
     discordtotitanfall[serverid]["messages"].append(
     {
-        "content":f"{PREFIXES['discord']}{setcolour(colours,discorduid,'choseningamecolour')}",
+        "content":f"{PREFIXES['discord']}{setcolour(colours,discorduid,'choseningamecolour',"all" if not teamspecify else message.get("originalmessage","w").split(" ")[1].lower())}",
         "uidoverride": [getpriority(message,"uid",["meta","uid"])]
     }
     )
@@ -5298,7 +5340,7 @@ def shownamecolours(message,serverid,isfromserver):
     
     for colour in RGBCOLOUR:
         
-        colourtype = "ingamecolour"
+        colourtype = RGBCOLOUR
         if colour == "DISCORD":
             colourtype = "discordcolour"
             messageout = f"{PREFIXES['discord']}{PREFIXES['discordcolour']}{colour}: "
@@ -5344,17 +5386,19 @@ def checkbantf1(message,serverid,isfromserver):
             return
         # print("e",list(filter(lambda x: playerid == x["id"],bannedpeople)))
         asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!muteplayer {message["kickid"]} {PREFIXES["warning"]}{(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"} rsn {PREFIXES["warning"]}{list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context",None,True,False), bot.loop)
-def findallbannedpeople(bans,originalbans,bandepth):
+def findallbannedpeople(potentialbans,originalbans,bandepth):
     newbans = []
-    keepbans = []
-    for i, ban in enumerate(bans):
+    keeppotential = []
+    for i, potential in enumerate(potentialbans):
         for originalban in filter(lambda x: x["exhaustion"] <= bandepth, originalbans):
-            if len(set([ban["ip"],ban["name"],ban["uid"],originalban["ip"],originalban["name"],originalban["uid"]])) < ban["banlinks"]:
-                keepbans.append(ban)
+            # if len(set([ban["ip"],ban["name"],ban["uid"],originalban["ip"],originalban["name"],originalban["uid"]])) < originalban["banlinks"]:
+            if potential["ip"] != originalban["ip"] and potential["uid"] != originalban["uid"]:
+                keeppotential.append(potential)
                 continue
-            newbans.append({**ban,"banlinks":originalban["banlinks"],"bantype":originalban["bantype"],"baninfo":originalban["baninfo"],"expire":originalban["expire"],"exhaustion":originalban["exhaustion"]+1})
+            newbans.append({**potential,"banlinks":originalban["banlinks"],"bantype":originalban["bantype"],"baninfo":originalban["baninfo"],"expire":originalban["expire"],"exhaustion":originalban["exhaustion"]+1})
+            break
     if  newbans:
-        return findallbannedpeople(keepbans,[*newbans,*originalbans],bandepth)
+        return findallbannedpeople(keeppotential,[*newbans,*originalbans],bandepth)
     else:
         return originalbans
             
@@ -5713,7 +5757,7 @@ def showingamesettings(message,serverid,isfromserver):
         output = c.fetchall()
         c.close()
         # print(output)
-        discordstats = {x[0]:{"nameprefix":(x[3]) if x[3] and x[3] != "reset" else None,"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,"ingamecolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) if x[2] is not None and x[2] != "reset" else []}  for x in output}
+        discordstats = {x[0]:{"nameprefix":(x[3]) if x[3] and x[3] != "reset" else None,"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,**(({x:(list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) ) for x in teams}if "[" not in x[2] else json.loads(x[2])) if x[2] is not None and x[2] != "reset" else {})}  for x in output}
         
     else:discorduid = {}
     cmdcounter = 0
@@ -5853,7 +5897,7 @@ def ingamehelp(message,serverid,isfromserver):
             discordtotitanfall[serverid]["messages"].append(
                 {
                     # "id": str(i) + str(int(time.time()*100)),
-                    "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2']+command.get('permsneeded',False)+ ' ' if command.get('permsneeded',False) else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{name}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
+                    "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2']+command.get('permsneeded',False)+ ' ' if command.get('permsneeded',False) else ''}{PREFIXES['commandname']}{name}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
                     # "teamoverride": 4,
                     # "isteammessage": False,
                     "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -5919,9 +5963,7 @@ def calcstats(message,serverid,isfromserver):
             return
 
         for i, (key, stat) in enumerate(output.items()):
-            try:
-                key = int(key)
-            except ValueError:
+            if not key.isdigit():
                 continue
             discordtotitanfall[serverid]["messages"].append(
             {
@@ -6264,7 +6306,7 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
 
     name_like = f"%{name}%"
     query = f"""
-        SELECT playeruid, playername FROM uidnamelink{'tf1' if istf1 else ''}
+        SELECT playeruid, playername, lastseenunix FROM uidnamelink{'tf1' if istf1 else ''}
         WHERE LOWER(playername) LIKE LOWER(?)
         ORDER BY id DESC, playername COLLATE NOCASE
     """
@@ -6272,11 +6314,12 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
     data = c.fetchall()
     if not data and (uidnameforce == "uid" or uidnameforce is None) and name.isdigit():
         c.execute(f"""
-            SELECT playeruid, playername FROM uidnamelink{'tf1' if istf1 else ''}
+            SELECT playeruid, playername, lastseenunix FROM uidnamelink{'tf1' if istf1 else ''}
             WHERE playeruid = ?
             ORDER BY id DESC
         """, (name,))
         data = c.fetchall()
+        name = str(name)
 
     tfdb.close()
 
@@ -6287,11 +6330,18 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
     seen_uids = set()
     results = []
     # print(data)
-    for uid, pname in data:
+    for uid, pname, lastseen in data:
         if not oneuidpermatch or uid not in seen_uids:
-            results.append({"name": pname, "uid": uid})
+            results.append({"name": pname, "uid": uid,"lastseen":lastseen})
             seen_uids.add(uid)
-    results.sort(key=lambda x: len(x["name"]) - x["name"].lower().startswith(name.lower()) * 50)
+    # results.sort(key=lambda x: len(x["name"]) - x["name"].lower().startswith(name.lower()) * 50)
+    results.sort(key=lambda x: len(x["name"]) if int(time.time()) - lastseen < 86400*3 else int(time.time()) - lastseen)
+    # results.sort(key = lambda x: int(x["lastseen"]),reverse=True)
+    results.sort(key=lambda x: x["name"].lower().startswith(name.lower()),reverse=True)
+    results.sort(key=lambda x: x["name"].lower() == name.lower(), reverse = True)
+    
+
+
 
     return results
         
@@ -7115,12 +7165,13 @@ def packfortextsv3(texts,output = {}):
     return {"content":texts[0]["content"],"validation":str(texts[0]["id"]),"teamoverride":texts[0].get("teamoverride",4),"isteammessage":texts[0].get("isteammessage",False),"uidoverride":",".join(list(map(lambda x: str(x), texts[0].get("uidoverride",[]) if texts[0].get("uidoverride",[]) else []))),"nextmessage":packfortextsv3(texts[1:]) if len(texts[1:]) else None}
 
 
-def getpriority(ditionary,*priority):
+def getpriority(ditionary,*priority,**kwargs):
     for route in priority:
         output = ditionary.copy()
         if isinstance(route,str):route = [route]
         for place in route: output = output.get(place,{})
         if output != {}: return output
+    return kwargs.get("nofind",None)
 
 def setlotsofdefault(dicto, value, *nests):
     if not nests:
