@@ -661,7 +661,7 @@ PORT = os.getenv("BOT_PORT","3451")
 MAXTAGLEN = int(os.getenv("MAX_TAG_LEN","6"))
 GLOBALIP = 0
 if OVERRIDEIPFORCDNLEADERBOARD == "use_actual_ip":
-    GLOBALIP ="http://"+requests.get('https://api.ipify.org').text+":"+PORT
+    GLOBALIP ="http://"+requests.get('https://api.ipify.org').text+":"+"34511"
 elif OVERRIDEIPFORCDNLEADERBOARD != "hidden":
     GLOBALIP = OVERRIDEIPFORCDNLEADERBOARD
 
@@ -874,12 +874,12 @@ context = {
     },
     "overrideroles" :{
         "rconrole" : 0,
-        "coolperksrole":0
+        "coolperksrole":0,
     },
     "overriderolesuids" :
     {
         "rconrole":[],
-        "coolperksrole":[]
+        "coolperksrole":[],
     },
     "leaderboardchannelmessages": [],
     "commands": {}
@@ -2012,16 +2012,22 @@ if DISCORDBOTLOGSTATS == "1":
             tfdb = postgresem("./data/tf2helper.db")
             c = tfdb
             c.execute("SELECT DISTINCT cause_of_death FROM specifickilltracker ORDER BY cause_of_death")
-            weaponsused = c.fetchall()
-            weapon_images = list(map(lambda x: f"{x[0]}.png", weaponsused))
+            output = c.fetchall()
+            # print(json.dumps({x["weapon_name"]:x["png_name"] for x in [*ABILITYS_PILOT, *GRENADES, *DEATH_BY_MAP, *MISC_MISC, *MISC_TITAN, *MISC_PILOT, *CORES, *GUNS_TITAN, *GUNS_PILOT, *ABILITYS_TITAN]},indent=4))
+            weapon_images = list(map(lambda x: {x["weapon_name"]:x["png_name"] for x in [*ABILITYS_PILOT, *GRENADES, *DEATH_BY_MAP, *MISC_MISC, *MISC_TITAN, *MISC_PILOT, *CORES, *GUNS_TITAN, *GUNS_PILOT, *ABILITYS_TITAN]}.get(x[0],x[0])+".png", output))
+            # print("\n".join(weapon_images))
+            originalweaponnames = dict(zip([os.path.splitext(f)[0] for f in weapon_images],list(map(lambda x: x[0],output))))
             tfdb.close()
 
         else:
             weapon_images = [f for f in os.listdir(IMAGE_DIR) if f.endswith(".png")]
         weapon_names = [os.path.splitext(f)[0] for f in weapon_images]
+        
+        # print("\n".join(weapon_names))
 
         if specificweapon:
             weapon_names = [w for w in list(set([*weapon_names,*list(map(lambda x:x["weapon_name"],specificweapon))])) if w in list(map(lambda x: x["png_name"],specificweapon)) or True] # if no image, who cares! (might break stuff)
+            originalweaponnames = dict(zip(weapon_names,weapon_names))
             if not weapon_names:
                 pass
                 print("No matching weapon images found for the given list.")
@@ -2127,13 +2133,14 @@ if DISCORDBOTLOGSTATS == "1":
             # if not specificweapon:
         if not playeroverride:
             weapon_names.sort(key=lambda w: max([0,*list(weapon_kills["main"].get(w, {}).values())]), reverse=True)
+            weapon_names = list(filter(lambda w: weapon_kills["main"].get(w, False) != False, weapon_names))
         else:
             # print(playeroverride,list(filter(lambda w: weapon_kills["main"].get(w, {}).get(playeroverride,0) ,weapon_names)))
             # print(weapon_kills["main"])
-            weapon_names = list(filter(lambda w: weapon_kills["main"].get(w, {}).get(playeroverride,0) ,weapon_names))
-            weapon_names.sort(key=lambda w: weapon_kills["main"].get(w, {}).get(playeroverride,0), reverse=True)
+            weapon_names = list(filter(lambda w: weapon_kills["main"].get(originalweaponnames[w], {}).get(playeroverride,0) ,weapon_names))
+            weapon_names.sort(key=lambda w: weapon_kills["main"].get(originalweaponnames[w], {}).get(playeroverride,0), reverse=True)
         # print(weapon_names)
-        weapon_names = list(filter(lambda w: weapon_kills["main"].get(w, False) != False, weapon_names))
+        
         try:
             font = ImageFont.truetype(FONT_PATH, FONT_SIZE)
         except (OSError, IOError):
@@ -2174,14 +2181,18 @@ if DISCORDBOTLOGSTATS == "1":
             if gun_img.height > maxheight:
                 maxheight = gun_img.height
         for weapon in weapon_names:
+            weaponalter = weapon
+            if not specificweapon:
+                weaponalter = originalweaponnames[weapon]
+
 
             counts = {}
-            if weapon in weapon_kills["main"]:
-                for attacker,murdercount in weapon_kills["main"][weapon].items():
+            if weaponalter in weapon_kills["main"]:
+                for attacker,murdercount in weapon_kills["main"][weaponalter].items():
                     counts.setdefault(attacker,{"kills":murdercount,"killscutoff":0})
                     
-            if weapon in weapon_kills["cutoff"]:
-                for attacker,murdercount in weapon_kills["cutoff"][weapon].items():
+            if weaponalter in weapon_kills["cutoff"]:
+                for attacker,murdercount in weapon_kills["cutoff"][weaponalter].items():
                     counts[attacker]["killscutoff"] = murdercount
             if len(counts) == 0:
                 continue
@@ -2295,7 +2306,7 @@ if DISCORDBOTLOGSTATS == "1":
                 x = 5
                 y = maxheight + 5
                 draw.text((x, y), f"No playerdata found for {resolveplayeruidfromdb(playeroverride,'uid',True,False)[0]['name']}", font=font, fill=(255,100,100))
-                draw.text((x, y+(FONT_SIZE + LINE_SPACING)), f"they have never used {WEAPON_NAMES.get(weapon,weapon)}", font=font, fill=(255,100,100))
+                draw.text((x, y+(FONT_SIZE + LINE_SPACING)), f"they have never used {WEAPON_NAMES.get(weaponalter,weaponalter)}", font=font, fill=(255,100,100))
 
 
             panels.append(panel)
@@ -3178,7 +3189,7 @@ def setcolour(colours,discorduid,type = "choseningamecolour",teamsetting = "all"
         return
     colourslink[discorduid] = colourslist
     # print(json.dumps(colourslink,indent = 4))
-    return f"Set ingame colour to {str({x[0].lower(): ''.join(map(str, x[1])) for x in filter(lambda y: y[0] in teams, differences.items())})[1:-1].replace("'","")} {warn}"
+    return f"Set ingame colour to {str({x[0].lower(): ''.join(map(str, x[1])) for x in filter(lambda y: y[0] in teams, differences.items())})[1:-1].replace("'","") if differences else "No changes"} {warn}"
 
 @bot.slash_command(
     name="discordtotf2chatcolour",
@@ -3763,8 +3774,8 @@ def recieveflaskprintrequests():
                 # print({a: b for a, b in zip(texts, textvalidation)})
                 # print((texts), (textvalidation))
                 # print("REALLY STOPPING")
-                if textsv3:
-                    print(json.dumps(textsv3,indent=1))
+                # if textsv3:
+                #     print(json.dumps(textsv3,indent=1))
                 return {
                     "texts": {a: b for a, b in zip(textvalidation,texts)},
                     "textsv2":textsv2,
@@ -4696,7 +4707,8 @@ def tf1readsend(serverid,checkstatus):
                     # print("CMDARGS",[command["args"]])
                     # print("CMDARGS", "[" + otherquotemark + (otherquotemark + "," + otherquotemark.join(command["args"].split(" ")) + otherquotemark)if isinstance(command["args"], str) else "[" + ",".join(f"{otherquotemark}{arg}{otherquotemark}" for arg in command["args"]) + "]")
                     if command["command"] != "playingpoll":
-                        print("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]) if isinstance(command["args"], str) else " ".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")')
+                        pass
+                        # print("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]) if isinstance(command["args"], str) else " ".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")')
                     inputstring[command["id"]] = client.run("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]) if isinstance(command["args"], str) else " ".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")')#{","+quotationmark+filterquotes(command["name"])+quotationmark if "name" in command.keys() else "" })')
                     # print(inputstring[command["id"]])
             if checkstatus or len(commands) > 0:
@@ -5403,10 +5415,10 @@ def checkbantf1(message,serverid,isfromserver):
     playerid = c.fetchall()
     if playerid:
         playerid = playerid[0][0]
-        c.execute("UPDATE banstf1 SET lastseen = ?, lastserverid = ? WHERE id = ?",(int(time.time()),serverid,playerid))
+        c.execute("UPDATE banstf1 SET lastseen = ?, lastserverid = ? WHEREi id = ?",(int(time.time()),serverid,playerid))
     else:
-        result = c.execute("INSERT INTO banstf1 (playerip,playername,playeruid,lastseen,lastserverid) VALUES (?,?,?,?,?) RETURNING id",(message["ip"],message["name"],message["uid"],int(time.time()),serverid))
-        playerid = result.fetchone()[0]
+        c.execute("INSERT INTO banstf1 (playerip,playername,playeruid,lastseen,lastserverid) VALUES (?,?,?,?,?) RETURNING id",(message["ip"],message["name"],message["uid"],int(time.time()),serverid))
+        playerid = c.fetchone()[0]
     c.commit()
     c.execute("SELECT playerip, playername, playeruid,bantype, banlinks, baninfo, expire, id FROM banstf1")
     # banlinks is what must be the same for ban to carry through. imo is better as a number tho
@@ -5434,7 +5446,7 @@ def findallbannedpeople(potentialbans,originalbans,bandepth):
     for i, potential in enumerate(potentialbans):
         for originalban in filter(lambda x: x["exhaustion"] <= bandepth, originalbans):
             # if len(set([ban["ip"],ban["name"],ban["uid"],originalban["ip"],originalban["name"],originalban["uid"]])) < originalban["banlinks"]:
-            if potential["ip"] != originalban["ip"] and potential["uid"] != originalban["uid"]:
+            if potential["ip"] != originalban["ip"] and (potential["uid"] != originalban["uid"] or len(str(potential["uid"])) <14):
                 keeppotential.append(potential)
                 continue
             newbans.append({**potential,"banlinks":originalban["banlinks"],"bantype":originalban["bantype"],"baninfo":originalban["baninfo"],"expire":originalban["expire"],"exhaustion":originalban["exhaustion"]+1})
@@ -5799,7 +5811,8 @@ def showingamesettings(message,serverid,isfromserver):
         output = c.fetchall()
         c.close()
         # print(output)
-        discordstats = {x[0]:{"nameprefix":(x[3]) if x[3] and x[3] != "reset" else None,"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,**(({x:(list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) ) for x in teams}if "[" not in x[2] else json.loads(x[2])) if x[2] is not None and x[2] != "reset" else {})}  for x in output}
+        teams = ["FRIENDLY","ENEMY","NEUTRAL"]
+        discordstats = {x[0]:{"nameprefix":(x[3]) if x[3] and x[3] != "reset" else None,"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,**(({team:(list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) ) for team in teams}if "[" not in x[2] else json.loads(x[2])) if x[2] is not None and x[2] != "reset" else {})}  for x in output}
         
     else:discorduid = {}
     cmdcounter = 0
@@ -6374,10 +6387,10 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
     # print(data)
     for uid, pname, lastseen in data:
         if not oneuidpermatch or uid not in seen_uids:
-            results.append({"name": pname, "uid": uid,"lastseen":lastseen})
+            results.append({"name": pname, "uid": uid,"lastseen":lastseen if lastseen else 0})
             seen_uids.add(uid)
     # results.sort(key=lambda x: len(x["name"]) - x["name"].lower().startswith(name.lower()) * 50)
-    results.sort(key=lambda x: len(x["name"]) if int(time.time()) - lastseen < 86400*3 else int(time.time()) - lastseen)
+    results.sort(key=lambda x: len(x["name"]) if int(time.time()) - x["lastseen"] < 86400*3 else int(time.time()) - x["lastseen"])
     # results.sort(key = lambda x: int(x["lastseen"]),reverse=True)
     results.sort(key=lambda x: x["name"].lower().startswith(name.lower()),reverse=True)
     results.sort(key=lambda x: x["name"].lower() == name.lower(), reverse = True)
