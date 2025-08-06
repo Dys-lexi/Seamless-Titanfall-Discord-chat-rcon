@@ -2084,6 +2084,7 @@ if DISCORDBOTLOGSTATS == "1":
             weapon_kills = {"main":{},"cutoff":{}}
             for name,cutoff in timecutoffs.items():
                 for weapon, killer, mods, stabcount, whomurdered in bvsuggestedthistome(cutoff,swoptovictims):
+                    if not killer: killer = whomurdered
                     weapon_kills[name].setdefault(f"{weapon}",{})
                     weapon_kills[name][f"{weapon}"].setdefault(killer,0)
                     weapon_kills[name][f"{weapon}"][killer] += stabcount
@@ -2845,8 +2846,6 @@ async def bind_global_channel(
     channel: Option(
         discord.TextChannel, "The channel to bind to", required=True
     ),
- 
-    
     ):
     """binds a channel to a certain output of the bots, like leaderboards, ban messages, nonowordnotifys"""
     global context
@@ -4581,7 +4580,7 @@ tf1servercontext ={}
 
 
 def interpstatus(log):
-    """Interprets server status logs and extracts relevant game information"""
+    """for use with "status" command"""
     m = re.search(r"map\s*:\s*(\S+)", log)
     map_name = m.group(1) if m else None
     players = {}
@@ -5701,7 +5700,8 @@ def displayendofroundstats(message,serverid,isfromserver):
             output[key] = f"{colour} | ".join(value)
     if len(output) < 2:
         return ""
-    for value in output.values():
+    for key,value in output.items():
+        if key not in ["general","ks","topweapons"]:continue
         discordtotitanfall[serverid]["messages"].append(
         {
             # "id": str(i)+str(int(time.time()*100)),
@@ -7423,240 +7423,240 @@ def convansi(rgb):
 def getstats(playeruid):
     """Comprehensive player statistics calculator with kill/death ratios, rankings, and weapon usage data"""
 # print(int(time.time()))
-        tfdb = postgresem("./data/tf2helper.db")
-        c = tfdb
-        # print(int(time.time()/))
-        now = int(time.time())
-        timeoffset = 86400
-        try:
-            output = resolveplayeruidfromdb(playeruid,None,True)[0]
-            name = output["name"]
-            playeruid = (output["uid"])
-        except:
-            traceback.print_exc()
-            name = "unknown"
-            return {"sob":"sobbing Unknown player"}
-        messages = {}
-        output = {"name":name,"uid":str(playeruid),"total":{}}
-        c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ? AND (victim_type = 'player' OR victim_type IS NULL)",(playeruid,))
-        output["total"]["deaths"] = len(c.fetchall())
-        c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ? AND (victim_type = 'player' OR victim_type IS NULL)",(playeruid,))
-        output["total"]["kills"] = len(c.fetchall())
-        c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ? AND timeofkill > ? AND (victim_type = 'player' OR victim_type IS NULL)",(playeruid,now-timeoffset))
-        output["total"]["killstoday"] = len(c.fetchall())
-        c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ? AND timeofkill > ? AND (victim_type = 'player' OR victim_type IS NULL)",(playeruid,now-timeoffset))
-        output["total"]["deathstoday"] = len(c.fetchall())
-        c.execute("""
-            WITH player_kills AS (
-                SELECT playeruid, COUNT(*) AS kill_count
-                FROM specifickilltracker
-                WHERE timeofkill > ?
-                AND (victim_type = 'player' OR victim_type IS NULL)
-                GROUP BY playeruid
-            ),
-            ranked AS (
-                SELECT playeruid,
-                    RANK() OVER (ORDER BY kill_count DESC) AS position
-                FROM player_kills
-            )
-            SELECT position FROM ranked WHERE playeruid = ?
-        """, (now - timeoffset, playeruid))
-        killspos = c.fetchone()
-        output["total"]["killslasthourpos"] = killspos[0] if killspos else None
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
+    # print(int(time.time()/))
+    now = int(time.time())
+    timeoffset = 86400
+    try:
+        output = resolveplayeruidfromdb(playeruid,None,True)[0]
+        name = output["name"]
+        playeruid = (output["uid"])
+    except:
+        traceback.print_exc()
+        name = "unknown"
+        return {"sob":"sobbing Unknown player"}
+    messages = {}
+    output = {"name":name,"uid":str(playeruid),"total":{}}
+    c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ? AND (victim_type = 'player' OR victim_type IS NULL)",(playeruid,))
+    output["total"]["deaths"] = len(c.fetchall())
+    c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ? AND (victim_type = 'player' OR victim_type IS NULL)",(playeruid,))
+    output["total"]["kills"] = len(c.fetchall())
+    c.execute("SELECT * FROM specifickilltracker WHERE playeruid = ? AND timeofkill > ? AND (victim_type = 'player' OR victim_type IS NULL)",(playeruid,now-timeoffset))
+    output["total"]["killstoday"] = len(c.fetchall())
+    c.execute("SELECT * FROM specifickilltracker WHERE victim_id = ? AND timeofkill > ? AND (victim_type = 'player' OR victim_type IS NULL)",(playeruid,now-timeoffset))
+    output["total"]["deathstoday"] = len(c.fetchall())
+    c.execute("""
+        WITH player_kills AS (
+            SELECT playeruid, COUNT(*) AS kill_count
+            FROM specifickilltracker
+            WHERE timeofkill > ?
+            AND (victim_type = 'player' OR victim_type IS NULL)
+            GROUP BY playeruid
+        ),
+        ranked AS (
+            SELECT playeruid,
+                RANK() OVER (ORDER BY kill_count DESC) AS position
+            FROM player_kills
+        )
+        SELECT position FROM ranked WHERE playeruid = ?
+    """, (now - timeoffset, playeruid))
+    killspos = c.fetchone()
+    output["total"]["killslasthourpos"] = killspos[0] if killspos else None
 
-        c.execute("""
-            WITH player_deaths AS (
-                SELECT victim_id, COUNT(*) AS death_count
-                FROM specifickilltracker
-                WHERE timeofkill > ?
-                AND (victim_type = 'player' OR victim_type IS NULL)
-                GROUP BY victim_id
-            ),
-            ranked AS (
-                SELECT victim_id,
-                    RANK() OVER (ORDER BY death_count DESC) AS position
-                FROM player_deaths
-            )
-            SELECT position FROM ranked WHERE victim_id = ?
-        """, (now - timeoffset, playeruid))
-        killspos = c.fetchone()
-        output["total"]["deathslasthourpos"] = killspos[0] if killspos else None
+    c.execute("""
+        WITH player_deaths AS (
+            SELECT victim_id, COUNT(*) AS death_count
+            FROM specifickilltracker
+            WHERE timeofkill > ?
+            AND (victim_type = 'player' OR victim_type IS NULL)
+            GROUP BY victim_id
+        ),
+        ranked AS (
+            SELECT victim_id,
+                RANK() OVER (ORDER BY death_count DESC) AS position
+            FROM player_deaths
+        )
+        SELECT position FROM ranked WHERE victim_id = ?
+    """, (now - timeoffset, playeruid))
+    killspos = c.fetchone()
+    output["total"]["deathslasthourpos"] = killspos[0] if killspos else None
 
-        c.execute("""
-            WITH player_kills AS (
-                SELECT playeruid, COUNT(*) AS kill_count
-                FROM specifickilltracker
-                WHERE (victim_type = 'player' OR victim_type IS NULL)
-                GROUP BY playeruid
-            ),
-            ranked AS (
-                SELECT playeruid,
-                    RANK() OVER (ORDER BY kill_count DESC) AS position
-                FROM player_kills
-            )
-            SELECT position FROM ranked WHERE playeruid = ?
-        """, (playeruid,))
-        killspos = c.fetchone()
-        output["total"]["killspos"] = killspos[0] if killspos else None
+    c.execute("""
+        WITH player_kills AS (
+            SELECT playeruid, COUNT(*) AS kill_count
+            FROM specifickilltracker
+            WHERE (victim_type = 'player' OR victim_type IS NULL)
+            GROUP BY playeruid
+        ),
+        ranked AS (
+            SELECT playeruid,
+                RANK() OVER (ORDER BY kill_count DESC) AS position
+            FROM player_kills
+        )
+        SELECT position FROM ranked WHERE playeruid = ?
+    """, (playeruid,))
+    killspos = c.fetchone()
+    output["total"]["killspos"] = killspos[0] if killspos else None
 
-        c.execute("""
-            WITH recent_weapon AS (
-                SELECT cause_of_death
-                FROM specifickilltracker
-                WHERE playeruid = ?
-                AND (victim_type = 'player' OR victim_type IS NULL)
-                ORDER BY timeofkill DESC
-                LIMIT 1
-            ),
-            weapon_kills AS (
-                SELECT playeruid, COUNT(*) AS kill_count
-                FROM specifickilltracker
-                WHERE cause_of_death = (SELECT cause_of_death FROM recent_weapon)
-                GROUP BY playeruid
-            ),
-            ranked AS (
-                SELECT playeruid,
-                    RANK() OVER (ORDER BY kill_count DESC) AS position
-                FROM weapon_kills
-            )
-            SELECT position FROM ranked WHERE playeruid = ?
-        """, (playeruid, playeruid))
-        killspos = c.fetchone()
-        output["total"]["recentweaponkillspos"] = killspos[0] if killspos else None
-
-        c.execute("""
-            WITH player_deaths AS (
-                SELECT victim_id, COUNT(*) AS death_count
-                FROM specifickilltracker
-                WHERE (victim_type = 'player' OR victim_type IS NULL)
-                GROUP BY victim_id
-            ),
-            ranked AS (
-                SELECT victim_id,
-                    RANK() OVER (ORDER BY death_count DESC) AS position
-                FROM player_deaths
-            )
-            SELECT position FROM ranked WHERE victim_id = ?
-        """, (playeruid,))
-        killspos = c.fetchone()
-        output["total"]["deathspos"] = killspos[0] if killspos else None
-
-        c.execute("""
-            SELECT cause_of_death, COUNT(*) as kill_count
+    c.execute("""
+        WITH recent_weapon AS (
+            SELECT cause_of_death
             FROM specifickilltracker
             WHERE playeruid = ?
             AND (victim_type = 'player' OR victim_type IS NULL)
-            GROUP BY cause_of_death
-            ORDER BY kill_count DESC
-            LIMIT 3
-        """, (playeruid,))
-        top_weapons = c.fetchall()
-        c.execute("""
-            SELECT matchid, SUM(pilotkills) AS total_pilotkills
-            FROM playtime
-            WHERE playeruid = ?
-            GROUP BY matchid
-            ORDER BY total_pilotkills DESC
+            ORDER BY timeofkill DESC
             LIMIT 1
-        """, (playeruid,))
+        ),
+        weapon_kills AS (
+            SELECT playeruid, COUNT(*) AS kill_count
+            FROM specifickilltracker
+            WHERE cause_of_death = (SELECT cause_of_death FROM recent_weapon)
+            GROUP BY playeruid
+        ),
+        ranked AS (
+            SELECT playeruid,
+                RANK() OVER (ORDER BY kill_count DESC) AS position
+            FROM weapon_kills
+        )
+        SELECT position FROM ranked WHERE playeruid = ?
+    """, (playeruid, playeruid))
+    killspos = c.fetchone()
+    output["total"]["recentweaponkillspos"] = killspos[0] if killspos else None
 
-        c.execute("""
-            SELECT matchid, map, MIN(joinatunix) as start_time, SUM(pilotkills) as total_pilotkills
-            FROM playtime
-            WHERE playeruid = ?
-            GROUP BY matchid, map
-            ORDER BY total_pilotkills DESC
-            LIMIT 1
-        """, (playeruid,))
-        bestgame = c.fetchone()
-        c.execute("""
-            SELECT 
-                COALESCE(SUM(duration), 0) AS total_time_playing,
-                COALESCE(SUM(pilotkills), 0) AS total_pilot_kills
-            FROM playtime
-            WHERE playeruid = ?
-        """, (playeruid,))
-        kph = c.fetchone()
-        timeplayed = "unknown"
-        if not kph or not kph[0]: killsperhour = 0
-        else:
-            killsperhour = int((kph[1]/(kph[0]/3600))*100)/100
-            timeplayed = modifyvalue(kph[0],"time")
-        currentgun = False
-        # if request.method == "POST" and "current_weapon" in request.get_json():
-        #     print("ASDASDASDASDASSDAS",request.get_json()["current_weapon"])
-        #     c.execute("SELECT COUNT(*) as kill_count FROM specifickilltracker WHERE playeruid = ? AND cause_of_death = ?",(playeruid,request.get_json()["current_weapon"]))
-        #     currentgun = c.fetchone()
-        #     if not currentgun:
-        #         currentgun = False
-        #     else:
-                # print("HEREEE")
-                # top_weapons.append( (request.get_json()["current_weapon"],currentgun[0]))
-                # print(currentgun)
-        # output["total"]["top_weapons"] = top_weapons
-        c.execute("""
-            SELECT cause_of_death, COUNT(*) as kill_count
+    c.execute("""
+        WITH player_deaths AS (
+            SELECT victim_id, COUNT(*) AS death_count
+            FROM specifickilltracker
+            WHERE (victim_type = 'player' OR victim_type IS NULL)
+            GROUP BY victim_id
+        ),
+        ranked AS (
+            SELECT victim_id,
+                RANK() OVER (ORDER BY death_count DESC) AS position
+            FROM player_deaths
+        )
+        SELECT position FROM ranked WHERE victim_id = ?
+    """, (playeruid,))
+    killspos = c.fetchone()
+    output["total"]["deathspos"] = killspos[0] if killspos else None
+
+    c.execute("""
+        SELECT cause_of_death, COUNT(*) as kill_count
+        FROM specifickilltracker
+        WHERE playeruid = ?
+        AND (victim_type = 'player' OR victim_type IS NULL)
+        GROUP BY cause_of_death
+        ORDER BY kill_count DESC
+        LIMIT 3
+    """, (playeruid,))
+    top_weapons = c.fetchall()
+    c.execute("""
+        SELECT matchid, SUM(pilotkills) AS total_pilotkills
+        FROM playtime
+        WHERE playeruid = ?
+        GROUP BY matchid
+        ORDER BY total_pilotkills DESC
+        LIMIT 1
+    """, (playeruid,))
+
+    c.execute("""
+        SELECT matchid, map, MIN(joinatunix) as start_time, SUM(pilotkills) as total_pilotkills
+        FROM playtime
+        WHERE playeruid = ?
+        GROUP BY matchid, map
+        ORDER BY total_pilotkills DESC
+        LIMIT 1
+    """, (playeruid,))
+    bestgame = c.fetchone()
+    c.execute("""
+        SELECT 
+            COALESCE(SUM(duration), 0) AS total_time_playing,
+            COALESCE(SUM(pilotkills), 0) AS total_pilot_kills
+        FROM playtime
+        WHERE playeruid = ?
+    """, (playeruid,))
+    kph = c.fetchone()
+    timeplayed = "unknown"
+    if not kph or not kph[0]: killsperhour = 0
+    else:
+        killsperhour = int((kph[1]/(kph[0]/3600))*100)/100
+        timeplayed = modifyvalue(kph[0],"time")
+    currentgun = False
+    # if request.method == "POST" and "current_weapon" in request.get_json():
+    #     print("ASDASDASDASDASSDAS",request.get_json()["current_weapon"])
+    #     c.execute("SELECT COUNT(*) as kill_count FROM specifickilltracker WHERE playeruid = ? AND cause_of_death = ?",(playeruid,request.get_json()["current_weapon"]))
+    #     currentgun = c.fetchone()
+    #     if not currentgun:
+    #         currentgun = False
+    #     else:
+            # print("HEREEE")
+            # top_weapons.append( (request.get_json()["current_weapon"],currentgun[0]))
+            # print(currentgun)
+    # output["total"]["top_weapons"] = top_weapons
+    c.execute("""
+        SELECT cause_of_death, COUNT(*) as kill_count
+        FROM specifickilltracker
+        WHERE playeruid = ?
+        AND (victim_type = 'player' OR victim_type IS NULL)
+        AND cause_of_death = (
+            SELECT cause_of_death
             FROM specifickilltracker
             WHERE playeruid = ?
             AND (victim_type = 'player' OR victim_type IS NULL)
-            AND cause_of_death = (
-                SELECT cause_of_death
-                FROM specifickilltracker
-                WHERE playeruid = ?
-                AND (victim_type = 'player' OR victim_type IS NULL)
-                ORDER BY timeofkill DESC
-                LIMIT 1
-            )
-            GROUP BY cause_of_death
-        """, (playeruid, playeruid))
-        output["total"]["recent_weapon_kills"] = c.fetchone()
+            ORDER BY timeofkill DESC
+            LIMIT 1
+        )
+        GROUP BY cause_of_death
+    """, (playeruid, playeruid))
+    output["total"]["recent_weapon_kills"] = c.fetchone()
 
 
-        if output["total"]["deaths"] != 0:
-            kd = output["total"]["kills"]/ output["total"]["deaths"]
-        else:
-            kd = 1
-        kd = int(kd*100)/100
-        # print("getting killdata for",name,playeruid,output)
-        while True:
-            colour = random.randint(0, 255)
-            # colour = random.choice([254,219,87])
-            # dissallowedcolours colours (unreadable)  (too dark)
-            if colour not in DISALLOWED_COLOURS:
-                break
-        offset = 1
-        backslash = ""
-        messages["0"] = f"[38;5;{colour}m{name}{PREFIXES['chatcolour']} has {PREFIXES['stat']}{output['total']['kills']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['killspos']) if output['total']['killspos'] else ''} {PREFIXES['chatcolour']}kills and {PREFIXES['stat']}{output['total']['deaths']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['deathspos']) if output['total']['deathspos'] else ''} {PREFIXES['chatcolour']}deaths ({PREFIXES['stat']}{kd}{PREFIXES['chatcolour']} k/d, {PREFIXES['stat']}{killsperhour}{PREFIXES['chatcolour']} k/hour, {PREFIXES['stat']}{timeplayed}{PREFIXES['chatcolour']} playtime)"
-        # print("e",bestgame)
-        if  bestgame:
-            formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
+    if output["total"]["deaths"] != 0:
+        kd = output["total"]["kills"]/ output["total"]["deaths"]
+    else:
+        kd = 1
+    kd = int(kd*100)/100
+    # print("getting killdata for",name,playeruid,output)
+    while True:
+        colour = random.randint(0, 255)
+        # colour = random.choice([254,219,87])
+        # dissallowedcolours colours (unreadable)  (too dark)
+        if colour not in DISALLOWED_COLOURS:
+            break
+    offset = 1
+    backslash = ""
+    messages["0"] = f"[38;5;{colour}m{name}{PREFIXES['chatcolour']} has {PREFIXES['stat']}{output['total']['kills']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['killspos']) if output['total']['killspos'] else ''} {PREFIXES['chatcolour']}kills and {PREFIXES['stat']}{output['total']['deaths']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['deathspos']) if output['total']['deathspos'] else ''} {PREFIXES['chatcolour']}deaths ({PREFIXES['stat']}{kd}{PREFIXES['chatcolour']} k/d, {PREFIXES['stat']}{killsperhour}{PREFIXES['chatcolour']} k/hour, {PREFIXES['stat']}{timeplayed}{PREFIXES['chatcolour']} playtime)"
+    # print("e",bestgame)
+    if  bestgame:
+        formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
 
-            offset +=1
-            messages["1"] = f"[38;5;{colour}m{name}{PREFIXES['chatcolour']} had their best game on {PREFIXES['stat']}{MAP_NAME_TABLE.get(bestgame[1],bestgame[1])}{PREFIXES['chatcolour']} with {PREFIXES['stat']}{bestgame[3]}{PREFIXES['chatcolour']} kills on {PREFIXES['stat']}{formatted_date}"
-        colourcodes = [PREFIXES["gold"],PREFIXES["silver"],PREFIXES["bronze"]]
-        topguns = []
-        for enum , weapon in enumerate( top_weapons):
-            if not weapon:
-                continue
-            # messages[str(offset)] = f"[38;5;{colour}m{enum+1}) {colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}{PREFIXES['chatcolour']} kills: {PREFIXES['stat']}{weapon[1]}"
-            # offset +=1
-            topguns.append( f"{colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}: {PREFIXES['stat']}{weapon[1]}{PREFIXES['chatcolour']} kills" )
-        
-        if topguns != "":
-            messages[str(offset)] = f"[38;5;{colour}mTop 3 guns: " + ", ".join(topguns)
-            offset +=1
-    # [38;5;244m
-        if output["total"]["recent_weapon_kills"]:
-            messages[str(offset)] = f"[38;5;{colour}mMost recent weapon: {PREFIXES['stat']}{WEAPON_NAMES.get(output['total']['recent_weapon_kills'][0],output['total']['recent_weapon_kills'][0])}: {PREFIXES['stat']}{output['total']['recent_weapon_kills'][1]}{' '+ PREFIXES['stat2']+'#' + str(output['total']['recentweaponkillspos']) if output['total']['recentweaponkillspos'] else ''} {PREFIXES['chatcolour']}kills"
-            offset+=1
-        messages[str(offset)] = f"[38;5;{colour}m{name}{PREFIXES['chatcolour']} has {PREFIXES['stat']}{output['total']['killstoday']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['killslasthourpos']) if output['total']['killslasthourpos'] else ''}{PREFIXES['chatcolour']} kill{'s' if  output['total']['killstoday'] != 1 else ''} today and {PREFIXES['stat']}{output['total']['deathstoday']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['deathslasthourpos']) if output['total']['deathslasthourpos'] else ''} {PREFIXES['chatcolour']}death{'s' if  output['total']['deathstoday'] != 1 else ''} today"
         offset +=1
+        messages["1"] = f"[38;5;{colour}m{name}{PREFIXES['chatcolour']} had their best game on {PREFIXES['stat']}{MAP_NAME_TABLE.get(bestgame[1],bestgame[1])}{PREFIXES['chatcolour']} with {PREFIXES['stat']}{bestgame[3]}{PREFIXES['chatcolour']} kills on {PREFIXES['stat']}{formatted_date}"
+    colourcodes = [PREFIXES["gold"],PREFIXES["silver"],PREFIXES["bronze"]]
+    topguns = []
+    for enum , weapon in enumerate( top_weapons):
+        if not weapon:
+            continue
+        # messages[str(offset)] = f"[38;5;{colour}m{enum+1}) {colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}{PREFIXES['chatcolour']} kills: {PREFIXES['stat']}{weapon[1]}"
+        # offset +=1
+        topguns.append( f"{colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}: {PREFIXES['stat']}{weapon[1]}{PREFIXES['chatcolour']} kills" )
+    
+    if topguns != "":
+        messages[str(offset)] = f"[38;5;{colour}mTop 3 guns: " + ", ".join(topguns)
+        offset +=1
+# [38;5;244m
+    if output["total"]["recent_weapon_kills"]:
+        messages[str(offset)] = f"[38;5;{colour}mMost recent weapon: {PREFIXES['stat']}{WEAPON_NAMES.get(output['total']['recent_weapon_kills'][0],output['total']['recent_weapon_kills'][0])}: {PREFIXES['stat']}{output['total']['recent_weapon_kills'][1]}{' '+ PREFIXES['stat2']+'#' + str(output['total']['recentweaponkillspos']) if output['total']['recentweaponkillspos'] else ''} {PREFIXES['chatcolour']}kills"
+        offset+=1
+    messages[str(offset)] = f"[38;5;{colour}m{name}{PREFIXES['chatcolour']} has {PREFIXES['stat']}{output['total']['killstoday']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['killslasthourpos']) if output['total']['killslasthourpos'] else ''}{PREFIXES['chatcolour']} kill{'s' if  output['total']['killstoday'] != 1 else ''} today and {PREFIXES['stat']}{output['total']['deathstoday']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['deathslasthourpos']) if output['total']['deathslasthourpos'] else ''} {PREFIXES['chatcolour']}death{'s' if  output['total']['deathstoday'] != 1 else ''} today"
+    offset +=1
 
-        # if len(messages):
-            # output["messages"] = messages
-        print("stats: name",name,"colour",colour)
-        # print("EEEEEEEEEE")
-        return {**output,**messages}
+    # if len(messages):
+        # output["messages"] = messages
+    print("stats: name",name,"colour",colour)
+    # print("EEEEEEEEEE")
+    return {**output,**messages}
        
 
 def fitimage(image_bytes, output_width=30, ascii_char="█",maxlen = 249):
