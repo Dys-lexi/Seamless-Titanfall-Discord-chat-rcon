@@ -575,13 +575,13 @@ realprint = print
 linecolours = {}
 def removecolourcodes(message):
     import re
-    # Remove all ANSI escape sequences: \x1b[...m, \u001b[...m, and [38;2;R;G;Bm patterns
+    # Remove all ANSI escape sequences: [...m, \u001b[...m, and [38;2;R;G;Bm patterns
     # Pattern matches:
-    # - \x1b[...m (hex escape)
+    # - [...m (hex escape)
     # - \u001b[...m (unicode escape) 
     # - [38;2;R;G;Bm (RGB color codes)
     # - \033[...m (octal escape)
-    ansi_pattern = r'(\x1b\[[0-9;]*m|\\u001b\[[0-9;]*m|\[38;2;[0-9;]*m|\033\[[0-9;]*m)'
+    ansi_pattern = r'(\[[0-9;]*m|\\u001b\[[0-9;]*m|\[38;2;[0-9;]*m|\033\[[0-9;]*m)'
     message = re.sub(ansi_pattern, '', message)
     return message
 def print(*message, end="\033[0m\n"):
@@ -944,7 +944,7 @@ bot = discord.Bot(intents=intents)
 
 async def autocompletenamesfromdb(ctx):
     """autocompletes tf2 names"""
-    output =  [x["name"] if x["name"].strip() else str(x["uid"]) for x in  resolveplayeruidfromdb(ctx.value,None,True)][:20]
+    output =  [x["name"] if x["name"].strip() else str(x["uid"]) for x in  resolveplayeruidfromdb(ctx.value,None,True,relaxed = True)][:20]
     if len(output) == 0:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["No one matches"]
@@ -1042,6 +1042,7 @@ async def autocompletenamesfromingamenowildcard(ctx):
     return output
 @functools.cache
 def getallweaponnames(weapon):
+    """Processes weapon names with fuzzy matching for autocomplete functionality"""
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
     c.execute("SELECT DISTINCT cause_of_death FROM specifickilltracker ORDER BY cause_of_death")
@@ -1342,12 +1343,12 @@ if DISCORDBOTLOGSTATS == "1":
             if colour not in DISALLOWED_COLOURS:
                 break
         
-        output = f"\x1b[38;5;{colour}m{playernamereal}{PREFIXES["chatcolour"]} has {PREFIXES["stat"]}{playerstats[0]} {PREFIXES["chatcolour"]}Pilot kills, {PREFIXES["stat"]}{playerstats[2]}{PREFIXES["chatcolour"]} Deaths, {PREFIXES["stat"]}{playerstats[3]}{PREFIXES["chatcolour"]} Titan kills and {PREFIXES["stat"]}{modifyvalue(int(playerstats[1] if playerstats[1] else 0),'time')} {PREFIXES["chatcolour"]}Time played"
+        output = f"[38;5;{colour}m{playernamereal}{PREFIXES["chatcolour"]} has {PREFIXES["stat"]}{playerstats[0]} {PREFIXES["chatcolour"]}Pilot kills, {PREFIXES["stat"]}{playerstats[2]}{PREFIXES["chatcolour"]} Deaths, {PREFIXES["stat"]}{playerstats[3]}{PREFIXES["chatcolour"]} Titan kills and {PREFIXES["stat"]}{modifyvalue(int(playerstats[1] if playerstats[1] else 0),'time')} {PREFIXES["chatcolour"]}Time played"
         asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} {output}"),"fake context",None,True,False), bot.loop)
         if bestgame:
             formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
 
-            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} \x1b[38;5;{colour}m{playernamereal}{PREFIXES["chatcolour"]} had their best game in {PREFIXES["stat"]}{MAP_NAME_TABLE.get(bestgame[1],bestgame[1])}{PREFIXES["chatcolour"]} with {PREFIXES["stat"]}{bestgame[3]}{PREFIXES["chatcolour"]} kills on {PREFIXES["stat"]}{formatted_date}"),"fake context",None,True,False), bot.loop)
+            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} [38;5;{colour}m{playernamereal}{PREFIXES["chatcolour"]} had their best game in {PREFIXES["stat"]}{MAP_NAME_TABLE.get(bestgame[1],bestgame[1])}{PREFIXES["chatcolour"]} with {PREFIXES["stat"]}{bestgame[3]}{PREFIXES["chatcolour"]} kills on {PREFIXES["stat"]}{formatted_date}"),"fake context",None,True,False), bot.loop)
 
     # @bot.slash_command(name="gunleaderboard",description="Gets leaderboards for a gun")
     # async def retrieveleaderboardgun(
@@ -3071,10 +3072,12 @@ async def bind_global_channel(
 )
 async def linktfaccount(ctx):
     """used generally for nicknames, ingamenamecolours, and helpdc commands that require a special role, like rconrole/coolperksrole"""
-    global context, oaccountlinker
+    global context, accountlinker
     # accounts = resolveplayeruidfromdb(tf2accountname,None,True)
-    linkcode = f"!{random.randint(10000,100000)}"
-    accountlinker[linkcode] = {"account":ctx.author.id, "timerequested":int(time.time()+300),"ctx":ctx}
+    linkcode = 0
+    while not linkcode or linkcode in accountlinker:
+        linkcode = f"!{random.randint(10000,100000)}"
+    accountlinker[linkcode] = {"account":ctx.author.id, "timerequested":int(time.time()+300),"ctx":ctx,"name":ctx.author.display_name}
     await ctx.respond(f"Trying to link {ctx.author.nick if hasattr(ctx.author, 'nick') and ctx.author.nick is not None else ctx.author.display_name} '{linkcode}' in any server chat to link in next 5 mins",ephemeral = True)
     
 @bot.slash_command(
@@ -3092,6 +3095,7 @@ async def chooseatag(ctx, tag: Option(str, f"Enter a 1 - {MAXTAGLEN} character t
     await ctx.respond(settag(tag,ctx.author.id),ephemeral=False)
 
 def settag(tag,discorduid):
+    """Sets custom tag for a Discord user that appears in game chat"""
     # return f"2{tag}2"
     """helper for above func"""
     global colourslink
@@ -3137,6 +3141,7 @@ async def show_color_what(ctx, colour: Option(str, "Enter a normal/hex color, or
 
 
 def setcolour(colours,discorduid,type = "choseningamecolour",teamsetting = "all"):
+    """Sets color preferences for Discord user with team-specific settings and validation"""
     """helper function for above"""
     global colourslink
     colourslist = []
@@ -4049,20 +4054,20 @@ def recieveflaskprintrequests():
     #         if is_ratio:
     #             sign = "+" if recent >= 0 else ""
     #             color_code = 46 if recent >= 0 else 196
-    #             return f"{PREFIXES['stat']}{fmt(total)}{PREFIXES['chatcolour']} (\x1b[38;5;{color_code}m{sign}{fmt(recent)}\x1b[0m)"
+    #             return f"{PREFIXES['stat']}{fmt(total)}{PREFIXES['chatcolour']} ([38;5;{color_code}m{sign}{fmt(recent)}[0m)"
     #         if is_time:
     #             color_code = 46 if is_positive else 196
     #             if recent > 0:
-    #                 return f"{PREFIXES['stat']}{format_time(total)}{PREFIXES['chatcolour']} \x1b[38;5;{color_code}m+{format_time(recent)}\x1b[0m"
+    #                 return f"{PREFIXES['stat']}{format_time(total)}{PREFIXES['chatcolour']} [38;5;{color_code}m+{format_time(recent)}[0m"
     #             return f"{PREFIXES['stat']}{format_time(total)}{PREFIXES['chatcolour']}"
     #         color_code = 46 if is_positive else 196
     #         if recent > 0:
-    #             return f"{PREFIXES['stat']}{fmt(total)}{PREFIXES['chatcolour']} \x1b[38;5;{color_code}m+{fmt(recent)}\x1b[0m"
+    #             return f"{PREFIXES['stat']}{fmt(total)}{PREFIXES['chatcolour']} [38;5;{color_code}m+{fmt(recent)}[0m"
     #         return f"{PREFIXES['stat']}{fmt(total)}{PREFIXES['chatcolour']}"
 
     #     # Main stats message
     #     messages["0"] = (
-    #         f"\x1b[38;5;{colour}m{name}{PREFIXES['chatcolour']} has "
+    #         f"[38;5;{colour}m{name}{PREFIXES['chatcolour']} has "
     #         f"{format_stat(total_kills, recent_kills)} kills and "
     #         f"{format_stat(total_deaths, recent_deaths, False)} deaths "
     #         f"(KD: {format_stat(kd, kd_difference, is_ratio=True)}, "
@@ -4071,13 +4076,13 @@ def recieveflaskprintrequests():
     #     )
 
     #     # Top 3 weapons
-    #     colourcodes = ["\x1b[38;5;226m", "\x1b[38;5;251m", "\x1b[38;5;208m"]
+    #     colourcodes = ["[38;5;226m", "[38;5;251m", "[38;5;208m"]
     #     top3guns = ""
     #     for enum, weapon in enumerate(top_weapons):
     #         weapon_name = WEAPON_NAMES.get(weapon[0], weapon[0])
     #         stat_str = format_stat(weapon[1], weapon[2])
     #         top3guns += (
-    #             f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{weapon_name}{PREFIXES['chatcolour']} kills: "
+    #             f"[38;5;{colour}m{enum+1}) {colourcodes[enum]}{weapon_name}{PREFIXES['chatcolour']} kills: "
     #             f"{stat_str}   "
     #         )
     #     if top3guns:
@@ -4088,7 +4093,7 @@ def recieveflaskprintrequests():
     #         weapon_name = WEAPON_NAMES.get(recent_weapon_data[0], recent_weapon_data[0])
     #         stat_str = format_stat(recent_weapon_data[1], recent_weapon_data[2])
     #         messages["2"] = (
-    #             f"\x1b[38;5;{colour}mMost recent weapon: "
+    #             f"[38;5;{colour}mMost recent weapon: "
     #             f"{PREFIXES['stat']}{weapon_name}{PREFIXES['chatcolour']} kills: {stat_str}"
     #         )
 
@@ -4427,6 +4432,7 @@ def get_ordinal(i): #Shamelessly stolen
     else:
         return SUFFIXES.get(i % 10, 'th')
 def getmessagewidget(metadata,serverid,messagecontent,message):
+    """Processes and formats game messages for Discord display with player status and team info"""
     global context
     output = messagecontent
     player = str(message.get("player","Unknown player"))
@@ -4575,6 +4581,7 @@ tf1servercontext ={}
 
 
 def interpstatus(log):
+    """Interprets server status logs and extracts relevant game information"""
     m = re.search(r"map\s*:\s*(\S+)", log)
     map_name = m.group(1) if m else None
     players = {}
@@ -4595,6 +4602,7 @@ def interpstatus(log):
     return {"map":map_name,**players}
 
 def tf1readsend(serverid,checkstatus):
+    """all discord <-> tf1 comms go through here"""
     # don't even bother trying to send anything or read anything if the server is offline!
     global discordtotitanfall,context,reactedyellowtoo,titanfall1currentlyplaying
     
@@ -4909,6 +4917,7 @@ def tf1readsend(serverid,checkstatus):
     
 # test if ; breaks things and ()
 def tf1relay():
+    """Main TF1 relay loop handling server communication and message processing"""
     global context
     global discordtotitanfall
     if TF1RCONKEY == "":
@@ -4950,6 +4959,7 @@ def tf1relay():
           
 
 def messageloop():
+    """Main message processing loop handling Discord message flushing, channel creation, and message batching"""
     global messageflush, lastmessage,discordtotitanfall, context,messageflushnotify,reactedyellowtoo
     addflag = False
     while True:
@@ -5088,7 +5098,7 @@ def messageloop():
                     for key,message in enumerate(output[serverid]):
                         # extra functions hooked onto messages
                         # asyncio.run_coroutine_threadsafe(colourmessage(message,serverid),bot.loop)
-                        asyncio.run_coroutine_threadsafe(checkverify(message),bot.loop)
+                        asyncio.run_coroutine_threadsafe(checkverify(message,message["oserverid"]),bot.loop)
                         threading.Thread(target=threadwrap, daemon=True, args=(tftodiscordcommand, False, message, message["oserverid"])).start()
                         threading.Thread(target=threadwrap, daemon=True, args=(savemessages, message, serverid)).start()
                         isbad = checkifbad(message)
@@ -5154,6 +5164,7 @@ def messageloop():
         time.sleep(0.1)
 
 def sendthingstoplayer(outputstring,serverid,statuscode,uidoverride):
+    """Sends messages to specific players in-game via server communication"""
     istf1 = context["istf1server"].get(serverid,False) != False
     discordtotitanfall[serverid]["messages"].append(
     {
@@ -5177,7 +5188,8 @@ def sendthingstoplayer(outputstring,serverid,statuscode,uidoverride):
     )
     
 keyletter = "!"
-def tftodiscordcommand(specificommand,command,serverid): # handles all commands in !helpdc, and generally most recent tf2 commands that execute stuff on discord
+def tftodiscordcommand(specificommand,command,serverid):
+    """Handles all commands from TF2 to Discord, processing in-game commands and routing to Discord functions""" # handles all commands in !helpdc, and generally most recent tf2 commands that execute stuff on discord
     global context
     istf1 = context["istf1server"].get(serverid,False) != False
     if specificommand:
@@ -5257,6 +5269,7 @@ def tftodiscordcommand(specificommand,command,serverid): # handles all commands 
         return returnvalue
 
 def ingamesetusercolour(message,serverid,isfromserver):
+    """Handles in-game color setting commands from players"""
     istf1 = context["istf1server"].get(serverid,False) != False
     name = getpriority(message,"originalname","name")
     teamspecify = False
@@ -5313,6 +5326,7 @@ def ingamesetusercolour(message,serverid,isfromserver):
     asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {getpriority(message,"uid",["meta","uid"],"originalname","name")}'),"fake context",None,True,False), bot.loop)
 
 def ingamesetusertag(message,serverid,isfromserver):
+    """Handles in-game tag setting commands from players"""
     istf1 = context["istf1server"].get(serverid,False) != False
     name = getpriority(message,"originalname","name")
 
@@ -5366,6 +5380,7 @@ def ingamesetusertag(message,serverid,isfromserver):
 
 
 def shownamecolours(message,serverid,isfromserver):
+    """Shows available color options to players in-game"""
     # print("HERHEHRHE")
     istf1 = context["istf1server"].get(serverid,False) != False
     name = getpriority(message,"originalname","name")
@@ -5409,13 +5424,14 @@ def shownamecolours(message,serverid,isfromserver):
         )
 
 def checkbantf1(message,serverid,isfromserver):
+    """Checks and processes TF1 ban status for players"""
     print("CHECKING BANNNS")
     c = postgresem("./data/tf2helper.db")
     c.execute("SELECT id FROM banstf1 WHERE playerip = ? AND playername = ? AND playeruid = ?",(message["ip"],message["name"],int(message["uid"])))
     playerid = c.fetchall()
     if playerid:
         playerid = playerid[0][0]
-        c.execute("UPDATE banstf1 SET lastseen = ?, lastserverid = ? WHEREi id = ?",(int(time.time()),serverid,playerid))
+        c.execute("UPDATE banstf1 SET lastseen = ?, lastserverid = ? WHERE id = ?",(int(time.time()),serverid,playerid))
     else:
         c.execute("INSERT INTO banstf1 (playerip,playername,playeruid,lastseen,lastserverid) VALUES (?,?,?,?,?) RETURNING id",(message["ip"],message["name"],message["uid"],int(time.time()),serverid))
         playerid = c.fetchone()[0]
@@ -5441,6 +5457,7 @@ def checkbantf1(message,serverid,isfromserver):
         # print("e",list(filter(lambda x: playerid == x["id"],bannedpeople)))
         asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!muteplayer {message["kickid"]} {PREFIXES["warning"]}{(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"} rsn {PREFIXES["warning"]}{list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context",None,True,False), bot.loop)
 def findallbannedpeople(potentialbans,originalbans,bandepth):
+    """Recursively finds all banned players using ban depth tracking"""
     newbans = []
     keeppotential = []
     for i, potential in enumerate(potentialbans):
@@ -5461,6 +5478,7 @@ def findallbannedpeople(potentialbans,originalbans,bandepth):
 
 
 def displayendofroundstats(message,serverid,isfromserver):
+    """Calculates and displays comprehensive end-of-round statistics including kills, deaths, and performance metrics"""
     # print("HEREEE")
     global maxkills,lexitoneapicache
     istf1 = context["istf1server"].get(serverid,False) != False
@@ -5538,7 +5556,7 @@ def displayendofroundstats(message,serverid,isfromserver):
     # TOTAL KILLS
     # TOTAL DEATHS
     matchdata = {}
-    colour = f"\x1b[38;5;{colour}m"
+    colour = f"[38;5;{colour}m"
 
     output = {"header":f"{colour}Match stats:"}
     stringslist = {"general":[],"personal":[]}
@@ -5719,6 +5737,7 @@ def displayendofroundstats(message,serverid,isfromserver):
     # )
         
 def togglepersistentvar(message,serverid,isfromserver):
+    """Toggles persistent server variables like stats tracking and notifications"""
     istf1 = context["istf1server"].get(serverid,False) != False
     args = message["originalmessage"].split(" ")[1:]
     if args and args[0] not in [*list(map(lambda x:x[0],filter(lambda x: x[1].get("run") == "togglestat",context["commands"]["ingamecommands"].items()))),"help","h"]:
@@ -5754,7 +5773,7 @@ def togglepersistentvar(message,serverid,isfromserver):
             discordtotitanfall[serverid]["messages"].append(
             {
                 # "id": str(int(time.time()*100)),
-                "content":f"{PREFIXES['discord']}{PREFIXES['commandname']}\x1b[38;5;201m[{cmdcounter-10}]{PREFIXES["warning"]} More command{"s" if cmdcounter - 10 > 1 else ""} hidden above.{PREFIXES['commandname']} open chat box and press up arrow {PREFIXES['warning']}to see them!",
+                "content":f"{PREFIXES['discord']}{PREFIXES['commandname']}[38;5;201m[{cmdcounter-10}]{PREFIXES["warning"]} More command{"s" if cmdcounter - 10 > 1 else ""} hidden above.{PREFIXES['commandname']} open chat box and press up arrow {PREFIXES['warning']}to see them!",
                 # "teamoverride": 4,
                 # "isteammessage": False,
                 "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -5765,6 +5784,7 @@ def togglepersistentvar(message,serverid,isfromserver):
     togglestats(message,args[0],serverid)
 
 def showingamesettings(message,serverid,isfromserver):
+    """Displays current server settings and configuration to players"""
     istf1 = context["istf1server"].get(serverid,False) != False
     if len(message.get("originalmessage","w").split(" ")) > 1:
         account = resolveplayeruidfromdb((" ".join(message["originalmessage"].split(" ")[1:])),None,True,istf1)
@@ -5844,7 +5864,7 @@ def showingamesettings(message,serverid,isfromserver):
         discordtotitanfall[serverid]["messages"].append(
         {
             # "id": str(int(time.time()*100)),
-            "content":f"{PREFIXES['discord']}{PREFIXES['commandname']}\x1b[38;5;201m[{cmdcounter-10}]{PREFIXES["warning"]} More Setting{"s" if cmdcounter - 10 > 1 else ""} hidden above.{PREFIXES['commandname']} open chat box and press up arrow {PREFIXES['warning']}to see them!",
+            "content":f"{PREFIXES['discord']}{PREFIXES['commandname']}[38;5;201m[{cmdcounter-10}]{PREFIXES["warning"]} More Setting{"s" if cmdcounter - 10 > 1 else ""} hidden above.{PREFIXES['commandname']} open chat box and press up arrow {PREFIXES['warning']}to see them!",
             # "teamoverride": 4,
             # "isteammessage": False,
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -5856,6 +5876,7 @@ def showingamesettings(message,serverid,isfromserver):
 
 
 def togglestats(message,togglething,serverid):
+    """Toggles various statistics tracking features for players"""
     # print(togglething,serverid)
     internaltoggle = context["commands"]["ingamecommands"][togglething].get("internaltoggle",togglething)
     istf1 = context["istf1server"].get(serverid,False) != False
@@ -5923,8 +5944,9 @@ def togglestats(message,togglething,serverid):
 
 
 def ingamehelp(message,serverid,isfromserver):
+    """Displays help information for in-game commands to players"""
     istf1 = context["istf1server"].get(serverid,False) != False
-    backslash = "\x1b"
+    backslash = ""
     # uid = getpriority(message,"uid",["meta","uid"])
     commandoverride = False
     if len(getpriority(message,"originalmessage","type").split(" ")) > 1:
@@ -5963,7 +5985,7 @@ def ingamehelp(message,serverid,isfromserver):
         discordtotitanfall[serverid]["messages"].append(
         {
             # "id": str(int(time.time()*100)),
-            "content":f"{PREFIXES['discord']}{PREFIXES['commandname']}\x1b[38;5;201m[{cmdcounter-10}]{PREFIXES["warning"]} More command{"s" if cmdcounter - 10 > 1 else ""} hidden above.{PREFIXES['commandname']} open chat box and press up arrow {PREFIXES['warning']}to see them!",
+            "content":f"{PREFIXES['discord']}{PREFIXES['commandname']}[38;5;201m[{cmdcounter-10}]{PREFIXES["warning"]} More command{"s" if cmdcounter - 10 > 1 else ""} hidden above.{PREFIXES['commandname']} open chat box and press up arrow {PREFIXES['warning']}to see them!",
             # "teamoverride": 4,
             # "isteammessage": False,
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -5972,11 +5994,13 @@ def ingamehelp(message,serverid,isfromserver):
         )
 
 def senddiscordcommands(message,serverid,isfromserver):
+    """Sends Discord-specific commands from in-game chat"""
     print("COMMANDS REQUESTED",f'!senddiscordcommands {" ".join(functools.reduce(lambda a,b: [*a,b[0],str(int(b[1]["shouldblock"]))],context["commands"]["ingamecommands"].items(),[]))}')
     asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!senddiscordcommands {" ".join(functools.reduce(lambda a,b: [*a,b[0],str(int(b[1]["shouldblock"]))],context["commands"]["ingamecommands"].items(),[]))}'),"fake context",None,True,False), bot.loop)
 
 
 def calcstats(message,serverid,isfromserver):
+    """Processes in-game stats requests and formats statistical data for display"""
     # print("e",message)
     istf1 = context["istf1server"].get(serverid,False) != False
     # print(isfromserver,readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]),istf1) )
@@ -6032,6 +6056,7 @@ def calcstats(message,serverid,isfromserver):
             )
 
 def savemessages(message,serverid):
+    """Saves chat messages to database for logging and persistence"""
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
     
@@ -6044,21 +6069,20 @@ def savemessages(message,serverid):
 
     tfdb.commit()
     tfdb.close()
-async def checkverify(message):
+async def checkverify(message,serverid):
     global accountlinker
-    if len(accountlinker.keys()) == 0:
-        return
+    if not accountlinker: return
 
     uid = message.get("uid", None)
     name = message.get("originalname", None)
     content = message.get("originalmessage", None)
-    if not uid or not name or not content:
+    if not all([uid,name,content]):
         return
     # verify_data = accountlinker.get(uid, None)
     # if not verify_data:
     #     return
     verify_data = accountlinker.get(str(content).strip(),False)
-    if not verify_data: return
+    if not verify_data or int(time.time())>verify_data["timerequested"]: return
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
 
@@ -6074,12 +6098,20 @@ async def checkverify(message):
     tfdb.close()
     await verify_data["ctx"].followup.send(
     f"linked <@{verify_data['account']}> to **{name}** (UID `{uid}`)",ephemeral = True)
+    initdiscordtotitanfall(serverid)
+    discordtotitanfall[serverid]["messages"].append(
+    {
+        "content":f"{PREFIXES['discord']}Linked {PREFIXES["commandname"]}{name}{PREFIXES["chatcolour"]} to discord account {PREFIXES["commandname"]}{verify_data["name"]}",
+        "uidoverride": [uid]
+    }
+    )
 
     del accountlinker[str(content).strip()]
     
     
 
 def checkifbad(message):
+    """Checks messages against profanity filter and banned word lists"""
     global context
     if message["type"] not in FILTERNAMESINMESSAGES.split(","):
         return [0,0]
@@ -6289,7 +6321,8 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
         print("WEBHOOK CRASH",e)
         traceback.print_exc()
 
-def initdiscordtotitanfall(serverid):
+def initdiscordtotitanfall(serverid): #before I knew about setdefault and .keys() being useless
+    """Initializes server communication data structures"""
     global discordtotitanfall
     if serverid not in discordtotitanfall.keys():
         discordtotitanfall[serverid] = {"messages": [], "commands": []}
@@ -6305,6 +6338,7 @@ def initdiscordtotitanfall(serverid):
         discordtotitanfall[serverid]["onlinestatus"] = False
 
 def getchannelidfromname(name,ctx):
+    """Resolves Discord channel ID from channel name using context"""
     for key, value in sorted(context["serveridnamelinks"].items(), key = lambda x: len(x[1])):
         if name and name.lower() in value.lower():
             print("default server overridden, sending to", value.lower())
@@ -6315,6 +6349,7 @@ def getchannelidfromname(name,ctx):
                 return key
     print("could not find overridden server")
 def sendrconcommand(serverid, command):
+    """Sends RCON commands to game server for remote administration"""
     global discordtotitanfall
     initdiscordtotitanfall(serverid)
     commandid = random.randint(0, 100000000000000)
@@ -6353,9 +6388,17 @@ def defaultoverride(data, serverid, statuscode):
             embed.add_field(name=f"> {key}:", value=f"```json\n{json.dumps(value,indent=4)}```", inline=False)
     return embed
 
+def simplyfy(text):    
+    charmap = (functools.reduce(lambda a,b: {**a,**dict(zip(b[1],[b[0]]*len(b[1])))},LOOKALIKES.items(),{}))
+    return "".join(list(map(lambda x:charmap.get(x,x).lower(),text))) 
 
-def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 = False):
+def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 = False,**kwargs):
+    """Searches for players by name or UID with fuzzy matching, sorting by relevance and recency"""
+    relaxed = kwargs.get("relaxed",False)
     name = str(name)
+    
+
+    
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
 
@@ -6376,27 +6419,43 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
         data = c.fetchall()
         name = str(name)
 
-    tfdb.close()
-
-    if not data:
-        return []
-
-    # Deduplicate UIDs if requested
-    seen_uids = set()
-    results = []
-    # print(data)
-    for uid, pname, lastseen in data:
-        if not oneuidpermatch or uid not in seen_uids:
-            results.append({"name": pname, "uid": uid,"lastseen":lastseen if lastseen else 0})
-            seen_uids.add(uid)
-    # results.sort(key=lambda x: len(x["name"]) - x["name"].lower().startswith(name.lower()) * 50)
-    results.sort(key=lambda x: len(x["name"]) if int(time.time()) - x["lastseen"] < 86400*3 else int(time.time()) - x["lastseen"])
-    # results.sort(key = lambda x: int(x["lastseen"]),reverse=True)
-    results.sort(key=lambda x: x["name"].lower().startswith(name.lower()),reverse=True)
-    results.sort(key=lambda x: x["name"].lower() == name.lower(), reverse = True)
     
 
+    if not data and not relaxed:
+        tfdb.close()
+        return []
+    elif not data:
+        c.execute(f"""SELECT playeruid, playername, lastseenunix FROM uidnamelink{'tf1' if istf1 else ''}""")
+        data = c.fetchall()
+        for uid, pname, lastseen in data:
+            if not oneuidpermatch or uid not in seen_uids and simplyfy(name) in simplyfy(pname):
+                results.append({"name": pname, "uid": uid,"lastseen":lastseen if lastseen else 0})
+                seen_uids.add(uid)
 
+        results.sort(key=lambda x: len(x["name"]) if int(time.time()) - x["lastseen"] < 86400*3 else int(time.time()) - x["lastseen"])
+        results.sort(key=lambda x: simplyfy(x["name"]).startswith(simplyfy(name)), reverse=True)
+        results.sort(key=lambda x: simplyfy(x["name"]) == simplyfy(name), reverse=True)
+    else:
+
+        seen_uids = set()
+        results = []
+        # print(data)
+        for uid, pname, lastseen in data:
+            if not oneuidpermatch or uid not in seen_uids:
+                results.append({"name": pname, "uid": uid,"lastseen":lastseen if lastseen else 0})
+                seen_uids.add(uid)
+        
+    
+        # results.sort(key=lambda x: len(x["name"]) - x["name"].lower().startswith(name.lower()) * 50)
+        results.sort(key=lambda x: len(x["name"]) if int(time.time()) - x["lastseen"] < 86400*3 else int(time.time()) - x["lastseen"])
+        # results.sort(key = lambda x: int(x["lastseen"]),reverse=True)
+        results.sort(key=lambda x: x["name"].lower().startswith(name.lower()),reverse=True)
+        results.sort(key=lambda x: x["name"].lower() == name.lower(), reverse = True)
+    tfdb.close()
+
+    
+
+    
 
     return results
         
@@ -6461,6 +6520,7 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride,
                 await reactomessages([ctx.id], serverid, "🔴"   )
 
 def checkrconallowed(author,typeof = "rconrole"):
+    """Checks if Discord user has RCON permissions based on roles"""
     global context
     # if author.id not in context["RCONallowedusers"]:
     #     return False
@@ -6468,6 +6528,7 @@ def checkrconallowed(author,typeof = "rconrole"):
     return (not hasattr(author, "roles") and  author.id in context["overriderolesuids"][typeof]) or(hasattr(author, "roles") and (( typeof == "rconrole" and False) or (typeof == "coolperksrole" and OVVERRIDEROLEREQUIRMENT == "1") or functools.reduce(lambda a, x: a or x in list(map (lambda w: w.id ,author.roles)) ,[context["overrideroles"][typeof]] if isinstance(context["overrideroles"][typeof], int) else context["overrideroles"][typeof] ,False)))
 # command slop
 def checkrconallowedtfuid(uid, typeof="rconrole"):
+    """Checks if TF UID has RCON permissions for server administration"""
     global context
     # return False
     if OVVERRIDEROLEREQUIRMENT == "1" and typeof == "coolperksrole":
@@ -6487,6 +6548,7 @@ def checkrconallowedtfuid(uid, typeof="rconrole"):
     discordid = result[0]
     return discordid in context["overriderolesuids"].get(typeof, [])
 def create_dynamic_command(command_name, description = None, rcon = False, parameters = [], commandparaminputoverride = {}, outputfunc=None,regularconsolecommand=False):
+    """Dynamically creates Discord slash commands with RCON support, parameter validation, and custom output processing"""
     param_list = []
     for param in parameters:
         pname = param["name"]
@@ -6767,6 +6829,7 @@ matchids = []
 playerjoinlist = {}
 
 def checkandaddtouidnamelink(uid, playername, istf1 = False):
+    """Updates player UID-name mapping in database with timestamp tracking"""
     global playercontext
     now = int(time.time())
     tfdb = postgresem("./data/tf2helper.db")
@@ -6790,6 +6853,7 @@ def checkandaddtouidnamelink(uid, playername, istf1 = False):
 
 
 def onplayerjoin(uid,serverid,nameof = False):
+    """Handles player join events, updates databases, sends notifications, and manages join counters"""
     global context,messageflushnotify,playerjoinlist
     istf1 = context["istf1server"].get(serverid,False) # {"tf2" if istf1 else ""}
     if istf1:
@@ -6847,6 +6911,7 @@ def onplayerjoin(uid,serverid,nameof = False):
     
     
 def onplayerleave(uid,serverid):
+    """Handles player disconnect events and updates tracking databases"""
     global context,messageflushnotify,playercontext
     istf1 = context["istf1server"].get(serverid,False) # {"tf2" if istf1 else ""}
     if istf1:
@@ -6886,6 +6951,7 @@ def onplayerleave(uid,serverid):
 
 
 def savestats(saveinfo):
+    """Saves detailed kill/death statistics to database with weapon and position data"""
     # 1 is normal, they just left
     # 2 is map change
     # 3 is server crash
@@ -6938,6 +7004,7 @@ def savestats(saveinfo):
     return lastrowid
 
 def addmatchtodb(matchid,serverid,currentmap):
+    """Adds match information to database for tracking game sessions"""
     global matchids,playercontext
     istf1 = context["istf1server"].get(serverid,False) # {'tf1' if istf1 else ''}
     print("adding match to db",matchid,serverid)
@@ -6999,6 +7066,7 @@ def addmatchtodb(matchid,serverid,currentmap):
     matchids.append(matchid)
 
 def playerpolllog(data,serverid,statuscode):
+    """Processes server player poll data and manages join/leave events with database updates"""
     # print("playerpoll",serverid,statuscode)
     Ithinktheplayerhasleft = 90
     global discordtotitanfall,playercontext,playerjoinlist,matchids
@@ -7193,6 +7261,7 @@ def playerpolllog(data,serverid,statuscode):
     #     playercontext[pinfo["uid"]+pinfo["name"]]["npckills"] = pinfo["npckills"]
     #     playercontext[pinfo["uid"]+pinfo["name"]]["score"] = pinfo["score"]
 def threadwrap(function,*args):
+    """Thread wrapper function for safe async execution"""
     try:
         function(*args)
     except Exception as e:
@@ -7205,6 +7274,7 @@ def threadwrap(function,*args):
         pass
 
 def flattendict(current, path=[], result=[]):
+    """Recursively flattens nested dictionaries into dot-notation paths"""
     if isinstance(current, dict):
         for k, v in current.items():
             flattendict(v, path + [k], result)
@@ -7214,6 +7284,7 @@ def flattendict(current, path=[], result=[]):
     return result
 
 def packfortextsv3(texts,output = {}):
+    """Packs text data for efficient transmission with compression"""
     if not len(texts):
         # print(texts)
         return output
@@ -7221,6 +7292,7 @@ def packfortextsv3(texts,output = {}):
 
 
 def getpriority(ditionary,*priority,**kwargs):
+    """Gets dictionary value using priority-based key lookup with fallbacks"""
     for route in priority:
         output = ditionary.copy()
         if isinstance(route,str):route = [route]
@@ -7229,6 +7301,7 @@ def getpriority(ditionary,*priority,**kwargs):
     return kwargs.get("nofind",None)
 
 def setlotsofdefault(dicto, value, *nests):
+    """Sets nested dictionary values with automatic creation of intermediate keys"""
     if not nests:
         return value
     if len(nests) == 1:
@@ -7260,6 +7333,7 @@ async def updatechannels():
             # print("editing here")
             await channel.edit(name=f'🟢{context["serveridnamelinks"][serverid]}')
 def playerpoll():
+    """Polls server for current player list and updates databases"""
     global discordtotitanfall,playercontext,context
     Ithinktheserverhascrashed = 180
     autosaveinterval = 120
@@ -7347,6 +7421,7 @@ def convansi(rgb):
     return ansi_code
 
 def getstats(playeruid):
+    """Comprehensive player statistics calculator with kill/death ratios, rankings, and weapon usage data"""
 # print(int(time.time()))
         tfdb = postgresem("./data/tf2helper.db")
         c = tfdb
@@ -7550,31 +7625,31 @@ def getstats(playeruid):
             if colour not in DISALLOWED_COLOURS:
                 break
         offset = 1
-        backslash = "\x1b"
-        messages["0"] = f"\x1b[38;5;{colour}m{name}{PREFIXES['chatcolour']} has {PREFIXES['stat']}{output['total']['kills']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['killspos']) if output['total']['killspos'] else ''} {PREFIXES['chatcolour']}kills and {PREFIXES['stat']}{output['total']['deaths']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['deathspos']) if output['total']['deathspos'] else ''} {PREFIXES['chatcolour']}deaths ({PREFIXES['stat']}{kd}{PREFIXES['chatcolour']} k/d, {PREFIXES['stat']}{killsperhour}{PREFIXES['chatcolour']} k/hour, {PREFIXES['stat']}{timeplayed}{PREFIXES['chatcolour']} playtime)"
+        backslash = ""
+        messages["0"] = f"[38;5;{colour}m{name}{PREFIXES['chatcolour']} has {PREFIXES['stat']}{output['total']['kills']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['killspos']) if output['total']['killspos'] else ''} {PREFIXES['chatcolour']}kills and {PREFIXES['stat']}{output['total']['deaths']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['deathspos']) if output['total']['deathspos'] else ''} {PREFIXES['chatcolour']}deaths ({PREFIXES['stat']}{kd}{PREFIXES['chatcolour']} k/d, {PREFIXES['stat']}{killsperhour}{PREFIXES['chatcolour']} k/hour, {PREFIXES['stat']}{timeplayed}{PREFIXES['chatcolour']} playtime)"
         # print("e",bestgame)
         if  bestgame:
             formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
 
             offset +=1
-            messages["1"] = f"\x1b[38;5;{colour}m{name}{PREFIXES['chatcolour']} had their best game on {PREFIXES['stat']}{MAP_NAME_TABLE.get(bestgame[1],bestgame[1])}{PREFIXES['chatcolour']} with {PREFIXES['stat']}{bestgame[3]}{PREFIXES['chatcolour']} kills on {PREFIXES['stat']}{formatted_date}"
+            messages["1"] = f"[38;5;{colour}m{name}{PREFIXES['chatcolour']} had their best game on {PREFIXES['stat']}{MAP_NAME_TABLE.get(bestgame[1],bestgame[1])}{PREFIXES['chatcolour']} with {PREFIXES['stat']}{bestgame[3]}{PREFIXES['chatcolour']} kills on {PREFIXES['stat']}{formatted_date}"
         colourcodes = [PREFIXES["gold"],PREFIXES["silver"],PREFIXES["bronze"]]
         topguns = []
         for enum , weapon in enumerate( top_weapons):
             if not weapon:
                 continue
-            # messages[str(offset)] = f"\x1b[38;5;{colour}m{enum+1}) {colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}{PREFIXES['chatcolour']} kills: {PREFIXES['stat']}{weapon[1]}"
+            # messages[str(offset)] = f"[38;5;{colour}m{enum+1}) {colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}{PREFIXES['chatcolour']} kills: {PREFIXES['stat']}{weapon[1]}"
             # offset +=1
             topguns.append( f"{colourcodes[enum]}{WEAPON_NAMES.get(weapon[0],weapon[0])}: {PREFIXES['stat']}{weapon[1]}{PREFIXES['chatcolour']} kills" )
         
         if topguns != "":
-            messages[str(offset)] = f"\x1b[38;5;{colour}mTop 3 guns: " + ", ".join(topguns)
+            messages[str(offset)] = f"[38;5;{colour}mTop 3 guns: " + ", ".join(topguns)
             offset +=1
-    # \x1b[38;5;244m
+    # [38;5;244m
         if output["total"]["recent_weapon_kills"]:
-            messages[str(offset)] = f"\x1b[38;5;{colour}mMost recent weapon: {PREFIXES['stat']}{WEAPON_NAMES.get(output['total']['recent_weapon_kills'][0],output['total']['recent_weapon_kills'][0])}: {PREFIXES['stat']}{output['total']['recent_weapon_kills'][1]}{' '+ PREFIXES['stat2']+'#' + str(output['total']['recentweaponkillspos']) if output['total']['recentweaponkillspos'] else ''} {PREFIXES['chatcolour']}kills"
+            messages[str(offset)] = f"[38;5;{colour}mMost recent weapon: {PREFIXES['stat']}{WEAPON_NAMES.get(output['total']['recent_weapon_kills'][0],output['total']['recent_weapon_kills'][0])}: {PREFIXES['stat']}{output['total']['recent_weapon_kills'][1]}{' '+ PREFIXES['stat2']+'#' + str(output['total']['recentweaponkillspos']) if output['total']['recentweaponkillspos'] else ''} {PREFIXES['chatcolour']}kills"
             offset+=1
-        messages[str(offset)] = f"\x1b[38;5;{colour}m{name}{PREFIXES['chatcolour']} has {PREFIXES['stat']}{output['total']['killstoday']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['killslasthourpos']) if output['total']['killslasthourpos'] else ''}{PREFIXES['chatcolour']} kill{'s' if  output['total']['killstoday'] != 1 else ''} today and {PREFIXES['stat']}{output['total']['deathstoday']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['deathslasthourpos']) if output['total']['deathslasthourpos'] else ''} {PREFIXES['chatcolour']}death{'s' if  output['total']['deathstoday'] != 1 else ''} today"
+        messages[str(offset)] = f"[38;5;{colour}m{name}{PREFIXES['chatcolour']} has {PREFIXES['stat']}{output['total']['killstoday']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['killslasthourpos']) if output['total']['killslasthourpos'] else ''}{PREFIXES['chatcolour']} kill{'s' if  output['total']['killstoday'] != 1 else ''} today and {PREFIXES['stat']}{output['total']['deathstoday']}{' '+ PREFIXES['stat2']+'#' + str(output['total']['deathslasthourpos']) if output['total']['deathslasthourpos'] else ''} {PREFIXES['chatcolour']}death{'s' if  output['total']['deathstoday'] != 1 else ''} today"
         offset +=1
 
         # if len(messages):
@@ -7585,6 +7660,7 @@ def getstats(playeruid):
        
 
 def fitimage(image_bytes, output_width=30, ascii_char="█",maxlen = 249):
+    """Converts image to ASCII art with width constraints and character limits"""
     ascii_art = lotsofmathscreatingimage(image_bytes, output_width, ascii_char)
     length = max(len(s) for s in ascii_art)
     while length > maxlen:
@@ -7599,6 +7675,7 @@ def fitimage(image_bytes, output_width=30, ascii_char="█",maxlen = 249):
     return ascii_art
 
 def lotsofmathscreatingimage(image_bytes, output_width=80, ascii_char="█", max_height=11):
+    """Complex image to ASCII conversion with mathematical scaling and height limits"""
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     original_width, original_height = image.size
     computed_height = int((original_height / original_width) * output_width)
@@ -7633,7 +7710,7 @@ def lotsofmathscreatingimage(image_bytes, output_width=80, ascii_char="█", max
             pixel_label = labels[idx]
             ansi = label_to_ansi[pixel_label]
             if ansi != lastansi:
-                colored_char = f"\x1b[38;5;{ansi}m{ascii_char}"
+                colored_char = f"[38;5;{ansi}m{ascii_char}"
                 lastansi = ansi
             else:
                 colored_char = ascii_char
@@ -7652,6 +7729,7 @@ logging.basicConfig(
 
 
 def log_uncaught_exceptions(exc_type, exc_value, exc_traceback):
+    """Global exception handler that logs uncaught exceptions to file with stack traces"""
     # if issubclass(exc_type, KeyboardInterrupt):
     #     sys.__excepthook__(exc_type, exc_value, exc_traceback)
     #     return
@@ -7827,6 +7905,7 @@ threading.Thread(target=threadwrap, daemon=True, args=(tf1relay,)).start()
 
 
 def shutdown_handler(sig, frame):
+    """Handles graceful shutdown signals and cleanup operations"""
     asyncio.get_event_loop().create_task(bot.close())
 
 signal.signal(signal.SIGINT, shutdown_handler)
