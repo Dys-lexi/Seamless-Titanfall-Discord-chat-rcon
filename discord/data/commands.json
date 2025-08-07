@@ -19,6 +19,16 @@
             "description": "Change a Setting. Run '!toggle help' for info",
             "shouldblock": false
         },
+        "ping": {
+            "aliases":["pingtest"],
+            "games": [
+                "tf2","tf1"
+            ],
+            "function": "pingperson",
+            "run": "thread",
+            "description": "Ping somone on discord. run pingtest to see who it would ping.",
+            "shouldblock": false
+        },
         "settings":{
             "games": [
                 "tf2","tf1"

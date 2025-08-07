@@ -565,6 +565,7 @@ lastmessage = 0
 Ijuststarted = time.time()
 discorduidnamelink = {}
 reactedyellowtoo = []
+knownpeople = {}
 
 
 # log_file = "logs"
@@ -584,42 +585,31 @@ def removecolourcodes(message):
     ansi_pattern = r'(\[[0-9;]*m|\\u001b\[[0-9;]*m|\[38;2;[0-9;]*m|\033\[[0-9;]*m)'
     message = re.sub(ansi_pattern, '', message)
     return message
+linecolours = {}
 def print(*message, end="\033[0m\n"):
-    """print function with a few extra debug things, used to have colour codes till crashed bot"""
     global linecolours
     message = " ".join([str(i) for i in message])
-    original_message = message
-    
+    if len(message) < 1000000 and False:
+        with open("./data/" + log_file, "a") as file:
+            file.write(
+                datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                + ": "
+                + str(message)
+                + "\n"
+            )
+        
+
     function = str(inspect.currentframe().f_back.f_code.co_name)
     line = str(inspect.currentframe().f_back.f_lineno)
-    formatted_message = f"{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}{('['+line+']').ljust(6)}[{datetime.now().strftime('%H:%M:%S %d/%m')}] {message}"
+    if line not in linecolours:
+        while True:
+            colour = random.randint(0, 255)
+            if colour not in DISALLOWED_COLOURS:
+                break
+        linecolours[line] = colour
+    realprint (f"{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}{('['+line+']').ljust(6)}[{datetime.now().strftime('%H:%M:%S %d/%m')}] {message}")
+    # realprint(f"[38;2;215;22;105m{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}[38;2;126;89;140m{('['+line+']').ljust(6)}[38;2;27;64;152m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{linecolours[line]}m {repr(message)[1:-1]}", end=end)
     
-    def print_with_timeout():
-        try:
-            realprint(formatted_message, end=end)
-        except Exception:
-            pass
-    
-    print_thread = threading.Thread(target=print_with_timeout, daemon=True)
-    print_thread.start()
-    print_thread.join(timeout=1.0)
-    
-    if print_thread.is_alive():
-        sys.stdout.flush()
-        
-        
-        if len(original_message) < 1000000:
-            try:
-                with open("./data/" + log_file, "a") as file:
-                    file.write(
-                        datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                        + ": "
-                        + str(original_message)
-                        + "\n"
-                    )
-            except Exception:
-                pass
-        os._exit(1)
 print("running discord logger bot")
 lastrestart = 0
 botisalreadyready = False
@@ -940,6 +930,15 @@ if os.path.exists("./data/" + nongitcommandfile):
             # for command in commands.keys():
                 # print(f"{command} ", end="")
 # print(json.dumps(context, indent=4))
+# make aliases work
+def processaliases():
+    global context
+    if not context.get("commands",{}).get("ingamecommands",{}):
+        return
+    context["commands"]["ingamecommands"] = dict(sorted({**context["commands"]["ingamecommands"],**dict(functools.reduce(lambda a,b:{**a,**{cmd: {"alias":b[0],**dict(filter(lambda x:x[0] != "aliases",b[1].items()))}for cmd in b[1]["aliases"]}}, map(lambda x:[x[0],{**x[1],"aliases":[x[1]["aliases"]] if isinstance(x[1]["aliases"],str) else x[1]["aliases"]}],filter(lambda x:x[1].get("aliases"), context["commands"]["ingamecommands"].items())),{}))}.items(),key = lambda z:z[1]["alias"] if z[1].get("alias") else z[0]))
+processaliases()
+# print(json.dumps(context["commands"]["ingamecommands"],indent=2))
+            
 bot = discord.Bot(intents=intents)
 
 async def autocompletenamesfromdb(ctx):
@@ -1066,14 +1065,18 @@ async def on_ready():
     if not botisalreadyready:
         if DISCORDBOTLOGSTATS == "1":
             updateleaderboards.start()
+        updateroles.start()
         await asyncio.sleep(30)
         updatechannels.start()
-        updateroles.start()
+        
     botisalreadyready = True
 
 @tasks.loop(seconds=1800)
 async def updateroles():
     """If a user messages the bot in dms, they have no roles. this serves to check their roles, so if they run a admin command, the bot knows they are admin in a dm"""
+    global knownpeople, context
+    if not context["activeguild"]:
+        return
     guild = bot.get_guild(context["activeguild"])
     for roletype,potentialrole in context["overrideroles"].items():
             if isinstance(potentialrole, int):
@@ -1085,7 +1088,12 @@ async def updateroles():
                 # context["overriderolesuids"][roletype]
                 uids.extend ( [member.id for member in guild.get_role(role).members])
             context["overriderolesuids"][roletype] = uids
+    knownpeople = {x.id:{"name":x.display_name,"nick":x.nick} for x in guild.members}
     savecontext()
+
+@bot.event
+async def on_member_join(member):
+    knownpeople[member.id] = {"name":member.display_name,"nick":None}
 
 @bot.slash_command(
     name="messagelogs",
@@ -5267,6 +5275,85 @@ def tftodiscordcommand(specificommand,command,serverid):
         returnvalue = globals()[context["commands"]["ingamecommands"][specificommand]["function"]](command,serverid,servercommand)
         return returnvalue
 
+def pingperson(message,serverid,isfromserver):
+    """Ping somone on the discord"""
+    global knownpeople
+    istf1 = context["istf1server"].get(serverid,False) != False
+    command = message["originalmessage"].split(" ",1)
+    # need to pull closest person.. 
+    if len(command) == 1:
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content":f"{PREFIXES['discord']}You need to specify a name, or part of one",
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+        }
+        )
+        return
+    
+
+    searchterm = command[1]
+    # okay, we got rid of that. now uhm need to order people
+    matches = filter(lambda a,b:  simplyfy(searchterm) in map(simplyfy,b[1].values()) ,knownpeople.items())
+    # sort by length, then beginswith, then probably recently spoken, but I don't track that :l
+    # I'll try len, then in the linkeddb then beginswith
+    matches.sort(key = lambda x: len(x[1]["name"]))
+    matches.sort(key = lambda x: (not pullid(x[0],"tf")))
+    matches.sort(key = lambda x: simplyfy(x[1]["name"]).startswith(simplyfy(searchterm)) or (x[1]["nick"] and simplyfy(x[1]["nick"]).startswith(simplyfy(searchterm))))
+    matches.sort(key = lambda x: (not x[1]["nick"] or simplyfy(searchterm) != simplyfy(x[1]["nick"])) and (simplyfy(searchterm) != simplyfy(x[1]["name"])))
+    # 11 lines
+    matches = dict(matches)
+    if not matches:
+        discordtotitanfall[serverid]["messages"].append({
+            "content":f"{PREFIXES['discord']}No matches found for {PREFIXES["commandname"]}{searchterm}",
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+        })
+        return
+    if command[0].split(keyletter)[1] != "ping":
+        discordtotitanfall[serverid]["messages"].append({
+            "content":f"{PREFIXES['discord']}{PREFIXES["commandname"]}{len(matches)}{PREFIXES["chatcolour"]} Matches for {PREFIXES["commandname"]}{searchterm}",
+            "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+        })
+        cmdcounter = 0
+        for match in matches[:10]:
+            cmdcounter+=1
+            discordtotitanfall[serverid]["messages"].append({
+                "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES["commandname" if cmdcounter == 1 else "stat2"] }{match["name"]} {PREFIXES["chatcolour"]}{"- "+PREFIXES["commandname" if cmdcounter == 1 else "stat2"] + " " + match["nick"] if match["nick"] else ""}",
+                "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+            })
+        return
+    discordtotitanfall[serverid]["messages"].append({
+    "content":f"{PREFIXES['discord']}Pinging {PREFIXES["commandname" ] }{matches[0]["name"]} {PREFIXES["chatcolour"]}{"- "+PREFIXES["commandname" ] + " " + matches[0]["nick"] if matches[0]["nick"] else ""}",
+    "uidoverride": [getpriority(message,"uid",["meta","uid"])]
+    })
+    messageflush.append(
+        {
+            "metadata":{**message["metadata"],"allowmentions":True},
+            "serverid":serverid,
+            "type":3,
+            "timestamp":int(time.time()),
+            "messagecontent":f"<@{list(matches.keys())[0]}>",
+            "globalmessage": False,
+            "overridechannel": None,
+            "servername" :context["serveridnamelinks"][serverid]
+
+        }
+    )
+    # we have got here, and we have not pinged anyone. I'm not too sure how to make this command work amazingly 
+    # so that you don't ping the wrong person
+    # it's a bit complicated
+    # like I could run a llm but that feels wasteful?
+    # I could just yolo it
+    # I could make this something like !ping t <name>, then actual is !ping name
+    # tbh I should probably just have support for command aliases, but it's.. a bit late for that now?,
+    # unless I make them somehow invisible to everything but !help...
+    # I've got this!
+
+
+    
+
+
+
+
 def ingamesetusercolour(message,serverid,isfromserver):
     """Handles in-game color setting commands from players"""
     istf1 = context["istf1server"].get(serverid,False) != False
@@ -5968,13 +6055,16 @@ def ingamehelp(message,serverid,isfromserver):
         # print("tf1" if istf1 else "tf2","tf1" if istf1 else "tf2" in command["games"])
         # print("BLEH",(not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]))))
         # print(  (not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"])),command.get("permsneeded",False)) )
-        if name != "helpdc" and (not commandoverride or commandoverride.lower() in name) and ("tf1" if istf1 else "tf2") in command["games"] and (not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]),command.get("permsneeded",False))) and (not command.get("serversenabled",False) or int(serverid) in command["serversenabled"]) and command.get("run") != "togglestat":
+        if name != "helpdc" and (not commandoverride or commandoverride.lower() in name) and ("tf1" if istf1 else "tf2") in command["games"] and (not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]),command.get("permsneeded",False))) and (not command.get("serversenabled",False) or int(serverid) in command["serversenabled"]) and command.get("run") != "togglestat" and not command.get("alias"):
             cmdcounter +=1
-            
+            extra = False
+            if command.get("aliases"):
+                extra = ", ".join(command["aliases"])
             discordtotitanfall[serverid]["messages"].append(
                 {
                     # "id": str(i) + str(int(time.time()*100)),
-                    "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2']+command.get('permsneeded',False)+ ' ' if command.get('permsneeded',False) else ''}{PREFIXES['commandname']}{name}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
+
+                    "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2']+command.get('permsneeded',False)+ ' ' if command.get('permsneeded',False) else ''}{PREFIXES['commandname']}{name}{", "+ extra if extra else False}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
                     # "teamoverride": 4,
                     # "isteammessage": False,
                     "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -6154,13 +6244,13 @@ def checkifbad(message):
 async def outputmsg(channel, output, serverid, USEDYNAMICPFPS):
     global context
 
-    content = discord.utils.escape_mentions(
-        "\n".join(
-            x["message"]
+    content =  "\n".join(
+            discord.utils.escape_mentions(x["message"]) if  not x["metadata"].get("allowmentions",False) else x["message"]
             for x in output[serverid]
-            if x["type"] not in  ["usermessagepfp","impersonate"] or USEDYNAMICPFPS != "1"
+            if (x["type"] not in  ["usermessagepfp","impersonate"] or USEDYNAMICPFPS != "1") 
         )
-    )
+    
+
     if not content:
         return
 
@@ -6310,8 +6400,8 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
             
             async with aiohttp.ClientSession() as session:
                 # print(pilotstates[serverid])
-                message = await actualwebhooks[pilotstates[serverid]["webhook"]].send(discord.utils.escape_mentions(
-                    "\n".join(list(map(lambda x: x["message"],value["messages"])))),#+" "+pilotstates[serverid]["webhook"],
+                message = await actualwebhooks[pilotstates[serverid]["webhook"]].send((
+                    "\n".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["metadata"].get("allowmentions",False) else x["message"] ,value["messages"])))),#+" "+pilotstates[serverid]["webhook"],
                     username=f"{username[0:80]}",
                     avatar_url=f'{PFPROUTE}{pfp}',
                     wait = True
