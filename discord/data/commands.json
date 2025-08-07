@@ -6,7 +6,7 @@
             ],
             "function": "ingamesetusercolour",
             "run": "thread",
-            "description": "Change name colour. add f / e before name to specify team",
+            "description": "Change name colour. f / e for team",
             "shouldblock": false,
             "permsneeded": "coolperksrole"
         },

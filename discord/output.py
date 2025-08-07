@@ -636,6 +636,7 @@ SERVERNAMEISCHOICE = os.getenv("DISCORD_BOT_SERVERNAME_IS_CHOICE", "0")
 SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
 TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass") 
 USEDYNAMICPFPS = os.getenv("USE_DYNAMIC_PFPS","1")
+USEDYNAMICPFPS = "1"
 PFPROUTE = os.getenv("PFP_ROUTE","https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/")
 FILTERNAMESINMESSAGES = os.getenv("FILTER_NAMES_IN_MESSAGES","usermessagepfp,chat_message,command,tf1command,botcommand,connecttf1")
 SENDKILLFEED = os.getenv("SEND_KILL_FEED","1")
@@ -1088,12 +1089,12 @@ async def updateroles():
                 # context["overriderolesuids"][roletype]
                 uids.extend ( [member.id for member in guild.get_role(role).members])
             context["overriderolesuids"][roletype] = uids
-    knownpeople = {x.id:{"name":x.display_name,"nick":x.nick} for x in guild.members}
+    knownpeople = {x.id:{"name":x.global_name if x.global_name else x.display_name,"nick":x.nick} for x in guild.members}
     savecontext()
 
 @bot.event
 async def on_member_join(member):
-    knownpeople[member.id] = {"name":member.display_name,"nick":None}
+    knownpeople[member.id] = {"name":member.global_name if member.global_name else membeer.display_name ,"nick":None}
 
 @bot.slash_command(
     name="messagelogs",
@@ -5128,7 +5129,7 @@ def messageloop():
                             print("VERY BIG ERROR, PLEASE LOOK INTO IT",message)
                             continue
                         userpfpmessages.setdefault(message["name"],{"messages":[],"pfp":message["pfp"],"uid":message["uid"],"originalname":message["originalname"]})
-                        userpfpmessages[message["name"]]["messages"].append({"message":message["message"],"isbad":message.get("isbad",[0,0]),"messagecontent":message["messagecontent"]})
+                        userpfpmessages[message["name"]]["messages"].append({**message,"message":message["message"],"isbad":message.get("isbad",[0,0]),"messagecontent":message["messagecontent"]})
                
                     asyncio.run_coroutine_threadsafe(sendpfpmessages(channel,userpfpmessages,serverid),bot.loop)
                 
@@ -5291,15 +5292,20 @@ def pingperson(message,serverid,isfromserver):
         return
     
 
-    searchterm = command[1]
+    searchterm = command[1].strip()
     # okay, we got rid of that. now uhm need to order people
-    matches = filter(lambda a,b:  simplyfy(searchterm) in map(simplyfy,b[1].values()) ,knownpeople.items())
+    # print(list(map(simplyfy,knownpeople[596713937626595382].values())))
+    matches = list(filter(lambda b: any(simplyfy(searchterm) in simplyfy(val) for val in b[1].values() if val), knownpeople.items()))
+
     # sort by length, then beginswith, then probably recently spoken, but I don't track that :l
     # I'll try len, then in the linkeddb then beginswith
-    matches.sort(key = lambda x: len(x[1]["name"]))
+    # for match in matches:
+    #     if not match[1]["name"]:
+    #         print("eee",match)
+    matches.sort(key = lambda x: len(x[1]["name"] or ""))
     matches.sort(key = lambda x: (not pullid(x[0],"tf")))
-    matches.sort(key = lambda x: simplyfy(x[1]["name"]).startswith(simplyfy(searchterm)) or (x[1]["nick"] and simplyfy(x[1]["nick"]).startswith(simplyfy(searchterm))))
-    matches.sort(key = lambda x: (not x[1]["nick"] or simplyfy(searchterm) != simplyfy(x[1]["nick"])) and (simplyfy(searchterm) != simplyfy(x[1]["name"])))
+    matches.sort(key = lambda x:  (bool(x[1]["name"]  and simplyfy(x[1]["name"]).startswith(simplyfy(searchterm)))*2 + 1*bool(x[1]["nick"] and simplyfy(x[1]["nick"]).startswith(simplyfy(searchterm)))),reverse = True)
+    matches.sort(key = lambda x: (not x[1]["nick"] or simplyfy(searchterm) != simplyfy(x[1]["nick"])) and (not x[1]["name"] or simplyfy(searchterm) != simplyfy(x[1]["name"])))
     # 11 lines
     matches = dict(matches)
     if not matches:
@@ -5314,27 +5320,32 @@ def pingperson(message,serverid,isfromserver):
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         })
         cmdcounter = 0
-        for match in matches[:10]:
+        for item,thing in list(matches.items())[:10]:
+            match = thing
             cmdcounter+=1
             discordtotitanfall[serverid]["messages"].append({
                 "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES["commandname" if cmdcounter == 1 else "stat2"] }{match["name"]} {PREFIXES["chatcolour"]}{"- "+PREFIXES["commandname" if cmdcounter == 1 else "stat2"] + " " + match["nick"] if match["nick"] else ""}",
                 "uidoverride": [getpriority(message,"uid",["meta","uid"])]
             })
         return
+    key = list(matches.keys())[0]
     discordtotitanfall[serverid]["messages"].append({
-    "content":f"{PREFIXES['discord']}Pinging {PREFIXES["commandname" ] }{matches[0]["name"]} {PREFIXES["chatcolour"]}{"- "+PREFIXES["commandname" ] + " " + matches[0]["nick"] if matches[0]["nick"] else ""}",
+    "content":f"{PREFIXES['discord']}Pinging {PREFIXES["commandname" ] }{matches[key]["name"]} {PREFIXES["chatcolour"]}{"- "+PREFIXES["commandname" ] + " " + matches[key]["nick"] if matches[key]["nick"] else ""}",
     "uidoverride": [getpriority(message,"uid",["meta","uid"])]
     })
+    print(message["meta"])
     messageflush.append(
         {
-            "metadata":{**message["metadata"],"allowmentions":True},
+            "player":getpriority(message,"originalname","name"),
+            "metadata":{**message["meta"],"allowmentions":True,"type":"usermessagepfp"},
             "serverid":serverid,
-            "type":3,
+            "type":1,
             "timestamp":int(time.time()),
             "messagecontent":f"<@{list(matches.keys())[0]}>",
             "globalmessage": False,
             "overridechannel": None,
             "servername" :context["serveridnamelinks"][serverid]
+            
 
         }
     )
@@ -6064,7 +6075,7 @@ def ingamehelp(message,serverid,isfromserver):
                 {
                     # "id": str(i) + str(int(time.time()*100)),
 
-                    "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2']+command.get('permsneeded',False)+ ' ' if command.get('permsneeded',False) else ''}{PREFIXES['commandname']}{name}{", "+ extra if extra else False}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
+                    "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2']+command.get('permsneeded',False)+ ' ' if command.get('permsneeded',False) else ''}{PREFIXES['commandname']}{name}{", "+ extra if extra else ""}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
                     # "teamoverride": 4,
                     # "isteammessage": False,
                     "uidoverride": [getpriority(message,"uid",["meta","uid"])]
@@ -6245,7 +6256,7 @@ async def outputmsg(channel, output, serverid, USEDYNAMICPFPS):
     global context
 
     content =  "\n".join(
-            discord.utils.escape_mentions(x["message"]) if  not x["metadata"].get("allowmentions",False) else x["message"]
+            (discord.utils.escape_mentions(x["message"]) if  not x["meta"].get("allowmentions",False) else x["message"])
             for x in output[serverid]
             if (x["type"] not in  ["usermessagepfp","impersonate"] or USEDYNAMICPFPS != "1") 
         )
@@ -6401,7 +6412,7 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
             async with aiohttp.ClientSession() as session:
                 # print(pilotstates[serverid])
                 message = await actualwebhooks[pilotstates[serverid]["webhook"]].send((
-                    "\n".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["metadata"].get("allowmentions",False) else x["message"] ,value["messages"])))),#+" "+pilotstates[serverid]["webhook"],
+                    "\n".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))),#+" "+pilotstates[serverid]["webhook"],
                     username=f"{username[0:80]}",
                     avatar_url=f'{PFPROUTE}{pfp}',
                     wait = True
@@ -6479,6 +6490,7 @@ def defaultoverride(data, serverid, statuscode):
     return embed
 
 def simplyfy(text):    
+    if not text: return text
     charmap = (functools.reduce(lambda a,b: {**a,**dict(zip(b[1],[b[0]]*len(b[1])))},LOOKALIKES.items(),{}))
     return "".join(list(map(lambda x:charmap.get(x,x).lower(),text))) 
 
