@@ -1093,7 +1093,7 @@ async def updateroles():
     savecontext()
 
 @bot.event
-async def on_member_join(member):
+async def on_member_joinadd(member):
     knownpeople[member.id] = {"name":member.global_name if member.global_name else membeer.display_name ,"nick":None}
 
 @bot.slash_command(
@@ -7550,53 +7550,47 @@ def getstats(playeruid):
     output["total"]["deathstoday"] = len(c.fetchall())
     c.execute("""
         WITH player_kills AS (
-            SELECT playeruid, COUNT(*) AS kill_count
+            SELECT playeruid, COUNT(*) AS kill_count,
+                   RANK() OVER (ORDER BY COUNT(*) DESC) AS position
             FROM specifickilltracker
             WHERE timeofkill > ?
             AND (victim_type = 'player' OR victim_type IS NULL)
             GROUP BY playeruid
-        ),
-        ranked AS (
-            SELECT playeruid,
-                RANK() OVER (ORDER BY kill_count DESC) AS position
-            FROM player_kills
         )
-        SELECT position FROM ranked WHERE playeruid = ?
+        SELECT position
+        FROM player_kills
+        WHERE playeruid = ?
     """, (now - timeoffset, playeruid))
     killspos = c.fetchone()
     output["total"]["killslasthourpos"] = killspos[0] if killspos else None
 
     c.execute("""
         WITH player_deaths AS (
-            SELECT victim_id, COUNT(*) AS death_count
+            SELECT victim_id, COUNT(*) AS death_count,
+                   RANK() OVER (ORDER BY COUNT(*) DESC) AS position
             FROM specifickilltracker
             WHERE timeofkill > ?
             AND (victim_type = 'player' OR victim_type IS NULL)
             GROUP BY victim_id
-        ),
-        ranked AS (
-            SELECT victim_id,
-                RANK() OVER (ORDER BY death_count DESC) AS position
-            FROM player_deaths
         )
-        SELECT position FROM ranked WHERE victim_id = ?
+        SELECT position
+        FROM player_deaths
+        WHERE victim_id = ?
     """, (now - timeoffset, playeruid))
     killspos = c.fetchone()
     output["total"]["deathslasthourpos"] = killspos[0] if killspos else None
 
     c.execute("""
         WITH player_kills AS (
-            SELECT playeruid, COUNT(*) AS kill_count
+            SELECT playeruid, COUNT(*) AS kill_count,
+                   RANK() OVER (ORDER BY COUNT(*) DESC) AS position
             FROM specifickilltracker
             WHERE (victim_type = 'player' OR victim_type IS NULL)
             GROUP BY playeruid
-        ),
-        ranked AS (
-            SELECT playeruid,
-                RANK() OVER (ORDER BY kill_count DESC) AS position
-            FROM player_kills
         )
-        SELECT position FROM ranked WHERE playeruid = ?
+        SELECT position
+        FROM player_kills
+        WHERE playeruid = ?
     """, (playeruid,))
     killspos = c.fetchone()
     output["total"]["killspos"] = killspos[0] if killspos else None
@@ -7611,34 +7605,31 @@ def getstats(playeruid):
             LIMIT 1
         ),
         weapon_kills AS (
-            SELECT playeruid, COUNT(*) AS kill_count
+            SELECT playeruid, COUNT(*) AS kill_count,
+                   RANK() OVER (ORDER BY COUNT(*) DESC) AS position
             FROM specifickilltracker
             WHERE cause_of_death = (SELECT cause_of_death FROM recent_weapon)
+            AND (victim_type = 'player' OR victim_type IS NULL)
             GROUP BY playeruid
-        ),
-        ranked AS (
-            SELECT playeruid,
-                RANK() OVER (ORDER BY kill_count DESC) AS position
-            FROM weapon_kills
         )
-        SELECT position FROM ranked WHERE playeruid = ?
+        SELECT position
+        FROM weapon_kills
+        WHERE playeruid = ?
     """, (playeruid, playeruid))
     killspos = c.fetchone()
     output["total"]["recentweaponkillspos"] = killspos[0] if killspos else None
 
     c.execute("""
         WITH player_deaths AS (
-            SELECT victim_id, COUNT(*) AS death_count
+            SELECT victim_id, COUNT(*) AS death_count,
+                   RANK() OVER (ORDER BY COUNT(*) DESC) AS position
             FROM specifickilltracker
             WHERE (victim_type = 'player' OR victim_type IS NULL)
             GROUP BY victim_id
-        ),
-        ranked AS (
-            SELECT victim_id,
-                RANK() OVER (ORDER BY death_count DESC) AS position
-            FROM player_deaths
         )
-        SELECT position FROM ranked WHERE victim_id = ?
+        SELECT position
+        FROM player_deaths
+        WHERE victim_id = ?
     """, (playeruid,))
     killspos = c.fetchone()
     output["total"]["deathspos"] = killspos[0] if killspos else None

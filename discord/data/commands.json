@@ -26,7 +26,7 @@
             ],
             "function": "pingperson",
             "run": "thread",
-            "description": "Ping somone on discord. run pingtest to see who it would ping.",
+            "description": "Ping somone on discord. run pingtest to see who it would ping",
             "shouldblock": false
         },
         "settings":{
@@ -35,7 +35,7 @@
             ],
             "function": "showingamesettings",
             "run": "thread",
-            "description": "Show all your/somone elses settings. also reloads yours.",
+            "description": "Show all your/somone elses settings. also reloads yours",
             "shouldblock": true
         },
         "nametag": {
