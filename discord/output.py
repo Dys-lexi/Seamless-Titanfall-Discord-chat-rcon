@@ -1444,6 +1444,7 @@ if DISCORDBOTLOGSTATS == "1":
                     if output[logid]:
                         colour = output[logid]["title"]["color"]
         else:
+            await ctx.defer()
             for logid in range(len(context["leaderboardchannelmessages"])):
                 if "name" in context["leaderboardchannelmessages"][logid].get("merge","") and context["leaderboardchannelmessages"][logid].get("name","") == leaderboard:
                     output = await updateleaderboard(logid, str(player[0]["uid"]),False,11)
@@ -1725,7 +1726,7 @@ if DISCORDBOTLOGSTATS == "1":
         base_query = f"SELECT {','.join(leaderboardcategorys)} FROM {leaderboarddatabase}"
         # print("wherestring",f"{base_query} WHERE {wherestring}")
         quote = "'"
-        query = f"{base_query} WHERE{' (victim_type = '+quote+'player'+quote+ 'OR victim_type IS NULL)' + 'AND' if leaderboarddatabase == 'specifickilltracker' else ''} {wherestring}" if wherestring else f"{base_query} {'WHERE (victim_type = '+quote+'player'+quote+ 'OR victim_type IS NULL)' if leaderboarddatabase == 'specifickilltracker' else ''}"
+        query = f"{base_query} WHERE{' (victim_type = '+quote+'player'+quote+ 'OR victim_type IS NULL)' + 'AND' if leaderboarddatabase == 'specifickilltracker' and not leaderboard_entry.get("allownpcs",False) else ''} {wherestring}" if wherestring else f"{base_query} {'WHERE (victim_type = '+quote+'player'+quote+ 'OR victim_type IS NULL)' if (leaderboarddatabase == 'specifickilltracker' and not leaderboard_entry.get("allownpcs",False)) else ''}"
         # print(query)
         # print("Executing query:", query)
         c.execute(query, params)
@@ -2606,23 +2607,16 @@ async def help(
         for key in context["commands"]["botcommands"].keys():
             message += f"**{key}**: {context['commands']['botcommands'][key]['description']}\n"
         
-        message += "**whois**: Get somones aliases\n"
-        message += "**leaderboards**: Get the leaderboards for a specific player\n"
-        message += "**togglejoinnotify**: Toggle notifying on a player joining / leaving\n"
-        message += "**bindloggingtocategory**: Bind logging to a new category (use for first time init)\n"
-        message += "**bindrole**: Bind a role to the bot for other functions, like perkroles and non administrator rcon\n"
-        message += "**bindchannel**: Bind a channel to the bot for other functions, like leaderboards, globalmessages\n"
-        message += "**linktf2account**: link your tf2 account to your discord account\n"
-        message += "**discordtotf2chatcolour**: put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your discord -> tf2 name, seperate multiple colours with spaces\n"
-        message += "**tf2ingamechatcolour**: put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your in game tf2 name, seperate multiple colours with spaces\n"
-        message += "**messagelogs**: Pull all non command message logs with a given filter\n"
-        message += "**pngleaderboard**: Gets pngleaderboard for a player, takes a LONG time to calculate on the wildcard.\n"
-        message += "**tf2ingamesettag**: Sets your in game tag\n"
-        
-        if SHOULDUSETHROWAI == "1":
-            message += "**thrownonrcon**: Throw a player, after being persuasive\n"
-        if SANCTIONAPIBANKEY != "":
-            message += "**serverlesssanction**: Sanction a player without a server\n"
+        for slash_command in bot.slash_commands:
+            if slash_command.name == "help" or slash_command.name in context["commands"]["botcommands"].keys():
+                continue
+                
+            if slash_command.name == "thrownonrcon" and SHOULDUSETHROWAI != "1":
+                continue
+            if slash_command.name == "serverlesssanction" and SANCTIONAPIBANKEY == "":
+                continue
+                
+            message += f"**{slash_command.name}**: {slash_command.description}\n"
             
         await ctx.respond(message)
     else:
@@ -6099,7 +6093,6 @@ def senddiscordcommands(message,serverid,isfromserver):
     print("COMMANDS REQUESTED",f'!senddiscordcommands {" ".join(functools.reduce(lambda a,b: [*a,b[0],str(int(b[1]["shouldblock"]))],context["commands"]["ingamecommands"].items(),[]))}')
     asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!senddiscordcommands {" ".join(functools.reduce(lambda a,b: [*a,b[0],str(int(b[1]["shouldblock"]))],context["commands"]["ingamecommands"].items(),[]))}'),"fake context",None,True,False), bot.loop)
 
-
 def calcstats(message,serverid,isfromserver):
     """Processes in-game stats requests and formats statistical data for display"""
     # print("e",message)
@@ -6129,7 +6122,7 @@ def calcstats(message,serverid,isfromserver):
         else:
             # print(getpriority(message,"originalname","name"))
             output = getstats(str(getpriority(message,"originalname","name")))
-        # print(output)
+        name = resolveplayeruidfromdb(getpriority(message,"originalname","name"),None,True)[0]["uid"]
         if "sob" in output.keys():
             discordtotitanfall[serverid]["messages"].append(
             {
@@ -6137,21 +6130,23 @@ def calcstats(message,serverid,isfromserver):
                 "content":f"{PREFIXES['discord']}player not found :(",
                 # "teamoverride": 4,
                 # "isteammessage": False,
-                "uidoverride": [resolveplayeruidfromdb(getpriority(message,"originalname","name"),None,True)[0]["uid"]]
+                "uidoverride": [name]
                 # "dotreacted": dotreacted
             } )
             return
-
+        print(json.dumps(output,indent=4))
         for i, (key, stat) in enumerate(output.items()):
+            print(stat)
             if not key.isdigit():
                 continue
+            print("KEpt")
             discordtotitanfall[serverid]["messages"].append(
             {
                 # "id": str(i)+str(int(time.time()*100)),
                 "content":stat,
                 # "teamoverride": 4,
                 # "isteammessage": False,
-                "uidoverride": [resolveplayeruidfromdb(getpriority(message,"originalname","name"),None,True)[0]["uid"]] if not len(message.get("originalmessage","w").split(" ")) > 1 else []
+                "uidoverride": [name] if not len(message.get("originalmessage","w").split(" ")) > 1 else []
                 # "dotreacted": dotreacted
             }
             )
