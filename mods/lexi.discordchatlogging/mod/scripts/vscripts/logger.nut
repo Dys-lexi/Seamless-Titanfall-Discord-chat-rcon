@@ -375,7 +375,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 		message.shouldBlock = true;
 	}}
 	// Chat_ServerBroadcast("BLOCKING"+split(message.message.tolower().slice(1)," ")[0] + " " + (split(message.message.tolower().slice(1)," ")[0] in tf2todiscordcommands ) )
-	if (format("%c", message.message.tolower()[0]) == "!" && (split(message.message.tolower().slice(1)," ")[0] in tf2todiscordcommands && tf2todiscordcommands[split(message.message.tolower().slice(1)," ")[0]]  )){
+	if (format("%c", message.message.tolower()[0]) == "!" && (split(message.message.tolower().slice(1)," ")[0] in tf2todiscordcommands && (tf2todiscordcommands[split(message.message.tolower().slice(1)," ")[0]] || (split(message.message.tolower().slice(1)," ").len() > 1 && split(message.message.tolower().slice(1)," ")[1] in tf2todiscordcommands && tf2todiscordcommands[split(message.message.tolower().slice(1)," ")[1]])))){
 		// Chat_ServerBroadcast("BLOCKING")
 		message.shouldBlock = true
 		meta["blockedcommand"] <- true
