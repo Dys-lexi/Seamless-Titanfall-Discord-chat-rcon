@@ -607,8 +607,8 @@ def print(*message, end="\033[0m\n"):
             if colour not in DISALLOWED_COLOURS:
                 break
         linecolours[line] = colour
-    realprint (f"{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}{('['+line+']').ljust(6)}[{datetime.now().strftime('%H:%M:%S %d/%m')}] {message}")
-    # realprint(f"[38;2;215;22;105m{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}[38;2;126;89;140m{('['+line+']').ljust(6)}[38;2;27;64;152m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{linecolours[line]}m {repr(message)[1:-1]}", end=end)
+    # realprint (f"{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}{('['+line+']').ljust(6)}[{datetime.now().strftime('%H:%M:%S %d/%m')}] {message}")
+    realprint(f"[38;2;215;22;105m{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}[38;2;126;89;140m{('['+line+']').ljust(6)}[38;2;27;64;152m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{linecolours[line]}m {(message)}", end=end)
     
 print("running discord logger bot")
 lastrestart = 0
@@ -6134,12 +6134,12 @@ def calcstats(message,serverid,isfromserver):
                 # "dotreacted": dotreacted
             } )
             return
-        print(json.dumps(output,indent=4))
+        # print(json.dumps(output,indent=4))
         for i, (key, stat) in enumerate(output.items()):
-            print(stat)
+            # print(stat)
             if not key.isdigit():
                 continue
-            print("KEpt")
+            # print("KEpt")
             discordtotitanfall[serverid]["messages"].append(
             {
                 # "id": str(i)+str(int(time.time()*100)),
