@@ -5232,9 +5232,11 @@ def tftodiscordcommand(specificommand,command,serverid):
             }
             )
             return
-        if not istf1 and bool(getpriority(command,["meta","blockedcommand"])) !=  bool(context["commands"]["ingamecommands"][specificommand]["shouldblock"]):
+        if (not istf1 and bool(getpriority(command,["meta","blockedcommand"])) !=  bool(context["commands"]["ingamecommands"][specificommand]["shouldblock"]) and specificommand != "toggle") or (specificommand == "toggle" and command["originalmessage"].split(" ")[1:] and bool(getpriority(command,["meta","blockedcommand"])) !=  bool(context["commands"]["ingamecommands"][command["originalmessage"].split(" ")[1:][0]]["shouldblock"])):
+            #HARDCODING !toggle to check next command - I don't like it but is alright
             # huh? this if statment confuses me.. oh actually no, it's telling the server off if it gets blocking wrong but why does it only run here? surely it should always run? put it here as that seems better
             # tf1 does not support blocking commands yet, from discord. nor does it have any, due to it using a better command system, so a lot of the commands can run directly on tf1
+            # this breaks on toggel commands when they use a different value from toggle's block value. how to fix in a clean way? I am not too sure. 
             senddiscordcommands(0,serverid,0) 
 
 
