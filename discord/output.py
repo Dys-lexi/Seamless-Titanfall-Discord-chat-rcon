@@ -3412,7 +3412,7 @@ async def on_message(message):
         if message.content != "": #and not context["istf1server"].get(serverid,False):
             print(f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {message.content}")
             # print(len(f"{authornick}: {PREFIXES['neutral']}{message.content}"),f"{authornick}: {PREFIXES['neutral']}{message.content}\033[0m")
-            # print(len(f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}"))
+            print((f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}"))
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": message.id,

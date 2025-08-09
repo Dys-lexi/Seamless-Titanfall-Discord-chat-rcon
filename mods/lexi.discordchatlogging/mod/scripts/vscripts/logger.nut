@@ -283,7 +283,7 @@ void function playerstabbedmodelsaver( entity player, entity attacker, var damag
 	float respawntime = Time()
 	int methodOfDeath = DamageInfo_GetDamageSourceIdentifier( damageInfo )
 	float replayLength = CalculateLengthOfKillReplay( player, methodOfDeath )
-	bool shouldDoReplay = Replay_IsEnabled() && KillcamsEnabled() && IsValid( attacker ) && ShouldDoReplay( player, attacker, replayLength, methodOfDeath )
+	bool shouldDoReplay = Replay_IsEnabled()  && IsValid( attacker ) && ShouldDoReplay( player, attacker, replayLength, methodOfDeath )
 	if (shouldDoReplay){
 		respawntime += replayLength
 	}
