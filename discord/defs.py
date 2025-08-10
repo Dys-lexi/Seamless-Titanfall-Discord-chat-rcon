@@ -208,16 +208,16 @@ DISALLOWED_COLOURS = (
 
 KILL_STREAK_MESSAGES = {
     "killstreakselfended":[
-        "**/attacker/** ended their own killstreak! **/ks/**",
-        "**/attacker/** killed **/victim/** ending the **/ks/** of **/victim/**",
-        "**/attacker/** bid farewell, cruel world **/ks/**"
+        "**/attacker/** ended their own killstreak! **/ks/** using **/gun/**",
+        "**/attacker/** killed **/victim/** ending the **/ks/** of **/victim/** using **/gun/**",
+        "**/attacker/** bid farewell, cruel world **/ks/** using **/gun/**"
     ],
     "killstreakended":[
-        "**/attacker/** ended **/victim/**'s killstreak **/ks/**",
-        "**/victim/** got flattened by **/attacker/** **/ks/**",
-        "**/victim/**'s glorious reign was ended by the rightious fury of **/attacker/** **/ks/**",
-        "**/victim/** dead by **/attacker/** **/ks/**",
-        "**/attacker/** successfully stabbed **/victim/** **/ks/**"  
+        "**/attacker/** ended **/victim/**'s killstreak **/ks/** using **/gun/**",
+        "**/victim/** got flattened by **/attacker/** **/ks/** using **/gun/**",
+        "**/victim/**'s glorious reign was ended by the rightious fury of **/attacker/** **/ks/** using **/gun/**",
+        "**/victim/** dead by **/attacker/** **/ks/** using **/gun/**",
+        "**/attacker/** successfully stabbed **/victim/** **/ks/** using **/gun/**"  
     ],
    "killstreakbegin": [
         "**/attacker/** is on a killing spree **/ks/**",

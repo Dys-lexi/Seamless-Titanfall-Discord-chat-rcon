@@ -100,6 +100,7 @@ struct {
 	string matchid
 	bool showchatprefix
 	bool iveaskedtostoprequests = false
+	bool hasmapchanged = false
 } serverdetails
 
 
@@ -207,7 +208,8 @@ void function discordloggerinit() {
 	AddCallback_OnClientDisconnected( LogDC)
 	AddCallback_GameStateEnter(eGameState.Playing, begintodiscord);
 	// AddCallback_GameStateEnter(eGameState.PickLoadout, Onmapchange);
-    AddCallback_GameStateEnter(eGameState.Prematch, Onmapchange);
+    // AddCallback_GameStateEnter(eGameState.Prematch, Onmapchange);
+	thread Onmapchange()
 	AddCallback_GameStateEnter(9,stoprequests);
 	AddCallback_OnPlayerKilled(playerstabbedmodelsaver)
 
@@ -557,7 +559,10 @@ int shouldsend = 1
 int breakercounter = 0
 
 void function Onmapchange(){
-	wait 1
+	if (serverdetails.hasmapchanged){
+		return
+	}
+	serverdetails.hasmapchanged = true
 	outgoingmessage newmessage
 	// string LocalizedMapName = Localize( "#STATS_NOT_APPLICABLE" )
 	newmessage.playername = ""

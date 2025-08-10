@@ -854,9 +854,7 @@ context = {
     },
     "logging_cat_id": 0,
     "activeguild": 0,
-    "serveridnamelinks": {},
-    "serverchannelidlinks": {},
-    "istf1server": {},
+    "servers": {},
     "overridechannels" : {
         "globalchannel":0,
         "commandlogchannel":0,
@@ -941,6 +939,16 @@ processaliases()
 # print(json.dumps(context["commands"]["ingamecommands"],indent=2))
             
 bot = discord.Bot(intents=intents)
+
+async def autocompleteserversfromdb(ctx):
+    if not ctx.value:
+        return []
+    server_names = [s.get("name", "Unknown") for s in context["servers"].values() if s.get("name")]
+    output = [name for name in server_names if ctx.value.lower() in name.lower()][:20]
+    if len(output) == 0:
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        return ["No server matches"]
+    return output
 
 async def autocompletenamesfromdb(ctx):
     """autocompletes tf2 names"""
@@ -1501,7 +1509,7 @@ if DISCORDBOTLOGSTATS == "1":
     #         await ctx.respond("This guild is not the active guild.", ephemeral=False)
     #         return
     #     # if channel exists
-    #     if channel.id in context["serverchannelidlinks"].values():
+    #     if any(server.get("channelid") == channel.id for server in context["servers"].values()):
     #         await ctx.respond("This channel is already bound to a server.", ephemeral=False)
     #         return
     #     # if channel is not in the serverchannels
@@ -1793,7 +1801,7 @@ if DISCORDBOTLOGSTATS == "1":
             # print(str(namemap.get(int(itemname), context["serveridnamelinks"].get(str(itemname),itemname))))
             try: itemname = int(itemname)
             except:  return "Some Unknown NPC"
-            return str(namemap.get((itemname), context["serveridnamelinks"].get(str(itemname),itemname)))
+            return str(namemap.get((itemname), context["servers"].get(str(itemname), {}).get("name", itemname)))
         displayoutput = []
         nameuidmap = []
         if nameoverride:
@@ -2405,7 +2413,7 @@ if DISCORDBOTLOGSTATS == "1":
             else:
                 return f"{value*3600:.2f}{ calculation.split('/')[0].strip()[0].lower()}/{ calculation.split('/')[1].strip()[0].lower()}"
         elif format == "server":
-            return str(context["serveridnamelinks"].get(str(value), value))
+            return str(context["servers"].get(str(value), {}).get("name", value))
         elif format == "hammertometres":
             if value == 0:
                 return "0"
@@ -2737,7 +2745,7 @@ def listplayersoverride(data, serverid, statuscode):
     """Overrides the default display for /playing to create a nice, pretty list"""
     if len(data) == 0:
         return discord.Embed(
-            title=f"Server status for {context['serveridnamelinks'][serverid]}",
+            title=f"Server status for {context['servers'][serverid]['name']}",
             description="No players online",
             color=0xff70cb,
         )
@@ -2759,7 +2767,7 @@ def listplayersoverride(data, serverid, statuscode):
             formattedata[value[1]]["playerinfo"][key] = {"score":value[0],"kills":value[2],"deaths":value[3]}
             formattedata[value[1]]["teaminfo"]["score"] += value[0]
     embed = discord.Embed(
-        title=f"Server status for {context['serveridnamelinks'][serverid]}",
+        title=f"Server status for {context['servers'][serverid]['name']}",
         description="" if len(data.keys()) < 22 else f"__{len(data)-21} player{'s' if len(data)-21 > 1 else ''} truncated due to embed limits__",
         color=0xff70cb,
     )
@@ -2802,12 +2810,49 @@ def listplayersoverride(data, serverid, statuscode):
 #     if ctx.author.id not in context["RCONallowedusers"]:
 #         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
 #         return
-#     if channel.id in context["serverchannelidlinks"].values():
+#     if any(server.get("channelid") == channel.id for server in context["servers"].values()):
 #         await ctx.respond("This channel is already bound to a server.", ephemeral=False)
 #         return
 #     context["overridechannels"]["globalchannel"] = channel.id
 #     savecontext()
 #     await ctx.respond(f"Global channel bound to {channel.name}.", ephemeral=False)
+
+@bot.slash_command(name="widget",description="add a widget to a servers name in discord channel")
+async def addserverwidget(
+    ctx,
+    widget:Option(
+        str,
+        "What should the widget be",
+        required=True,
+    ),
+    servername: Option(
+        str,
+        "The servername (omit for current channel's server)",
+        required=False,
+        **({
+            "choices": list(s.get("name", "Unknown") for s in context["servers"].values())
+        } if SERVERNAMEISCHOICE == "1" else {
+            "autocomplete": autocompleteserversfromdb
+        })
+    ) = None,
+):
+    """add a widget to a server name"""
+    global context
+    if not checkrconallowed(ctx.author):
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        await ctx.respond("You are not allowed to use this command.", ephemeral=False)
+        return
+    serverid = getchannelidfromname(servername,ctx)
+    if serverid is None:
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
+        return
+    
+    context["servers"][serverid]["widget"] = widget
+    savecontext()
+    await ctx.respond(f"Changed widget to {widget}", ephemeral=False)
+
+    
 
 
 @bot.slash_command(name="bindrole", description="Bind a role to the bot.")
@@ -2860,7 +2905,7 @@ async def bind_global_channel(
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
         return
-    if channel.id in context["serverchannelidlinks"].values():
+    if any(server.get("channelid") == channel.id for server in context["servers"].values()):
         await ctx.respond("This channel is already bound to a server.", ephemeral=False)
         return
     
@@ -3382,12 +3427,12 @@ async def on_message(message):
         return
     if REACTONMENTION != "0" and bot.user in message.mentions:
         await message.add_reaction(REACTONMENTION)
-    if message.channel.id in context["serverchannelidlinks"].values():
+    if any(server.get("channelid") == message.channel.id for server in context["servers"].values()):
         # print("discord message recieved")
         serverid = [
             key
-            for key, value in context["serverchannelidlinks"].items()
-            if value == message.channel.id
+            for key, server in context["servers"].items()
+            if server.get("channelid") == message.channel.id
         ][0]
         # if serverid not in messagestosend.keys():
         #     messagestosend[serverid] = []
@@ -3399,7 +3444,7 @@ async def on_message(message):
             len(
                 f"{ANSICOLOUR}{message.author.nick if message.author.nick is not None else message.author.display_name}: {PREFIXES['neutral']}{message.content}"
             )
-            > 254 - bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract
+            > 254 - bool(context["servers"].get(serverid, {}).get("istf1server",False))*tf1messagesizesubtract
         ):
             await message.channel.send("Message too long, cannot send.")
             return
@@ -3409,14 +3454,14 @@ async def on_message(message):
         #     dotreacted = "🔴"
         # elif discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5:
         #     dotreacted = "🟡" 
-        if message.content != "": #and not context["istf1server"].get(serverid,False):
+        if message.content != "": #and not context["servers"].get(serverid, {}).get("istf1server",False):
             print(f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {message.content}")
             # print(len(f"{authornick}: {PREFIXES['neutral']}{message.content}"),f"{authornick}: {PREFIXES['neutral']}{message.content}\033[0m")
-            print((f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}"))
+            print((f"{authornick}{': ' if not  bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{message.content}"))
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": message.id,
-                    "content": f"{authornick}{': ' if not  bool(context['istf1server'].get(serverid,False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['istf1server'].get(serverid,False)) else ''}{message.content}",
+                    "content": f"{authornick}{': ' if not  bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{message.content}",
                     # "teamoverride": 4,
                     # "isteammessage": False,
                     # "uidoverride": []
@@ -3530,9 +3575,9 @@ def computeauthornick (name,idauthor,content,serverid = False,rgbcolouroverride 
     while authornick == 2 and counter < len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])]):
         # print(counter)
         if not (usetagifathing and getpriority(colourslink,[idauthor,"nameprefix"])):
-            authornick = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {PREFIXES['neutral']}{content}")- bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract)
+            authornick = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {PREFIXES['neutral']}{content}")- bool(context["servers"].get(serverid, {}).get("istf1server",False))*tf1messagesizesubtract)
         else:
-            nameof,firstcolour = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {PREFIXES['neutral']}{content}" +" ["+colourslink[idauthor]["nameprefix"]+"]")- bool(context["istf1server"].get(serverid,False))*tf1messagesizesubtract,True)
+            nameof,firstcolour = gradient(name,[RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get(colourlinksovverride,[RGBCOLOUR[rgbcolouroverride]])[:len([RGBCOLOUR[rgbcolouroverride],*colourslink.get(idauthor,{}).get("discordcolour",[RGBCOLOUR[rgbcolouroverride]])])-counter]], lenoverride -len( f": {PREFIXES['neutral']}{content}" +" ["+colourslink[idauthor]["nameprefix"]+"]")- bool(context["servers"].get(serverid, {}).get("istf1server",False))*tf1messagesizesubtract,True)
             authornick = firstcolour+ "["+colourslink[idauthor]["nameprefix"]+"] " + nameof
         counter +=1
     if authornick == 2:
@@ -3673,9 +3718,9 @@ def recieveflaskprintrequests():
                 "type": 4,
                 "globalmessage": False,
                 "overridechannel": None,
-                "messagecontent": f"Stopping discord -> Titanfall communication for {context['serveridnamelinks'][data['serverid']]} till next map (to prevent server crash)" + str(output), #it should always be a string, but I don't trust it
+                "messagecontent": f"Stopping discord -> Titanfall communication for {context['servers'][data['serverid']]['name']} till next map (to prevent server crash)" + str(output), #it should always be a string, but I don't trust it
                 "metadata": {"type":"stoprequestsnotif"},
-                "servername": context["serveridnamelinks"][data["serverid"]]
+                "servername": context["servers"][data["serverid"]]["name"]
             })
         except Exception as e:
             print([data["serverid"]])
@@ -4121,7 +4166,7 @@ def recieveflaskprintrequests():
                 "overridechannel": None,
                 "messagecontent": f"{data.get('attacker_name', data['attacker_type'])} killed {data.get('victim_name', data['victim_type'])} with {WEAPON_NAMES.get(data['cause_of_death'], data['cause_of_death'])}",
                 "metadata": {"type":"killfeed"},
-                "servername": context["serveridnamelinks"][data["server_id"]]
+                "servername": context["servers"][data["server_id"]]["name"]
             })
         
         if KILLSTREAKNOTIFYTHRESHOLD and data.get("attacker_type",False) not in ["npc_soldier","npc_stalker","npc_spectre","npc_super_spectre"]  and ((data.get("victim_type",False) == "player") or (data.get("victim_type",False) == "npc_titan"))  and data.get("match_id",False) and getpriority(data,"attacker_name","attacker_type"):
@@ -4151,9 +4196,9 @@ def recieveflaskprintrequests():
                         "type": 3,
                         "globalmessage": False,
                         "overridechannel": None,
-                        "messagecontent": (KILL_STREAK_MESSAGES["killstreakbegin"][(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)//KILLSTREAKNOTIFYSTEP ] if len(KILL_STREAK_MESSAGES["killstreakbegin"]) >  (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)//KILLSTREAKNOTIFYSTEP else  KILL_STREAK_MESSAGES["killstreakbegin"][-1]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)])),
+                        "messagecontent": (KILL_STREAK_MESSAGES["killstreakbegin"][(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)//KILLSTREAKNOTIFYSTEP ] if len(KILL_STREAK_MESSAGES["killstreakbegin"]) >  (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)//KILLSTREAKNOTIFYSTEP else  KILL_STREAK_MESSAGES["killstreakbegin"][-1]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)])).replace("/gun/",getpriority(data,"cause_of_death")),
                         "metadata": {"type":"killfeed"},
-                        "servername": context["serveridnamelinks"][data["server_id"]]
+                        "servername": context["servers"][data["server_id"]]["name"]
                     })
 
             # print("THIS HERE", getpriority(consecutivekills,[data["match_id"],data.get("victim_id",1),data.get("victim_name",False)]))
@@ -4166,9 +4211,9 @@ def recieveflaskprintrequests():
                         "type": 3,
                         "globalmessage": False,
                         "overridechannel": None,
-                        "messagecontent": random.choice([*KILL_STREAK_MESSAGES["killstreakended"],*KILL_STREAK_MESSAGES["killstreakselfended"]]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)])-1)),
+                        "messagecontent": random.choice([*KILL_STREAK_MESSAGES["killstreakended"],*KILL_STREAK_MESSAGES["killstreakselfended"]]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)])-1)).replace("/gun/",getpriority(data,"cause_of_death")),
                         "metadata": {"type":"killfeed"},
-                        "servername": context["serveridnamelinks"][data["server_id"]]
+                        "servername": context["servers"][data["server_id"]]["name"]
                     })
                 else:
                     messageflush.append({
@@ -4177,9 +4222,9 @@ def recieveflaskprintrequests():
                         "type": 3,
                         "globalmessage": False,
                         "overridechannel": None,
-                        "messagecontent": random.choice([*KILL_STREAK_MESSAGES["killstreakended"]]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)]))),
+                        "messagecontent": random.choice([*KILL_STREAK_MESSAGES["killstreakended"]]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)]))).replace("/gun/",getpriority(data,"cause_of_death")),
                         "metadata": {"type":"killfeed"},
-                        "servername": context["serveridnamelinks"][data["server_id"]]
+                        "servername": context["servers"][data["server_id"]]["name"]
                     })
                 #their killstreak ended!
                 consecutivekills[data["match_id"]][data.get("victim_name",1)][data.get("victim_id",False)] = 0
@@ -4365,12 +4410,14 @@ def recieveflaskprintrequests():
         messagecounter += 1
         lastmessage = time.time()
 
-        if  newmessage["serverid"] not in context["serveridnamelinks"]:
-            context["serveridnamelinks"][newmessage["serverid"]] = newmessage["servername"]
-            context["istf1server"][newmessage["serverid"]] = False
+        if  newmessage["serverid"] not in context["servers"]:
+            context["servers"][newmessage["serverid"]] = {
+                "name": newmessage["servername"],
+                "istf1server": False
+            }
             savecontext()
 
-        if newmessage["serverid"] not in context["serverchannelidlinks"].keys():
+        if newmessage["serverid"] not in context["servers"] or "channelid" not in context["servers"][newmessage["serverid"]]:
             # Get guild and category
             guild = bot.get_guild(context["activeguild"])
             category = guild.get_channel(context["logging_cat_id"])
@@ -4389,11 +4436,15 @@ async def createchannel(guild, category, servername, serverid):
     # check if channel name already exists, if so use that
     if any(normalized_servername == channel.name.lower() for channel in category.channels):
         channel = discord.utils.get(category.channels, name=normalized_servername)
-        context["serverchannelidlinks"][serverid] = channel.id
+        if serverid not in context["servers"]:
+            context["servers"][serverid] = {}
+        context["servers"][serverid]["channelid"] = channel.id
         savecontext()
         return
     channel = await guild.create_text_channel(servername, category=category)
-    context["serverchannelidlinks"][serverid] = channel.id
+    if serverid not in context["servers"]:
+        context["servers"][serverid] = {}
+    context["servers"][serverid]["channelid"] = channel.id
     savecontext()
 
 
@@ -4406,7 +4457,7 @@ async def reactomessages(messages, serverid, emoji = "🟢"):
         # print("run2")
         # print(message,"owo")
         message = await bot.get_channel(
-            context["serverchannelidlinks"][serverid]
+            context["servers"][serverid]["channelid"]
         ).fetch_message(int(message))
         # print("reacting to message")
         # if the bot has reacted with "🔴" remove it.
@@ -4418,9 +4469,11 @@ async def reactomessages(messages, serverid, emoji = "🟢"):
 async def changechannelname(guild, servername, serverid):
     global context
     print("Changing channel name...")
-    channel = guild.get_channel(context["serverchannelidlinks"][serverid])
+    channel = guild.get_channel(context["servers"][serverid]["channelid"])
     await channel.edit(name=servername)
-    context["serveridnamelinks"][serverid] = servername
+    if serverid not in context["servers"]:
+        context["servers"][serverid] = {}
+    context["servers"][serverid]["name"] = servername
     savecontext()
 
     # return channel
@@ -4473,7 +4526,7 @@ def getmessagewidget(metadata,serverid,messagecontent,message):
     elif metadata["type"] in ["command","botcommand","tf1command"]:
         if DISCORDBOTLOGCOMMANDS != "1":
             return "",player
-        output = f"""> {context['serveridnamelinks'].get(serverid,'Unknown server').ljust(30)} {(message['player']+":").ljust(20)} {message['messagecontent']}"""
+        output = f"""> {context['servers'].get(serverid, {}).get('name', 'Unknown server').ljust(30)} {(message['player']+":").ljust(20)} {message['messagecontent']}"""
     # elif metadata["type"] == "tf1command":
     #     if DISCORDBOTLOGCOMMANDS != "1":
     #         return "",player
@@ -4775,7 +4828,7 @@ def tf1readsend(serverid,checkstatus):
                         "overridechannel": None,
                         "messagecontent": output["command"],
                         "metadata": {"type":None},
-                        "servername" :context["serveridnamelinks"][serverid]
+                        "servername" :context["servers"][serverid]["name"]
 
                     })
                 # print(output["commandtype"])
@@ -4792,7 +4845,7 @@ def tf1readsend(serverid,checkstatus):
                         "overridechannel": None,
                         "messagecontent": output["command"],
                         "metadata": {**outputjson,"type":output["commandtype"]},
-                        "servername" :context["serveridnamelinks"][serverid]
+                        "servername" :context["servers"][serverid]["name"]
 
                     })
                 if output["commandtype"] == "command_message":
@@ -4807,7 +4860,7 @@ def tf1readsend(serverid,checkstatus):
                         "overridechannel": "commandlogchannel",
                         "messagecontent": output["command"],
                         "metadata": {"type":"tf1command",**outputjson},
-                        "servername" :context["serveridnamelinks"][serverid]
+                        "servername" :context["servers"][serverid]["name"]
 
                     })
                 if output["commandtype"] == "connect_message":
@@ -4820,7 +4873,7 @@ def tf1readsend(serverid,checkstatus):
                         "overridechannel": None,
                         "messagecontent": output["command"],
                         "metadata": {"type":"connecttf1"},
-                        "servername" :context["serveridnamelinks"][serverid]
+                        "servername" :context["servers"][serverid]["name"]
 
                     })
                 # if COMMANDDICT.get(output["commandtype"],False):
@@ -4932,7 +4985,8 @@ def tf1relay():
         
     # print(response,"woqdoqw")
     servers = []
-    for server,value in context["istf1server"].items():
+    for server,serverdata in context["servers"].items():
+        value = serverdata.get("istf1server", False)
         if value:
             initdiscordtotitanfall(server)
             servers.append(server)
@@ -4989,13 +5043,13 @@ def messageloop():
                 for message in messageflush:
                     if (
                         message["serverid"]
-                        not in context["serverchannelidlinks"].keys()
+                        not in context["servers"] or "channelid" not in context["servers"][message["serverid"]]
                         and not addflag
                         and message["serverid"] != "-100"
                     ):
                         addflag = True
                         # print(message)
-                        # print(list( context["serverchannelidlinks"].keys()),   message["serverid"])
+                        # print(list( context["servers"].keys()),   message["serverid"])
 
                         guild = bot.get_guild(context["activeguild"])
                         category = guild.get_channel(context["logging_cat_id"])
@@ -5012,9 +5066,10 @@ def messageloop():
                 addflag = False
                 for message in messageflush:
                     if (
-                        message["serverid"] in context["serverchannelidlinks"].keys()
+                        message["serverid"] in context["servers"]
+                        and "channelid" in context["servers"][message["serverid"]]
                         and message["servername"]
-                        not in context["serveridnamelinks"].values()
+                        not in [s.get("name") for s in context["servers"].values()]
                         and not addflag
                     ):
                         addflag = True
@@ -5109,10 +5164,10 @@ def messageloop():
                             output[serverid][key]["isbad"] = isbad
                     # print("OUTPUT",output)
                     # print("sending to", serverid)
-                    if serverid not in context["serverchannelidlinks"].keys() and serverid not in context["overridechannels"].keys():
+                    if (serverid not in context["servers"] or "channelid" not in context["servers"][serverid]) and serverid not in context["overridechannels"].keys():
                         print("channel not in bots known channels")
                         continue
-                    channel = bot.get_channel(context["serverchannelidlinks"][serverid]) if  serverid in context["serverchannelidlinks"].keys() else bot.get_channel(context["overridechannels"][serverid])
+                    channel = bot.get_channel(context["servers"][serverid]["channelid"]) if (serverid in context["servers"] and "channelid" in context["servers"][serverid]) else bot.get_channel(context["overridechannels"][serverid])
                     if channel is None:
                         print("channel not found")
                         continue
@@ -5167,7 +5222,7 @@ def messageloop():
 
 def sendthingstoplayer(outputstring,serverid,statuscode,uidoverride):
     """Sends messages to specific players in-game via server communication"""
-    istf1 = context["istf1server"].get(serverid,False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
     discordtotitanfall[serverid]["messages"].append(
     {
         # "id": str(int(time.time()*100)),
@@ -5193,7 +5248,7 @@ keyletter = "!"
 def tftodiscordcommand(specificommand,command,serverid):
     """Handles all commands from TF2 to Discord, processing in-game commands and routing to Discord functions""" # handles all commands in !helpdc, and generally most recent tf2 commands that execute stuff on discord
     global context
-    istf1 = context["istf1server"].get(serverid,False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
     if specificommand:
         print("SERVER COMMAND REQUESTED",[serverid],specificommand)
     # return
@@ -5209,9 +5264,9 @@ def tftodiscordcommand(specificommand,command,serverid):
             )
 
     # print("HERE")
-    # print("HERE", not specificommand,command.get("originalmessage",False) ,command["originalmessage"][0] == keyletter,command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() ,("tf1" if context["istf1server"].get(serverid,False) else "tf2") in  REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
-    # print(not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
-    if not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in context["commands"]["ingamecommands"].keys() and ("tf1" if context["istf1server"].get(serverid,False) else "tf2") in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"] and (not context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]].get("serversenabled",False) or int(serverid) in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["serversenabled"]) and context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]].get("run") != "togglestat":
+    # print("HERE", not specificommand,command.get("originalmessage",False) ,command["originalmessage"][0] == keyletter,command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() ,("tf1" if context["servers"].get(serverid, {}).get("istf1server", False) else "tf2") in  REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
+    # print(not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() and ("tf1" if context["servers"].get(serverid, {}).get("istf1server", False) else "tf2") in REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
+    if not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in context["commands"]["ingamecommands"].keys() and ("tf1" if context["servers"].get(serverid, {}).get("istf1server", False) else "tf2") in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"] and (not context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]].get("serversenabled",False) or int(serverid) in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["serversenabled"]) and context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]].get("run") != "togglestat":
         specificommand = command["originalmessage"][1:].split(" ")[0].lower()
         print("CLIENT COMMAND REQUESTED",[serverid],specificommand)
         commandargs = command["originalmessage"][1:].split(" ")[1:]
@@ -5275,7 +5330,7 @@ def tftodiscordcommand(specificommand,command,serverid):
 def pingperson(message,serverid,isfromserver):
     """Ping somone on the discord"""
     global knownpeople
-    istf1 = context["istf1server"].get(serverid,False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
     command = message["originalmessage"].split(" ",1)
     # need to pull closest person.. 
     if len(command) == 1:
@@ -5340,7 +5395,7 @@ def pingperson(message,serverid,isfromserver):
             "messagecontent":f"<@{list(matches.keys())[0]}>",
             "globalmessage": False,
             "overridechannel": None,
-            "servername" :context["serveridnamelinks"][serverid]
+            "servername" :context["servers"][serverid]["name"]
             
 
         }
@@ -5363,7 +5418,7 @@ def pingperson(message,serverid,isfromserver):
 
 def ingamesetusercolour(message,serverid,isfromserver):
     """Handles in-game color setting commands from players"""
-    istf1 = context["istf1server"].get(serverid,False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
     name = getpriority(message,"originalname","name")
     teamspecify = False
     teams = {"all":"all","friendly":"friendly","enemy":"enemy","neutral":"neutral","f":"friendly","e":"enemy"}
@@ -5420,7 +5475,7 @@ def ingamesetusercolour(message,serverid,isfromserver):
 
 def ingamesetusertag(message,serverid,isfromserver):
     """Handles in-game tag setting commands from players"""
-    istf1 = context["istf1server"].get(serverid,False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
     name = getpriority(message,"originalname","name")
 
     if len(message.get("originalmessage","w").split(" ")) == 1:
@@ -5475,7 +5530,7 @@ def ingamesetusertag(message,serverid,isfromserver):
 def shownamecolours(message,serverid,isfromserver):
     """Shows available color options to players in-game"""
     # print("HERHEHRHE")
-    istf1 = context["istf1server"].get(serverid,False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
     name = getpriority(message,"originalname","name")
     if len(message.get("originalmessage","w").split(" ")) > 1:
         name = (" ".join(message["originalmessage"].split(" ")[1:]))
@@ -5574,7 +5629,7 @@ def displayendofroundstats(message,serverid,isfromserver):
     """Calculates and displays comprehensive end-of-round statistics including kills, deaths, and performance metrics"""
     # print("HEREEE")
     global maxkills,lexitoneapicache
-    istf1 = context["istf1server"].get(serverid,False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
 
 
     if not isfromserver:
@@ -5832,7 +5887,7 @@ def displayendofroundstats(message,serverid,isfromserver):
         
 def togglepersistentvar(message,serverid,isfromserver):
     """Toggles persistent server variables like stats tracking and notifications"""
-    istf1 = context["istf1server"].get(serverid,False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
     args = message["originalmessage"].split(" ")[1:]
     if args and args[0] not in [*list(map(lambda x:x[0],filter(lambda x: x[1].get("run") == "togglestat",context["commands"]["ingamecommands"].items()))),"help","h"]:
         discordtotitanfall[serverid]["messages"].append(
@@ -5850,7 +5905,7 @@ def togglepersistentvar(message,serverid,isfromserver):
         # we need to find all the toggle commands! they all run toggle stats.
         cmdcounter = 0
         for name,command in context["commands"]["ingamecommands"].items():
-            if command.get("run") != "togglestat" or ("tf1" if istf1 else "tf2") not in command.get("games"):
+            if command.get("run") != "togglestat" or ("tf1" if istf1 else "tf2") not in command.get("games") or (command.get("serversenabled") and int(serverid) not in command.get("serversenabled")):
                 continue
             cmdcounter +=1
             discordtotitanfall[serverid]["messages"].append(
@@ -5879,7 +5934,7 @@ def togglepersistentvar(message,serverid,isfromserver):
 
 def showingamesettings(message,serverid,isfromserver):
     """Displays current server settings and configuration to players"""
-    istf1 = context["istf1server"].get(serverid,False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
     if len(message.get("originalmessage","w").split(" ")) > 1:
         account = resolveplayeruidfromdb((" ".join(message["originalmessage"].split(" ")[1:])),None,True,istf1)
         if not account:
@@ -5973,7 +6028,7 @@ def togglestats(message,togglething,serverid):
     """Toggles various statistics tracking features for players"""
     # print(togglething,serverid)
     internaltoggle = context["commands"]["ingamecommands"][togglething].get("internaltoggle",togglething)
-    istf1 = context["istf1server"].get(serverid,False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
     if  istf1 and not len(str(getpriority(message,"uid",["meta","uid"]))) > 15:
             discordtotitanfall[serverid]["messages"].append(
             {
@@ -6039,7 +6094,7 @@ def togglestats(message,togglething,serverid):
 
 def ingamehelp(message,serverid,isfromserver):
     """Displays help information for in-game commands to players"""
-    istf1 = context["istf1server"].get(serverid,False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
     backslash = ""
     # uid = getpriority(message,"uid",["meta","uid"])
     commandoverride = False
@@ -6098,7 +6153,7 @@ def senddiscordcommands(message,serverid,isfromserver):
 def calcstats(message,serverid,isfromserver):
     """Processes in-game stats requests and formats statistical data for display"""
     # print("e",message)
-    istf1 = context["istf1server"].get(serverid,False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
     # print(isfromserver,readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]),istf1) )
     # print("BLEHHHH",getpriority(message,"uid",["meta","uid"]))
     if isfromserver and  getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"],"name"),istf1),["tf1" if istf1 else "tf2","togglestats"]) == True:
@@ -6437,13 +6492,14 @@ def initdiscordtotitanfall(serverid): #before I knew about setdefault and .keys(
 
 def getchannelidfromname(name,ctx):
     """Resolves Discord channel ID from channel name using context"""
-    for key, value in sorted(context["serveridnamelinks"].items(), key = lambda x: len(x[1])):
+    for key, server in sorted(context["servers"].items(), key = lambda x: len(x[1].get("name", ""))):
+        value = server.get("name", "Unknown")
         if name and name.lower() in value.lower():
             print("default server overridden, sending to", value.lower())
             return key
-    if ctx.channel.id in context["serverchannelidlinks"].values():
-        for key, value in context["serverchannelidlinks"].items():
-            if value == ctx.channel.id:
+    if any(server.get("channelid") == ctx.channel.id for server in context["servers"].values()):
+        for key, server in context["servers"].items():
+            if server.get("channelid") == ctx.channel.id:
                 return key
     print("could not find overridden server")
 def sendrconcommand(serverid, command):
@@ -6475,7 +6531,7 @@ def defaultoverride(data, serverid, statuscode):
 
     embed = discord.Embed(
     
-        title=f"Command sent to server: *{context['serveridnamelinks'][serverid]}*",
+        title=f"Command sent to server: *{context['servers'][serverid]['name']}*",
         description=f"Status code: {statuscode}",
         color=0xff70cb,
     )
@@ -6592,13 +6648,13 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride,
             if iscommandnotmessage and  not isinstance(ctx,str):
                 try:
                     await ctx.respond(
-                        f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]['output']}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None,
+                        f"Command sent to server: **{context['servers'][serverid]['name']}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]['output']}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None,
                         ephemeral=False,
                     )
                 except:
                     traceback.print_exc()
                     await ctx.reply(
-                    f"Command sent to server: **{context['serveridnamelinks'][serverid]}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]['output']}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None
+                    f"Command sent to server: **{context['servers'][serverid]['name']}**." +f"```{discordtotitanfall[serverid]['returnids']['commandsreturn'][str(id)]['output']}```" if overridemsg is None else "",embed=realmessage if overridemsg is not None else None
                 )
             elif  not isinstance(ctx,str):
                 await reactomessages([ctx.id], serverid, "🟢"   )
@@ -6666,9 +6722,9 @@ def create_dynamic_command(command_name, description = None, rcon = False, param
         param_list.append(param_str)
     # SERVERNAMEISCHOICE
     if SERVERNAMEISCHOICE == "1":
-        servername_param = f'servername: Option(str, "The servername (omit for current channel\'s server)", required=False ,choices=list(context["serveridnamelinks"].values())) = None'
+        servername_param = f'servername: Option(str, "The servername (omit for current channel\'s server)", required=False ,choices=list(s.get("name", "Unknown") for s in context["servers"].values())) = None'
     else:
-        servername_param = f'servername: Option(str, "The servername (omit for current channel\'s server)", required=False) = None'
+        servername_param = f'servername: Option(str, "The servername (omit for current channel\'s server)", required=False,autocomplete=autocompleteserversfromdb) = None'
     param_list.append(servername_param)
     params_signature = ", ".join(param_list)
     # print(commandparaminputoverride)
@@ -6716,7 +6772,7 @@ async def {command_name}(ctx, {params_signature}):
         "overridechannel": "commandlogchannel",
         "messagecontent": command,
         "metadata": {{"type":"botcommand"}},
-        "servername" :context["serveridnamelinks"][serverid],
+        "servername" :context["servers"][serverid]["name"],
         "player":  f"`BOT COMMAND` sent by {{ctx.author.name}}"
     }})
     await returncommandfeedback(*sendrconcommand(serverid, command), ctx, {outputfunc_expr})
@@ -6773,7 +6829,7 @@ if SHOULDUSETHROWAI == "1":
             "overridechannel": "commandlogchannel",
             "messagecontent": "!thrownonrcon",
             "metadata": {"type":"botcommand"},
-            "servername" :context["serveridnamelinks"][serverid],
+            "servername" :context["servers"][serverid]["name"],
             "player":  f"`BOT COMMAND` sent by {{ctx.author.name}}"
         })
         if ctx.author.id in lasttimethrown["passes"].keys() and lasttimethrown["passes"][ctx.author.id] > time.time() - 60:
@@ -6954,7 +7010,7 @@ def checkandaddtouidnamelink(uid, playername, istf1 = False):
 def onplayerjoin(uid,serverid,nameof = False):
     """Handles player join events, updates databases, sends notifications, and manages join counters"""
     global context,messageflushnotify,playerjoinlist
-    istf1 = context["istf1server"].get(serverid,False) # {"tf2" if istf1 else ""}
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) # {"tf2" if istf1 else ""}
     if istf1:
         return
     # print("joincommand", uid, serverid)
@@ -6991,7 +7047,7 @@ def onplayerjoin(uid,serverid,nameof = False):
     
     if discordnotify:
         discordnotify = [x[0] for x in discordnotify]
-    servername = context["serveridnamelinks"][serverid]
+    servername = context["servers"][serverid]["name"]
 
     playerjoinlist[f"{uid}{playername}"] = True
     for discordid in discordnotify:
@@ -7012,7 +7068,7 @@ def onplayerjoin(uid,serverid,nameof = False):
 def onplayerleave(uid,serverid):
     """Handles player disconnect events and updates tracking databases"""
     global context,messageflushnotify,playercontext
-    istf1 = context["istf1server"].get(serverid,False) # {"tf2" if istf1 else ""}
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) # {"tf2" if istf1 else ""}
     if istf1:
         return
     print("leavecommand",uid,serverid)
@@ -7028,7 +7084,7 @@ def onplayerleave(uid,serverid):
         playername = f"Unkown user by uid {uid}"
     if discordnotify:
         discordnotify = [x[0] for x in discordnotify]
-    servername = context["serveridnamelinks"][serverid]
+    servername = context["servers"][serverid]["name"]
     if f"{uid}{playername}" in playerjoinlist.keys() and not playerjoinlist[f"{uid}{playername}"]:
         return
     playerjoinlist[f"{uid}{playername}"] = False
@@ -7057,7 +7113,7 @@ def savestats(saveinfo):
     # 4 is tempory save
     global playercontext
     # print("saving playerinfo",saveinfo)
-    istf1 = context["istf1server"].get(saveinfo["serverid"],False) # {"tf2" if istf1 else ""}
+    istf1 = context["servers"].get(saveinfo["serverid"], {}).get("istf1server", False) # {"tf2" if istf1 else ""}
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
     # params = (
@@ -7105,7 +7161,7 @@ def savestats(saveinfo):
 def addmatchtodb(matchid,serverid,currentmap):
     """Adds match information to database for tracking game sessions"""
     global matchids,playercontext
-    istf1 = context["istf1server"].get(serverid,False) # {'tf1' if istf1 else ''}
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) # {'tf1' if istf1 else ''}
     print("adding match to db",matchid,serverid)
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
@@ -7174,7 +7230,7 @@ def playerpolllog(data,serverid,statuscode):
     # use the fact that theoretically one player can be on just one server at a time
     # playerid+playername = primary key. this is because of the edge case where people join one server on one account twice because.. well they do that sometimes
     # print(data,serverid,statuscode)
-    istf1 = context["istf1server"].get(serverid,False) # {"tf2" if istf1 else ""}
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) # {"tf2" if istf1 else ""}
     # print("DATA",serverid,data)
     # if not data: print("true")
     if not istf1:
@@ -7416,8 +7472,14 @@ async def updatechannels():
     # print("MEOWOWOW")
     # await asyncio.sleep(30)
     # print("running server activity update")
-    for serverid in context["serveridnamelinks"].keys():
-        channel = bot.get_channel(context["serverchannelidlinks"][serverid])
+    for serverid in context["servers"].keys():
+        server = context["servers"][serverid]
+        addwidget = context["servers"][serverid].get("widget","")
+        if addwidget != "":
+            addwidget+="┃"
+        if "channelid" not in server:
+            continue
+        channel = bot.get_channel(server["channelid"])
         serverlastheardfrom = getpriority(discordtotitanfall,[serverid,"lastheardfrom"])
         # print("lastheardfrom",serverlastheardfrom)
         # print(json.dumps(discordtotitanfall))
@@ -7427,10 +7489,10 @@ async def updatechannels():
             continue
         if time.time() - serverlastheardfrom > 180:
             # print("editing here2")
-            await channel.edit(name=context["serveridnamelinks"][serverid])
+            await channel.edit(name=f"{addwidget}{server["name"]}")
         elif time.time() - serverlastheardfrom < 180:
             # print("editing here")
-            await channel.edit(name=f'🟢{context["serveridnamelinks"][serverid]}')
+            await channel.edit(name=f'🟢{addwidget}{server["name"]}')
 def playerpoll():
     """Polls server for current player list and updates databases"""
     global discordtotitanfall,playercontext,context
@@ -7459,8 +7521,9 @@ def playerpoll():
        # poll time
         # I want to iterate through all servers, and ask them what they are up too.
         for serverid,data in discordtotitanfall.items():
+            server = context["servers"][serverid]
             # print(discordtotitanfall)
-            if context["istf1server"].get(serverid,False) and not discordtotitanfall.get(serverid,{}).get("serveronline",False):
+            if server.get("istf1server", False) and not discordtotitanfall.get(serverid,{}).get("serveronline",False):
                 continue
             # print(discordtotitanfall.get(serverid,{}).get("serveronline",False))
             # print(serverid,"going")
