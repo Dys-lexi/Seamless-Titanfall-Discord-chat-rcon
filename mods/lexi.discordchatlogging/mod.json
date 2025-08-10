@@ -15,10 +15,6 @@
             "DefaultValue": "http://host.docker.internal:3451" 
         }, //     http://discordlog:3451     http://host.docker.internal:3451 (1st is a docker container second is localhost of main pc)
         {
-            "Name": "discordloggingallowreturnmessages", //for discord -> northstar chat
-            "DefaultValue": "1"
-        },
-        {
             "Name": "discordloggingserverpassword", //set here, and in the discord bot's compose. means that if you have the bot port forwaded for whatever reason, people still need a password to use api
             "DefaultValue": "scarypassword"
 
@@ -32,28 +28,20 @@
             "DefaultValue": "useactualservername"
         },
         {
-            "Name": "discordloggingRCONenabled", // enable rcon from discord (and well all other commands)
-            "DefaultValue": "1"
+            "Name":"disablestoprequests",
+            "DefaultValue": "0" // only use if you have a fix to ns http bug
+        },
+        {
+            "Name":"discordloguselocaltags",
+            "DefaultValue": "1" // tags are calculated by titanfall server, not the bot
         },
         {
             "Name": "discordloggingenabled", //0 completly disables the mod
             "DefaultValue": "1"
         },
         {
-            "Name": "discordloggingenablesanctionapicommand", // enable sanction api commands
-            "DefaultValue": "0"
-        },
-        {            
-            "Name": "discordlogpreviousroundplayers", // who was playing last round
-            "DefaultValue": ""  
-        },
-        {
             "Name":"discordloggingmatchid",
             "DefaultValue": "0" // match id, don't touch!
-        },
-        {
-            "Name":"discordlogshowteamchatprefix",
-            "DefaultValue": "1"
         }
     ],
     "Scripts": [

@@ -1227,7 +1227,7 @@ async def sanctiontf1(
             },
         }
     )
-    await ctx.respond(f"Uploaded a ban for {name} {"and tried to kick" if sanctiontype == "ban" else "mute happens on map change"}")
+    await ctx.respond(f"Uploaded a sanction for {name}, {"and tried to kick" if sanctiontype == "ban" else "the mute happens on map change"}")
     if sanctiontype == "ban":
         print(serverid,f'kick {name}')
         await (returncommandfeedback(*sendrconcommand(str(serverid),f'kick {name}'),"fake context",None,True,False))
@@ -3501,7 +3501,7 @@ def colourmessage(message,serverid):
     """handles all in game name modifications to messages, like tags, muted players seeing their own message, message gradients, impersonations"""
     global discorduidnamelink
     # print("HEREHERHERE")
-    if not message.get("metadata",False) or not  message["metadata"].get("uid",False) or not message["metadata"].get("type",False) in ["usermessagepfp","chat_message","impersonate"]:
+    if not message.get("metadata",False) or not  message["metadata"].get("uid",False) or not message["metadata"].get("type",False) in ["usermessagepfp","chat_message","impersonate"] or message["metadata"].get("donotcolour",False):
         # print("oxoxo",message["metadata"])
         return False
     # print("ew")
@@ -3542,7 +3542,7 @@ def colourmessage(message,serverid):
         authornicks["friendly"] = computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"FRIENDLY","FRIENDLY",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254,True)
         authornicks["enemy"]= computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"ENEMY","ENEMY",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254,True)
     else:
-        authornicks["friendly"] = computeauthornick(message["player"],discorduid,"[111m[TEAM] " +message["messagecontent"],serverid,"FRIENDLY","ENEMY",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254,True)
+        authornicks["friendly"] = computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"FRIENDLY","FRIENDLY",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254,True)
     output = {}
     for key, value in authornicks.items():
         output[key] = f"{'[111m[TEAM] ' if message['metadata']['teamtype'] != 'not team' else ''}{value}: {PREFIXES['neutral']}{message['messagecontent']}"
@@ -3635,7 +3635,12 @@ def recieveflaskprintrequests():
         # if colourslink[str(data["uid"])]:
         # print(colourslink[596713937626595382])
         # print({"output":{"shouldblockmessages":colourslink.get(discorduid,{}).get("ingamecolour",[]) != []},"uid":data["uid"],"otherdata":{x: str(y) for x,y in readplayeruidpreferences(data["uid"],False)["tf2"].items()}})
-        return {"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{x: str(y) for x,y in list(filter(lambda x:  not getpriority(context,["commands","ingamecommands",x[0],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",x[0],"serversenabled"])  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))}}
+        # print("HEREEE")
+        # print(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values()))
+        # print(any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())),"e")
+        # print(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values()))
+        print(json.dumps({"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{**({"nameprefix": colourslink[discorduid]["nameprefix"]} if getpriority(colourslink,[discorduid,"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())) else {}),**{x: str(y) for x,y in list(filter(lambda x:  not getpriority(context,["commands","ingamecommands",x[0],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",x[0],"serversenabled"])  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))}}},indent=4))
+        return {"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{**({"nameprefix": colourslink[discorduid]["nameprefix"]} if getpriority(colourslink,[discorduid,"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())) else {}),**{x: str(y) for x,y in list(filter(lambda x:  not getpriority(context,["commands","ingamecommands",x[0],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",x[0],"serversenabled"])  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))}}}
         # return output
     @app.route("/getrunningservers", methods=["POST"])
     def getrunningservers():
@@ -3718,7 +3723,7 @@ def recieveflaskprintrequests():
                 "type": 4,
                 "globalmessage": False,
                 "overridechannel": None,
-                "messagecontent": f"Stopping discord -> Titanfall communication for {context['servers'][data['serverid']]['name']} till next map (to prevent server crash)" + str(output), #it should always be a string, but I don't trust it
+                "messagecontent": f"{"Stopping discord -> Titanfall communication for {context['servers'][data['serverid']]['name']} till next map (to prevent server crash)" if  data.get("dontdisablethings") else ""}" + str(output), #it should always be a string, but I don't trust it
                 "metadata": {"type":"stoprequestsnotif"},
                 "servername": context["servers"][data["serverid"]]["name"]
             })
@@ -4196,7 +4201,7 @@ def recieveflaskprintrequests():
                         "type": 3,
                         "globalmessage": False,
                         "overridechannel": None,
-                        "messagecontent": (KILL_STREAK_MESSAGES["killstreakbegin"][(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)//KILLSTREAKNOTIFYSTEP ] if len(KILL_STREAK_MESSAGES["killstreakbegin"]) >  (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)//KILLSTREAKNOTIFYSTEP else  KILL_STREAK_MESSAGES["killstreakbegin"][-1]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)])).replace("/gun/",getpriority(data,"cause_of_death")),
+                        "messagecontent": (KILL_STREAK_MESSAGES["killstreakbegin"][(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)//KILLSTREAKNOTIFYSTEP ] if len(KILL_STREAK_MESSAGES["killstreakbegin"]) >  (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)//KILLSTREAKNOTIFYSTEP else  KILL_STREAK_MESSAGES["killstreakbegin"][-1]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)])).replace("/gun/",WEAPON_NAMES.get(getpriority(data,"cause_of_death"),getpriority(data,"cause_of_death"))),
                         "metadata": {"type":"killfeed"},
                         "servername": context["servers"][data["server_id"]]["name"]
                     })
@@ -4211,7 +4216,7 @@ def recieveflaskprintrequests():
                         "type": 3,
                         "globalmessage": False,
                         "overridechannel": None,
-                        "messagecontent": random.choice([*KILL_STREAK_MESSAGES["killstreakended"],*KILL_STREAK_MESSAGES["killstreakselfended"]]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)])-1)).replace("/gun/",getpriority(data,"cause_of_death")),
+                        "messagecontent": random.choice([*KILL_STREAK_MESSAGES["killstreakended"],*KILL_STREAK_MESSAGES["killstreakselfended"]]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)])-1)).replace("/gun/",WEAPON_NAMES.get(getpriority(data,"cause_of_death"),getpriority(data,"cause_of_death"))),
                         "metadata": {"type":"killfeed"},
                         "servername": context["servers"][data["server_id"]]["name"]
                     })
@@ -4222,7 +4227,7 @@ def recieveflaskprintrequests():
                         "type": 3,
                         "globalmessage": False,
                         "overridechannel": None,
-                        "messagecontent": random.choice([*KILL_STREAK_MESSAGES["killstreakended"]]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)]))).replace("/gun/",getpriority(data,"cause_of_death")),
+                        "messagecontent": random.choice([*KILL_STREAK_MESSAGES["killstreakended"]]).replace("/attacker/",getpriority(data,"attacker_name","attacker_type")).replace("/victim/",data.get("victim_name","UNKNOWN VICTIM SOMETHING IS BROKEY")).replace("/ks/",str(getpriority(consecutivekills,[data["match_id"],data.get("victim_name",1),data.get("victim_id",False)]))).replace("/gun/",WEAPON_NAMES.get(getpriority(data,"cause_of_death"),getpriority(data,"cause_of_death"))),
                         "metadata": {"type":"killfeed"},
                         "servername": context["servers"][data["server_id"]]["name"]
                     })
@@ -4717,7 +4722,7 @@ def tf1readsend(serverid,checkstatus):
         # shouldnotreturn = discordtotitanfall[serverid]["serveronline"]
         # print("commands",commands)
     try:
-        with Client(discordtotitanfall[serverid]["ip"].split(":")[0],  int(discordtotitanfall[serverid]["ip"].split(":")[1]), passwd=TF1RCONKEY,timeout=2) as client:
+        with Client(discordtotitanfall[serverid]["ip"].rsplit(":",1)[0],  int(discordtotitanfall[serverid]["ip"].rsplit(":",1)[1]), passwd=TF1RCONKEY,timeout=2) as client:
             
             if checkstatus or len(commands) > 0:
                 client.run('sv_cheats','1')
@@ -5041,12 +5046,7 @@ def messageloop():
                 str(messageflush)
             ) > 1500:
                 for message in messageflush:
-                    if (
-                        message["serverid"]
-                        not in context["servers"] or "channelid" not in context["servers"][message["serverid"]]
-                        and not addflag
-                        and message["serverid"] != "-100"
-                    ):
+                    if (message["serverid"] not in context["servers"] or "channelid" not in context["servers"][message["serverid"]]) and not addflag and message["serverid"] != "-100":
                         addflag = True
                         # print(message)
                         # print(list( context["servers"].keys()),   message["serverid"])
@@ -5176,7 +5176,10 @@ def messageloop():
                     for message in list(filter(lambda x: x["type"] in ["usermessagepfp","impersonate"] and USEDYNAMICPFPS == "1",output[serverid])):
                         if not message["pfp"] or not message["name"] or not message["uid"]:
                             print("VERY BIG ERROR, PLEASE LOOK INTO IT",message)
-                            continue
+                            if not message.get("pfp"):
+                                message["pfp"] = "I don't know, so this should trigger unknown response"
+                            else:
+                                continue
                         userpfpmessages.setdefault(message["name"],{"messages":[],"pfp":message["pfp"],"uid":message["uid"],"originalname":message["originalname"]})
                         userpfpmessages[message["name"]]["messages"].append({**message,"message":message["message"],"isbad":message.get("isbad",[0,0]),"messagecontent":message["messagecontent"]})
                
@@ -5574,6 +5577,7 @@ def shownamecolours(message,serverid,isfromserver):
 def checkbantf1(message,serverid,isfromserver):
     """Checks and processes TF1 ban status for players"""
     print("CHECKING BANNNS")
+
     c = postgresem("./data/tf2helper.db")
     c.execute("SELECT id FROM banstf1 WHERE playerip = ? AND playername = ? AND playeruid = ?",(message["ip"],message["name"],int(message["uid"])))
     playerid = c.fetchall()
@@ -5588,8 +5592,12 @@ def checkbantf1(message,serverid,isfromserver):
     # banlinks is what must be the same for ban to carry through. imo is better as a number tho
     bans = list(map(lambda x: {"ip":x[0],"name":x[1],"uid":x[2],"bantype":x[3],"banlinks":x[4],"baninfo":x[5],"expire":x[6],"exhaustion":0,"id":x[7]} ,list(c.fetchall())))
     # print(bans)
+    # print("MEOW")
     bannedpeople = findallbannedpeople(bans,list(filter(lambda x:x["bantype"] and (x["expire"] is None or x["expire"] > int(time.time())),bans)),10)
-    # print(bannedpeople)
+        # print("DONE")
+    print(json.dumps(bannedpeople,indent=4))
+        # print("ee",e)
+    # print("eeeeeee",bannedpeople)
     # print([playerid])
     # print(list(filter(lambda x: playerid == x["id"],bannedpeople)))
     if list(filter(lambda x: playerid == x["id"],bannedpeople)):
@@ -5608,15 +5616,16 @@ def findallbannedpeople(potentialbans,originalbans,bandepth):
     """Recursively finds all banned players using ban depth tracking"""
     newbans = []
     keeppotential = []
-    for i, potential in enumerate(potentialbans):
+    for potential in potentialbans:
+        matched = False
         for originalban in filter(lambda x: x["exhaustion"] <= bandepth, originalbans):
-            # if len(set([ban["ip"],ban["name"],ban["uid"],originalban["ip"],originalban["name"],originalban["uid"]])) < originalban["banlinks"]:
-            if potential["ip"] != originalban["ip"] and (potential["uid"] != originalban["uid"] or len(str(potential["uid"])) <14):
-                keeppotential.append(potential)
-                continue
-            newbans.append({**potential,"banlinks":originalban["banlinks"],"bantype":originalban["bantype"],"baninfo":originalban["baninfo"],"expire":originalban["expire"],"exhaustion":originalban["exhaustion"]+1})
-            break
-    if  newbans:
+            if potential["ip"] == originalban["ip"] or (potential["uid"] == originalban["uid"] and len(str(potential["uid"])) >= 14):
+                newbans.append({**potential,"banlinks":originalban["banlinks"],"bantype":originalban["bantype"],"baninfo":originalban["baninfo"],"expire":originalban["expire"],"exhaustion":originalban["exhaustion"]+1})
+                matched = True
+                break
+        if not matched:
+            keeppotential.append(potential)
+    if newbans:
         return findallbannedpeople(keeppotential,[*newbans,*originalbans],bandepth)
     else:
         return originalbans
@@ -6489,6 +6498,7 @@ def initdiscordtotitanfall(serverid): #before I knew about setdefault and .keys(
         discordtotitanfall[serverid]["lastheardfrom"] = 0
     if "onlinestatus" not in discordtotitanfall[serverid].keys():
         discordtotitanfall[serverid]["onlinestatus"] = False
+    discordtotitanfall[serverid].setdefault("playercount",0)
 
 def getchannelidfromname(name,ctx):
     """Resolves Discord channel ID from channel name using context"""
@@ -7251,6 +7261,7 @@ def playerpolllog(data,serverid,statuscode):
             metadata = data["meta"].copy()
             metadata["matchid"] = int(data["meta"]["matchid"].split("<")[1].split("/>")[0])
             data["meta"] = [metadata["map"],50,metadata["matchid"]]#50 is a placeholder for actual time left!
+    discordtotitanfall[serverid]["playercount"] = len(players)
             
     # playercontext[pinfo["uid"]+pinfo["name"]] = {"joined":now,"map":map,"name":pinfo["name"],"uid":pinfo["uid"],"idoverride":0,"endtime":0,"serverid":serverid,"kills":0,"deaths":0,"titankills":0,"npckills":0,"score":0}
     # print(list(map(lambda x: x["name"],players)))
@@ -7473,6 +7484,8 @@ async def updatechannels():
     # await asyncio.sleep(30)
     # print("running server activity update")
     for serverid in context["servers"].keys():
+        initdiscordtotitanfall(serverid)
+        istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
         server = context["servers"][serverid]
         addwidget = context["servers"][serverid].get("widget","")
         if addwidget != "":
@@ -7485,12 +7498,12 @@ async def updatechannels():
         # print(json.dumps(discordtotitanfall))
         if not serverlastheardfrom:serverlastheardfrom = 0
         # print(serverid,time.time() - serverlastheardfrom > 180,"🟢" not in channel.name)
-        if (time.time() - serverlastheardfrom > 180 and  "🟢" not in channel.name) or (time.time() - serverlastheardfrom < 180 and  "🟢"  in channel.name):
+        if (time.time() - serverlastheardfrom > 180 and  "🟢" not in channel.name ) or (time.time() - serverlastheardfrom < 180 and  "🟢"  in channel.name )  and (not istf1 and (not discordtotitanfall[serverid]["playercount"] and  "🟢" not in channel.name and not istf1) or (discordtotitanfall[serverid]["playercount"] and  "🟢"  in channel.name and not istf1)):
             continue
-        if time.time() - serverlastheardfrom > 180:
+        if (time.time() - serverlastheardfrom > 180 ) or (not istf1 and not discordtotitanfall[serverid]["playercount"]):
             # print("editing here2")
             await channel.edit(name=f"{addwidget}{server["name"]}")
-        elif time.time() - serverlastheardfrom < 180:
+        elif (time.time() - serverlastheardfrom < 180) and (not istf1 and discordtotitanfall[serverid]["playercount"]):
             # print("editing here")
             await channel.edit(name=f'🟢{addwidget}{server["name"]}')
 def playerpoll():

@@ -101,6 +101,7 @@ struct {
 	bool showchatprefix
 	bool iveaskedtostoprequests = false
 	bool hasmapchanged = false
+	bool uselocaltags = false
 } serverdetails
 
 
@@ -188,7 +189,7 @@ void function discordloggerinit() {
 	// print(currentTime)
 	// serverdetails.currentlyplaying = GetConVarString("discordlogpreviousroundplayers")
 	serverdetails.Requestpath = GetConVarString("discordlogginghttpServer")
-	serverdetails.showchatprefix = GetConVarBool("discordlogshowteamchatprefix")
+	serverdetails.showchatprefix = true
 	serverdetails.password = GetConVarString("discordloggingserverpassword")
 	print("[DiscordLogger]Servername: "+GetConVarString("discordloggingservername"))
 	print("[DiscordLogger]Requestpath: "+serverdetails.Requestpath)
@@ -198,29 +199,31 @@ void function discordloggerinit() {
 		serverdetails.Servername = GetConVarString("discordloggingservername")
 	}
 	serverdetails.serverid = GetConVarString("discordloggingserverid")
-	
+	if (GetConVarInt("discordloguselocaltags") == 1) {
+		serverdetails.uselocaltags = true
+	}
 	if (GetConVarInt("discordloggingserverid") == 0){
-		print("[DiscordLogger]Server ID not set, please set it in the console")
-	} else {
+		print("[DiscordLogger]Server ID not set, please set it in the console PLEASE FIX THIS")
+		return
+	} 
 		print("[DiscordLogger]Discord logging enabled")
 		AddCallback_OnReceivedSayTextMessage( LogMSG )
 	AddCallback_OnClientConnected( LogConnect )
 	AddCallback_OnClientDisconnected( LogDC)
-	AddCallback_GameStateEnter(eGameState.Playing, begintodiscord);
+	thread begintodiscord()
 	// AddCallback_GameStateEnter(eGameState.PickLoadout, Onmapchange);
     // AddCallback_GameStateEnter(eGameState.Prematch, Onmapchange);
 	thread Onmapchange()
 	AddCallback_GameStateEnter(9,stoprequests);
 	AddCallback_OnPlayerKilled(playerstabbedmodelsaver)
 
-	if (GetConVarInt("discordloggingallowreturnmessages")) {
+	
 		thread DiscordClientMessageinloop()
-	}
-	serverdetails.rconenabled = GetConVarInt("discordloggingrconenabled")
-	if (serverdetails.rconenabled){
+	
+
 		runcommandondiscord("getdiscordcommands")
-	}
-	}
+	
+	
 	// print(serverdetails.Servername)
 }
 
@@ -375,7 +378,22 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	meta["blockedmessage"] <- (found && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain)
 	if (found && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain) {
 		message.shouldBlock = true;
-	}}
+	}
+	if (discordlogpullplayerstat(message.player.GetUID(),"nameprefix") != "" && serverdetails.uselocaltags){
+		meta["donotcolour"] <- true
+		if (!message.isTeam){
+		discordlogsendmessage("[112m["+discordlogpullplayerstat(message.player.GetUID(),"nameprefix")+"] "+ message.player.GetPlayerName()+":[110m " + message.message,( message.player.GetTeam() - 3)*-1+2)	
+		
+		discordlogsendmessage("[111m["+discordlogpullplayerstat(message.player.GetUID(),"nameprefix")+"] "+ message.player.GetPlayerName()+":[110m " + message.message, message.player.GetTeam())	
+		}
+		else{
+		discordlogsendmessage("[111m [TEAM] ["+discordlogpullplayerstat(message.player.GetUID(),"nameprefix")+"] "+ message.player.GetPlayerName()+":[110m " + message.message, message.player.GetTeam())	
+
+		}
+
+	}
+	
+	}
 	// Chat_ServerBroadcast("BLOCKING"+split(message.message.tolower().slice(1)," ")[0] + " " + (split(message.message.tolower().slice(1)," ")[0] in tf2todiscordcommands ) )
 	if (format("%c", message.message.tolower()[0]) == "!" && (split(message.message.tolower().slice(1)," ")[0] in tf2todiscordcommands && (tf2todiscordcommands[split(message.message.tolower().slice(1)," ")[0]] || (split(message.message.tolower().slice(1)," ").len() > 1 && split(message.message.tolower().slice(1)," ")[1] in tf2todiscordcommands && tf2todiscordcommands[split(message.message.tolower().slice(1)," ")[1]])))){
 		// Chat_ServerBroadcast("BLOCKING")
@@ -590,18 +608,17 @@ void function stoprequests(){
 		return
 	}
 	serverdetails.iveaskedtostoprequests = true
-	check.denylogging = 1
 	table params = {}
-	string uids = ""
-	foreach (entity player in GetPlayerArray()){
-		if (uids == ""){
-			uids = player.GetUID().tostring()
-		}
-		else {
-			uids = uids + "," + player.GetUID().tostring()
-		}
-	}
-	SetConVarString("discordlogpreviousroundplayers",uids)
+	// string uids = ""
+	// foreach (entity player in GetPlayerArray()){
+	// 	if (uids == ""){
+	// 		uids = player.GetUID().tostring()
+	// 	}
+	// 	else {
+	// 		uids = uids + "," + player.GetUID().tostring()
+	// 	}
+	// }
+	// SetConVarString("discordlogpreviousroundplayers",uids)
 	table otherparams = {}
 
 	otherparams["matchid"] <- serverdetails.matchid
@@ -609,6 +626,12 @@ void function stoprequests(){
 	params["command"] <- "endofroundstats"
 	params["password"] <- serverdetails.password
 	params["serverid"] <- serverdetails.serverid
+	if (GetConVarInt("disablestoprequests") == 1){
+		params["dontdisablethings"] <- true
+	}
+	else{
+		check.denylogging = 1
+	}
 	HttpRequest request
 	request.method = HttpRequestMethod.POST
 	request.url = serverdetails.Requestpath + "/stoprequests"
@@ -819,7 +842,6 @@ void function DiscordClientMessageinloop()
 		// array<string> splittexts = split(texts,"%&%&")
 		// array<string> splitcommands = split(commands,"⌨")
 		// print(texts.len())
-		if (serverdetails.rconenabled){
 		foreach (value,key in commands){
 
 			string command = expect string(key)
@@ -827,19 +849,19 @@ void function DiscordClientMessageinloop()
 
 			print("[DiscordLogger] COMMAND "+command)
 			if (command[0] == 47 || command[0] == 33){
-				runcommand(command, validation)
-	}
-	else{
+						runcommand(command, validation)
+			}
+			else{
 
 			ServerCommand(command)
 			// table output = {commandid="validation",returntext=command+": command not found"}
 			check.commandcheck[validation] <- EncodeJSON({statuscode=-2,output=command+": successfully ran console command"})
 
 
-		}}}
-		else if (commands.len() > 0){
-			print("[DiscordLogger] RCON is not enabled, but commands were sent")
-		}
+		}}
+		// else if (commands.len() > 0){
+		// 	print("[DiscordLogger] RCON is not enabled, but commands were sent")
+		// }
 		// array<string> splitsenders = split(senders,"%&%#[")
 		// if(splittexts.len()!=splittextvalidation.len())
 		// {
