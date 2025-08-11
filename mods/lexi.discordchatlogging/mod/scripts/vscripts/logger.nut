@@ -729,7 +729,7 @@ void function DiscordClientMessageinloop()
 {
 	// check.textcheck = []
 	// check.commandcheck = []
-	check.postmatch = 999999
+	// check.postmatch = 999999
 
 	while (true) {
 		// print("gamestate "+GetGameState())
@@ -745,10 +745,10 @@ void function DiscordClientMessageinloop()
 				continue
 			}
 		}
-	if (check.postmatch == 1){
-		wait 1
-		continue
-	}
+	// if (check.postmatch == 1){
+	// 	wait 1
+	// 	continue
+	// }
 	// wait 1
 	breakercounter = 0
 	// print(GetPlayerArray().len())
@@ -794,18 +794,18 @@ void function DiscordClientMessageinloop()
 		continue
 	}
 
-	else if (check.allowlogging == 1 && GameTime_TimeLeftSeconds() < 60){
-		// if (GameTime_TimeLeftSeconds()> check.postmatch || GameTime_TimeLeftSeconds() == 0){
-		// 	wait 1
-		// 	continue
-		// }
-		// print(GameTime_TimeLeftSeconds())
-		// timeout = GameTime_TimeLeftSeconds()
-		check.postmatch = GameTime_TimeLeftSeconds()
-	}
-	else {
-		check.postmatch = 999999
-	}
+	// else if (check.allowlogging == 1 && GameTime_TimeLeftSeconds() < 60){
+	// 	// if (GameTime_TimeLeftSeconds()> check.postmatch || GameTime_TimeLeftSeconds() == 0){
+	// 	// 	wait 1
+	// 	// 	continue
+	// 	// }
+	// 	// print(GameTime_TimeLeftSeconds())
+	// 	// timeout = GameTime_TimeLeftSeconds()
+	// 	check.postmatch = GameTime_TimeLeftSeconds()
+	// }
+	// else {
+	// 	check.postmatch = 999999
+	// }
 	// if(GetScoreLimit_FromPlaylist()-50 <GameRules_GetTeamScore(TEAM_MILITIA) || GetScoreLimit_FromPlaylist()*0.95 <GameRulfes_GetTeamScore(TEAM_IMC) || GameTime_TimeLeftSeconds() < 60)
 
 	request.timeout = timeout
