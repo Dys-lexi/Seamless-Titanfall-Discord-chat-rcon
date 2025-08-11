@@ -379,7 +379,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	if (found && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain) {
 		message.shouldBlock = true;
 	}
-	if (discordlogpullplayerstat(message.player.GetUID(),"nameprefix") != "" && serverdetails.uselocaltags){
+	if (serverdetails.uselocaltags && discordlogpullplayerstat(message.player.GetUID(),"nameprefix") != ""){
 		meta["donotcolour"] <- true
 		if (!message.isTeam){
 		discordlogsendmessage("[112m["+discordlogpullplayerstat(message.player.GetUID(),"nameprefix")+"] "+ message.player.GetPlayerName()+":[110m " + message.message,( message.player.GetTeam() - 3)*-1+2)	

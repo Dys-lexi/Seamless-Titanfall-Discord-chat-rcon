@@ -3715,21 +3715,22 @@ def recieveflaskprintrequests():
             traceback.print_exc()
             pass
         # print("ASKING SERVER TO STOP")
-        stoprequestsforserver[data["serverid"]] = True
-        try:
-            messageflush.append({
-                "timestamp": int(time.time()),
-                "serverid": data["serverid"],
-                "type": 4,
-                "globalmessage": False,
-                "overridechannel": None,
-                "messagecontent": f"{"Stopping discord -> Titanfall communication for {context['servers'][data['serverid']]['name']} till next map (to prevent server crash)" if  data.get("dontdisablethings") else ""}" + str(output), #it should always be a string, but I don't trust it
-                "metadata": {"type":"stoprequestsnotif"},
-                "servername": context["servers"][data["serverid"]]["name"]
-            })
-        except Exception as e:
-            print([data["serverid"]])
-            traceback.print_exc()
+        if not data.get("dontdisablethings"):
+            stoprequestsforserver[data["serverid"]] = True
+            try:
+                messageflush.append({
+                    "timestamp": int(time.time()),
+                    "serverid": data["serverid"],
+                    "type": 4,
+                    "globalmessage": False,
+                    "overridechannel": None,
+                    "messagecontent": f"{"Stopping discord -> Titanfall communication for {context['servers'][data['serverid']]['name']} till next map (to prevent server crash)" if  True else ""}" + str(output), #it should always be a string, but I don't trust it
+                    "metadata": {"type":"stoprequestsnotif"},
+                    "servername": context["servers"][data["serverid"]]["name"]
+                })
+            except Exception as e:
+                print([data["serverid"]])
+                traceback.print_exc()
         # print("here")
         return {"message": "ok"}
     
@@ -4819,7 +4820,7 @@ def tf1readsend(serverid,checkstatus):
                 output = output.split("☻")
                 if output[0] == "":
                     del output[0]
-                
+                # print(json.dumps(output,indent=4))
                 # print(output)
                 output = {"id":output[0],"command":output[1],"output":output[2],"commandtype":output[3]}
                 # print(output)
@@ -4869,7 +4870,7 @@ def tf1readsend(serverid,checkstatus):
 
                     })
                 if output["commandtype"] == "connect_message":
-                    # print("here")
+                    # print("here, they tried to connect")
                     messageflush.append({
                         "timestamp": int(time.time()),
                         "serverid": serverid,
@@ -5595,7 +5596,7 @@ def checkbantf1(message,serverid,isfromserver):
     # print("MEOW")
     bannedpeople = findallbannedpeople(bans,list(filter(lambda x:x["bantype"] and (x["expire"] is None or x["expire"] > int(time.time())),bans)),10)
         # print("DONE")
-    print(json.dumps(bannedpeople,indent=4))
+    # print(json.dumps(bannedpeople,indent=4))
         # print("ee",e)
     # print("eeeeeee",bannedpeople)
     # print([playerid])
@@ -7503,7 +7504,7 @@ async def updatechannels():
         if (time.time() - serverlastheardfrom > 180 ) or (not istf1 and not discordtotitanfall[serverid]["playercount"]):
             # print("editing here2")
             await channel.edit(name=f"{addwidget}{server["name"]}")
-        elif (time.time() - serverlastheardfrom < 180) and (not istf1 and discordtotitanfall[serverid]["playercount"]):
+        elif (time.time() - serverlastheardfrom < 180) and (istf1 or discordtotitanfall[serverid]["playercount"]):
             # print("editing here")
             await channel.edit(name=f'🟢{addwidget}{server["name"]}')
 def playerpoll():
