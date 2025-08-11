@@ -607,8 +607,8 @@ def print(*message, end="\033[0m\n"):
             if colour not in DISALLOWED_COLOURS:
                 break
         linecolours[line] = colour
-    # realprint (f"{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}{('['+line+']').ljust(6)}[{datetime.now().strftime('%H:%M:%S %d/%m')}] {message}")
-    realprint(f"[38;2;215;22;105m{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}[38;2;126;89;140m{('['+line+']').ljust(6)}[38;2;27;64;152m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{linecolours[line]}m {(message)}", end=end)
+    realprint (f"{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}{('['+line+']').ljust(6)}[{datetime.now().strftime('%H:%M:%S %d/%m')}] {message}")
+    # realprint(f"[38;2;215;22;105m{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}[38;2;126;89;140m{('['+line+']').ljust(6)}[38;2;27;64;152m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{linecolours[line]}m {(message)}", end=end)
     
 print("running discord logger bot")
 lastrestart = 0
@@ -968,7 +968,8 @@ async def autocompletenamesanduidsfromdb(ctx):
 
 async def autocompletenamesfromtf1bans(ctx):
     """autocompletes tf1 bans"""
-    if not checkrconallowed(ctx.interaction.user):
+    serverid = getchannelidfromname(False,ctx.interaction)
+    if not checkrconallowed(ctx.interaction.user,serverid=serverid):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["You don't have permission to use this command"]
     # print("meow")
@@ -1097,12 +1098,12 @@ async def updateroles():
                 # context["overriderolesuids"][roletype]
                 uids.extend ( [member.id for member in guild.get_role(role).members])
             context["overriderolesuids"][roletype] = uids
-    knownpeople = {x.id:{"name":x.global_name if x.global_name else x.display_name,"nick":x.nick} for x in guild.members}
+    knownpeople = {x.id:{"name":x.global_name if x.global_name else x.display_name,"nick":x.nick,"username":x.name} for x in guild.members}
     savecontext()
 
 @bot.event
 async def on_member_joinadd(member):
-    knownpeople[member.id] = {"name":member.global_name if member.global_name else membeer.display_name ,"nick":None}
+    knownpeople[member.id] = {"name":member.global_name if member.global_name else member.display_name ,"nick":None,"username":member.name}
 
 @bot.slash_command(
     name="messagelogs",
@@ -2838,11 +2839,12 @@ async def addserverwidget(
 ):
     """add a widget to a server name"""
     global context
-    if not checkrconallowed(ctx.author):
+    serverid = getchannelidfromname(servername,ctx)
+    if not checkrconallowed(ctx.author,serverid = serverid):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
         return
-    serverid = getchannelidfromname(servername,ctx)
+    
     if serverid is None:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
@@ -4162,7 +4164,8 @@ def recieveflaskprintrequests():
         if data["password"] != SERVERPASS and SERVERPASS != "*":
             print("invalid password used on data")
             return {"message": "invalid password"}
-        print(f"{data.get('attacker_name', data['attacker_type'])} killed {data.get('victim_name', data['victim_type'])} with {data['cause_of_death']} using mods {' '.join(data.get('modsused',[]))}")
+        if (data.get("victim_type",False) == "player"):
+            print(f"{data.get('attacker_name', data['attacker_type'])} killed {data.get('victim_name', data['victim_type'])} with {data['cause_of_death']} using mods {' '.join(data.get('modsused',[]))}")
         if SENDKILLFEED == "1" and (data.get("victim_type",False) == "player"):
             messageflush.append({
                 "timestamp": int(time.time()),
@@ -4480,6 +4483,8 @@ async def changechannelname(guild, servername, serverid):
     if serverid not in context["servers"]:
         context["servers"][serverid] = {}
     context["servers"][serverid]["name"] = servername
+    context["servers"][serverid]["widget"] = False
+    context["servers"][serverid]["roles"] = {"rconrole":"rconrole","coolperksrole":"coolperksrole"}
     savecontext()
 
     # return channel
@@ -5275,7 +5280,7 @@ def tftodiscordcommand(specificommand,command,serverid):
         print("CLIENT COMMAND REQUESTED",[serverid],specificommand)
         commandargs = command["originalmessage"][1:].split(" ")[1:]
         # print( "e",context["commands"]["ingamecommands"][specificommand].get("permsneeded",False) and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"]),context["commands"]["ingamecommands"][specificommand].get("permsneeded",False)))
-        if context["commands"]["ingamecommands"][specificommand].get("permsneeded",False) and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"]),context["commands"]["ingamecommands"][specificommand].get("permsneeded",False)):
+        if context["commands"]["ingamecommands"][specificommand].get("permsneeded",False) and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"]),context["commands"]["ingamecommands"][specificommand].get("permsneeded",False),serverid=serverid):
             if context['commands']['ingamecommands'][specificommand].get('permsneeded',False) == "coolperksrole":
                 discordtotitanfall[serverid]["messages"].append(
                 {
@@ -5359,8 +5364,8 @@ def pingperson(message,serverid,isfromserver):
     #         print("eee",match)
     matches.sort(key = lambda x: len(x[1]["name"] or ""))
     matches.sort(key = lambda x: (not pullid(x[0],"tf")))
-    matches.sort(key = lambda x:  (bool(x[1]["name"]  and simplyfy(x[1]["name"]).startswith(simplyfy(searchterm)))*2 + 1*bool(x[1]["nick"] and simplyfy(x[1]["nick"]).startswith(simplyfy(searchterm)))),reverse = True)
-    matches.sort(key = lambda x: (not x[1]["nick"] or simplyfy(searchterm) != simplyfy(x[1]["nick"])) and (not x[1]["name"] or simplyfy(searchterm) != simplyfy(x[1]["name"])))
+    matches.sort(key = lambda x:  (bool(x[1]["name"]  and simplyfy(x[1]["name"]).startswith(simplyfy(searchterm)))*4 + 2*bool(x[1]["nick"] and simplyfy(x[1]["nick"]).startswith(simplyfy(searchterm))) + (bool(x[1]["username"]  and simplyfy(x[1]["username"]).startswith(simplyfy(searchterm)))*1)),reverse = True)
+    matches.sort(key = lambda x: (not x[1]["nick"] or simplyfy(searchterm) != simplyfy(x[1]["nick"])) and (not x[1]["name"] or simplyfy(searchterm) != simplyfy(x[1]["name"])) and (not x[1]["username"] or simplyfy(searchterm) != simplyfy(x[1]["username"])))
     # 11 lines
     matches = dict(matches)
     if not matches:
@@ -5379,7 +5384,7 @@ def pingperson(message,serverid,isfromserver):
             match = thing
             cmdcounter+=1
             discordtotitanfall[serverid]["messages"].append({
-                "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES["commandname" if cmdcounter == 1 else "stat2"] }{match["name"]} {PREFIXES["chatcolour"]}{"- "+PREFIXES["commandname" if cmdcounter == 1 else "stat2"] + " " + match["nick"] if match["nick"] else ""}",
+                "content":f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES["commandname" if cmdcounter == 1 else "stat2"] }{match["name"]} {PREFIXES["chatcolour"]}{"- "+PREFIXES["commandname" if cmdcounter == 1 else "stat2"] + " " + match["nick"] + " " if match["nick"] else ""}- {match["username"]}",
                 "uidoverride": [getpriority(message,"uid",["meta","uid"])]
             })
         return
@@ -5604,6 +5609,7 @@ def checkbantf1(message,serverid,isfromserver):
     if list(filter(lambda x: playerid == x["id"],bannedpeople)):
         # print("MEOW")
         # they're banned! or muted, depends
+        print("Sanction enforced for",message["name"],"baninfo:",json.dumps(list(filter(lambda x: playerid == x["id"],bannedpeople))[0],indent=4))
         if "ban" in list(map(lambda x: x["bantype"],filter(lambda x: playerid == x["id"],bannedpeople))):
             # print("eee",list(filter(lambda x: playerid == x["id"],bannedpeople)))
             # print(f"banreason {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}")
@@ -5621,7 +5627,7 @@ def findallbannedpeople(potentialbans,originalbans,bandepth):
         matched = False
         for originalban in filter(lambda x: x["exhaustion"] <= bandepth, originalbans):
             if potential["ip"] == originalban["ip"] or (potential["uid"] == originalban["uid"] and len(str(potential["uid"])) >= 14):
-                newbans.append({**potential,"banlinks":originalban["banlinks"],"bantype":originalban["bantype"],"baninfo":originalban["baninfo"],"expire":originalban["expire"],"exhaustion":originalban["exhaustion"]+1})
+                newbans.append({**potential,"banlinks":originalban["banlinks"],"bantype":originalban["bantype"],"baninfo":originalban["baninfo"],"expire":originalban["expire"],"exhaustion":originalban["exhaustion"]+1,"origbanid":getpriority(originalban,"origbanid","id")})
                 matched = True
                 break
         if not matched:
@@ -6127,7 +6133,7 @@ def ingamehelp(message,serverid,isfromserver):
         # print("tf1" if istf1 else "tf2","tf1" if istf1 else "tf2" in command["games"])
         # print("BLEH",(not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]))))
         # print(  (not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"])),command.get("permsneeded",False)) )
-        if name != "helpdc" and (not commandoverride or commandoverride.lower() in name) and ("tf1" if istf1 else "tf2") in command["games"] and (not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]),command.get("permsneeded",False))) and (not command.get("serversenabled",False) or int(serverid) in command["serversenabled"]) and command.get("run") != "togglestat" and not command.get("alias"):
+        if name != "helpdc" and (not commandoverride or commandoverride.lower() in name) and ("tf1" if istf1 else "tf2") in command["games"] and (not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"]),command.get("permsneeded",False),serverid=serverid)) and (not command.get("serversenabled",False) or int(serverid) in command["serversenabled"]) and command.get("run") != "togglestat" and not command.get("alias"):
             cmdcounter +=1
             extra = False
             if command.get("aliases"):
@@ -6685,15 +6691,23 @@ async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride,
             else:
                 await reactomessages([ctx.id], serverid, "🔴"   )
 
-def checkrconallowed(author,typeof = "rconrole"):
+def checkrconallowed(author,typeof = "rconrole",**kwargs):
     """Checks if Discord user has RCON permissions based on roles"""
+    serverid = kwargs.get("serverid",False)
+
     global context
+    translated = translaterole(serverid,typeof)
     # if author.id not in context["RCONallowedusers"]:
     #     return False
     # author.guild_permissions.administrator (THERE IS A "and False" here, it used to be "and author.guild_permissions.administrator")
-    return (not hasattr(author, "roles") and  author.id in context["overriderolesuids"][typeof]) or(hasattr(author, "roles") and (( typeof == "rconrole" and False) or (typeof == "coolperksrole" and OVVERRIDEROLEREQUIRMENT == "1") or functools.reduce(lambda a, x: a or x in list(map (lambda w: w.id ,author.roles)) ,[context["overrideroles"][typeof]] if isinstance(context["overrideroles"][typeof], int) else context["overrideroles"][typeof] ,False)))
+    return (not hasattr(author, "roles") and  author.id in context["overriderolesuids"][translated]) or(hasattr(author, "roles") and (( typeof == "rconrole" and False) or (typeof == "coolperksrole" and OVVERRIDEROLEREQUIRMENT == "1") or functools.reduce(lambda a, x: a or x in list(map (lambda w: w.id ,author.roles)) ,[context["overrideroles"][translated]] if isinstance(context["overrideroles"][translated], int) else context["overrideroles"][translated] ,False)))
 # command slop
-def checkrconallowedtfuid(uid, typeof="rconrole"):
+def translaterole(serverid,role):
+    if not serverid: return role
+    return context["servers"][serverid]["roles"].get(role,role)
+
+def checkrconallowedtfuid(uid, typeof="rconrole",**kwargs):
+    serverid = kwargs.get("serverid",False)
     """Checks if TF UID has RCON permissions for server administration"""
     global context
     # return False
@@ -6712,7 +6726,7 @@ def checkrconallowedtfuid(uid, typeof="rconrole"):
             return False
 
     discordid = result[0]
-    return discordid in context["overriderolesuids"].get(typeof, [])
+    return discordid in context["overriderolesuids"].get(translaterole(serverid,typeof), [])
 def create_dynamic_command(command_name, description = None, rcon = False, parameters = [], commandparaminputoverride = {}, outputfunc=None,regularconsolecommand=False):
     """Dynamically creates Discord slash commands with RCON support, parameter validation, and custom output processing"""
     param_list = []
@@ -6761,13 +6775,14 @@ def create_dynamic_command(command_name, description = None, rcon = False, param
 @bot.slash_command(name="{command_name}", description="{description}")
 async def {command_name}(ctx, {params_signature}):
     global messageflush, context
-    if {rcon} and not checkrconallowed(ctx.author):
+    serverid = getchannelidfromname(servername, ctx)
+    if {rcon} and not checkrconallowed(ctx.author,serverid=serverid):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
         return
     params = {dict_literal}
     print("DISCORDCOMMAND {command_name} command from", ctx.author.name, "with parameters:", params," to server:", servername)
-    serverid = getchannelidfromname(servername, ctx)
+    
     if serverid is None:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
@@ -7489,7 +7504,9 @@ async def updatechannels():
         istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
         server = context["servers"][serverid]
         addwidget = context["servers"][serverid].get("widget","")
-        if addwidget != "":
+        if not addwidget:
+            addwidget = ""
+        elif addwidget != "":
             addwidget+="┃"
         if "channelid" not in server:
             continue
