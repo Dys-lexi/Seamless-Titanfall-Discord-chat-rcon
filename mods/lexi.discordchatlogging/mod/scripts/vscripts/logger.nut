@@ -213,7 +213,7 @@ void function discordloggerinit() {
 	thread begintodiscord()
 	// AddCallback_GameStateEnter(eGameState.PickLoadout, Onmapchange);
     // AddCallback_GameStateEnter(eGameState.Prematch, Onmapchange);
-	thread Onmapchange()
+	
 	AddCallback_GameStateEnter(9,stoprequests);
 	AddCallback_OnPlayerKilled(playerstabbedmodelsaver)
 
@@ -230,6 +230,7 @@ void function discordloggerinit() {
 
 void function LogConnect( entity player )
 {
+	thread Onmapchange()
 	checkshouldblockmessages(player)
 	if(!IsValid(player))
 	{
@@ -577,6 +578,7 @@ int shouldsend = 1
 int breakercounter = 0
 
 void function Onmapchange(){
+	
 	if (serverdetails.hasmapchanged){
 		return
 	}

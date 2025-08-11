@@ -614,7 +614,7 @@ print("running discord logger bot")
 lastrestart = 0
 botisalreadyready = False
 messagecounter = 0
-SLEEPTIME_ON_FAILED_COMMAND = 2.5 #for when you are running multiple versions of the bot (like a dev version). if one bot cannot fulfill the command,
+SLEEPTIME_ON_FAILED_COMMAND = 0 #for when you are running multiple versions of the bot (like a dev version). if one bot cannot fulfill the command,
 # the other bot that can has time too, instead of the first responding with failure
 intents = discord.Intents.default()
 intents.message_content = True
@@ -6358,7 +6358,7 @@ async def checkfilters(messages, message):
                 discord.utils.escape_mentions(f""">>> **Ban word found**
     Sent by: **{bad_msg['originalname']}**
     UID: **{bad_msg['uid']}**
-    Message: "{bad_msg['messagecontent']}"
+    Message: "{getpriority(bad_msg,'originalmessage','messagecontent','message')}"
     Found pattern: "{bad_msg['isbad'][1]}"
     Message Link: {message_link}""")
             )
@@ -6366,7 +6366,7 @@ async def checkfilters(messages, message):
 
                 await notify_channel.send(
                     discord.utils.escape_mentions(f""">>> **Ban word found**
-    Message: "{bad_msg['message']}"
+    Message: "{getpriority(bad_msg,'originalmessage','messagecontent','message')}"
     Found pattern: "{bad_msg['isbad'][1]}"
     Message Link: {message_link}""")
                 )
@@ -6382,7 +6382,7 @@ async def checkfilters(messages, message):
                 discord.utils.escape_mentions(f""">>> **Filtered word found**
     Sent by: **{notify_msg['originalname']}**
     UID: **{notify_msg['uid']}**
-    Message: "{notify_msg['messagecontent']}"
+    Message: "{getpriority(notify_msg,'originalmessage','messagecontent','message')}"
     Found pattern: "{notify_msg['isbad'][1]}"
     Message Link: {message_link}""")
             )
@@ -6392,7 +6392,7 @@ async def checkfilters(messages, message):
             # print("NOTIFY",notify_msg)
                 await notify_channel.send(
                     discord.utils.escape_mentions(f""">>> **Filtered word found**
-    Message: "{notify_msg['message']}"
+    Message: "{getpriority(notify_msg,'originalmessage','messagecontent','message')}"
     Found pattern: "{notify_msg['isbad'][1]}"
     Message Link: {message_link}""")
                 )
