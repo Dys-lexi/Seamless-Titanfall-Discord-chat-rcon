@@ -636,7 +636,6 @@ SERVERNAMEISCHOICE = os.getenv("DISCORD_BOT_SERVERNAME_IS_CHOICE", "0")
 SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
 TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass") 
 USEDYNAMICPFPS = os.getenv("USE_DYNAMIC_PFPS","1")
-USEDYNAMICPFPS = "1"
 PFPROUTE = os.getenv("PFP_ROUTE","https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/")
 FILTERNAMESINMESSAGES = os.getenv("FILTER_NAMES_IN_MESSAGES","usermessagepfp,chat_message,command,tf1command,botcommand,connecttf1")
 SENDKILLFEED = os.getenv("SEND_KILL_FEED","1")
@@ -3503,9 +3502,13 @@ def colourmessage(message,serverid):
     """handles all in game name modifications to messages, like tags, muted players seeing their own message, message gradients, impersonations"""
     global discorduidnamelink
     # print("HEREHERHERE")
-    if not message.get("metadata",False) or not  message["metadata"].get("uid",False) or not message["metadata"].get("type",False) in ["usermessagepfp","chat_message","impersonate"] or message["metadata"].get("donotcolour",False):
+    if not message.get("metadata",False) or not  message["metadata"].get("uid",False) or not message["metadata"].get("type",False) in ["usermessagepfp","chat_message","impersonate"] :
         # print("oxoxo",message["metadata"])
         return False
+    elif getpriority(message,["metadata","donotcolour"]) and getpriority(colourslink,[discorduidnamelink.get(message["metadata"]["uid"],False),"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduidnamelink.get(message["metadata"]["uid"],False),{}).items()))).values())):
+        return False
+        # I hope this validation works! if donotcolour and only nametag, else "figure it out"
+    # getpriority(colourslink,[discorduidnamelink.get(message["metadata"]["uid"],False),"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduidnamelink.get(message["metadata"]["uid"],False),{}).items()))).values()))
     # print("ew")
     discorduid = discorduidnamelink.get(message["metadata"]["uid"],False)
     if (message["metadata"].get("ismuted") or message["metadata"].get("type",False) == "impersonate") and not discorduid:
@@ -5376,7 +5379,7 @@ def pingperson(message,serverid,isfromserver):
         return
     if command[0].split(keyletter)[1] != "ping":
         discordtotitanfall[serverid]["messages"].append({
-            "content":f"{PREFIXES['discord']}{PREFIXES["commandname"]}{len(matches)}{PREFIXES["chatcolour"]} Matches for {PREFIXES["commandname"]}{searchterm}",
+            "content":f"{PREFIXES['discord']}{PREFIXES["commandname"]}{len(matches)}{PREFIXES["chatcolour"]} Match{"es" if len(matches) != 1 else ""} for {PREFIXES["commandname"]}{searchterm}",
             "uidoverride": [getpriority(message,"uid",["meta","uid"])]
         })
         cmdcounter = 0
