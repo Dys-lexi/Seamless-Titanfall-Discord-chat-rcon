@@ -230,6 +230,7 @@ void function discordloggerinit() {
 
 void function LogConnect( entity player )
 {
+	thread DiscordClientMessageinloop()
 	thread Onmapchange()
 	checkshouldblockmessages(player)
 	if(!IsValid(player))

@@ -33,7 +33,7 @@
         },
         {
             "Name":"discordloguselocaltags",
-            "DefaultValue": "0" // tags are calculated by titanfall server, not the bot
+            "DefaultValue": "1" // tags are calculated by titanfall server, not the bot
         },
         {
             "Name": "discordloggingenabled", //0 completly disables the mod
