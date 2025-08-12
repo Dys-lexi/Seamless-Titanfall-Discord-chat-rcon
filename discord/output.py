@@ -588,8 +588,8 @@ def removecolourcodes(message):
 linecolours = {}
 def print(*message, end="\033[0m\n"):
     global linecolours
-    message = " ".join([str(i) for i in message]).replace(r"\x1b","").replace("[11","[38;5;11")
-    if len(message) < 1000000 and False:
+    message = " ".join([str(i) for i in message]).replace("[110m", "[38;2;200;200;200m").replace("[111m", "[38;2;80;229;255m").replace("[112m", "[38;2;213;80;16m")
+        if len(message) < 1000000 and False:
         with open("./data/" + log_file, "a") as file:
             file.write(
                 datetime.now().strftime("%d/%m/%Y %H:%M:%S")
@@ -597,7 +597,7 @@ def print(*message, end="\033[0m\n"):
                 + str(message)
                 + "\n"
             )
-        
+    
 
     function = str(inspect.currentframe().f_back.f_code.co_name)
     line = str(inspect.currentframe().f_back.f_lineno)
@@ -607,10 +607,12 @@ def print(*message, end="\033[0m\n"):
             if colour not in DISALLOWED_COLOURS:
                 break
         linecolours[line] = colour
-    realprint (f"{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}{('['+line+']').ljust(6)}[{datetime.now().strftime('%H:%M:%S %d/%m')}] {message}")
-    # realprint(f"[38;2;215;22;105m{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}[38;2;126;89;140m{('['+line+']').ljust(6)}[38;2;27;64;152m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{linecolours[line]}m {(message)}", end=end)
+    if MORECOLOURS != "1":
+        realprint (f"[0m{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}{('['+line+']').ljust(6)}[{datetime.now().strftime('%H:%M:%S %d/%m')}] {message}")
+    else:
+        realprint(f"[38;2;215;22;105m{(('['+function[:9]+']').ljust(11) if True else "⯈".ljust(11))}[38;2;126;89;140m{('['+line+']').ljust(6)}[38;2;27;64;152m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{linecolours[line]}m {(message)}", end=end)
     
-print("running discord logger bot")
+
 lastrestart = 0
 botisalreadyready = False
 messagecounter = 0
@@ -649,11 +651,15 @@ REACTONMENTION = os.getenv("REACT_EMOJI_ON_MENTION","0")
 POSTGRESQLDBURL = os.getenv("POSTGRESQL_DB_URL","0")
 PORT = os.getenv("BOT_PORT","3451")
 MAXTAGLEN = int(os.getenv("MAX_TAG_LEN","6"))
+MORECOLOURS = os.getenv("MORE_COLOURFUL_OUTPUT","1")
 GLOBALIP = 0
 if OVERRIDEIPFORCDNLEADERBOARD == "use_actual_ip":
     GLOBALIP ="http://"+requests.get('https://api.ipify.org').text+":"+"34511"
 elif OVERRIDEIPFORCDNLEADERBOARD != "hidden":
     GLOBALIP = OVERRIDEIPFORCDNLEADERBOARD
+print("running discord logger bot")
+if MORECOLOURS == "1":
+    print("\nColours:"+"".join([f"{"\n" if not i % 3 else ""}{x[1].split("m")[0]}m{x[0].ljust(15)}" for i,x in enumerate(PREFIXES.items())]))
 
 if POSTGRESQLDBURL == "0":
     print("RUNNING ON SQLITEDB")
@@ -817,7 +823,7 @@ bantf1()
 def savecontext():
     """saves varible context to channels.json"""
     global context
-    print("saving")
+    # print("saving")
     with open("./data/" + channel_file, "w") as f:
         filteredcontext = context.copy()
         del filteredcontext["commands"]
@@ -929,7 +935,7 @@ if os.path.exists("./data/" + nongitcommandfile):
                 # print(f"{command} ", end="")
 # print(json.dumps(context, indent=4))
 # make aliases work
-print(json.dumps(context["commands"]["ingamecommands"],indent=2))
+# print(json.dumps(context["commands"]["ingamecommands"],indent=2))
 
 def processaliases():
     global context
@@ -2613,11 +2619,12 @@ async def help(
     print("help requested")
     if command is None:
         message = "# Help\nUse /help <command> to get help for a specific command\n\n"
-        
+        commands = {}
         for key in context["commands"]["botcommands"].keys():
             message += f"**{key}**: {context['commands']['botcommands'][key]['description']}\n"
+            commands[key] = context['commands']['botcommands'][key]['description']
         
-        for slash_command in bot.slash_commands:
+        for slash_command in bot.walk_application_commands():
             if slash_command.name == "help" or slash_command.name in context["commands"]["botcommands"].keys():
                 continue
                 
@@ -2627,8 +2634,9 @@ async def help(
                 continue
                 
             message += f"**{slash_command.name}**: {slash_command.description}\n"
+            commands[slash_command.name] = slash_command.description
             
-        await ctx.respond(message)
+        await ctx.respond(f"```json\n{json.dumps(commands,indent=4)}```")
     else:
         defaults = {"description": "No description available", "parameters": [], "rcon": False, "commandparaminputoverride": {}, "outputfunc": None, "regularconsolecommand": False}
         message = f"# {command}\n{context['commands']['botcommands'][command]['description']}\n\n"
@@ -3458,9 +3466,9 @@ async def on_message(message):
         # elif discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5:
         #     dotreacted = "🟡" 
         if message.content != "": #and not context["servers"].get(serverid, {}).get("istf1server",False):
-            print(f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {message.content}")
+            # print(f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {message.content}")
             # print(len(f"{authornick}: {PREFIXES['neutral']}{message.content}"),f"{authornick}: {PREFIXES['neutral']}{message.content}\033[0m")
-            print((f"{authornick}{': ' if not  bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{message.content}"))
+            print(len(f"{authornick}{': ' if not  bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{message.content}"),(f"{authornick}{': ' if not  bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{message.content}"))
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": message.id,
@@ -3571,7 +3579,8 @@ def colourmessage(message,serverid):
         }
         )
         return False
-    print(f"OUTPUT {output}")
+    if MORECOLOURS == "1":
+        print(f"OUTPUT[0m {"[0m, ".join([f"{x[0]}: {x[1]}" for x in output.items()])}")
     
     return {**output,"messageteam":message["metadata"]["teamint"]}
 def computeauthornick (name,idauthor,content,serverid = False,rgbcolouroverride = "DISCORD",colourlinksovverride = "discordcolour",lenoverride = 254,usetagifathing = False):
@@ -6470,7 +6479,7 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
                     pilotstates[serverid]["webhook"] = "ChatBridge"
             pilotstates[serverid] = {"uid":value["uid"],"model":str(value["pfp"]),"webhook":pilotstates[serverid]["webhook"]}
             # print("here")
-            pfp = MODEL_DICT.get(str(value["pfp"]),random.choice(UNKNOWNPFPS))
+            pfp = MODEL_DICT.get(str(value["pfp"]),random.choices(list(UNKNOWNPFPS.keys()),weights=list(map(lambda x: x["weight"],UNKNOWNPFPS.values())))[0])
             if pfp in UNKNOWNPFPS and (str(value["pfp"].startswith("true")) or str(value["pfp"].startswith("false"))):
                 print("FALLING BACK TO GUESSING",value["pfp"])
                 # username = f"{username} pfperror {value['pfp']}"

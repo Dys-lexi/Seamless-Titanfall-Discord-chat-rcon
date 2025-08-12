@@ -218,7 +218,7 @@ void function discordloggerinit() {
 	AddCallback_OnPlayerKilled(playerstabbedmodelsaver)
 
 	
-		thread DiscordClientMessageinloop()
+		
 	
 
 		runcommandondiscord("getdiscordcommands")
@@ -227,10 +227,17 @@ void function discordloggerinit() {
 	// print(serverdetails.Servername)
 }
 
-
+struct {
+	array<string> textcheck = []
+	table commandcheck = {}
+	int postmatch
+	int allowlogging = 0
+	int denylogging = 0
+	string timeof = "0"
+} check
 void function LogConnect( entity player )
 {
-	thread DiscordClientMessageinloop()
+
 	thread Onmapchange()
 	checkshouldblockmessages(player)
 	if(!IsValid(player))
@@ -423,14 +430,7 @@ void function discordlogextmessage(string message, bool formatascodeblock = fals
 	thread Postmessages(newmessage)
 }
 
-struct {
-	array<string> textcheck = []
-	table commandcheck = {}
-	int postmatch
-	int allowlogging = 0
-	int denylogging = 0
-	string timeof = "0"
-} check
+
 
 string function discordlogpullplayerstat(string uid, string stat){
 	if (!(uid in blockedplayers.players)){
@@ -583,6 +583,8 @@ void function Onmapchange(){
 	if (serverdetails.hasmapchanged){
 		return
 	}
+		if (check.denylogging != 1){
+	thread DiscordClientMessageinloop()}
 	serverdetails.hasmapchanged = true
 	outgoingmessage newmessage
 	// string LocalizedMapName = Localize( "#STATS_NOT_APPLICABLE" )
@@ -790,6 +792,7 @@ void function DiscordClientMessageinloop()
 
 	int timeout = 60
 	if (check.denylogging == 1){
+		print("HERE AND STOPPING LOGGING")
 		break
 	}
 	if (check.allowlogging == 0) {

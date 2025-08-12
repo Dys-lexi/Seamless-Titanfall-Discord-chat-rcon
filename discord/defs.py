@@ -47,18 +47,32 @@ MODEL_DICT = {
     "true models/humans/mcor_pilot/male_dm/mcor_pilot_male_dm.mdl": "titanfall1/pilots/m_dm_militia_cropped.png",
     "unknown": "unknown/unkownpfp.png",
     "confused": "unknown/confused.jpg",
-    "brute":"kevstitans/Brutekev.png",
+    "brute":"kevstitans/BrutekevV2.png",
     "false models/robots/spectre/imc_spectre.mdl":"titanfall1/pilots/tf1spectre.png",
     "true models/robots/spectre/imc_spectre.mdl":"titanfall1/pilots/tf1spectre.png",
     "expedition":"kevstitans/Expeditionkev.png"
 }
 
-UNKNOWNPFPS = [
-    "unknown/apatureperson.png",
-    "unknown/confused.jpg",
-    "unknown/unkownpfp.png",
-    "unknown/missingshark.jpg"
-]
+UNKNOWNPFPS = {
+    "unknown/apatureperson.png": {
+        "weight": 100
+    },
+    "unknown/confused.jpg": {
+        "weight": 100
+    },
+    "unknown/unkownpfp.png": {
+        "weight": 100
+    },
+    "unknown/missingshark.jpg": {
+        "weight": 100
+    },
+    "unknown/steamquestion.png": {
+        "weight": 100
+    },
+    "unknown/steamexclamation.png": {
+        "weight": 20
+    }
+}
 
 TITAN_NAMES = {
     "ronin":"Ronin",
