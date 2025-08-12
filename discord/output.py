@@ -3197,7 +3197,6 @@ async def show_color_what(ctx, colour: Option(str, "Enter a normal/hex color, or
     await ctx.respond(setcolour(colour,ctx.author.id,"choseningamecolour",teamsetting),ephemeral=False)
 
 
-
 def setcolour(colours,discorduid,type = "choseningamecolour",teamsetting = "all"):
     """Sets color preferences for Discord user with team-specific settings and validation"""
     """helper function for above"""
@@ -3215,14 +3214,13 @@ def setcolour(colours,discorduid,type = "choseningamecolour",teamsetting = "all"
             g = int(colour[3:5], 16)
             b = int(colour[5:7], 16)
             rgba = [r, g, b]
+            colourslist.append(rgba)
         elif colour.lower()  in CSS_COLOURS.keys():
             rgba = CSS_COLOURS[colour]
             colourslist.append(rgba) 
         else:
             rgba = "reset"
             break
-        
-        rgba = "|".join(map(str, colourslist))
     if teamsetting == "ALL":
         colourslist ={ **getpriority(colourslink,[discorduid],nofind = {}),**{x:colourslist for x in teams}}
     else:
@@ -3249,11 +3247,10 @@ def setcolour(colours,discorduid,type = "choseningamecolour",teamsetting = "all"
     if rgba == "reset":
         colourslink[discorduid] = colourslist
         return (f"reset ingame colour for {teamsetting} to default {warn}")
-        return
     colourslink[discorduid] = colourslist
     # print(json.dumps(colourslink,indent = 4))
     return f"Set ingame colour to {str({x[0].lower(): ''.join(map(str, x[1])) for x in filter(lambda y: y[0] in teams, differences.items())})[1:-1].replace("'","") if differences else "No changes"} {warn}"
-
+    
 @bot.slash_command(
     name="discordtotf2chatcolour",
     description="put in a normal colour eg: 'red', or a hex colour eg: '#ff30cb' to colour your tf2 name"
