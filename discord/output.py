@@ -589,7 +589,7 @@ linecolours = {}
 def print(*message, end="\033[0m\n"):
     global linecolours
     message = " ".join([str(i) for i in message]).replace("[110m", "[38;2;200;200;200m").replace("[111m", "[38;2;80;229;255m").replace("[112m", "[38;2;213;80;16m")
-        if len(message) < 1000000 and False:
+    if len(message) < 1000000 and False:
         with open("./data/" + log_file, "a") as file:
             file.write(
                 datetime.now().strftime("%d/%m/%Y %H:%M:%S")
@@ -597,7 +597,7 @@ def print(*message, end="\033[0m\n"):
                 + str(message)
                 + "\n"
             )
-    
+        
 
     function = str(inspect.currentframe().f_back.f_code.co_name)
     line = str(inspect.currentframe().f_back.f_lineno)
@@ -3551,13 +3551,13 @@ def colourmessage(message,serverid):
     # print(json.dumps(message))
     # print(colourslink[discorduid])
     if message["metadata"]["teamtype"] == "not team":
-        authornicks["friendly"] = computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"FRIENDLY","FRIENDLY",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254,True)
-        authornicks["enemy"]= computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"ENEMY","ENEMY",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254,True)
+        authornicks["friendly"] = computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"FRIENDLY","FRIENDLY",254 - len(f"[111m[TEAM]{" "if not getpriority(colourslink,[discorduid,"nameprefix"]) else ""}") if message["metadata"]["teamtype"] != "not team" else 254,True)
+        authornicks["enemy"]= computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"ENEMY","ENEMY",254 - len(f"[111m[TEAM]{" "if not getpriority(colourslink,[discorduid,"nameprefix"]) else ""}") if message["metadata"]["teamtype"] != "not team" else 254,True)
     else:
-        authornicks["friendly"] = computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"FRIENDLY","FRIENDLY",254 - len("[111m[TEAM]") if message["metadata"]["teamtype"] != "not team" else 254,True)
+        authornicks["friendly"] = computeauthornick(message["player"],discorduid,message["messagecontent"],serverid,"FRIENDLY","FRIENDLY",254 - len(f"[111m[TEAM]{" "if not getpriority(colourslink,[discorduid,"nameprefix"]) else ""}") if message["metadata"]["teamtype"] != "not team" else 254,True)
     output = {}
     for key, value in authornicks.items():
-        output[key] = f"{'[111m[TEAM] ' if message['metadata']['teamtype'] != 'not team' else ''}{value}: {PREFIXES['neutral']}{message['messagecontent']}"
+        output[key] = f"{f'[111m[TEAM]{" "if not getpriority(colourslink,[discorduid,"nameprefix"]) else ""}' if message['metadata']['teamtype'] != 'not team' else ''}{value}: {PREFIXES['neutral']}{message['messagecontent']}"
     # print(output)
 
     if not any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items()))) and message["metadata"]["blockedmessage"]:
@@ -5166,8 +5166,8 @@ def messageloop():
                         print("type of message unkown")
                         continue
                     realprint("\033[0m", end="")
-                if output:
-                    print("sending output",json.dumps(output, indent=4))
+                # if output:
+                #     print("sending output",json.dumps(output, indent=4))
                 for serverid in output.keys():
                     for key,message in enumerate(output[serverid]):
                         # extra functions hooked onto messages
@@ -6343,7 +6343,7 @@ async def outputmsg(channel, output, serverid, USEDYNAMICPFPS):
 
     if not content:
         return
-
+    print(f"Tf -> Discord\n{content}")
     message = await channel.send(content)
     # print(f"Sent message ID: {message.id}")
     # print("OUTPUT",output[serverid])
@@ -6490,6 +6490,7 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
             
             async with aiohttp.ClientSession() as session:
                 # print(pilotstates[serverid])
+                print(f"Tf -> Discord\n{username[0:80]}{f"\n{username[0:80]}".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))}")
                 message = await actualwebhooks[pilotstates[serverid]["webhook"]].send((
                     "\n".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))),#+" "+pilotstates[serverid]["webhook"],
                     username=f"{username[0:80]}",
