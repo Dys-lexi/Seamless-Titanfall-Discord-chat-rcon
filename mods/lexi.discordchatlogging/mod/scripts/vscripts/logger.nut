@@ -396,7 +396,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 		discordlogsendmessage("[111m["+discordlogpullplayerstat(message.player.GetUID(),"nameprefix")+"] "+ message.player.GetPlayerName()+":[110m " + message.message, message.player.GetTeam())	
 		}
 		else{
-		discordlogsendmessage("[111m [TEAM]["+discordlogpullplayerstat(message.player.GetUID(),"nameprefix")+"] "+ message.player.GetPlayerName()+":[110m " + message.message, message.player.GetTeam())	
+		discordlogsendmessage("[111m[TEAM]["+discordlogpullplayerstat(message.player.GetUID(),"nameprefix")+"] "+ message.player.GetPlayerName()+":[110m " + message.message, message.player.GetTeam())	
 
 		}
 

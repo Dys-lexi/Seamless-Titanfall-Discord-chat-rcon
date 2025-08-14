@@ -1133,7 +1133,7 @@ async def pullmessagelogs(ctx, filterword: str = ""):
     ][::-1]
     truncationmessage = ""
     if len (matches) > 1000:
-        truncationmessage = f" {len(matches) - 1000} messages truncated"
+        truncationmessage = f"- only 1000 shown, {len(matches) - 1000} messages truncated"
     matches = matches[:1000] 
     tfdb.close()
     if matches:
@@ -1186,7 +1186,7 @@ async def sanctiontf1(
     ctx,
     name: Option(str, "The playername", autocomplete=autocompletenamesfromtf1bans),
     sanctiontype: Option(str, "The type of sanction to apply", choices=["mute", "ban"] ),
-    banlinks:Option(int, "How many links needed for a ban to persist (DON'T USE IF DON'T KNOW)",choices=[1,2,3]),
+    # banlinks:Option(int, "How many links needed for a ban to persist (DON'T USE IF DON'T KNOW)",choices=[1,2,3]),
     reason: Option(str,  "The reason for the sanction", required=True),
     expiry:Option(str,"The expiry time of the sanction in format yyyy-mm-dd, omit is forever (uses gmt time)", required = False) = None,
 
@@ -1215,7 +1215,7 @@ async def sanctiontf1(
         return
     name,ip,uid,lastseen = name.split(" | ")
     c = postgresem("./data/tf2helper.db")
-    c.execute("UPDATE banstf1 SET banlinks = ?, bantype = ?, baninfo = ?, expire = ? WHERE playername = ? AND playerip = ? AND playeruid = ?",(banlinks,sanctiontype,reason,baninfo["expiry"],name,ip,uid))
+    c.execute("UPDATE banstf1 SET banlinks = ?, bantype = ?, baninfo = ?, expire = ? WHERE playername = ? AND playerip = ? AND playeruid = ?",(2,sanctiontype,reason,baninfo["expiry"],name,ip,uid))
     c.execute("SELECT lastserverid FROM banstf1 WHERE playername = ? AND playerip = ? AND playeruid = ?",(name,ip,uid))
 
     serverid = c.fetchone()[0]
@@ -1349,10 +1349,22 @@ if DISCORDBOTLOGSTATS == "1":
         c.execute("SELECT SUM(pilotkills), SUM(duration), SUM(deaths), SUM(titankills) FROM playtimetf1 WHERE playeruid = ?",(playerdiscorduid,))
         playerstats = c.fetchone()
         c.execute("""
+            WITH lag_data AS (
+                SELECT *,
+                    LAG(leftatunix, 1, 0) OVER (PARTITION BY playeruid, map ORDER BY joinatunix) as prev_left
+                FROM playtimetf1
+                WHERE playeruid = ?
+            ),
+            session_groups AS (
+                SELECT *,
+                    SUM(CASE WHEN joinatunix - prev_left > 450 THEN 1 ELSE 0 END) 
+                        OVER (PARTITION BY playeruid, map ORDER BY joinatunix ROWS UNBOUNDED PRECEDING) as session_group
+                FROM lag_data
+            )
             SELECT matchid, map, MIN(joinatunix) as start_time, SUM(pilotkills) as total_pilotkills
-            FROM playtimetf1
-            WHERE playeruid = ?
-            GROUP BY matchid, map
+            FROM session_groups
+            GROUP BY matchid, map, session_group
+            HAVING COUNT(*) = 1 OR (MAX(leftatunix) - MIN(joinatunix) <= 450 * COUNT(*))
             ORDER BY total_pilotkills DESC
             LIMIT 1
         """, (playerdiscorduid,))
@@ -4741,7 +4753,7 @@ def tf1readsend(serverid,checkstatus):
     try:
         with Client(discordtotitanfall[serverid]["ip"].rsplit(":",1)[0],  int(discordtotitanfall[serverid]["ip"].rsplit(":",1)[1]), passwd=TF1RCONKEY,timeout=2) as client:
             
-            if checkstatus or len(commands) > 0:
+            if checkstatus or len(commands) > 0 or True:
                 client.run('sv_cheats','1')
             if checkstatus:
                 # playingpollidentity
@@ -4749,21 +4761,24 @@ def tf1readsend(serverid,checkstatus):
                 # print("Here")
                 # print(statusoutput)
                 if "OUTPUT<" in statusoutput and "/>ENDOUTPUT" in statusoutput:
-                    statusoutput = "".join("".join("".join(statusoutput.split("BEGINMAINOUT")[1:]).split("OUTPUT<")[1:]).split("/>ENDOUTPUT")[:-1])
-                    statusoutput = statusoutput.replace("☻",'"')
+                    # print("STATUS",statusoutput)
+                    statusoutput = "".join("".join("".join(statusoutput.split("BEGINMAINOUT",1)[1]).split("OUTPUT<",1)[1]).rsplit("/>ENDOUTPUT",1)[0])
+                    # statusoutput = statusoutput.replace("☻",'"')
                     statusoutput = getjson(statusoutput)
-                    # print(json.dumps(statusoutput,indent = 4))
+                    # print(statusoutput)
+                    # print(json.dumps(statusoutput,indent=4))
                 else:
                     titanfall1currentlyplaying[serverid] = []
                 # print((statusoutput))
                 peopleonserver = len(statusoutput.keys()) -1
                 titanfall1currentlyplaying[serverid] = [statusoutput[x][0] for x in list(filter(lambda x: x != "meta", statusoutput.keys()))]
                 # print("ONLINE",serverid,"ONLINE",bool (len(statusoutput.keys()) -1),statusoutput)
-                discordtotitanfall[serverid]["serveronline"] = bool (len(statusoutput.keys()) -1)
-                if not discordtotitanfall[serverid]["serveronline"]:
+                
+                if not discordtotitanfall[serverid]["serveronline"] and not  (len(statusoutput.keys()) -1):
                     # print("MEOW")
                     offlinethisloop = True
                     return
+                discordtotitanfall[serverid]["serveronline"] = bool (len(statusoutput.keys()) -1)
                 # status = client.run("status")
                 # # print("statuscheck","not hibernating" not in status or "0 humans" in status,status)
                 # if "not hibernating" not in status and "0 humans" in status:
@@ -4796,12 +4811,9 @@ def tf1readsend(serverid,checkstatus):
                         # print("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]) if isinstance(command["args"], str) else " ".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")')
                     inputstring[command["id"]] = client.run("script", f'Lrconcommand("{filterquotes(command["command"])}"{","+quotationmark+filterquotes("".join(command["args"]) if isinstance(command["args"], str) else " ".join(command["args"]))+quotationmark if "args" in command.keys() else "" },"{command["id"] }")')#{","+quotationmark+filterquotes(command["name"])+quotationmark if "name" in command.keys() else "" })')
                     # print(inputstring[command["id"]])
-            if checkstatus or len(commands) > 0:
+            outputstring = client.run("script Lpulldata()") 
+            if checkstatus or len(commands) > 0 or True:
                 client.run('sv_cheats','0')
-            outputstring = client.run("autocvar_Lcommandreader") 
-            # print("out",outputstring)
-            if "☻" in outputstring:
-                clearup = client.run("autocvar_Lcommandreader",'""')
                 
             
     
@@ -4824,68 +4836,65 @@ def tf1readsend(serverid,checkstatus):
             discordtotitanfall[serverid]["lastheardfrom"] = int(time.time())
     # print("I got here!")
     # print("outputstring",outputstring)
+    
     try:
-        if "☻" in outputstring:
+        if  "|" in outputstring:
+            
+            accumulator = 0
+            outputs = []
+            addone = '{['
+            takeone = '}]'
+            begin = -1
+            quoteflag = False
+            for i,char in enumerate(outputstring):
+                init = accumulator
+                if char in addone:
+                    if not accumulator:
+                        # print("BEGIN SET",i)
+                        begin = i
+                    accumulator += 1
+                
+                elif char in takeone:
+                    accumulator -=1
+                # if init != accumulator:
+                    # print("CHAR",char,accumulator)
+                if begin != -1 and not accumulator and char in takeone:
+                    # print("SLICE",begin,i+1)
+                    outputs.append(getjson(outputstring[begin:i+1]))
+            # print("MEOW")
+            outputs = outputs[1:]
+            # print(json.dumps(outputs,indent=4))
+                
             # print(outputstring)
             # print(outputstring)
-            outputstring = "☻".join(outputstring.split("☻")[1:-1])
-            outputstring = f"☻{outputstring}☻"
-            # print("outputstr",outputstring)
-            outputs = outputstring.split("☻X☻")
+            # outputs = functools.reduce(lambda a,b:{**a,"now":a["now"]+1,"begin":a["begin"] if a["acc"] != 0 or b not in '{["' else a["now"] ,"acc":a["acc"]+int(b in '{["')- int (b in '"]}'),"firstacc":a["firstacc"] if b not in '{["' else False} if (a["acc"] != 1 and b not in '"]}' and a["firstacc"] is not False) else {**a,"now":a["now"]+1,"acc":0,"outputs":[*a["outputs"],outputstring[a["begin"]:a["now"]]]},outputstring,{"acc":0,"firstacc":True,"outputs":[],"begin":0,"now":0})["outputs"]
+            # print("OUTPUTCORE",json.dumps(outputs,indent=4))
+            
             for output in outputs:
-                output = output.split("☻")
-                if output[0] == "":
-                    del output[0]
+                # print("out",output)
                 # print(json.dumps(output,indent=4))
                 # print(output)
-                output = {"id":output[0],"command":output[1],"output":output[2],"commandtype":output[3]}
+                output = {"id":output[2] if len(output) > 2 else 0,"commandtype":output[0],"data":output[1]}
                 # print(output)
-                if output["commandtype"] == "chat_message":
+                if output["commandtype"] == "msg":
                     # print("here")
                     messageflush.append({
-                        "timestamp": int(time.time()),
+                        **{"timestamp": int(time.time()),
                         "serverid": serverid,
                         "type": 3,
                         "globalmessage": False,
                         "overridechannel": None,
-                        "messagecontent": output["command"],
-                        "metadata": {"type":None},
-                        "servername" :context["servers"][serverid]["name"]
+                        # "messagecontent": output["data"],
+                        # "metadata": {"type":"chat_message"},
+                        "servername" :context["servers"][serverid]["name"]},
+                        **output["data"]
 
                     })
+
                 # print(output["commandtype"])
-                if output["commandtype"] == "usermessagepfp":
+                elif output["commandtype"] == "smsg":
                     
-                    outputjson = getjson(output["output"].replace("♥",'"'))
-                    # print("here",json.dumps(outputjson,indent = 4))
-                    messageflush.append({
-                        "timestamp": int(time.time()),
-                        "serverid": serverid,
-                        "player": outputjson["name"],
-                        "type": 1,
-                        "globalmessage": False,
-                        "overridechannel": None,
-                        "messagecontent": output["command"],
-                        "metadata": {**outputjson,"type":output["commandtype"]},
-                        "servername" :context["servers"][serverid]["name"]
-
-                    })
-                if output["commandtype"] == "command_message":
-                    # print("here")
-                    outputjson = getjson(output["output"].replace("♥",'"'))
-                    messageflush.append({
-                        "timestamp": int(time.time()),
-                        "serverid": serverid,
-                        "type": 3,
-                        "player": outputjson["name"],  
-                        "globalmessage": True,
-                        "overridechannel": "commandlogchannel",
-                        "messagecontent": output["command"],
-                        "metadata": {"type":"tf1command",**outputjson},
-                        "servername" :context["servers"][serverid]["name"]
-
-                    })
-                if output["commandtype"] == "connect_message":
+        
                     # print("here, they tried to connect")
                     messageflush.append({
                         "timestamp": int(time.time()),
@@ -4893,7 +4902,7 @@ def tf1readsend(serverid,checkstatus):
                         "type": 4,
                         "globalmessage": False,
                         "overridechannel": None,
-                        "messagecontent": output["command"],
+                        "messagecontent": output["data"],
                         "metadata": {"type":"connecttf1"},
                         "servername" :context["servers"][serverid]["name"]
 
@@ -4903,8 +4912,8 @@ def tf1readsend(serverid,checkstatus):
                 # if output["commandtype"] == "stats":
                 #     print("STATS REQUESTED POG")
                 #     tf1pullstats(getjson(output["command"].replace("♥",'"')),serverid)
-                if output["commandtype"] == "sendcommand":
-                    tftodiscordcommand(output["output"],getjson(output["command"].replace("♥",'"')),serverid)
+                elif output["commandtype"] in context["commands"]["ingamecommands"]:
+                    tftodiscordcommand(output["commandtype"],output["data"],serverid)
                 # if output["commandtype"] == ""
     except Exception as e:
         print("read brokey")
@@ -5108,6 +5117,7 @@ def messageloop():
                     message.setdefault("globalmessage",False)
                     message.setdefault("type",3)
                     message.setdefault("overridechannel",None)
+                    message["messagecontent"] = str( message.get("messagecontent"))
                     # print("MESSAGE",message)
                     messagewidget,playername = getmessagewidget(message["metadata"],message["serverid"],message["messagecontent"],message)
                     if messagewidget == "":
@@ -6490,7 +6500,7 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
             
             async with aiohttp.ClientSession() as session:
                 # print(pilotstates[serverid])
-                print(f"Tf -> Discord\n{username[0:80]}{f"\n{username[0:80]}".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))}")
+                print(f"Tf -> Discord\n{username[0:80]}: {f"\n{username[0:80]}: ".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))}")
                 message = await actualwebhooks[pilotstates[serverid]["webhook"]].send((
                     "\n".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))),#+" "+pilotstates[serverid]["webhook"],
                     username=f"{username[0:80]}",
@@ -7276,7 +7286,7 @@ def playerpolllog(data,serverid,statuscode):
         matchid = data["meta"][2]
     else:
         currentmap = data["meta"]["map"]
-        matchid = int(data["meta"]["matchid"].split("<")[1].split("/>")[0])
+        matchid = (data["meta"]["matchid"])
     if matchid not in matchids:
         addmatchtodb(matchid,serverid,currentmap)
     now = int(time.time())
@@ -7287,7 +7297,7 @@ def playerpolllog(data,serverid,statuscode):
         players = [{"uid": str(x[0]), "score": x[1][1], "team": "UNKNOWN TEAM, UNUSED VAR", "kills": x[1][2], "deaths": x[1][3], "name": x[1][0], "titankills": x[1][4], "npckills": x[1][6], "timecounter": x[1][6]} for x in filter(lambda x: x[0] != "meta" and len(x[0]) > 15, data.items())]
         if data.get("meta",False):
             metadata = data["meta"].copy()
-            metadata["matchid"] = int(data["meta"]["matchid"].split("<")[1].split("/>")[0])
+            metadata["matchid"] = (data["meta"]["matchid"])
             data["meta"] = [metadata["map"],50,metadata["matchid"]]#50 is a placeholder for actual time left!
     discordtotitanfall[serverid]["playercount"] = len(players)
             

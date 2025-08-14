@@ -50,6 +50,8 @@ MODEL_DICT = {
     "brute":"kevstitans/BrutekevV2.png",
     "false models/robots/spectre/imc_spectre.mdl":"titanfall1/pilots/tf1spectre.png",
     "true models/robots/spectre/imc_spectre.mdl":"titanfall1/pilots/tf1spectre.png",
+    "false models/Robots/spectre/spectre_corporate_pilot.mdl":"titanfall1/pilots/tf1spectre.png",
+    "true models/Robots/spectre/spectre_corporate_pilot.mdl":"titanfall1/pilots/tf1spectre.png",
     "expedition":"kevstitans/Expeditionkev.png"
 }
 
