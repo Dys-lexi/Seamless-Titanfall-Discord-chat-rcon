@@ -6,9 +6,6 @@
 	"Contacts": ["dyslexi (Discord)"],
     "LoadPriority": 1,
     "RequiredOnClient": false,
-    "Dependencies": {
-		"SANCTIONAPI_ENABLED": "Nyami.SanctionManager"
-	},
     "ConVars": [
         {
             "Name": "discordlogginghttpServer",
@@ -30,6 +27,10 @@
         {
             "Name":"disablestoprequests",
             "DefaultValue": "0" // only use if you have a fix to ns http bug
+        },
+        {
+            "Name":"enforcediscordsanctions",
+            "DefaultValue": "1" // set to one so /sanctiontf2 works
         },
         {
             "Name":"discordloguselocaltags",

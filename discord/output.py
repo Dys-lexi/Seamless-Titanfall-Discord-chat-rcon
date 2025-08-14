@@ -324,6 +324,8 @@ def deep_set(d, keys, value):
         d = d.setdefault(key, {})
     d[keys[-1]] = value
 
+
+
 def setplayeruidpreferences(path, value, uid, istf1=False):
     """see readplayeruidpreferences()"""
     tfdb = postgresem("./data/tf2helper.db")
@@ -936,13 +938,15 @@ if os.path.exists("./data/" + nongitcommandfile):
 # print(json.dumps(context, indent=4))
 # make aliases work
 # print(json.dumps(context["commands"]["ingamecommands"],indent=2))
-
+internaltoggles = {}
 def processaliases():
-    global context
+    global context,internaltoggles
     if not context.get("commands",{}).get("ingamecommands",{}):
         return
     context["commands"]["ingamecommands"] = dict(sorted({**context["commands"]["ingamecommands"],**dict(functools.reduce(lambda a,b:{**a,**{cmd: {"alias":b[0],**dict(filter(lambda x:x[0] != "aliases",b[1].items()))}for cmd in b[1]["aliases"]}}, map(lambda x:[x[0],{**x[1],"aliases":[x[1]["aliases"]] if isinstance(x[1]["aliases"],str) else x[1]["aliases"]}],filter(lambda x:x[1].get("aliases"), context["commands"]["ingamecommands"].items())),{}))}.items(),key = lambda z:z[1]["alias"] if z[1].get("alias") else z[0]))
+    internaltoggles = dict(map (lambda x: [x[0],x[0]] if "internaltoggle" not in x[1] else [x[0],x[1]["internaltoggle"]],context["commands"]["ingamecommands"].items()))
 processaliases()
+# print(json.dumps(internaltoggles,indent=4))
 # print(json.dumps(context["commands"]["ingamecommands"],indent=2))
             
 bot = discord.Bot(intents=intents)
@@ -1179,6 +1183,132 @@ async def bind_logging_to_category(ctx, category_name: str):
         ephemeral=False,
     )
 @bot.slash_command(
+    name="sanctiontf2",
+    description="Sanctions a tf2 player - run in a server channel to apply instantly"
+)
+async def sanctiontf2(
+    ctx,
+    name: Option(str, "The playername / uid", autocomplete=autocompletenamesanduidsfromdb),
+    sanctiontype: Option(str, "The type of sanction to apply (meanmute does not alert the person muted)", choices=["mute", "ban","meanmute"] ),
+    # banlinks:Option(int, "How many links needed for a ban to persist (DON'T USE IF DON'T KNOW)",choices=[1,2,3]),
+    reason: Option(str,  "The reason for the sanction", required=True),
+    expiry:Option(str,"The expiry time of the sanction in format yyyy-mm-dd, omit is forever (uses gmt time)", required = False) = None,
+        servername: Option(
+        str,
+        "The servername (omit for current channel's server)",
+        required=False,
+        **({
+            "choices": list(s.get("name", "Unknown") for s in context["servers"].values())
+        } if SERVERNAMEISCHOICE == "1" else {
+            "autocomplete": autocompleteserversfromdb
+        })
+    ) = None,
+    ):
+    if not checkrconallowed(ctx.author):
+        if not checkrconallowed(ctx.author):
+            await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+            await ctx.respond("You are not allowed to use this command.", ephemeral=False)
+            return
+    if len(name.rsplit("->",1)) > 1: name = name.rsplit("->",1)[1][1:-1]
+    matchingplayers = resolveplayeruidfromdb(name, None,True)
+    if len (matchingplayers) > 1:
+        multistring = "\n" + "\n".join(f"{i+1}) {p['name']} uid: {p['uid']}" for i, p in enumerate(matchingplayers[0:10]))
+        await ctx.respond(f"{len(matchingplayers)} players found, please be more specific: {multistring}", ephemeral=False)
+        return
+    elif len(matchingplayers) == 0:
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        await ctx.respond("No players found", ephemeral=False)
+        return
+    player = matchingplayers[0]
+    if getpriority(readplayeruidpreferences(player["uid"],False),["banstf2","sanction"]):
+        await ctx.respond(f"{player["name"]} already has a sanction!\n{getpriority(readplayeruidpreferences(player["uid"],False),["banstf2","sanction"])}")
+        return
+    if expiry:
+        try:
+            expiry_date = datetime.strptime(expiry, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            expiry = int(expiry_date.timestamp())
+        except ValueError:
+            await ctx.respond("Invalid expiry date format. Use yyyy-mm-dd", ephemeral=True)
+            return
+    else:
+        expiry = None
+    
+    await ctx.defer()
+    setplayeruidpreferences(["banstf2","sanction"], {"reason":reason,"expiry":expiry,"sanctiontype":sanctiontype}, player['uid'])
+    expiry_log_text = modifyvalue(expiry, "date") if expiry else None
+    messageflush.append(
+        {
+            "servername": "No server",
+            "serverid": "-100",
+            "type": 3,
+            "timestamp": int(time.time()),
+            "globalmessage": True,
+            "overridechannel": "globalchannel",
+            "messagecontent": f"New {sanctiontype} uploaded by {ctx.author.name} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry_log_text if expiry_log_text else ''} {'Reason: ' + reason if reason else ''}",
+            "metadata": {
+                "type": None
+            },
+        }
+    )
+    expiry_text = "forever" if expiry is None else modifyvalue(expiry, "date")
+    await ctx.respond(f"**{sanctiontype.capitalize()}** applied to **{player['name']}** (UID: `{player['uid']}`) until **{expiry_text}**\nReason: {reason}")
+    serverid = getchannelidfromname(servername, ctx)
+    if serverid:
+        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {player["uid"]}'),"fake context",None,True,False), bot.loop)
+
+
+@bot.slash_command(
+    name="sanctionremovetf2",
+    description="Removes a ban from a TF2 player - run in a server channel to apply instantly",
+)
+async def sanctionremovetf2(
+    ctx,
+    name: Option(str, "The playername", autocomplete=autocompletenamesanduidsfromdb),
+            servername: Option(
+        str,
+        "The servername (omit for current channel's server)",
+        required=False,
+        **({
+            "choices": list(s.get("name", "Unknown") for s in context["servers"].values())
+        } if SERVERNAMEISCHOICE == "1" else {
+            "autocomplete": autocompleteserversfromdb
+        })
+    ) = None,
+):
+    if not checkrconallowed(ctx.author):
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        await ctx.respond("You are not allowed to use this command.", ephemeral=False)
+        return
+    
+    if len(name.rsplit("->",1)) > 1: 
+        name = name.rsplit("->",1)[1][1:-1]
+    
+    matchingplayers = resolveplayeruidfromdb(name, None, True)
+    if len(matchingplayers) > 1:
+        multistring = "\n" + "\n".join(f"{i+1}) {p['name']} uid: {p['uid']}" for i, p in enumerate(matchingplayers[0:10]))
+        await ctx.respond(f"{len(matchingplayers)} players found, please be more specific: {multistring}", ephemeral=False)
+        return
+    elif len(matchingplayers) == 0:
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        await ctx.respond("No players found", ephemeral=False)
+        return
+    
+    player = matchingplayers[0]
+    
+    await ctx.defer()
+    ban = getpriority(readplayeruidpreferences(player["uid"],False),["banstf2","sanction"],nofind={})
+    setplayeruidpreferences(["banstf2", "sanction"], None, player['uid'])
+    print(ban)
+    if ban:
+        await ctx.respond(f"**{ban.get("sanctiontype")}** removed for **{player['name']}** (UID: `{player['uid']}`)")
+    else:
+        await ctx.respond(f"No sanction found for {player["name"]} (UID: `{player['uid']}`)")
+    serverid = getchannelidfromname(servername, ctx)
+    if serverid:
+        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {player["uid"]}'),"fake context",None,True,False), bot.loop)
+
+
+@bot.slash_command(
     name="sanctiontf1",
     description="Sanctions a tf1 player",
 )
@@ -1211,7 +1341,7 @@ async def sanctiontf1(
     print(name)
     print(name.split(" | "))
     if len(name.split(" | ")) != 4:
-        await ctx.respond("Wrong arg count")
+        await ctx.respond("Wrong arg count - use the autofill!")
         return
     name,ip,uid,lastseen = name.split(" | ")
     c = postgresem("./data/tf2helper.db")
@@ -1229,7 +1359,7 @@ async def sanctiontf1(
             "timestamp": int(time.time()),
             "globalmessage": True,
             "overridechannel": "globalchannel",
-            "messagecontent": f"New {sanctiontype} uploaded by {ctx.author.name} for player {name} UID: {"n/a"} {'Expiry: ' + expiry if expiry else ''} {'Reason: ' + reason if reason else ''}",
+            "messagecontent": f"New {sanctiontype} uploaded by {ctx.author.name} for player {name} UID: {"n/a"} {'Expiry: ' + modifyvalue("date",baninfo["expiry"]) if expiry else ''} {'Reason: ' + reason if reason else ''}",
             "metadata": {
                 "type": None
             },
@@ -1244,79 +1374,81 @@ async def sanctiontf1(
 
 
 
-if SANCTIONAPIBANKEY != "":
-    @bot.slash_command(
-        name="serverlesssanction",
-        description="Sanctions a offline player, without a server. try saying it 3 times fast",
-    )
-    async def serverlesssanction(
-        ctx,
-        playeroruid: Option(str, "Sanction a name or uid", required=True, choices=["uid", "name"]),
-        who: Option(str, "The playername/uid to sanction", required=True,autocomplete=autocompletenamesanduidsfromdb),
+# if SANCTIONAPIBANKEY != "":
+#     @bot.slash_command(
+#         name="serverlesssanction",
+#         description="Sanctions a offline player, without a server. try saying it 3 times fast",
+#     )
+#     async def serverlesssanction(
+#         ctx,
+#         playeroruid: Option(str, "Sanction a name or uid", required=True, choices=["uid", "name"]),
+#         who: Option(str, "The playername/uid to sanction", required=True,autocomplete=autocompletenamesanduidsfromdb),
         
-        sanctiontype: Option(
-            str, "The type of sanction to apply", choices=["mute", "ban"] ),
-        reason: Option(str, "The reason for the sanction", required=True),
-        expiry: Option(str, "The expiry time of the sanction in format yyyy-mm-dd, omit is forever") = None,
-    ):
-        """ mute somone in tf|2, bypassing the servers, so can mute / ban offline people"""
-        global context,messageflush
-        if not checkrconallowed(ctx.author):
-            await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-            await ctx.respond("You are not allowed to use this command.", ephemeral=False)
-            return
-        if len(who.rsplit("->",1)) > 1: who = who.rsplit("->",1)[1][1:-1]
-        matchingplayers = resolveplayeruidfromdb(who, None,True)
-        if len (matchingplayers) > 1:
-            multistring = "\n" + "\n".join(f"{i+1}) {p['name']} uid: {p['uid']}" for i, p in enumerate(matchingplayers[0:10]))
-            await ctx.respond(f"{len(matchingplayers)} players found, please be more specific: {multistring}", ephemeral=False)
-            return
-        elif len(matchingplayers) == 0:
-            await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-            await ctx.respond("No players found", ephemeral=False)
-            return
-        player = matchingplayers[0]
-        await ctx.defer()
-        url = f"http://{LOCALHOSTPATH}:3000/sanctions"
-        sendjson = {
-                "UID": player["uid"],
-                "Issuer": ctx.author.name,
-                "SanctionType": "1" if sanctiontype == "ban" else "0",
-                # "Expire": expiry,
-                "ipadd": "127.0.0.1",
-                # "Reason": reason,
-                "PlayerName": player["name"]
-            }
-        if expiry:
-            sendjson["Expire"] = expiry
-        if reason:
-            sendjson["Reason"] = reason
-        response = requests.post(
-            url,
+#         sanctiontype: Option(
+#             str, "The type of sanction to apply", choices=["mute", "ban"] ),
+#         reason: Option(str, "The reason for the sanction", required=True),
+#         expiry: Option(str, "The expiry time of the sanction in format yyyy-mm-dd, omit is forever") = None,
+#     ):
+#         """ mute somone in tf|2, bypassing the servers, so can mute / ban offline people"""
+#         global context,messageflush
+#         if not checkrconallowed(ctx.author):
+#             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+#             await ctx.respond("You are not allowed to use this command.", ephemeral=False)
+#             return
+#         if len(who.rsplit("->",1)) > 1: who = who.rsplit("->",1)[1][1:-1]
+#         matchingplayers = resolveplayeruidfromdb(who, None,True)
+#         if len (matchingplayers) > 1:
+#             multistring = "\n" + "\n".join(f"{i+1}) {p['name']} uid: {p['uid']}" for i, p in enumerate(matchingplayers[0:10]))
+#             await ctx.respond(f"{len(matchingplayers)} players found, please be more specific: {multistring}", ephemeral=False)
+#             return
+#         elif len(matchingplayers) == 0:
+#             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+#             await ctx.respond("No players found", ephemeral=False)
+#             return
+#         player = matchingplayers[0]
+#         await ctx.defer()
+#         url = f"http://{LOCALHOSTPATH}:3000/sanctions"
+#         sendjson = {
+#                 "UID": player["uid"],
+#                 "Issuer": ctx.author.name,
+#                 "SanctionType": "1" if sanctiontype == "ban" else "0",
+#                 # "Expire": expiry,
+#                 "ipadd": "127.0.0.1",
+#                 # "Reason": reason,
+#                 "PlayerName": player["name"]
+#             }
+#         if expiry:
+#             sendjson["Expire"] = expiry
+#         if reason:
+#             sendjson["Reason"] = reason
+#         response = requests.post(
+#             url,
          
-            params=sendjson,
-               headers={"x-api-key": SANCTIONAPIBANKEY}
-        )
-        jsonresponse = response.json()
-        statuscode = response.status_code
-        if statuscode == 201 or statuscode == 200:
-            messageflush.append(
-                {
-                    "servername": "No server",
-                    "serverid": "-100",
-                    "type": 3,
-                    "timestamp": int(time.time()),
-                    "globalmessage": True,
-                    "overridechannel": "globalchannel",
-                    "messagecontent": f"New {sanctiontype} uploaded by {ctx.author.name} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry if expiry else ''} {'Reason: ' + reason if reason else ''}",
-                    "metadata": {
-                        "type": None
-                    },
-                }
-            )
-            pass
+#             params=sendjson,
+#                headers={"x-api-key": SANCTIONAPIBANKEY}
+#         )
+#         jsonresponse = response.json()
+#         statuscode = response.status_code
+#         if statuscode == 201 or statuscode == 200:
+#             messageflush.append(
+#                 {
+#                     "servername": "No server",
+#                     "serverid": "-100",
+#                     "type": 3,
+#                     "timestamp": int(time.time()),
+#                     "globalmessage": True,
+#                     "overridechannel": "globalchannel",
+#                     "messagecontent": f"New {sanctiontype} uploaded by {ctx.author.name} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry if expiry else ''} {'Reason: ' + reason if reason else ''}",
+#                     "metadata": {
+#                         "type": None
+#                     },
+#                 }
+#             )
+#             pass
 
-        await ctx.respond(f"```{jsonresponse}```", ephemeral=False)
+#         await ctx.respond(f"```{jsonresponse}```", ephemeral=False)
+
+
 if DISCORDBOTLOGSTATS == "1":
     def tf1pullstats(playerdetails,serverid):
         """displays a person's stats in game to them."""
@@ -2449,6 +2581,8 @@ if DISCORDBOTLOGSTATS == "1":
                 return f"{value:.2f}{ calculation.split('/')[0].strip()[0].lower()}/{ calculation.split('/')[1].strip()[0].lower()}"
         elif format == "map":
             return str(MAP_NAME_TABLE.get(value, str(MAP_NAME_TABLE.get("mp_"+value, value))))
+        elif format == "date":
+            return datetime.fromtimestamp(value).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(value).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(value).day % 10, 'th')} of %B %Y")
         return value
     
         
@@ -3583,7 +3717,7 @@ def colourmessage(message,serverid):
     if message["metadata"].get("ismuted"):
         discordtotitanfall[serverid]["messages"].append(
         {
-            "content":output["friendly"],
+            "content":f"MUTE{output["friendly"]}",
             "uidoverride": [getpriority(message,"uid",["metadata","uid"])]
         }
         )
@@ -3665,7 +3799,14 @@ def recieveflaskprintrequests():
         # print(any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())),"e")
         # print(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values()))
         # print(json.dumps({"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{**({"nameprefix": colourslink[discorduid]["nameprefix"]} if getpriority(colourslink,[discorduid,"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())) else {}),**{x: str(y) for x,y in list(filter(lambda x:  not getpriority(context,["commands","ingamecommands",x[0],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",x[0],"serversenabled"])  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))}}},indent=4))
-        return {"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{**({"nameprefix": colourslink[discorduid]["nameprefix"]} if getpriority(colourslink,[discorduid,"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())) else {}),**{x: str(y) for x,y in list(filter(lambda x:  not getpriority(context,["commands","ingamecommands",x[0],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",x[0],"serversenabled"])  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))}}}
+        sanction = getpriority(readplayeruidpreferences(data["uid"],False),["banstf2","sanction"],nofind={})
+        # print("mew",sanction)
+        if not sanction or (sanction.get("expiry") and int(time.time()) > sanction["expiry"]):
+            sanction = {}
+        elif sanction:
+            sanction["expiry"] = modifyvalue(sanction["expiry"], "date") if sanction["expiry"] else "Never ever"
+        print(json.dumps({"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{**({"nameprefix": colourslink[discorduid]["nameprefix"]} if getpriority(colourslink,[discorduid,"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())) else {}),**{x: str(y) for x,y in list(filter(lambda x: internaltoggles.get(x[0]) and (not getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]))  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))},**sanction}},indent=4))
+        return {"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{**({"nameprefix": colourslink[discorduid]["nameprefix"]} if getpriority(colourslink,[discorduid,"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())) else {}),**{x: str(y) for x,y in list(filter(lambda x: internaltoggles.get(x[0]) and (not getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]))  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))},**sanction}}
         # return output
     @app.route("/getrunningservers", methods=["POST"])
     def getrunningservers():
@@ -4801,6 +4942,7 @@ def tf1readsend(serverid,checkstatus):
                         # print("beep boop")
                         inputstring[command["id"]] = client.run(*command["command"].split(" "))
                         # print("I managed it!")
+                        # print(inputstring[command["id"]])
                         continue
                         
                     # print("BEEP BOOP",filterquotes("".join(command["args"])))
@@ -6878,7 +7020,7 @@ if SHOULDUSETHROWAI == "1":
             "messagecontent": "!thrownonrcon",
             "metadata": {"type":"botcommand"},
             "servername" :context["servers"][serverid]["name"],
-            "player":  f"`BOT COMMAND` sent by {{ctx.author.name}}"
+            "player":  f"`BOT COMMAND` sent by {ctx.author.name}"
         })
         if ctx.author.id in lasttimethrown["passes"].keys() and lasttimethrown["passes"][ctx.author.id] > time.time() - 60:
             print("has been allowed recently")

@@ -102,6 +102,7 @@ struct {
 	bool iveaskedtostoprequests = false
 	bool hasmapchanged = false
 	bool uselocaltags = false
+	bool enforcesanctions = false
 } serverdetails
 
 
@@ -170,11 +171,11 @@ void function discordloggerinit() {
 	SetConVarString("discordloggingmatchid",serverdetails.matchid)
 	registeredfunctions.funcs = getregisteredfunctions()
 
-	#if SANCTIONAPI_ENABLED
-		print("[DiscordLogger]Sanction API enabled")
-		registeredfunctions.funcs.append(discordlogsanction)
-		registeredfunctions.funcs.append(discordlogsanctionremove)
-	#endif
+	// #if SANCTIONAPI_ENABLED
+	// 	print("[DiscordLogger]Sanction API enabled")
+	// 	registeredfunctions.funcs.append(discordlogsanction)
+	// 	registeredfunctions.funcs.append(discordlogsanctionremove)
+	// #endif
 
 	if(!GetConVarBool("discordloggingenabled"))
 	{
@@ -201,6 +202,9 @@ void function discordloggerinit() {
 	serverdetails.serverid = GetConVarString("discordloggingserverid")
 	if (GetConVarInt("discordloguselocaltags") == 1) {
 		serverdetails.uselocaltags = true
+	}
+	if (GetConVarInt("enforcediscordsanctions") == 1) {
+		serverdetails.enforcesanctions = true
 	}
 	if (GetConVarInt("discordloggingserverid") == 0){
 		print("[DiscordLogger]Server ID not set, please set it in the console PLEASE FIX THIS")
@@ -356,9 +360,16 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 		// 	meta["pfp"] <- "I don't know"
 		// }
 	}
-	#if SANCTIONAPI_ENABLED
-		meta["ismuted"]  <- CheckMute(message.player)
-	#endif
+	if ((discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "mute"||discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "meanmute" )&& serverdetails.enforcesanctions){
+		meta["ismuted"]  <- true
+		message.shouldBlock = true
+		if (discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "mute"){
+			discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m you are muted. Expires: [38;5;203m"+discordlogpullplayerstat(message.player.GetUID(),"expiry"))
+			discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Reason: [38;5;203m"+discordlogpullplayerstat(message.player.GetUID(),"reason"))
+			discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Join the discord at !discord to complain")
+
+		}
+	}
 	meta["teamtype"] <- teammessage
 	meta["teamint"] <- message.player.GetTeam()
 	meta["type"] <- "usermessagepfp"
@@ -387,9 +398,11 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	meta["blockedmessage"] <- (found && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain)
 	if (found && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain) {
 		message.shouldBlock = true;
+		// discordlogsendmessage("HEREEEE")
 	}
-	if (serverdetails.uselocaltags && discordlogpullplayerstat(message.player.GetUID(),"nameprefix") != ""){
+	if (serverdetails.uselocaltags && discordlogpullplayerstat(message.player.GetUID(),"nameprefix") != "" && !((discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "mute"||discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "meanmute" )&& serverdetails.enforcesanctions)){
 		meta["donotcolour"] <- true
+		// discordlogsendmessage("HEREEEE2")
 		if (!message.isTeam){
 		discordlogsendmessage("[112m["+discordlogpullplayerstat(message.player.GetUID(),"nameprefix")+"] "+ message.player.GetPlayerName()+":[110m " + message.message,( message.player.GetTeam() - 3)*-1+2)	
 		
@@ -453,7 +466,7 @@ void function checkshouldblockmessages(entity player){
 	request.url = serverdetails.Requestpath + "/playerdetails"
 	request.body = EncodeJSON(params)
 	
-	void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse response )
+	void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse response ) : (player)
     {
 		// print("[DiscordLogger] MSG SENT")
 				if (response.statusCode
@@ -483,6 +496,10 @@ void function checkshouldblockmessages(entity player){
 		// table texts = expect table(responses["texts"])
 		// table textsv2 = expect table(responses["textsv2"])
 		// string textvalidation = expect string(messagess["textvalid
+		discordlogsendmessage(discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype"))
+			if (discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "ban" && serverdetails.enforcesanctions){
+				NSDisconnectPlayer(player,"You are banned, Expires: "+discordlogpullplayerstat(expect string(responses["uid"]),"expiry")+" Reason: "+ discordlogpullplayerstat(expect string(responses["uid"]),"reason"))
+			}
     }
 
     void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
@@ -495,6 +512,7 @@ void function checkshouldblockmessages(entity player){
 	// print(EncodeJSON(params))
 
     NSHttpRequest(request, onSuccess, onFailure)
+
 }
 void function discordlogpostmessages(outgoingmessage message){
 	thread Postmessages(message)
