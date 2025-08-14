@@ -3717,7 +3717,7 @@ def colourmessage(message,serverid):
     if message["metadata"].get("ismuted"):
         discordtotitanfall[serverid]["messages"].append(
         {
-            "content":f"MUTE{output["friendly"]}",
+            "content":f"{output["friendly"]}",
             "uidoverride": [getpriority(message,"uid",["metadata","uid"])]
         }
         )

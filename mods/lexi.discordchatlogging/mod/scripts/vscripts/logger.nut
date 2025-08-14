@@ -366,7 +366,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 		if (discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "mute"){
 			discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m you are muted. Expires: [38;5;203m"+discordlogpullplayerstat(message.player.GetUID(),"expiry"))
 			discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Reason: [38;5;203m"+discordlogpullplayerstat(message.player.GetUID(),"reason"))
-			discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Join the discord at !discord to complain")
+			discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Join the discord at [38;5;219m!discord[110m to complain")
 
 		}
 	}
@@ -496,7 +496,7 @@ void function checkshouldblockmessages(entity player){
 		// table texts = expect table(responses["texts"])
 		// table textsv2 = expect table(responses["textsv2"])
 		// string textvalidation = expect string(messagess["textvalid
-		discordlogsendmessage(discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype"))
+		// discordlogsendmessage(discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype"))
 			if (discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "ban" && serverdetails.enforcesanctions){
 				NSDisconnectPlayer(player,"You are banned, Expires: "+discordlogpullplayerstat(expect string(responses["uid"]),"expiry")+" Reason: "+ discordlogpullplayerstat(expect string(responses["uid"]),"reason"))
 			}
