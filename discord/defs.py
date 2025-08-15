@@ -533,7 +533,7 @@ GUNS_TITAN = [ {
     }]
 GUNS_PILOT = [
     {
-    "weapon_name": "re125",
+    "weapon_name": "RE125",
     "boundgun":"mp_weapon_autopistol",
     "png_name": "re125",
     "mods": [
