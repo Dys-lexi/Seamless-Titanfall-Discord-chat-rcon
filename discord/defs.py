@@ -533,6 +533,16 @@ GUNS_TITAN = [ {
     }]
 GUNS_PILOT = [
     {
+    "weapon_name": "re125",
+    "boundgun":"mp_weapon_autopistol",
+    "png_name": "re125",
+    "mods": [
+        "rocket_arena"
+    ],
+    "modsfiltertype": "include",
+    "killedby" : ["player"]
+    },
+    {
         "weapon_name": "arc tool",
         "png_name": "arc tool",
         "mods": [],
@@ -1258,15 +1268,16 @@ MISC_PILOT = [
 ]
 
 CORES = [
-        {
-    "weapon_name": "mp_titanweapon_predator_cannon",
+    {
+    "weapon_name": "Smart core",
+    "boundgun":"mp_titanweapon_predator_cannon",
     "png_name": "mp_titancore_siege_mode",
     "mods": [
         "Smart_Core"
     ],
     "modsfiltertype": "include",
     "killedby" : ["player"]
-},
+    },
     {
         "weapon_name": "mp_titancore_shift_core",
         "png_name": "mp_titancore_shift_core",

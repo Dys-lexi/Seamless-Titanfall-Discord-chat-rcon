@@ -1580,6 +1580,7 @@ if DISCORDBOTLOGSTATS == "1":
                     "modsfiltertype":"include",
                     "killedby":["player"]
                 }]
+        # print(searchterm)
         timestamp = await asyncio.to_thread(getweaponspng, fliptovictims != "No",searchterm, 50 if searchterm else 10,False,350,player[0]["uid"])
         cdn_url = f"{GLOBALIP}/cdn/{timestamp}"
         if not timestamp:
@@ -2248,11 +2249,33 @@ if DISCORDBOTLOGSTATS == "1":
             tfdb.close()
             return rows
         # print("calculated pngleaderboard in", (int(time.time()*100)-now)/100,"seconds")
+        # print(specificweapon)
         if specificweapon:
             specificweaponsallowed = list(map(lambda x: x["weapon_name"],specificweapon))
             weapon_kills = {"main":{},"cutoff":{}}
             for name,cutoff in timecutoffs.items():
-                for weapon, killer, mods, stabcount, whomurdered in bvsuggestedthistome(cutoff,swoptovictims):
+                stabsofweapons = bvsuggestedthistome(cutoff,swoptovictims)
+                for weapon, killer, mods, stabcount, whomurdered in stabsofweapons:
+                    if weapon not in specificweaponsallowed:
+                        continue
+                    index = specificweaponsallowed.index(weapon)
+                    modswanted = (specificweapon[index].get("mods",[]))
+                    modsused = (mods.split(" "))
+                    if modsused == ['']:
+                        modsused = []
+                    modsfiltertype = specificweapon[index].get("modswanted","include")
+                    mustbekilledby = specificweapon[index].get("killedby",[])
+                    # print(specificweapon[index])
+                    if mustbekilledby and whomurdered and whomurdered not in mustbekilledby:
+                        continue
+                    if not (modsfiltertype == "include" and (not modswanted or list(filter(lambda x: x in modsused,modswanted)))) and not (modsfiltertype == "anyof" and len(set([*modswanted,*modsused])) < len([*modswanted,*modsused])) and not (modsfiltertype == "exclude" and len(set([*modswanted,*modsused])) == len([*modswanted,*modsused])) and not (modsfiltertype == "exact" and str(sorted(modswanted)) == str(sorted(modsused))):
+                        continue
+                    if not killer: killer = whomurdered
+                    weapon_kills[name].setdefault(specificweapon[index]["png_name"],{})
+                    weapon_kills[name][specificweapon[index]["png_name"]].setdefault(killer,0)
+                    weapon_kills[name][specificweapon[index]["png_name"]][killer] += stabcount
+                specificweaponsallowed = list(map(lambda x: x.get("boundgun"),specificweapon))
+                for weapon, killer, mods, stabcount, whomurdered in stabsofweapons:
                     if weapon not in specificweaponsallowed:
                         continue
                     index = specificweaponsallowed.index(weapon)
@@ -3601,6 +3624,7 @@ def replace_mentions_with_display_names(message):
         display_name = user.display_name if user.display_name else user.global_name
         content = content.replace(f'<@{user.id}>', f'@{display_name}')
         content = content.replace(f'<@!{user.id}>', f'@{display_name}')
+    print("cont",content)
     return content
 
 @bot.event
@@ -3621,31 +3645,31 @@ async def on_message(message):
         # if serverid not in messagestosend.keys():
         #     messagestosend[serverid] = []
 
-
+        addedmentions = replace_mentions_with_display_names(message)
     
         initdiscordtotitanfall(serverid)
         if (
             len(
-                f"{ANSICOLOUR}{message.author.nick if message.author.nick is not None else message.author.display_name}: {PREFIXES['neutral']}{message.content}"
+                f"{ANSICOLOUR}{message.author.nick if message.author.nick is not None else message.author.display_name}: {PREFIXES['neutral']}{addedmentions}"
             )
             > 254 - bool(context["servers"].get(serverid, {}).get("istf1server",False))*tf1messagesizesubtract
         ):
             await message.channel.send("Message too long, cannot send.")
             return
-        authornick = computeauthornick(message.author.nick if message.author.nick is not None else message.author.display_name,message.author.id,message.content,serverid)
+        authornick = computeauthornick(message.author.nick if message.author.nick is not None else message.author.display_name,message.author.id,addedmentions,serverid)
         # dotreacted = None
         # if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 45:
         #     dotreacted = "🔴"
         # elif discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5:
         #     dotreacted = "🟡" 
-        if message.content != "": #and not context["servers"].get(serverid, {}).get("istf1server",False):
-            # print(f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {message.content}")
-            # print(len(f"{authornick}: {PREFIXES['neutral']}{message.content}"),f"{authornick}: {PREFIXES['neutral']}{message.content}\033[0m")
-            print(f"{getpriority(context,["servers",serverid,"name"])}:",len(f"{authornick}{': ' if not  bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{message.content}"),(f"{authornick}{': ' if not  bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{message.content}"))
+        if addedmentions != "": #and not context["servers"].get(serverid, {}).get("istf1server",False):
+            # print(f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {addedmentions}")
+            # print(len(f"{authornick}: {PREFIXES['neutral']}{addedmentions}"),f"{authornick}: {PREFIXES['neutral']}{addedmentions}\033[0m")
+            print(f"{getpriority(context,["servers",serverid,"name"])}:",len(f"{authornick}{': ' if not  bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{addedmentions}"),(f"{authornick}{': ' if not  bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{addedmentions}"))
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": message.id,
-                    "content": f"{authornick}{': ' if not  bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{message.content}",
+                    "content": f"{authornick}{': ' if not  bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{addedmentions}",
                     # "teamoverride": 4,
                     # "isteammessage": False,
                     # "uidoverride": []
@@ -3661,7 +3685,7 @@ async def on_message(message):
             image = await createimage(message)
             await returncommandfeedback(*sendrconcommand(serverid,f"!sendimage {' '.join(image)}"), message, iscommandnotmessage = False)
         # messagestosend[serverid].append(
-        #     f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {PREFIXES['neutral']}{message.content}"
+        #     f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {PREFIXES['neutral']}{addedmentions}"
         # )
 def pullid(uid,force = False):
     """converts a tf2 uid to and from discord"""
