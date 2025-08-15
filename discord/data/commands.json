@@ -29,6 +29,14 @@
             "description": "Ping somone on discord. run pingtest to see who it would ping",
             "shouldblock": false
         },
+        "sanction": {
+            "games": [
+            ],
+            "function": "addsanction",
+            "run": "thread",
+            "description": "Sanction somone, internal function",
+            "shouldblock": false
+        },
         "settings":{
             "games": [
                 "tf2","tf1"

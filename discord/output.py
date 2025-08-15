@@ -944,7 +944,7 @@ def processaliases():
     if not context.get("commands",{}).get("ingamecommands",{}):
         return
     context["commands"]["ingamecommands"] = dict(sorted({**context["commands"]["ingamecommands"],**dict(functools.reduce(lambda a,b:{**a,**{cmd: {"alias":b[0],**dict(filter(lambda x:x[0] != "aliases",b[1].items()))}for cmd in b[1]["aliases"]}}, map(lambda x:[x[0],{**x[1],"aliases":[x[1]["aliases"]] if isinstance(x[1]["aliases"],str) else x[1]["aliases"]}],filter(lambda x:x[1].get("aliases"), context["commands"]["ingamecommands"].items())),{}))}.items(),key = lambda z:z[1]["alias"] if z[1].get("alias") else z[0]))
-    internaltoggles = dict(map (lambda x: [x[0],x[0]] if "internaltoggle" not in x[1] else [x[0],x[1]["internaltoggle"]],context["commands"]["ingamecommands"].items()))
+    internaltoggles = dict(map (lambda x: [x[0],x[0]] if "internaltoggle" not in x[1] else [x[1]["internaltoggle"],x[0]],context["commands"]["ingamecommands"].items()))
 processaliases()
 # print(json.dumps(internaltoggles,indent=4))
 # print(json.dumps(context["commands"]["ingamecommands"],indent=2))
@@ -1204,36 +1204,42 @@ async def sanctiontf2(
         })
     ) = None,
     ):
+    
     if not checkrconallowed(ctx.author):
-        if not checkrconallowed(ctx.author):
-            await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-            await ctx.respond("You are not allowed to use this command.", ephemeral=False)
-            return
-    if len(name.rsplit("->",1)) > 1: name = name.rsplit("->",1)[1][1:-1]
-    matchingplayers = resolveplayeruidfromdb(name, None,True)
-    if len (matchingplayers) > 1:
-        multistring = "\n" + "\n".join(f"{i+1}) {p['name']} uid: {p['uid']}" for i, p in enumerate(matchingplayers[0:10]))
-        await ctx.respond(f"{len(matchingplayers)} players found, please be more specific: {multistring}", ephemeral=False)
-        return
-    elif len(matchingplayers) == 0:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-        await ctx.respond("No players found", ephemeral=False)
+        await ctx.respond("You are not allowed to use this command.")
         return
+    
+    serverid = getchannelidfromname(servername, None) 
+    await ctx.respond( process_sanctiontf2(serverid,author.name,name ,sanctiontype, reason, expiry))
+def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry=None):
+    
+    if len(name.rsplit("->",1)) > 1: 
+        name = name.rsplit("->",1)[1][1:-1]
+    
+    matchingplayers = resolveplayeruidfromdb(name, "uid",True)
+    if len(matchingplayers) > 1:
+        multistring = "\n" + "\n".join(f"{i+1}) {p['name']} uid: {p['uid']}" for i, p in enumerate(matchingplayers[0:10]))
+        return f"{len(matchingplayers)} players found, please be more specific: {multistring}"
+    elif len(matchingplayers) == 0:
+        return "No players found"
+    
     player = matchingplayers[0]
     if getpriority(readplayeruidpreferences(player["uid"],False),["banstf2","sanction"]):
-        await ctx.respond(f"{player["name"]} already has a sanction!\n{getpriority(readplayeruidpreferences(player["uid"],False),["banstf2","sanction"])}")
-        return
+        return f"{player['name']} already has a sanction!\n{getpriority(readplayeruidpreferences(player['uid'],False),['banstf2','sanction'])}"
+    
     if expiry:
         try:
             expiry_date = datetime.strptime(expiry, "%Y-%m-%d").replace(tzinfo=timezone.utc)
             expiry = int(expiry_date.timestamp())
         except ValueError:
-            await ctx.respond("Invalid expiry date format. Use yyyy-mm-dd", ephemeral=True)
-            return
+            if expiry.isdigit():
+                expiry = int(expiry) + int(time.time())
+            else:
+                return "Invalid expiry date format. Use yyyy-mm-dd"
     else:
         expiry = None
     
-    await ctx.defer()
     setplayeruidpreferences(["banstf2","sanction"], {"reason":reason,"expiry":expiry,"sanctiontype":sanctiontype}, player['uid'])
     expiry_log_text = modifyvalue(expiry, "date") if expiry else None
     messageflush.append(
@@ -1244,17 +1250,22 @@ async def sanctiontf2(
             "timestamp": int(time.time()),
             "globalmessage": True,
             "overridechannel": "globalchannel",
-            "messagecontent": f"New {sanctiontype} uploaded by {ctx.author.name} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry_log_text if expiry_log_text else ''} {'Reason: ' + reason if reason else ''}",
+            "messagecontent": f"New {sanctiontype} uploaded by {sender} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry_log_text if expiry_log_text else ''} {'Reason: ' + reason if reason else ''}",
             "metadata": {
                 "type": None
             },
         }
     )
     expiry_text = "forever" if expiry is None else modifyvalue(expiry, "date")
-    await ctx.respond(f"**{sanctiontype.capitalize()}** applied to **{player['name']}** (UID: `{player['uid']}`) until **{expiry_text}**\nReason: {reason}")
-    serverid = getchannelidfromname(servername, ctx)
+    
+    
+    
     if serverid:
         asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {player["uid"]}'),"fake context",None,True,False), bot.loop)
+    
+    # return f"**{sanctiontype.capitalize()}** applied to **{player['name']}** (UID: `{player['uid']}`) until **{expiry_text}**\nReason: {reason}"
+    return f"{sanctiontype.capitalize()} added to {player["name"]} (UID: {player["uid"]}) Until {expiry_text}\nReason: {reason}"
+
 
 
 @bot.slash_command(
@@ -1264,16 +1275,16 @@ async def sanctiontf2(
 async def sanctionremovetf2(
     ctx,
     name: Option(str, "The playername", autocomplete=autocompletenamesanduidsfromdb),
-            servername: Option(
-        str,
-        "The servername (omit for current channel's server)",
-        required=False,
-        **({
-            "choices": list(s.get("name", "Unknown") for s in context["servers"].values())
-        } if SERVERNAMEISCHOICE == "1" else {
-            "autocomplete": autocompleteserversfromdb
-        })
-    ) = None,
+    #         servername: Option(
+    #     str,
+    #     "The servername (omit for current channel's server)",
+    #     required=False,
+    #     **({
+    #         "choices": list(s.get("name", "Unknown") for s in context["servers"].values())
+    #     } if SERVERNAMEISCHOICE == "1" else {
+    #         "autocomplete": autocompleteserversfromdb
+    #     })
+    # ) = None,
 ):
     if not checkrconallowed(ctx.author):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
@@ -1303,9 +1314,10 @@ async def sanctionremovetf2(
         await ctx.respond(f"**{ban.get("sanctiontype")}** removed for **{player['name']}** (UID: `{player['uid']}`)")
     else:
         await ctx.respond(f"No sanction found for {player["name"]} (UID: `{player['uid']}`)")
-    serverid = getchannelidfromname(servername, ctx)
-    if serverid:
-        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {player["uid"]}'),"fake context",None,True,False), bot.loop)
+    # I do not believe a servername is needed anymore - bans are enforced after playerdata is loaded now, so we don't need to manually reload it here
+    # serverid = getchannelidfromname(servername, ctx)
+    # if serverid:
+    #     asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {player["uid"]}'),"fake context",None,True,False), bot.loop)
 
 
 @bot.slash_command(
@@ -5583,8 +5595,12 @@ def pingperson(message,serverid,isfromserver):
     # I've got this!
 
 
-    
-
+def addsanction(message,serverid,isfromserver):
+    for msg in  process_sanctiontf2(serverid,message["sender"],message["uid"],message["sanctiontype"],message["reason"],message["expiry"]).split("\n"):
+        discordtotitanfall[serverid]["messages"].append({
+            "content":f"{PREFIXES['discord']}{msg}",
+        })
+    asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {message["uid"]}'),"fake context",None,True,False), bot.loop)
 
 
 
