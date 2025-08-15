@@ -661,7 +661,7 @@ elif OVERRIDEIPFORCDNLEADERBOARD != "hidden":
     GLOBALIP = OVERRIDEIPFORCDNLEADERBOARD
 print("running discord logger bot")
 if MORECOLOURS == "1":
-    print("\nColours:"+"".join([f"{"\n" if not i % 3 else ""}{x[1].split("m")[0]}m{x[0].ljust(15)}" for i,x in enumerate(PREFIXES.items())]))
+    print("Colours:"+"".join([f"{"\n" if not i % 3 else ""}{x[1].split("m")[0]}m{x[0].ljust(15)}" for i,x in enumerate(PREFIXES.items())]))
 
 if POSTGRESQLDBURL == "0":
     print("RUNNING ON SQLITEDB")
@@ -1122,9 +1122,12 @@ async def on_member_joinadd(member):
 )
 async def pullmessagelogs(ctx, filterword: str = ""):
     """ returns all messages with that matching string"""
+
+    await ctx.defer()
+    threading.Thread(target=threadwrap, daemon=True, args=(threadedfinder, ctx,filterword)).start()
+def threadedfinder(ctx,filterword):
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
-    await ctx.defer()
     c.execute("""
         SELECT message, type, serverid
         FROM messagelogger
@@ -1144,10 +1147,10 @@ async def pullmessagelogs(ctx, filterword: str = ""):
         file_obj = io.BytesIO(json.dumps(matches, indent=4).encode('utf-8'))
         file_obj.seek(0)
         discord_file = discord.File(file_obj, filename="matches.json")
-        await ctx.respond(f"Matching Messages{truncationmessage}:", file=discord_file)
+        asyncio.run_coroutine_threadsafe(ctx.respond(f"Matching Messages{truncationmessage}:", file=discord_file), bot.loop)
     else:
-        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-        await ctx.respond("No matches found.")
+        asyncio.run_coroutine_threadsafe(asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND), bot.loop)
+        asyncio.run_coroutine_threadsafe(ctx.respond("No matches found."), bot.loop)
 
 
 @bot.slash_command(
@@ -1210,8 +1213,8 @@ async def sanctiontf2(
         await ctx.respond("You are not allowed to use this command.")
         return
     
-    serverid = getchannelidfromname(servername, None) 
-    await ctx.respond( process_sanctiontf2(serverid,author.name,name ,sanctiontype, reason, expiry))
+    serverid = getchannelidfromname(servername,ctx)
+    await ctx.respond( process_sanctiontf2(serverid,ctx.author.name,name ,sanctiontype, reason, expiry))
 def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry=None):
     
     if len(name.rsplit("->",1)) > 1: 
@@ -1225,8 +1228,13 @@ def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry=None)
         return "No players found"
     
     player = matchingplayers[0]
-    if getpriority(readplayeruidpreferences(player["uid"],False),["banstf2","sanction"]):
-        return f"{player['name']} already has a sanction!\n{getpriority(readplayeruidpreferences(player['uid'],False),['banstf2','sanction'])}"
+    sanction = getpriority(readplayeruidpreferences(player["uid"],False),["banstf2","sanction"])
+    if sanction and not (sanction.get("expiry") and sanction["expiry"] and int(time.time()) > sanction["expiry"]):
+        try:
+            expiry_text = modifyvalue(sanction["expiry"], "date") if sanction["expiry"] else "Never"
+        except (OSError, ValueError, OverflowError):
+            expiry_text = f"Invalid date ({sanction['expiry']})"
+        return f"{player['name']} already has a sanction!\n{sanction['sanctiontype']} expires: {expiry_text}"
     
     if expiry:
         try:
@@ -1234,7 +1242,7 @@ def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry=None)
             expiry = int(expiry_date.timestamp())
         except ValueError:
             if expiry.isdigit():
-                expiry = int(expiry) + int(time.time())
+                expiry = int(expiry)*86400 + int(time.time())
             else:
                 return "Invalid expiry date format. Use yyyy-mm-dd"
     else:
@@ -1275,16 +1283,16 @@ def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry=None)
 async def sanctionremovetf2(
     ctx,
     name: Option(str, "The playername", autocomplete=autocompletenamesanduidsfromdb),
-    #         servername: Option(
-    #     str,
-    #     "The servername (omit for current channel's server)",
-    #     required=False,
-    #     **({
-    #         "choices": list(s.get("name", "Unknown") for s in context["servers"].values())
-    #     } if SERVERNAMEISCHOICE == "1" else {
-    #         "autocomplete": autocompleteserversfromdb
-    #     })
-    # ) = None,
+            servername: Option(
+        str,
+        "The servername (omit for current channel's server)",
+        required=False,
+        **({
+            "choices": list(s.get("name", "Unknown") for s in context["servers"].values())
+        } if SERVERNAMEISCHOICE == "1" else {
+            "autocomplete": autocompleteserversfromdb
+        })
+    ) = None,
 ):
     if not checkrconallowed(ctx.author):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
@@ -1315,9 +1323,10 @@ async def sanctionremovetf2(
     else:
         await ctx.respond(f"No sanction found for {player["name"]} (UID: `{player['uid']}`)")
     # I do not believe a servername is needed anymore - bans are enforced after playerdata is loaded now, so we don't need to manually reload it here
-    # serverid = getchannelidfromname(servername, ctx)
-    # if serverid:
-    #     asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {player["uid"]}'),"fake context",None,True,False), bot.loop)
+    # it is. mutes would not reload (till map change / any other toggle)
+    serverid = getchannelidfromname(servername, ctx)
+    if serverid:
+        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {player["uid"]}'),"fake context",None,True,False), bot.loop)
 
 
 @bot.slash_command(
@@ -1751,7 +1760,7 @@ if DISCORDBOTLOGSTATS == "1":
         leaderboardid = leaderboard_entry.get("id", 0)
         leaderboardcategorysshown = leaderboard_entry["categorys"]
         if isinstance(leaderboardcategorysshown, list) and GLOBALIP != 0:
-            print("trying to update cdn leaderboard")
+            # print("trying to update cdn leaderboard")
             try:
                 # print("here")
                 # individual = leaderboard_entry.get("individual",{})
@@ -2129,7 +2138,7 @@ if DISCORDBOTLOGSTATS == "1":
     def getweaponspng(swoptovictims = False,specificweapon=False, max_players=10, COLUMNS=False, widthoverride = 300,playeroverride = False):
         """calculates all the pngleaderboards"""
         global imagescdn
-        print("getting pngleaderboard")
+        # print("getting pngleaderboard")
         now = int(time.time()*100)
         FONT_PATH = "./fonts/DejaVuSans-Bold.ttf"
 
@@ -3585,6 +3594,15 @@ def rgb_to_ansi(value, vary=0):
     output = "[38;2;" + str(value[0]) + ";" + str(value[1]) + ";" + str(value[2]) + "m"
     return output
 
+def replace_mentions_with_display_names(message):
+    """Replace Discord mentions with display names"""
+    content = message.content
+    for user in message.mentions:
+        display_name = user.display_name if user.display_name else user.global_name
+        content = content.replace(f'<@{user.id}>', f'@{display_name}')
+        content = content.replace(f'<@!{user.id}>', f'@{display_name}')
+    return content
+
 @bot.event
 async def on_message(message):
     """handles capturing a message, colouring it, and sending to the relevant server"""
@@ -3623,7 +3641,7 @@ async def on_message(message):
         if message.content != "": #and not context["servers"].get(serverid, {}).get("istf1server",False):
             # print(f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {message.content}")
             # print(len(f"{authornick}: {PREFIXES['neutral']}{message.content}"),f"{authornick}: {PREFIXES['neutral']}{message.content}\033[0m")
-            print(len(f"{authornick}{': ' if not  bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{message.content}"),(f"{authornick}{': ' if not  bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{message.content}"))
+            print(f"{getpriority(context,["servers",serverid,"name"])}:",len(f"{authornick}{': ' if not  bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{message.content}"),(f"{authornick}{': ' if not  bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{PREFIXES['neutral']}{': ' if   bool(context['servers'].get(serverid, {}).get('istf1server',False)) else ''}{message.content}"))
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": message.id,
@@ -3865,7 +3883,7 @@ def recieveflaskprintrequests():
         # del imagescdn[filename]
         if len(imagescdn.keys()) > 30:
             del imagescdn[list(imagescdn.keys())[0]]
-        print("returning file",filename)
+        # print("returning file",filename)
         return send_file(cloned, mimetype="image/png")
 
 
@@ -5434,7 +5452,7 @@ def tftodiscordcommand(specificommand,command,serverid):
     global context
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
     if specificommand:
-        print("SERVER COMMAND REQUESTED",[serverid],specificommand)
+        print("server command requested for",getpriority(context,["servers",serverid,"name"]),specificommand)
     # return
 
 
@@ -5452,7 +5470,7 @@ def tftodiscordcommand(specificommand,command,serverid):
     # print(not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() and ("tf1" if context["servers"].get(serverid, {}).get("istf1server", False) else "tf2") in REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
     if not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in context["commands"]["ingamecommands"].keys() and ("tf1" if context["servers"].get(serverid, {}).get("istf1server", False) else "tf2") in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"] and (not context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]].get("serversenabled",False) or int(serverid) in context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]]["serversenabled"]) and context["commands"]["ingamecommands"][command["originalmessage"][1:].split(" ")[0]].get("run") != "togglestat":
         specificommand = command["originalmessage"][1:].split(" ")[0].lower()
-        print("CLIENT COMMAND REQUESTED",[serverid],specificommand)
+        print("client command requested for",getpriority(context,["servers",serverid,"name"]),specificommand)
         commandargs = command["originalmessage"][1:].split(" ")[1:]
         # print( "e",context["commands"]["ingamecommands"][specificommand].get("permsneeded",False) and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"]),context["commands"]["ingamecommands"][specificommand].get("permsneeded",False)))
         if context["commands"]["ingamecommands"][specificommand].get("permsneeded",False) and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"]),context["commands"]["ingamecommands"][specificommand].get("permsneeded",False),serverid=serverid):
@@ -5761,7 +5779,7 @@ def shownamecolours(message,serverid,isfromserver):
 
 def checkbantf1(message,serverid,isfromserver):
     """Checks and processes TF1 ban status for players"""
-    print("CHECKING BANNNS")
+    # print("CHECKING BANNNS")
 
     c = postgresem("./data/tf2helper.db")
     c.execute("SELECT id FROM banstf1 WHERE playerip = ? AND playername = ? AND playeruid = ?",(message["ip"],message["name"],int(message["uid"])))
@@ -6502,17 +6520,17 @@ def checkifbad(message):
 async def outputmsg(channel, output, serverid, USEDYNAMICPFPS):
     global context
 
-    content =  "\n".join(
+    content =  [
             (discord.utils.escape_mentions(x["message"]) if  not x["meta"].get("allowmentions",False) else x["message"])
             for x in output[serverid]
             if (x["type"] not in  ["usermessagepfp","impersonate"] or USEDYNAMICPFPS != "1") 
-        )
+        ]
     
 
     if not content:
         return
-    print(f"Tf -> Discord\n{content}")
-    message = await channel.send(content)
+    print(f"{getpriority(context,["servers",serverid,"name"])}: {f"\n{getpriority(context,["servers",serverid,"name"])}: ".join(content)}")
+    message = await channel.send(("\n".join(content)))
     # print(f"Sent message ID: {message.id}")
     # print("OUTPUT",output[serverid])
     await checkfilters(output[serverid], message)
@@ -6658,7 +6676,9 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
             
             async with aiohttp.ClientSession() as session:
                 # print(pilotstates[serverid])
-                print(f"Tf -> Discord\n{username[0:80]}: {f"\n{username[0:80]}: ".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))}")
+                print(f"{getpriority(context,["servers",serverid,"name"])}: {username[0:80]}: {f"\n{getpriority(context,["servers",serverid,"name"])}: {username[0:80]}: ".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))}")
+
+                # print(f"Tf -> Discord\n{username[0:80]}: {f"\n{username[0:80]}: ".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))}")
                 message = await actualwebhooks[pilotstates[serverid]["webhook"]].send((
                     "\n".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))),#+" "+pilotstates[serverid]["webhook"],
                     username=f"{username[0:80]}",
@@ -7368,7 +7388,7 @@ def addmatchtodb(matchid,serverid,currentmap):
     """Adds match information to database for tracking game sessions"""
     global matchids,playercontext
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False) # {'tf1' if istf1 else ''}
-    print("adding match to db",matchid,serverid)
+    # print("adding match to db",matchid,serverid)
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
     c.execute(f"SELECT matchid FROM matchid{'tf1' if istf1 else ''} WHERE matchid = ?",(str(matchid),))
@@ -7376,7 +7396,7 @@ def addmatchtodb(matchid,serverid,currentmap):
     if matchidcheck:
         if serverid not in playercontext.keys():
             playercontext[serverid] = {}
-        print("already in db, loading data")
+        # print("already in db, loading data")
         c.execute(f"SELECT playeruid,joinatunix,leftatunix,endtype,serverid,scoregained,titankills,pilotkills,npckills,deaths,map,duration,id,timecounter FROM playtime{'tf1' if istf1 else ''} WHERE matchid = ?",(str(matchid),))
         matchdata = c.fetchall()
         c.execute(f"SELECT playername,playeruid FROM uidnamelink{'tf1' if istf1 else ''}")
@@ -7570,7 +7590,7 @@ def playerpolllog(data,serverid,statuscode):
 
     # Perform deletions after the loop
     for uid, name, matchidofsave in to_delete:
-        print("deleting", uid, name, matchidofsave)
+        # print("deleting", uid, name, matchidofsave)
         try:
             if playercontext[serverid][uid][name].get(matchidofsave):
                 del playercontext[serverid][uid][name][matchidofsave]
