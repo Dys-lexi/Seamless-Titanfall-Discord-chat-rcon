@@ -48,6 +48,7 @@ struct {
 
 array <discordlogcommand functionref(discordlogcommand)> function getregisteredfunctions(){
 	return [
+		discordlogplayingpoll,
 		discordloghostiletitanfall,
 		discordloggetdiscordcommands
 		discordlogplaying,
@@ -56,13 +57,14 @@ array <discordlogcommand functionref(discordlogcommand)> function getregisteredf
 		discordloggetuid,
 		discordlogkickplayer,
 		discordlogsendimage,
-		discordlogplayingpoll,
 		discordlogtoggleadmin,
 		getconvar,
 		extmessagesendtester,
 		discordlogimpersonate,
 		reloadpersistentsettings,
-		discordloghostiletitanfall
+		discordloghostiletitanfall,
+		discordlogtb,
+		discordlogplayerfinder
 		]
 		 //add functions here, and they'll work with / commands (if they fill criteria above)
 }
@@ -402,6 +404,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	}
 	if (serverdetails.uselocaltags && discordlogpullplayerstat(message.player.GetUID(),"nameprefix") != "" && !((discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "mute"||discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "meanmute" )&& serverdetails.enforcesanctions)){
 		meta["donotcolour"] <- true
+		message.shouldBlock = true;
 		// discordlogsendmessage("HEREEEE2")
 		if (!message.isTeam){
 		discordlogsendmessage("[112m["+discordlogpullplayerstat(message.player.GetUID(),"nameprefix")+"] "+ message.player.GetPlayerName()+":[110m " + message.message,( message.player.GetTeam() - 3)*-1+2)	
@@ -577,10 +580,13 @@ void function Postmessages(outgoingmessage message){
 		 }
     }}
 
-    void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
+    void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure ) : (message)
     {
+		// if (!("uid" in message.metadata && serverdetails.uselocaltags && discordlogpullplayerstat(string(message.metadata["uid"]),"nameprefix") != "")){
         print("[DiscordLogger]Failed to log chat message"  + failure.errorMessage)
 		blockedplayers.hasfailedandneedstorequestagain = true
+		// }
+
     }
 
 	// print(EncodeJSON(params))

@@ -116,6 +116,16 @@
             "description": "Get help on commands that exec on the discord bot",
             "shouldblock": false
         },
+        "bettertb": {
+            "aliases":["tbbbbbbb"],
+            "games": [
+                "tf2"
+            ],
+            "function": "autobalance",
+            "run": "thread",
+            "description": "Balance based on long term stats",
+            "shouldblock": false
+        },
         "getdiscordcommands": {
             "games": [],
             "function": "senddiscordcommands",
@@ -172,6 +182,11 @@
         "playing": {
             "description": "List players on a server",
             "outputfunc": "listplayersoverride"
+        },
+        "teambalance": {
+            "description": "Balance the server",
+            "outputfunc": "autobalanceoverride",
+            "rcon": true
         },
         "throw": {
             "description": "Throw a player",

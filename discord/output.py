@@ -4080,103 +4080,14 @@ def recieveflaskprintrequests():
         return {"message":"ran command"}
 
 
-    @app.route("/autobalancedata", methods=["POST", "GET"])
-    def pullautobalancestats():
-        if request.method == "POST":
-            data = getjson(request.get_json())
-            uids =  list(map(lambda x: int(x),data["players"].keys()))#list(map(lambda x: x["uid"], data["players"]))
-        else:
-            return
-        placeholders = ','.join(['?'] * len(uids))
-        
-        tfdb = postgresem("./data/tf2helper.db")
-        c = tfdb
-        
-        c.execute(f"""
-        WITH session_durations AS (
-            SELECT
-                playeruid,
-                matchid,
-                pilotkills,
-                (leftatunix - joinatunix) AS session_duration
-            FROM playtime
-            WHERE leftatunix > joinatunix
-            AND playeruid IN ({placeholders})
-        ),
-        match_stats AS (
-            SELECT
-                playeruid,
-                matchid,
-                SUM(pilotkills) AS total_pilotkills,
-                SUM(session_duration) AS total_playtime_seconds
-            FROM session_durations
-            GROUP BY playeruid, matchid
-            HAVING SUM(session_duration) > 0
-        ),
-        match_kph AS (
-            SELECT
-                playeruid,
-                matchid,
-                total_pilotkills,
-                total_playtime_seconds,
-                1.0 * total_pilotkills * 3600 / total_playtime_seconds AS kills_per_hour
-            FROM match_stats
-        ),
-        ranked_matches AS (
-            SELECT
-                *,
-                ROW_NUMBER() OVER (PARTITION BY playeruid ORDER BY kills_per_hour DESC) AS match_rank,
-                COUNT(*) OVER (PARTITION BY playeruid) AS total_matches
-            FROM match_kph
-        ),
-        filtered_matches AS (
-            SELECT
-                *,
-                CASE
-                    WHEN total_matches < 5 THEN total_matches
-                    ELSE CAST(total_matches * 0.4 + 0.9999999 AS INTEGER)
-                END AS matches_to_include
-            FROM ranked_matches
-        ),
-        top_matches_data AS (
-            SELECT
-                playeruid,
-                MAX(matches_to_include) AS matches_used,
-                SUM(total_pilotkills) AS total_kills_top,
-                SUM(total_playtime_seconds) AS total_seconds_top
-            FROM filtered_matches
-            WHERE match_rank <= matches_to_include
-            GROUP BY playeruid
-        )
-        SELECT
-            playeruid,
-            ROUND((total_kills_top * 3600.0) / NULLIF(total_seconds_top, 0), 2) AS kph,
-            matches_used
-        FROM top_matches_data;
-        """, tuple(uids))
-
-        
-        results = c.fetchall()
-        tfdb.close()
-        
-        stats_list = sorted([{"uid": row[0], "kph": float(row[1]) if row[1] is not None else 0.0, "gamesplayed": row[2]} for row in results], key=lambda x: -x["kph"])
-        # zippp ittt
-        # this is half meant to support more than two teams, but lets be honest, we're not getting that update any time soon
-        outputtedteams = [[],[]]
-        teamchecker = 0
-        for stat in stats_list[0:-1]:
-            outputtedteams[teamchecker].append({**stat,"originalteam":data["players"][str(stat["uid"])]})
-            teamchecker += 1
-            teamchecker = teamchecker % len(outputtedteams)
-        outputtedteams[len(outputtedteams)-1].append({**stats_list[-1],"originalteam":data["players"][str(stats_list[-1]["uid"])]})
-        shouldflip = False
-        if functools.reduce(lambda a,b: a + 1*(b["originalteam"] == "imc"),outputtedteams[0],0) < functools.reduce(lambda a,b: a + 1*(b["originalteam"] == "imc"),outputtedteams[1],0):
-            outputtedteams = outputtedteams[::-1]
-        
-        print(json.dumps({"2":{x["uid"]:x for x in outputtedteams[0]},"3":{x["uid"]:x for x in outputtedteams[1]}},indent = 4))  
-        return {"message": "ok", "stats": {"2":{x["uid"]:{**x,"uid":str(x["uid"])} for x in outputtedteams[0]},"3":{x["uid"]:{**x,"uid":str(x["uid"])} for x in outputtedteams[1]}}}
-
-
+    # @app.route("/autobalancedata", methods=["POST", "GET"])
+    # def pullautobalancestats():
+    #     if request.method == "POST":
+    #         data = getjson(request.get_json())
+    #         uids =  list(map(lambda x: int(x),data["players"].keys()))#list(map(lambda x: x["uid"], data["players"]))
+    #     else:
+    #         return
+    #     placeholders = ','.join(['?'] * len(uids))
 
             # compute stats for the player!
         # len(x[0]) > 15
@@ -5641,12 +5552,146 @@ def pingperson(message,serverid,isfromserver):
 
 
 def addsanction(message,serverid,isfromserver):
-    for msg in  process_sanctiontf2(serverid,message["sender"],message["uid"],message["sanctiontype"],message["reason"],message["expiry"]).split("\n"):
+    for msg in  process_sanctiontf2(serverid,message["sender"],str(message["uid"]),message["sanctiontype"],message["reason"],str(message["expiry"])).split("\n"):
         discordtotitanfall[serverid]["messages"].append({
             "content":f"{PREFIXES['discord']}{msg}",
         })
     asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {message["uid"]}'),"fake context",None,True,False), bot.loop)
 
+def autobalance(message,serverid,isfromserver):
+    asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!playerfinder'),"fake context",autobalanceoverride,True,False), bot.loop)
+
+def autobalanceoverride(data, serverid, statuscode):
+    data = getjson(data)
+
+    # playerinfo = {}
+    # for uid,playerdata in data.items():
+    #     if not uid.isdigit():
+    #         continue
+    #     playerinfo[uid] = playerdata[1]
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
+    placeholders = ','.join(['?'] * len(data))
+    c.execute(f"""
+    WITH session_durations AS (
+        SELECT
+            playeruid,
+            matchid,
+            pilotkills,
+            (leftatunix - joinatunix) AS session_duration
+        FROM playtime
+        WHERE leftatunix > joinatunix
+        AND playeruid IN ({placeholders})
+    ),
+    match_stats AS (
+        SELECT
+            playeruid,
+            matchid,
+            SUM(pilotkills) AS total_pilotkills,
+            SUM(session_duration) AS total_playtime_seconds
+        FROM session_durations
+        GROUP BY playeruid, matchid
+        HAVING SUM(session_duration) > 0
+    ),
+    match_kph AS (
+        SELECT
+            playeruid,
+            matchid,
+            total_pilotkills,
+            total_playtime_seconds,
+            1.0 * total_pilotkills * 3600 / total_playtime_seconds AS kills_per_hour
+        FROM match_stats
+    ),
+    ranked_matches AS (
+        SELECT
+            *,
+            ROW_NUMBER() OVER (PARTITION BY playeruid ORDER BY kills_per_hour DESC) AS match_rank,
+            COUNT(*) OVER (PARTITION BY playeruid) AS total_matches
+        FROM match_kph
+    ),
+    filtered_matches AS (
+        SELECT
+            *,
+            CASE
+                WHEN total_matches < 5 THEN total_matches
+                ELSE CAST(total_matches * 0.4 + 0.9999999 AS INTEGER)
+            END AS matches_to_include
+        FROM ranked_matches
+    ),
+    top_matches_data AS (
+        SELECT
+            playeruid,
+            MAX(matches_to_include) AS matches_used,
+            SUM(total_pilotkills) AS total_kills_top,
+            SUM(total_playtime_seconds) AS total_seconds_top
+        FROM filtered_matches
+        WHERE match_rank <= matches_to_include
+        GROUP BY playeruid
+    )
+    SELECT
+        playeruid,
+        ROUND((total_kills_top * 3600.0) / NULLIF(total_seconds_top, 0), 2) AS kph,
+        matches_used
+    FROM top_matches_data;
+    """, tuple(map(int,data)))
+
+    
+    results = c.fetchall()
+    tfdb.close()
+    
+    stats_list = sorted([{"uid": str(row[0]), "kph": float(row[1]) if row[1] is not None else 0.0, "gamesplayed": row[2]} for row in results], key=lambda x: -x["kph"])
+    searchablestats = {x["uid"]:x for x in stats_list}
+    # zippp ittt
+    # this is half meant to support more than two teams, but lets be honest, we're not getting that update any time soon
+    outputtedteams = [[],[]]
+    teamchecker = 0
+    for stat in stats_list[0:-1]:
+        outputtedteams[teamchecker].append({**stat,"originalteam":data[str(stat["uid"])]["team"]})
+        teamchecker += 1
+        teamchecker = teamchecker % len(outputtedteams)
+    outputtedteams[len(outputtedteams)-1].append({**stats_list[-1],"originalteam":data[str(stats_list[-1]["uid"])]["team"]})
+    shouldflip = False
+    if functools.reduce(lambda a,b: a + 1*(b["originalteam"] == 2),outputtedteams[0],0) < functools.reduce(lambda a,b: a + 1*(b["originalteam"] == 2),outputtedteams[1],0):
+        outputtedteams = outputtedteams[::-1]
+    
+    # print(json.dumps({"2":{x["uid"]:x for x in outputtedteams[0]},"3":{x["uid"]:x for x in outputtedteams[1]}},indent = 4))  
+    # time.sleep(10)
+    # return {"message": "ok", "stats": {"2":{x["uid"]:{**x,"uid":str(x["uid"])} for x in outputtedteams[0]},"3":{x["uid"]:{**x,"uid":str(x["uid"])} for x in outputtedteams[1]}}}
+    playernamecache = {}
+    for player in data:
+        playername = player
+        playername = resolveplayeruidfromdb(player,"uid",True)
+        if playername:
+            playername = playername[0].get("name",player)
+        playernamecache[player] = playername
+    discordtotitanfall[serverid]["messages"].append({
+        "content":f"{PREFIXES['discord']}{PREFIXES["stat"]}TEAMBALANCE{PREFIXES["neutral"]} Names in {PREFIXES["warning"]}this colour{PREFIXES["neutral"]} are people you have interacted with recently"})
+    discordtotitanfall[serverid]["messages"].append({
+        "content":f"{PREFIXES['discord']}Below is the new teambalance, along with each players weight"})
+    for teamint,team in enumerate(outputtedteams):
+        for player in team:
+            if player["uid"] != "1012640166434":
+                continue
+            discordtotitanfall[serverid]["messages"].append({
+                "content":f"{PREFIXES["stat"]}Your team: {", ".join(functools.reduce(lambda a,b: {"lastcolour":PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["friendly"],"output":[*a["output"],f"{(PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["friendly"]) if (PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["friendly"]) != a["lastcolour"] else ""}{playernamecache[b]}:{searchablestats[b]["kph"]:.2f}"]} ,list(map(lambda x: x["uid"] ,outputtedteams[teamint])),{"lastcolour":False,"output":[]})["output"])}",
+                "uidoverride": [player["uid"]]})
+            discordtotitanfall[serverid]["messages"].append({
+                "content":f"{PREFIXES["stat"]}Enemy team: {", ".join(functools.reduce(lambda a,b: {"lastcolour":PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["enemy"],"output":[*a["output"],f"{(PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["enemy"]) if (PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["enemy"]) != a["lastcolour"] else ""}{playernamecache[b]}:{searchablestats[b]["kph"]:.2f}"]} ,list(map(lambda x: x["uid"] ,outputtedteams[abs(teamint-1)])),{"lastcolour":False,"output":[]})["output"])}",
+                "uidoverride": [player["uid"]]})
+            
+    
+    threading.Thread(target=threadwrap, daemon=True, args=(autobalancerun, outputtedteams,serverid)).start()
+    return defaultoverride(data, serverid, statuscode)
+def autobalancerun(outputtedteams,serverid):
+    discordtotitanfall[serverid]["messages"].append({
+        "content":f"{PREFIXES['discord']} Balance in {PREFIXES["warning"]}10{PREFIXES["neutral"]} seconds"})
+    time.sleep(5)
+    discordtotitanfall[serverid]["messages"].append({
+        "content":f"{PREFIXES['discord']} Balance in {PREFIXES["warning"]}5{PREFIXES["neutral"]} seconds"})
+    time.sleep(5)
+    discordtotitanfall[serverid]["messages"].append({
+        "content":f"{PREFIXES['discord']} Trying to balance now"})
+    asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!bettertb {" ".join([f"2 {x["uid"]}" for x in outputtedteams[0]])} {" ".join([f"3 {x["uid"]}" for x in outputtedteams[1]])}"),"fake context",None,True,False), bot.loop)
 
 
 def ingamesetusercolour(message,serverid,isfromserver):

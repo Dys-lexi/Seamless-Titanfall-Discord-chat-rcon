@@ -94,6 +94,10 @@
             "RunOn": "SERVER"
         },
         {
+            "Path": "discordlogbettertb.nut",
+            "RunOn": "SERVER"
+        },
+        {
             "Path": "getconvar.nut",
             "RunOn": "SERVER"
         }
