@@ -5503,7 +5503,7 @@ def tftodiscordcommand(specificommand,command,serverid):
             if context['commands']['ingamecommands'][specificommand].get('permsneeded',False) == "coolperksrole":
                 discordtotitanfall[serverid]["messages"].append(
                 {
-                    "content":f"{PREFIXES['discord']}To use {specific} go to {COOLPERKSROLEREQUIRMENTS}",
+                    "content":f"{PREFIXES['discord']}To use {specificommand} go to {COOLPERKSROLEREQUIRMENTS}",
                     "uidoverride": [getpriority(command,"uid",["meta","uid"])]
                 }
                 )
@@ -6418,7 +6418,11 @@ def calcstats(message,serverid,isfromserver):
         else:
             # print(getpriority(message,"originalname","name"))
             output = getstats(str(getpriority(message,"originalname","name")))
-        name = resolveplayeruidfromdb(getpriority(message,"originalname","name"),None,True)[0]["uid"]
+        name = resolveplayeruidfromdb(getpriority(message,"originalname","name"),None,True)
+        if name:
+            name = name[0]["uid"]
+        else:
+            return
         if "sob" in output.keys():
             discordtotitanfall[serverid]["messages"].append(
             {
