@@ -6222,9 +6222,9 @@ def showingamesettings(message,serverid,isfromserver):
         teams = ["FRIENDLY","ENEMY","NEUTRAL"]
         discordstats = {x[0]:{"nameprefix":(x[3]) if x[3] and x[3] != "reset" else None,"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,**(({team:(list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) ) for team in teams}if "[" not in x[2] else json.loads(x[2])) if x[2] is not None and x[2] != "reset" else {})}  for x in output}
         
-    else:discorduid = {}
+    else:discorduid = None
     cmdcounter = 0
-    if not any({**preferencesuid,**discordstats[discorduid]}.values()):
+    if not any({**preferencesuid,**(discordstats.get(discorduid, {}) if discorduid else {})}.values()):
         discordtotitanfall[serverid]["messages"].append(
             {
                 # "id": str(i) + str(int(time.time()*100)),
@@ -6235,7 +6235,7 @@ def showingamesettings(message,serverid,isfromserver):
                 # "dotreacted": dotreacted
             }
             )
-    for name, command in {**preferencesuid,**discordstats[discorduid]}.items():
+    for name, command in {**preferencesuid,**(discordstats.get(discorduid, {}) if discorduid else {})}.items():
         if command in (None,[]):continue
         cmdcounter +=1
         discordtotitanfall[serverid]["messages"].append(
