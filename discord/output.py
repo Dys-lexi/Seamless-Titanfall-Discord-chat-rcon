@@ -5538,14 +5538,15 @@ def tftodiscordcommand(specificommand,command,serverid):
         discordtotitanfall[serverid]["messages"].append(
         {
             # "id": str(int(time.time()*100)),
-            "content":f"{PREFIXES['discord']}Running {keyletter}{getpriority(context["commands"]["ingamecommands"][getpriority(command, 'originalmessage','messagecontent').split(keyletter,1)[1]],"alias",nofind=getpriority(command, 'originalmessage','messagecontent').split(keyletter,1)[1])}",
+            "content":f"{PREFIXES['discord']}Running {keyletter}{getpriority(context["commands"]["ingamecommands"][getpriority(command, 'originalmessage','messagecontent').split(keyletter,1)[1].split(" ",1)[0]],"alias",nofind=getpriority(command, 'originalmessage','messagecontent').split(keyletter,1)[1].split(" ",1)[0])}",
             # "teamoverride": 4,
             # "isteammessage": False,
             "uidoverride": [getpriority(command,"uid",["meta","uid"])]
             # "dotreacted": dotreacted
         }
         )
-        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid, (f"{keyletter}{getpriority(context["commands"]["ingamecommands"][getpriority(command, 'originalmessage','messagecontent').split(keyletter,1)[1]],"alias",nofind=getpriority(command, 'originalmessage','messagecontent').split(keyletter,1)[1])} {getpriority(command, 'originalmessage','messagecontent').split(" ",1)[1:]}")), "fake context", sendthingstoplayer, True, True,getpriority(command,"uid",["meta","uid"])), bot.loop)
+        # print("command",f"{keyletter}{getpriority(context["commands"]["ingamecommands"][getpriority(command, 'originalmessage','messagecontent').split(keyletter,1)[1].split(" ",1)[0]],"alias",nofind=getpriority(command, 'originalmessage','messagecontent').split(keyletter,1)[1])} {getpriority(command, 'originalmessage','messagecontent').split(" ",1)[1:]}")
+        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid, (f"{keyletter}{getpriority(context["commands"]["ingamecommands"][getpriority(command, 'originalmessage','messagecontent').split(keyletter,1)[1].split(" ",1)[0]],"alias",nofind=getpriority(command, 'originalmessage','messagecontent').split(keyletter,1)[1].split(" ",1)[0])} {" ".join(getpriority(command, 'originalmessage','messagecontent').split(" ",1)[1:])}")), "fake context", sendthingstoplayer, True, True,getpriority(command,"uid",["meta","uid"])), bot.loop)
     # print(specificommand)
     elif context["commands"]["ingamecommands"][specificommand]["run"] == "thread":
         threading.Thread(target=threadwrap, daemon=True, args=(globals()[context["commands"]["ingamecommands"][specificommand]["function"]], command, serverid, servercommand)).start()
