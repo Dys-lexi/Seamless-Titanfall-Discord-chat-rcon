@@ -29,7 +29,8 @@ import sys
 import logging
 import psycopg2
 from psycopg2 import pool
-
+# foo.cache_clear()
+# @functools.lru_cache(maxsize = None)
 # Execution monitoring for stuck detection
 # import threading
 stuck_monitor_lock = threading.Lock()
@@ -303,8 +304,12 @@ def playeruidpreferences():
     tfdb.commit()
     tfdb.close()
 
+playerpreferencescache = {"tf1":{},"tf2":{}}
 def readplayeruidpreferences(uid,istf1 = False):
     """read settings that generally affect gameplay and are linked to a tf|1/2 account, eg toggle stats"""
+    global playerpreferencescache
+    output = playerpreferencescache["tf1" if istf1 else "tf2"].get(uid)
+    if output: return output
     # uid = int(uid)
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
@@ -328,6 +333,7 @@ def deep_set(d, keys, value):
 
 def setplayeruidpreferences(path, value, uid, istf1=False):
     """see readplayeruidpreferences()"""
+    global playerpreferencescache
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
     istf1_int = 1 if istf1 else 0
@@ -341,6 +347,7 @@ def setplayeruidpreferences(path, value, uid, istf1=False):
         preferences_json = {}
 
     deep_set(preferences_json, path, value)
+    playerpreferencescache["tf1" if istf1 else "tf2"][uid] = preferences_json
 
     if row:
         c.execute(
@@ -873,6 +880,7 @@ context = {
     "overrideroles" :{
         "rconrole" : 0,
         "coolperksrole":0,
+        "debugchat":0
     },
     "overriderolesuids" :
     {
@@ -965,7 +973,7 @@ async def autocompleteserversfromdb(ctx):
 
 async def autocompletenamesfromdb(ctx):
     """autocompletes tf2 names"""
-    output =  [x["name"] if x["name"].strip() else str(x["uid"]) for x in  resolveplayeruidfromdb(ctx.value,None,True,relaxed = True)][:20]
+    output =  [x["name"] if x["name"].strip() else str(x["uid"]) for x in  resolveplayeruidfromdb(ctx.value,None,True)][:20]
     if len(output) == 0:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["No one matches"]
@@ -1038,31 +1046,35 @@ async def autocompletenamesfromtf1bans(ctx):
 async def autocompletenamesfromingame(ctx):
     """autocompletes using who is playing on the server. includes all / _ options"""
     channel = getchannelidfromname(False,ctx.interaction)
-    main = list(set([str(p) for v in dict(list(filter( lambda x: x[0] == channel or channel == None,titanfall1currentlyplaying.items()))).values() for p in v] +[str(name) for s in dict(list(filter( lambda x: x[0] == channel or channel == None,playercontext.items()))).values() for u in s.values() for name in u.keys()] +["all", "_"]))
+    main = ["all", "_"]
+    if channel and channel in discordtotitanfall:
+        main.extend(list(discordtotitanfall[channel]["currentplayers"].values()))
+    main = list(set([str(p) for p in main]))
     output = sorted(list(filter(lambda x: ctx.value.lower() in x.lower(),main)),key = lambda x: x.lower().startswith(ctx.value.lower())* 50, reverse = True)
     if len(main) == 2:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["No one playing"]
     elif len(output) == 2:
-        await asyncio.sleep(0.3)
-        return output
+        return ["No matches"]
         
     return output
 
 async def autocompletenamesfromingamenowildcard(ctx):
     """autocompletes using who is playing. does not include all / _ options"""
     channel = getchannelidfromname(False,ctx.interaction)
-    main = list(set([str(p) for v in dict(list(filter( lambda x: x[0] == channel or channel == None,titanfall1currentlyplaying.items()))).values() for p in v] +[str(name) for s in dict(list(filter( lambda x: x[0] == channel or channel == None,playercontext.items()))).values() for u in s.values() for name in u.keys()]))
+    main = []
+    if channel and channel in discordtotitanfall:
+        main = list(discordtotitanfall[channel]["currentplayers"].values())
+    main = list(set([str(p) for p in main]))
     output = sorted(list(filter(lambda x: ctx.value.lower() in x.lower(),main)),key = lambda x: x.lower().startswith(ctx.value.lower())* 50, reverse = True)
     if len(main) == 0:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["No one playing"]
     elif len(output) == 0:
-        await asyncio.sleep(0.3)
-        return output
+        return ["No matches"]
         
     return output
-@functools.cache
+@functools.lru_cache(maxsize = None)
 def getallweaponnames(weapon):
     """Processes weapon names with fuzzy matching for autocomplete functionality"""
     tfdb = postgresem("./data/tf2helper.db")
@@ -1747,7 +1759,7 @@ if DISCORDBOTLOGSTATS == "1":
         
     @tasks.loop(seconds=LEADERBOARDUPDATERATE)
     async def updateleaderboards():
-        # await asyncio.sleep(120)
+        await asyncio.sleep(120)
         # print("leaderboardchannelmessages",context["leaderboardchannelmessages"])
         if context["overridechannels"]["leaderboardchannel"] == 0:
             return
@@ -1770,7 +1782,7 @@ if DISCORDBOTLOGSTATS == "1":
         leaderboardid = leaderboard_entry.get("id", 0)
         leaderboardcategorysshown = leaderboard_entry["categorys"]
         if isinstance(leaderboardcategorysshown, list) and GLOBALIP != 0:
-            # print("trying to update cdn leaderboard")
+            print(f"trying to update pngleaderboard {leaderboardname}")
             try:
                 # print("here")
                 # individual = leaderboard_entry.get("individual",{})
@@ -3006,7 +3018,8 @@ if DISCORDBOTLOGSTATS == "1":
     )
     async def whois(
             ctx,
-            name: Option(str, "The playername/uid to Query", autocomplete=autocompletenamesfromdb)):
+            name: Option(str, "The playername/uid to Query", autocomplete=autocompletenamesfromdb),
+            relaxed: Option(bool, "Use relaxed matching for confusing characters. Can take a while.", required=False, default=False)):
         """command to see history of a player"""
         MAXALIASESSHOWN = 22
         originalname = name
@@ -3024,13 +3037,19 @@ if DISCORDBOTLOGSTATS == "1":
             return
 
         unsortedata = [{"name": x[1], "uid": x[0]} for x in data]
-        data = sorted(unsortedata, key=lambda x: len(x["name"]))
-        data = sorted(data, key=lambda x: not x["name"].lower().startswith(name.lower()))
-        data = [x for x in data if name.lower() in x["name"].lower()]
-        unsortedata = [x for x in unsortedata if name.lower() in x["name"].lower()]
-        if len(data) == 0:
-            pass
-            # replace characters with closest counterparts
+        
+        if relaxed:
+            await ctx.defer()
+            simplified_name = simplyfy(name)
+            data = [x for x in unsortedata if simplified_name in simplyfy(x["name"])]
+            data = sorted(data, key=lambda x: len(x["name"]))
+            data = sorted(data, key=lambda x: not simplyfy(x["name"]).startswith(simplified_name))
+            unsortedata = [x for x in unsortedata if simplified_name in simplyfy(x["name"])]
+        else:
+            data = sorted(unsortedata, key=lambda x: len(x["name"]))
+            data = sorted(data, key=lambda x: not x["name"].lower().startswith(name.lower()))
+            data = [x for x in data if name.lower() in x["name"].lower()]
+            unsortedata = [x for x in unsortedata if name.lower() in x["name"].lower()]
 
         if len(data) == 0:
             if name.isdigit():
@@ -3083,11 +3102,7 @@ if DISCORDBOTLOGSTATS == "1":
                 continue
             # print([timespent])
             aliases_raw[i].append(int(timespent[0]))
-        aliases_raw = list(filter(lambda x:len(x[0]) < 3 or x[0][0] != "(" or not x[0][1].isdigit() or x[0][2] != ")",aliases_raw))
-        aliases_raw = functools.reduce(lambda a,b:{"lastalias":b,"aliases":[*a["aliases"],b]if not a["lastalias"] or a["lastalias"][0] != b[0] else [*a["aliases"][:-1],[b[0],b[1],a["aliases"][-1][2],b[3]+a["aliases"][-1][3]]]},aliases_raw,{"lastalias":False,"aliases":[]})["aliases"]
-
-
-        print(json.dumps(aliases_raw,indent=4))
+        aliases_raw = functools.reduce(lambda a,b:{"lastalias":b,"aliases":[*a["aliases"],b]if not a["lastalias"] or a["lastalias"][0] != b[0] else [*a["aliases"][:-1],[b[0],b[1],a["aliases"][-1][2],b[3]+a["aliases"][-1][3]]]},list(filter(lambda x:len(x[0]) < 3 or x[0][0] != "(" or not x[0][1].isdigit() or x[0][2] != ")",aliases_raw)),{"lastalias":False,"aliases":[]})["aliases"]
 
         
 
@@ -3958,7 +3973,7 @@ def gradient(message,colours, maxlen,stripfirstcolour = False):
     if firstcolour:
         return "".join(outputmessage), firstcolour
     return "".join(outputmessage)
-
+@functools.lru_cache(maxsize = None)
 def rgb_to_ansi(value, vary=0):
     """conversts an rgb code to an ansi string variance is random variance that is less prominent on brighter,less saturated colours, also directly from my website"""
     value = list(value)
@@ -4058,6 +4073,7 @@ async def on_message(message):
         # messagestosend[serverid].append(
         #     f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {PREFIXES['neutral']}{addedmentions}"
         # )
+@functools.lru_cache(maxsize = None)
 def pullid(uid,force = False):
     """converts a tf2 uid to and from discord"""
     global context
@@ -6038,8 +6054,8 @@ def autobalanceoverride(data, serverid, statuscode):
         "content":f"{PREFIXES['discord']}Below is the new teambalance, along with each players weight"})
     for teamint,team in enumerate(outputtedteams):
         for player in team:
-            if player["uid"] != "1012640166434":
-                continue
+            # if player["uid"] != "1012640166434":
+            #     continue
             discordtotitanfall[serverid]["messages"].append({
                 "content":f"{PREFIXES["stat"]}Your team: {", ".join(functools.reduce(lambda a,b: {"lastcolour":PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["friendly"],"output":[*a["output"],f"{(PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["friendly"]) if (PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["friendly"]) != a["lastcolour"] else ""}{playernamecache[b]}:{searchablestats[b]["kph"]:.2f}"]} ,list(map(lambda x: x["uid"] ,outputtedteams[teamint])),{"lastcolour":False,"output":[]})["output"])}",
                 "uidoverride": [player["uid"]]})
@@ -6895,7 +6911,7 @@ async def checkverify(message,serverid):
     if not verify_data or int(time.time())>verify_data["timerequested"]: return
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
-
+    pullid.cache_clear()
     c.execute(
         """INSERT INTO discordlinkdata (uid, discordid, linktime)
             VALUES (?, ?, ?)
@@ -6973,7 +6989,11 @@ async def outputmsg(channel, output, serverid, USEDYNAMICPFPS):
 
     if not content:
         return
-    print(f"{PREFIXES["stat"]}{getpriority(context,["servers",serverid,"name"])}: {PREFIXES["neutral"]}{f"\n{getpriority(context,["servers",serverid,"name"])}: ".join(content)}")
+    if MORECOLOURS == "1":
+        print(f"{PREFIXES["stat"]}{getpriority(context,["servers",serverid,"name"])}: {PREFIXES["neutral"]}{f"\n{getpriority(context,["servers",serverid,"name"])}: ".join(content)}")
+    else:
+        print(f"{getpriority(context,["servers",serverid,"name"])}: {f"\n{getpriority(context,["servers",serverid,"name"])}: ".join(content)}")
+
     message = await channel.send(("\n".join(content)))
     # print(f"Sent message ID: {message.id}")
     # print("OUTPUT",output[serverid])
@@ -7120,7 +7140,10 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
             
             async with aiohttp.ClientSession() as session:
                 # print(pilotstates[serverid])
-                print(f"{PREFIXES["stat"]}{getpriority(context,["servers",serverid,"name"])}: {PREFIXES["neutral"]}{username[0:80]}: {f"\n{getpriority(context,["servers",serverid,"name"])}: {username[0:80]}: ".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))}")
+                if MORECOLOURS == "1":
+                    print(f"{PREFIXES["stat"]}{getpriority(context,["servers",serverid,"name"])}: {PREFIXES["neutral"]}{username[0:80]}: {f"\n{getpriority(context,["servers",serverid,"name"])}: {username[0:80]}: ".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))}")
+                else:
+                    print(f"{getpriority(context,["servers",serverid,"name"])}: {username[0:80]}: {f"\n{getpriority(context,["servers",serverid,"name"])}: {username[0:80]}: ".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))}")
 
                 # print(f"Tf -> Discord\n{username[0:80]}: {f"\n{username[0:80]}: ".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))}")
                 message = await actualwebhooks[pilotstates[serverid]["webhook"]].send((
@@ -7150,7 +7173,7 @@ def initdiscordtotitanfall(serverid): #before I knew about setdefault and .keys(
         discordtotitanfall[serverid]["lastheardfrom"] = 0
     if "onlinestatus" not in discordtotitanfall[serverid].keys():
         discordtotitanfall[serverid]["onlinestatus"] = False
-    discordtotitanfall[serverid].setdefault("playercount",0)
+    discordtotitanfall[serverid].setdefault("currentplayers",[])
 
 def getchannelidfromname(name,ctx):
     """Resolves Discord channel ID from channel name using context"""
@@ -7203,12 +7226,12 @@ def defaultoverride(data, serverid, statuscode):
         for key, value in data.items():
             embed.add_field(name=f"> {key}:", value=f"```json\n{json.dumps(value,indent=4)}```", inline=False)
     return embed
-
+@functools.lru_cache(maxsize = None)
 def simplyfy(text):    
     if not text: return text
     charmap = (functools.reduce(lambda a,b: {**a,**dict(zip(b[1],[b[0]]*len(b[1])))},LOOKALIKES.items(),{}))
     return "".join(list(map(lambda x:charmap.get(x,x).lower(),text))) 
-
+@functools.lru_cache(maxsize = None)
 def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 = False,**kwargs):
     """Searches for players by name or UID with fuzzy matching, sorting by relevance and recency"""
     relaxed = kwargs.get("relaxed",False)
@@ -7279,6 +7302,11 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
 
 async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride, iscommandnotmessage = True,logthiscommand = True,extraargsintofunction = None):
     # print(serverid, id, ctx,overridemsg)
+    try:
+        author = ctx.author.name # IF DISCORD
+        
+    except:
+        pass
     if not overridemsg:
         overridemsg = defaultoverride
     i = 0
@@ -7669,9 +7697,11 @@ def checkandaddtouidnamelink(uid, playername,serverid ,istf1 = False):
             c.execute(
                 f"UPDATE uidnamelink{'tf1' if istf1 else ''} SET lastseenunix = ?, lastserverid = ? WHERE id = ?",(now,int(serverid), last_id))
         else:
+            resolveplayeruidfromdb.cache_clear()
             c.execute(
                 f"INSERT INTO uidnamelink{'tf1' if istf1 else ''} (playeruid, playername, firstseenunix, lastseenunix, lastserverid) VALUES (?, ?, ?, ?, ?)",(uid, playername, now, now,int(serverid)))
     else:
+        resolveplayeruidfromdb.cache_clear()
         c.execute(
             f"INSERT INTO uidnamelink{'tf1' if istf1 else ''} (playeruid, playername, firstseenunix, lastseenunix, lastserverid) VALUES (?, ?, ?, ?, ?)",(uid, playername, now, now,int(serverid)))
     tfdb.commit()
@@ -7922,7 +7952,7 @@ def playerpolllog(data,serverid,statuscode):
             metadata = data["meta"].copy()
             metadata["matchid"] = (data["meta"]["matchid"])
             data["meta"] = [metadata["map"],50,metadata["matchid"]]#50 is a placeholder for actual time left!
-    discordtotitanfall[serverid]["playercount"] = len(players)
+    discordtotitanfall[serverid]["currentplayers"] = dict(map(lambda x: [x["uid"],x["name"]],players))
             
     # playercontext[pinfo["uid"]+pinfo["name"]] = {"joined":now,"map":map,"name":pinfo["name"],"uid":pinfo["uid"],"idoverride":0,"endtime":0,"serverid":serverid,"kills":0,"deaths":0,"titankills":0,"npckills":0,"score":0}
     # print(list(map(lambda x: x["name"],players)))
@@ -8161,12 +8191,12 @@ async def updatechannels():
         # print(json.dumps(discordtotitanfall))
         if not serverlastheardfrom:serverlastheardfrom = 0
         # print(serverid,time.time() - serverlastheardfrom > 180,"🟢" not in channel.name)
-        if (time.time() - serverlastheardfrom > 180 and  "🟢" not in channel.name ) or (time.time() - serverlastheardfrom < 180 and  "🟢"  in channel.name )  and (not istf1 and (not discordtotitanfall[serverid]["playercount"] and  "🟢" not in channel.name and not istf1) or (discordtotitanfall[serverid]["playercount"] and  "🟢"  in channel.name and not istf1)):
+        if (time.time() - serverlastheardfrom > 180 and  "🟢" not in channel.name ) or (time.time() - serverlastheardfrom < 180 and  "🟢"  in channel.name )  and (not istf1 and (not len(discordtotitanfall[serverid]["currentplayers"]) and  "🟢" not in channel.name and not istf1) or (len(discordtotitanfall[serverid]["currentplayers"]) and  "🟢"  in channel.name and not istf1)):
             continue
-        if (time.time() - serverlastheardfrom > 180 ) or (not istf1 and not discordtotitanfall[serverid]["playercount"]):
+        if (time.time() - serverlastheardfrom > 180 ) or (not istf1 and not len(discordtotitanfall[serverid]["currentplayers"])):
             # print("editing here2")
             await channel.edit(name=f"{addwidget}{server["name"]}")
-        elif (time.time() - serverlastheardfrom < 180) and (istf1 or discordtotitanfall[serverid]["playercount"]):
+        elif (time.time() - serverlastheardfrom < 180) and (istf1 or len(discordtotitanfall[serverid]["currentplayers"])):
             # print("editing here")
             await channel.edit(name=f'🟢{addwidget}{server["name"]}')
 def playerpoll():
@@ -8267,7 +8297,10 @@ def getstats(playeruid):
     now = int(time.time())
     timeoffset = 86400
     try:
-        output = resolveplayeruidfromdb(playeruid,None,True)[0]
+        output = resolveplayeruidfromdb(playeruid,None,True)
+        if not output:
+            return {"sob":"unknown player"}
+        output = output[0]
         name = output["name"]
         playeruid = (output["uid"])
     except:
