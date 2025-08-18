@@ -6067,9 +6067,9 @@ def autobalanceoverride(data, serverid, statuscode):
     threading.Thread(target=threadwrap, daemon=True, args=(autobalancerun, outputtedteams,serverid)).start()
     return defaultoverride(data, serverid, statuscode)
 def autobalancerun(outputtedteams,serverid):
-    discordtotitanfall[serverid]["messages"].append({
-        "content":f"{PREFIXES['discord']} Balance in {PREFIXES["warning"]}10{PREFIXES["neutral"]} seconds"})
-    time.sleep(5)
+    # discordtotitanfall[serverid]["messages"].append({
+    #     "content":f"{PREFIXES['discord']} Balance in {PREFIXES["warning"]}10{PREFIXES["neutral"]} seconds"})
+    # time.sleep(5)
     discordtotitanfall[serverid]["messages"].append({
         "content":f"{PREFIXES['discord']} Balance in {PREFIXES["warning"]}5{PREFIXES["neutral"]} seconds"})
     time.sleep(5)
