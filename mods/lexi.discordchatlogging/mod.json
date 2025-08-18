@@ -30,7 +30,7 @@
         },
         {
             "Name":"enforcediscordsanctions",
-            "DefaultValue": "0" // set to one so /sanctiontf2 works
+            "DefaultValue": "1" // set to one so /sanctiontf2 works
         },
         {
             "Name":"discordloguselocaltags",

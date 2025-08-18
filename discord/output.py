@@ -421,7 +421,8 @@ def playeruidnamelinktf1():
             playeruid INTEGER,
             playername TEXT,
             lastseenunix INTEGER,
-            firstseenunix INTEGER
+            firstseenunix INTEGER,
+            lastserverid INTEGER
             )"""
     )
     if POSTGRESQLDBURL != "0":
@@ -430,9 +431,9 @@ def playeruidnamelinktf1():
         ALTER COLUMN playeruid TYPE BIGINT USING playeruid::BIGINT;
         """)
     # try:
-        # c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN firstseenunix INTEGER")
-    #     c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN lastseenunix INTEGER") 
-    # except:pass
+    #     c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN lastserverid INTEGER")
+    # except:
+    #     pass
     tfdb.commit()
     tfdb.close()
 def bantf1():
@@ -542,7 +543,8 @@ def playeruidnamelink():
             playeruid INTEGER,
             playername TEXT,
             lastseenunix INTEGER,
-            firstseenunix INTEGER
+            firstseenunix INTEGER,
+            lastserverid INTEGER
             )"""
     )
     if POSTGRESQLDBURL != "0":
@@ -551,9 +553,9 @@ def playeruidnamelink():
         ALTER COLUMN playeruid TYPE BIGINT USING playeruid::BIGINT;
         """)
     # try:
-    #     c.execute("ALTER TABLE uidnamelink ADD COLUMN firstseenunix INTEGER")
-    #     c.execute("ALTER TABLE uidnamelink ADD COLUMN lastseenunix INTEGER") 
-    # except:pass
+    #     c.execute("ALTER TABLE uidnamelink ADD COLUMN lastserverid INTEGER")
+    # except:
+    #     pass
     tfdb.commit()
     tfdb.close()
 
@@ -1197,17 +1199,17 @@ async def sanctiontf2(
     sanctiontype: Option(str, "The type of sanction to apply (meanmute does not alert the person muted)", choices=["mute", "ban","meanmute"] ),
     # banlinks:Option(int, "How many links needed for a ban to persist (DON'T USE IF DON'T KNOW)",choices=[1,2,3]),
     reason: Option(str,  "The reason for the sanction", required=True),
-    expiry:Option(str,"The expiry time of the sanction in format yyyy-mm-dd, omit is forever (uses gmt time)", required = False) = None,
-        servername: Option(
-        str,
-        "The servername (omit for current channel's server)",
-        required=False,
-        **({
-            "choices": list(s.get("name", "Unknown") for s in context["servers"].values())
-        } if SERVERNAMEISCHOICE == "1" else {
-            "autocomplete": autocompleteserversfromdb
-        })
-    ) = None,
+    expiry:Option(str,"The expiry date in format yyyy-mm-dd, (or enter num days) omit is forever (uses gmt time)", required = False) = None,
+    #     servername: Option(
+    #     str,
+    #     "The servername (omit for current channel's server)",
+    #     required=False,
+    #     **({
+    #         "choices": list(s.get("name", "Unknown") for s in context["servers"].values())
+    #     } if SERVERNAMEISCHOICE == "1" else {
+    #         "autocomplete": autocompleteserversfromdb
+    #     })
+    # ) = None,
     ):
     
     if not checkrconallowed(ctx.author):
@@ -1215,8 +1217,8 @@ async def sanctiontf2(
         await ctx.respond("You are not allowed to use this command.")
         return
     
-    serverid = getchannelidfromname(servername,ctx)
-    await ctx.respond( process_sanctiontf2(serverid,ctx.author.name,name ,sanctiontype, reason, expiry))
+    # serverid = getchannelidfromname(servername,ctx)
+    await ctx.respond( process_sanctiontf2(False,ctx.author.name,name ,sanctiontype, reason, expiry))
 def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry=None):
     
     if len(name.rsplit("->",1)) > 1: 
@@ -1230,6 +1232,7 @@ def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry=None)
         return "No players found"
     
     player = matchingplayers[0]
+    serverid = player["lastserverid"]
     sanction = getpriority(readplayeruidpreferences(player["uid"],False),["banstf2","sanction"])
     if sanction and not (sanction.get("expiry") and sanction["expiry"] and int(time.time()) > sanction["expiry"]):
         try:
@@ -1266,10 +1269,7 @@ def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry=None)
             },
         }
     )
-    expiry_text = "forever" if expiry is None else modifyvalue(expiry, "date")
-    
-    
-    
+    expiry_text = "forever" if expiry is None else modifyvalue(expiry, "date")    
     if serverid:
         asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {player["uid"]}'),"fake context",None,True,False), bot.loop)
     
@@ -1285,16 +1285,16 @@ def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry=None)
 async def sanctionremovetf2(
     ctx,
     name: Option(str, "The playername", autocomplete=autocompletenamesanduidsfromdb),
-            servername: Option(
-        str,
-        "The servername (omit for current channel's server)",
-        required=False,
-        **({
-            "choices": list(s.get("name", "Unknown") for s in context["servers"].values())
-        } if SERVERNAMEISCHOICE == "1" else {
-            "autocomplete": autocompleteserversfromdb
-        })
-    ) = None,
+    #         servername: Option(
+    #     str,
+    #     "The servername (omit for current channel's server)",
+    #     required=False,
+    #     **({
+    #         "choices": list(s.get("name", "Unknown") for s in context["servers"].values())
+    #     } if SERVERNAMEISCHOICE == "1" else {
+    #         "autocomplete": autocompleteserversfromdb
+    #     })
+    # ) = None,
 ):
     if not checkrconallowed(ctx.author):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
@@ -1324,11 +1324,13 @@ async def sanctionremovetf2(
         await ctx.respond(f"**{ban.get("sanctiontype")}** removed for **{player['name']}** (UID: `{player['uid']}`)")
     else:
         await ctx.respond(f"No sanction found for {player["name"]} (UID: `{player['uid']}`)")
+        return
     # I do not believe a servername is needed anymore - bans are enforced after playerdata is loaded now, so we don't need to manually reload it here
     # it is. mutes would not reload (till map change / any other toggle)
-    serverid = getchannelidfromname(servername, ctx)
-    if serverid:
-        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {player["uid"]}'),"fake context",None,True,False), bot.loop)
+    # It isn't now, I store peoples most recent server!
+    # serverid = getchannelidfromname(servername, ctx)
+    if player["lastserverid"]:
+        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(player["lastserverid"],f'!reloadpersistentvars {player["uid"]}'),"fake context",None,True,False), bot.loop)
 
 
 @bot.slash_command(
@@ -1341,7 +1343,7 @@ async def sanctiontf1(
     sanctiontype: Option(str, "The type of sanction to apply", choices=["mute", "ban"] ),
     # banlinks:Option(int, "How many links needed for a ban to persist (DON'T USE IF DON'T KNOW)",choices=[1,2,3]),
     reason: Option(str,  "The reason for the sanction", required=True),
-    expiry:Option(str,"The expiry time of the sanction in format yyyy-mm-dd, omit is forever (uses gmt time)", required = False) = None,
+    expiry:Option(str,"The expiry date in format yyyy-mm-dd (or enter num days), omit is forever (uses gmt time)", required = False) = None,
 
     ):
     """ban somone in tf1 (or mute)"""
@@ -1357,8 +1359,11 @@ async def sanctiontf1(
             expiry_date = datetime.strptime(expiry, "%Y-%m-%d").replace(tzinfo=timezone.utc)
             baninfo["expiry"] = int(expiry_date.timestamp())
         except ValueError:
-            await ctx.respond("Invalid expiry date format. Use yyyy-mm-dd", ephemeral=True)
-            return
+            if expiry.isdigit():
+                baninfo["expiry"] = int(expiry)*86400 + int(time.time())
+            else:
+                await ctx.respond("Invalid expiry date format. Use yyyy-mm-dd or number of days", ephemeral=True)
+                return
     else:
         baninfo["expiry"] = None
     print(name)
@@ -1388,7 +1393,9 @@ async def sanctiontf1(
             },
         }
     )
-    await ctx.respond(f"Uploaded a sanction for {name}, {"and tried to kick" if sanctiontype == "ban" else "the mute happens on map change"}")
+    expiry_text = "forever" if baninfo["expiry"] is None else modifyvalue(baninfo["expiry"], "date")
+    sanction_details = f"{sanctiontype.capitalize()} added to {name} (UID: {uid}) Until {expiry_text}\nReason: {reason}"
+    await ctx.respond(f"{sanction_details}\n{"Tried to kick player" if sanctiontype == "ban" else "The mute happens on map change"}")
     if sanctiontype == "ban":
         print(serverid,f'kick {name}')
         await (returncommandfeedback(*sendrconcommand(str(serverid),f'kick {name}'),"fake context",None,True,False))
@@ -2014,6 +2021,7 @@ if DISCORDBOTLOGSTATS == "1":
                 ioffset = playerindex
                 displayoutput = displayoutput[playerindex:playerindex+1]
             else:
+                start = playerindex
                 n = maxshownoverride
                 half = n // 2 
                 length = len(displayoutput)
@@ -2254,6 +2262,7 @@ if DISCORDBOTLOGSTATS == "1":
         # print(specificweapon)
         if specificweapon:
             specificweaponsallowed = list(map(lambda x: x["weapon_name"],specificweapon))
+            specificweaponsallowedex = list(map(lambda x: x.get("boundgun"),specificweapon))
             weapon_kills = {"main":{},"cutoff":{}}
             for name,cutoff in timecutoffs.items():
                 stabsofweapons = bvsuggestedthistome(cutoff,swoptovictims)
@@ -2276,11 +2285,11 @@ if DISCORDBOTLOGSTATS == "1":
                     weapon_kills[name].setdefault(specificweapon[index]["png_name"],{})
                     weapon_kills[name][specificweapon[index]["png_name"]].setdefault(killer,0)
                     weapon_kills[name][specificweapon[index]["png_name"]][killer] += stabcount
-                specificweaponsallowed = list(map(lambda x: x.get("boundgun"),specificweapon))
+                
                 for weapon, killer, mods, stabcount, whomurdered in stabsofweapons:
-                    if weapon not in specificweaponsallowed:
+                    if weapon not in specificweaponsallowedex:
                         continue
-                    index = specificweaponsallowed.index(weapon)
+                    index = specificweaponsallowedex.index(weapon)
                     modswanted = (specificweapon[index].get("mods",[]))
                     modsused = (mods.split(" "))
                     if modsused == ['']:
@@ -2690,7 +2699,7 @@ if DISCORDBOTLOGSTATS == "1":
             WHERE playeruid = ? 
             ORDER BY id DESC
         """, (player["uid"],))
-        aliases_raw = list(map(list,c.fetchall()))
+        aliases_raw = list(map(lambda x:[x[0],int(x[1]),int(x[2])],c.fetchall()))
         c.execute("""
             SELECT SUM(duration)
             FROM playtime
@@ -2715,10 +2724,12 @@ if DISCORDBOTLOGSTATS == "1":
                 aliases_raw[i].append(-1)
                 continue
             # print([timespent])
-            aliases_raw[i].append(timespent[0])
+            aliases_raw[i].append(int(timespent[0]))
+        aliases_raw = list(filter(lambda x:len(x[0]) < 3 or x[0][0] != "(" or not x[0][1].isdigit() or x[0][2] != ")",aliases_raw))
+        aliases_raw = functools.reduce(lambda a,b:{"lastalias":b,"aliases":[*a["aliases"],b]if not a["lastalias"] or a["lastalias"][0] != b[0] else [*a["aliases"][:-1],[b[0],b[1],a["aliases"][-1][2],b[3]+a["aliases"][-1][3]]]},aliases_raw,{"lastalias":False,"aliases":[]})["aliases"]
 
 
-        
+        print(json.dumps(aliases_raw,indent=4))
 
         
 
@@ -6769,6 +6780,7 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
 def initdiscordtotitanfall(serverid): #before I knew about setdefault and .keys() being useless
     """Initializes server communication data structures"""
     global discordtotitanfall
+    # print(serverid,"here")
     if serverid not in discordtotitanfall.keys():
         discordtotitanfall[serverid] = {"messages": [], "commands": []}
     if "messages" not in discordtotitanfall[serverid].keys():
@@ -6852,7 +6864,7 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
 
     name_like = f"%{name}%"
     query = f"""
-        SELECT playeruid, playername, lastseenunix FROM uidnamelink{'tf1' if istf1 else ''}
+        SELECT playeruid, playername, lastseenunix, lastserverid FROM uidnamelink{'tf1' if istf1 else ''}
         WHERE LOWER(playername) LIKE LOWER(?)
         ORDER BY id DESC, playername COLLATE NOCASE
     """
@@ -6860,7 +6872,7 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
     data = c.fetchall()
     if not data and (uidnameforce == "uid" or uidnameforce is None) and name.isdigit():
         c.execute(f"""
-            SELECT playeruid, playername, lastseenunix FROM uidnamelink{'tf1' if istf1 else ''}
+            SELECT playeruid, playername, lastseenunix, lastserverid FROM uidnamelink{'tf1' if istf1 else ''}
             WHERE playeruid = ?
             ORDER BY id DESC
         """, (name,))
@@ -6873,11 +6885,11 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
         tfdb.close()
         return []
     elif not data:
-        c.execute(f"""SELECT playeruid, playername, lastseenunix FROM uidnamelink{'tf1' if istf1 else ''}""")
+        c.execute(f"""SELECT playeruid, playername, lastseenunix, lastserverid FROM uidnamelink{'tf1' if istf1 else ''}""")
         data = c.fetchall()
-        for uid, pname, lastseen in data:
+        for uid, pname, lastseen,lastserverid in data:
             if not oneuidpermatch or uid not in seen_uids and simplyfy(name) in simplyfy(pname):
-                results.append({"name": pname, "uid": uid,"lastseen":lastseen if lastseen else 0})
+                results.append({"name": pname, "uid": uid,"lastseen":lastseen if lastseen else 0,"lastserverid":str(lastserverid) if lastserverid else lastserverid})
                 seen_uids.add(uid)
 
         results.sort(key=lambda x: len(x["name"]) if int(time.time()) - x["lastseen"] < 86400*3 else int(time.time()) - x["lastseen"])
@@ -6888,9 +6900,9 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
         seen_uids = set()
         results = []
         # print(data)
-        for uid, pname, lastseen in data:
+        for uid, pname, lastseen,lastserverid in data:
             if not oneuidpermatch or uid not in seen_uids:
-                results.append({"name": pname, "uid": uid,"lastseen":lastseen if lastseen else 0})
+                results.append({"name": pname, "uid": uid,"lastseen":lastseen if lastseen else 0,"lastserverid":str(lastserverid)if lastserverid else lastserverid})
                 seen_uids.add(uid)
         
     
@@ -7285,7 +7297,7 @@ playercontext = {}
 matchids = []
 playerjoinlist = {}
 
-def checkandaddtouidnamelink(uid, playername, istf1 = False):
+def checkandaddtouidnamelink(uid, playername,serverid ,istf1 = False):
     """Updates player UID-name mapping in database with timestamp tracking"""
     global playercontext
     now = int(time.time())
@@ -7298,13 +7310,13 @@ def checkandaddtouidnamelink(uid, playername, istf1 = False):
         last_id, last_name = row
         if str(playername) == str(last_name):
             c.execute(
-                f"UPDATE uidnamelink{'tf1' if istf1 else ''} SET lastseenunix = ? WHERE id = ?",(now, last_id))
+                f"UPDATE uidnamelink{'tf1' if istf1 else ''} SET lastseenunix = ?, lastserverid = ? WHERE id = ?",(now,int(serverid), last_id))
         else:
             c.execute(
-                f"INSERT INTO uidnamelink{'tf1' if istf1 else ''} (playeruid, playername, firstseenunix, lastseenunix) VALUES (?, ?, ?, ?)",(uid, playername, now, now))
+                f"INSERT INTO uidnamelink{'tf1' if istf1 else ''} (playeruid, playername, firstseenunix, lastseenunix, lastserverid) VALUES (?, ?, ?, ?, ?)",(uid, playername, now, now,int(serverid)))
     else:
         c.execute(
-            f"INSERT INTO uidnamelink{'tf1' if istf1 else ''} (playeruid, playername, firstseenunix, lastseenunix) VALUES (?, ?, ?, ?)",(uid, playername, now, now))
+            f"INSERT INTO uidnamelink{'tf1' if istf1 else ''} (playeruid, playername, firstseenunix, lastseenunix, lastserverid) VALUES (?, ?, ?, ?, ?)",(uid, playername, now, now,int(serverid)))
     tfdb.commit()
     tfdb.close()
 
@@ -7327,7 +7339,7 @@ def onplayerjoin(uid,serverid,nameof = False):
         playernames = [x[0] for x in playernames]
     if nameof not in playernames or not playernames:
         # c.execute("INSERT INTO uidnamelink (playeruid,playername) VALUES (?,?)",(uid,nameof))
-        checkandaddtouidnamelink(uid,nameof)
+        checkandaddtouidnamelink(uid,nameof,serverid)
         tfdb.commit()
     if nameof:
         playername = nameof
@@ -7438,7 +7450,7 @@ def savestats(saveinfo):
         if playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"] not in playernames or not playernames:
             # c.execute("INSERT INTO uidnamelink (playeruid,playername) VALUES (?,?)",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"]))
 
-            checkandaddtouidnamelink(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"],istf1)
+            checkandaddtouidnamelink(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["uid"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["name"],saveinfo["serverid"],istf1)
         if playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"] != 0:
             c.execute(f"UPDATE playtime{'tf1' if istf1 else ''} SET leftatunix = ?, endtype = ?, scoregained = ?, titankills = ?, pilotkills = ?, deaths = ?, duration = ? WHERE id = ?",(playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"],saveinfo["endtype"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["score"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["titankills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["kills"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["deaths"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["endtime"]-playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["joined"],playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"]))
             lastrowid = playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][saveinfo["matchid"]][saveinfo["index"]]["idoverride"]
@@ -7572,7 +7584,7 @@ def playerpolllog(data,serverid,statuscode):
             # print([player["uid"]],list(playercontext[serverid].keys()))
             # print("here")
             # onplayerjoin(player["uid"],serverid,player["name"])
-            checkandaddtouidnamelink(player["uid"],player["name"],istf1)
+            checkandaddtouidnamelink(player["uid"],player["name"],serverid,istf1)
             playercontext[serverid][player["uid"]][player["name"]][matchid] = [{  #ON FIRST MAP JOIN
                 "joined": player["timecounter"],  #FOR BOTH JOINED CASES, TEST CHANGINT IT TO INT(PLAYER["TIMECOUNTER"])
                 "map": currentmap,
