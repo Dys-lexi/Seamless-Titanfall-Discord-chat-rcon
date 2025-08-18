@@ -1747,13 +1747,13 @@ if DISCORDBOTLOGSTATS == "1":
         
     @tasks.loop(seconds=LEADERBOARDUPDATERATE)
     async def updateleaderboards():
-        await asyncio.sleep(120)
+        # await asyncio.sleep(120)
         # print("leaderboardchannelmessages",context["leaderboardchannelmessages"])
         if context["overridechannels"]["leaderboardchannel"] == 0:
             return
         print("updating leaderboards")
         for logid in range(len(context["leaderboardchannelmessages"])):
-            await updateleaderboard(logid)
+            await asyncio.to_thread(updateleaderboard_threaded, logid)
             await asyncio.sleep(6)
         print("leaderboards updated")
     async def updateleaderboard(logid,specificuidsearch = False,compact = False,maxshownoverride = 5):
@@ -2131,6 +2131,364 @@ if DISCORDBOTLOGSTATS == "1":
             savecontext()
         else:
             return fakembed
+
+    def updateleaderboard_threaded(logid, specificuidsearch=False, compact=False, maxshownoverride=5):
+        """Threaded version of updateleaderboard - runs database and image processing in a thread"""
+        global context
+        SEPERATOR = "|"
+        now = int(time.time())
+        leaderboard_entry = context["leaderboardchannelmessages"][logid].copy()
+
+        leaderboardname = leaderboard_entry.get("name", "Default Leaderboard")
+        leaderboarddescription = leaderboard_entry.get("description", "no desc")
+        maxshown = leaderboard_entry.get("maxshown", 10)
+        leaderboarddcolor = leaderboard_entry.get("color", 0xff70cb)
+        leaderboardid = leaderboard_entry.get("id", 0)
+        leaderboardcategorysshown = leaderboard_entry["categorys"]
+        
+        if isinstance(leaderboardcategorysshown, list) and GLOBALIP != 0:
+            try:
+                # Run getweaponspng directly (we're already in a thread)
+                timestamp = getweaponspng(leaderboard_entry.get("displayvictims", False), leaderboardcategorysshown, maxshown, leaderboard_entry.get("columns", False))
+                channel = bot.get_channel(context["overridechannels"]["leaderboardchannel"])
+                cdn_url = f"{GLOBALIP}/cdn/{timestamp}"
+
+                if not timestamp and leaderboardid != 0:
+                    old_message_future = asyncio.run_coroutine_threadsafe(channel.fetch_message(leaderboardid), bot.loop)
+                    old_message = old_message_future.result()
+                    edit_future = asyncio.run_coroutine_threadsafe(
+                        old_message.edit(content="⚠ Could not retrieve leaderboard image. Using last image.", 
+                                       embed=old_message.embeds[0] if old_message.embeds else None), 
+                        bot.loop
+                    )
+                    edit_future.result()
+                    return
+                elif not timestamp:
+                    send_future = asyncio.run_coroutine_threadsafe(
+                        channel.send("Could not calculate leaderboard image for " + leaderboardname), 
+                        bot.loop
+                    )
+                    new_message = send_future.result()
+                    context["leaderboardchannelmessages"][logid]["id"] = new_message.id
+                    savecontext()
+                    return
+
+                # Check if the image is available using requests instead of aiohttp
+                image_available = True
+                try:
+                    import requests
+                    response = requests.get(cdn_url + "TEST", timeout=10)
+                    if response.status_code != 200:
+                        image_available = False
+                except Exception:
+                    print("FAILED TO CONNECT TO CDN TO SEND LEADERBOARDIMAGE")
+                    image_available = False
+
+                embed = discord.Embed(
+                    title=leaderboardname,
+                    color=leaderboarddcolor,
+                    description=f"{leaderboarddescription}\nLast Updated: {getdiscordtimestamp()}"
+                )
+                if image_available:
+                    embed.set_image(url=cdn_url)
+
+                if leaderboardid != 0 and not specificuidsearch:
+                    try:
+                        old_message_future = asyncio.run_coroutine_threadsafe(channel.fetch_message(leaderboardid), bot.loop)
+                        old_message = old_message_future.result()
+                        if image_available:
+                            edit_future = asyncio.run_coroutine_threadsafe(old_message.edit(embed=embed, content=None), bot.loop)
+                            edit_future.result()
+                        else:
+                            edit_future = asyncio.run_coroutine_threadsafe(
+                                old_message.edit(content="⚠ Could not retrieve leaderboard image. Using last image.", 
+                                               embed=old_message.embeds[0] if old_message.embeds else None), 
+                                bot.loop
+                            )
+                            edit_future.result()
+                    except discord.NotFound as e:
+                        print("Leaderboard message not found, sending new one.", e, "ID", leaderboardid)
+                        send_future = asyncio.run_coroutine_threadsafe(channel.send(embed=embed), bot.loop)
+                        new_message = send_future.result()
+                        context["leaderboardchannelmessages"][logid]["id"] = new_message.id
+                        savecontext()
+                
+                elif not specificuidsearch:
+                    if image_available:
+                        send_future = asyncio.run_coroutine_threadsafe(channel.send(embed=embed), bot.loop)
+                        new_message = send_future.result()
+                        context["leaderboardchannelmessages"][logid]["id"] = new_message.id
+                        savecontext()
+                    else:
+                        send_future = asyncio.run_coroutine_threadsafe(channel.send("Could not retrieve leaderboard image."), bot.loop)
+                        new_message = send_future.result()
+                        context["leaderboardchannelmessages"][logid]["id"] = new_message.id
+                        savecontext()
+                return
+            except Exception as e:
+                traceback.print_exc()
+                return
+
+        elif isinstance(leaderboardcategorysshown, list):
+            print("skipping cdn leaderboard")
+            return
+
+        # Rest of the function (database operations) remains the same
+        leaderboarddatabase = leaderboard_entry["database"]
+        leaderboardorderby = leaderboard_entry["orderby"]
+        leaderboardfilters = leaderboard_entry.get("filters", {})
+        leaderboardmerge = leaderboard_entry["merge"]
+        indexoverride = leaderboard_entry.get("nameindex", -1)
+
+        nameoverride = False
+        serveroverride = False
+        tf1nameoverride = False
+
+        if isinstance(leaderboardmerge, str):
+            leaderboardmerge = [leaderboardmerge]
+       
+        leaderboardmerge = list(leaderboardmerge)
+        oldleaderboardmerge = leaderboardmerge.copy()
+        
+        for i, value in enumerate(leaderboardmerge):
+            if leaderboardmerge[i] == "name":
+                leaderboardmerge[i] = "playeruid"
+                nameoverride = True
+        for i, value in enumerate(leaderboardmerge):
+            if leaderboardmerge[i] == "tf1name":
+                leaderboardmerge[i] = "playeruid"
+                tf1nameoverride = True
+        for i, value in enumerate(leaderboardmerge):
+            if leaderboardmerge[i] == "deathname":
+                leaderboardmerge[i] = "victim_id"
+                nameoverride = True
+        for i, value in enumerate(leaderboardmerge):
+            if leaderboardmerge[i] == "server":
+                leaderboardmerge[i] = "serverid"
+                serveroverride = True       
+
+        tfdb = postgresem("./data/tf2helper.db")
+        c = tfdb
+
+        # Build WHERE clause
+        where_clauses = []
+        params = []
+        if not isinstance(leaderboardfilters, str):
+            for key, values in leaderboardfilters.items():
+                if len(values) == 1:
+                    where_clauses.append(f"{key} = ?")
+                    params.append(values[0])
+                else:
+                    placeholders = ",".join(["?"] * len(values))
+                    where_clauses.append(f"{key} IN ({placeholders})")
+                    params.extend(values)
+
+            wherestring = " AND ".join(where_clauses)
+        else:
+            wherestring = eval(leaderboardfilters).replace('"',"'")
+        if not specificuidsearch:
+            print("Updating leaderboard:",leaderboardname)
+
+        orderbyiscolumn = leaderboardorderby not in [x for x in leaderboardcategorysshown.keys()]
+
+        leaderboardcategorys = list(set([
+            *( [leaderboardorderby] if orderbyiscolumn else [] ),
+            *leaderboardmerge,
+            *[col for x in leaderboardcategorysshown.values() for col in x["columnsbound"]]
+        ]))
+        
+        countadd = False
+        if "matchcount" in leaderboardcategorys:
+            countadd = True
+            del(leaderboardcategorys[leaderboardcategorys.index("matchcount")])
+            
+        base_query = f"SELECT {','.join(leaderboardcategorys)} FROM {leaderboarddatabase}"
+        quote = "'"
+        query = f"{base_query} WHERE{' (victim_type = '+quote+'player'+quote+ 'OR victim_type IS NULL)' + 'AND' if leaderboarddatabase == 'specifickilltracker' and not leaderboard_entry.get('allownpcs',False) else ''} {wherestring}" if wherestring else f"{base_query} {'WHERE (victim_type = '+quote+'player'+quote+ 'OR victim_type IS NULL)' if (leaderboarddatabase == 'specifickilltracker' and not leaderboard_entry.get('allownpcs',False)) else ''}"
+        
+        c.execute(query, params)
+        data = c.fetchall()
+
+        if not data:
+            pass
+            
+        # add times appeared columns
+        if countadd:
+            leaderboardcategorys.append("matchcount")
+
+        # Group rows by the merge key
+        output = {}
+        mergeindexes = []
+        for i in leaderboardmerge:
+            mergeindexes.append(leaderboardcategorys.index(i))
+                
+        output = {}    
+        for row in data:
+            output.setdefault(SEPERATOR.join(list(map(lambda x: str(row[x]),mergeindexes))), []).append(row)
+
+        # Merge data per player
+        actualoutput = {}
+        for key, rows in output.items():
+            merged = {}
+            for row in rows:
+                for idx, col_name in enumerate(leaderboardcategorys):
+                    if col_name == "matchcount":
+                        merged[col_name] = len(rows)
+                        continue
+                    val = row[idx]
+                    if col_name not in merged:
+                        merged[col_name] = val
+                    else:
+                        if isinstance(val, (int, float)) and isinstance(merged[col_name], (int, float)):
+                            merged[col_name] += val
+                        elif isinstance(val, str):
+                            continue  # Keep the first string
+            actualoutput[key] = merged
+            
+        actualoutput = sorted(actualoutput.items(), key=lambda x: x[1][leaderboardorderby] if orderbyiscolumn else (  x[1][leaderboardcategorysshown[leaderboardorderby]["columnsbound"][0]] if len (leaderboardcategorysshown[leaderboardorderby]["columnsbound"]) == 1 else eval(leaderboardcategorysshown[leaderboardorderby]["calculation"], {}, x[1])), reverse=True)
+        
+        def swopper(itemname):
+            global context
+            try: itemname = int(itemname)
+            except:  return "Some Unknown NPC"
+            return str(namemap.get((itemname), context["servers"].get(str(itemname), {}).get("name", itemname)))
+            
+        displayoutput = []
+        nameuidmap = []
+        if nameoverride:
+            c.execute("SELECT playername, playeruid FROM uidnamelink ORDER BY id")
+            namemap = {uid: name for name, uid in c.fetchall()}
+            for uid, rowdata in actualoutput:
+                uid = uid.split(SEPERATOR)
+                displayname = SEPERATOR.join(list(map( swopper,uid )))
+                nameuidmap.append(uid[0])
+                displayoutput.append((displayname, rowdata))
+        else:
+            displayoutput = actualoutput
+
+        tfdb.close()
+
+        # Build embed
+        if not specificuidsearch:
+            embed = discord.Embed(
+                title=f"{leaderboardname}",
+                color=leaderboarddcolor,
+                description=f"{leaderboarddescription} **{len(displayoutput)} Entrys**\nLast Updated: {getdiscordtimestamp()}"
+            )
+
+        ioffset = 0
+        entrycount = len(displayoutput)
+        if specificuidsearch:
+            if specificuidsearch not in nameuidmap:
+                return False
+            playerindex = nameuidmap.index(specificuidsearch)
+            if compact:
+                ioffset = playerindex
+                displayoutput = displayoutput[playerindex:playerindex+1]
+            else:
+                start = playerindex
+                n = maxshownoverride
+                half = n // 2 
+                length = len(displayoutput)
+                if length <= n:
+                    window = displayoutput
+                else:
+                    start = playerindex - half
+                    end   = playerindex + half + 1 
+                    
+                    if start < 0:
+                        end += -start
+                        start = 0
+
+                    if end > length:
+                        start -= (end - length)
+                        end = length
+                    start = max(0, start)
+                    end = min(length, end)
+
+                    window = displayoutput[start:end]
+                ioffset = start
+                displayoutput = window
+                maxshown = n
+                
+        fakembed = {"rows":[]}
+        if not compact:
+            fakembed["title"] = {
+                "title":f"{leaderboardname}",
+                "color":leaderboarddcolor,
+                "description":f"{leaderboarddescription} **{(entrycount)} Entrys**"
+            }
+        else:
+            fakembed["title"] = {
+                    "title":f"{leaderboardname} ***Position: {playerindex+1}***",
+                    "color":leaderboarddcolor,
+                    "description":leaderboarddescription
+                }
+        for i, (name, data) in enumerate(displayoutput):
+            if i >= maxshown:
+                break
+            ioffsetted = i + ioffset
+            output = {}
+            for catname,category in leaderboardcategorysshown.items():
+                if "calculation" in category.keys():
+                    value = eval(category["calculation"],{},data)
+                else:
+                    if len(category["columnsbound"]) > 1:
+                        output[catname] = "Cannot bind multiple columns without a calculation function"
+                    value = data[category["columnsbound"][0]]
+                value = modifyvalue(value, category.get("format", None), category.get("calculation", None))
+                output[catname] = value
+                
+            actualoutput = "> \u200b \u200b \u200b " + " ".join(
+                [f"{category}: **{value}**" for category, value in list(filter(lambda x: x[0] != oldleaderboardmerge[indexoverride], zip(leaderboardcategorysshown, output.values())))]
+            )
+            
+            if not specificuidsearch:
+                embed.add_field(
+                    name=f" \u200b {str(ioffsetted+1)}. ***{name.split(SEPERATOR)[indexoverride] if oldleaderboardmerge[indexoverride] not in leaderboardcategorysshown.keys() else list(output.values())[list(leaderboardcategorysshown.keys()).index(oldleaderboardmerge[indexoverride])]}***",
+                    value=f"{actualoutput}",
+                    inline=False
+            )
+            else:
+                fakembed["rows"].append({
+                "name":f" \u200b {str(ioffsetted+1)}. **{'*' if playerindex != ioffsetted else ''}{name.split(SEPERATOR)[indexoverride] if oldleaderboardmerge[indexoverride] not in leaderboardcategorysshown.keys() else list(output.values())[list(leaderboardcategorysshown.keys()).index(oldleaderboardmerge[indexoverride])]}{'*' if playerindex != ioffsetted else ''}**",
+                "value": actualoutput,
+                "inline": False
+            })
+        if not data:
+            fakembed["rows"].append({
+                "name":  "Error",
+                "value": "No data found for this leaderboard",
+                "inline": False
+            })
+            if not specificuidsearch:
+                embed.add_field(
+                    name="Error",
+                    value="No data found for this leaderboard",
+                    inline=False,
+                )
+
+        # Update or send leaderboard message using asyncio.run_coroutine_threadsafe
+        channel = bot.get_channel(context["overridechannels"]["leaderboardchannel"])
+
+        if leaderboardid != 0 and not specificuidsearch:
+            try:
+                message_future = asyncio.run_coroutine_threadsafe(channel.fetch_message(leaderboardid), bot.loop)
+                message = message_future.result()
+                edit_future = asyncio.run_coroutine_threadsafe(message.edit(embed=embed), bot.loop)
+                edit_future.result()
+            except discord.NotFound as e:
+                print("[38;5;100mLeaderboard message not found, resending a new one",e,"ID",leaderboardid)
+                return
+        elif not specificuidsearch:
+            print("[38;5;100mLeaderboard sobbing message really not found","ID",leaderboardid)
+            send_future = asyncio.run_coroutine_threadsafe(channel.send(embed=embed), bot.loop)
+            message = send_future.result()
+            context["leaderboardchannelmessages"][logid]["id"] = message.id
+            savecontext()
+        else:
+            return fakembed
+
     def sqrt_ceil(n):
         if n < 0:
             raise ValueError("Cannot take the square root of a negative number.")
@@ -4305,10 +4663,9 @@ def recieveflaskprintrequests():
         data = request.get_json()
         if data["password"] != SERVERPASS and SERVERPASS != "*":
             print("invalid password used on data")
-            return {"message": "invalid password"}
-        if (data.get("victim_type",False) == "player"):
-            print(f"{data.get('attacker_name', data['attacker_type'])} killed {data.get('victim_name', data['victim_type'])} with {data['cause_of_death']} using mods {' '.join(data.get('modsused',[]))}")
+            return {"message": "invalid password"}            
         if SENDKILLFEED == "1" and (data.get("victim_type",False) == "player"):
+            print(f"{data.get('attacker_name', data['attacker_type'])} killed {data.get('victim_name', data['victim_type'])} with {data['cause_of_death']} using mods {' '.join(data.get('modsused',[]))}")
             messageflush.append({
                 "timestamp": int(time.time()),
                 "serverid": data["server_id"],
@@ -6616,7 +6973,7 @@ async def outputmsg(channel, output, serverid, USEDYNAMICPFPS):
 
     if not content:
         return
-    print(f"{getpriority(context,["servers",serverid,"name"])}: {f"\n{getpriority(context,["servers",serverid,"name"])}: ".join(content)}")
+    print(f"{PREFIXES["stat"]}{getpriority(context,["servers",serverid,"name"])}: {PREFIXES["neutral"]}{f"\n{getpriority(context,["servers",serverid,"name"])}: ".join(content)}")
     message = await channel.send(("\n".join(content)))
     # print(f"Sent message ID: {message.id}")
     # print("OUTPUT",output[serverid])
@@ -6763,7 +7120,7 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
             
             async with aiohttp.ClientSession() as session:
                 # print(pilotstates[serverid])
-                print(f"{getpriority(context,["servers",serverid,"name"])}: {username[0:80]}: {f"\n{getpriority(context,["servers",serverid,"name"])}: {username[0:80]}: ".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))}")
+                print(f"{PREFIXES["stat"]}{getpriority(context,["servers",serverid,"name"])}: {PREFIXES["neutral"]}{username[0:80]}: {f"\n{getpriority(context,["servers",serverid,"name"])}: {username[0:80]}: ".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))}")
 
                 # print(f"Tf -> Discord\n{username[0:80]}: {f"\n{username[0:80]}: ".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))}")
                 message = await actualwebhooks[pilotstates[serverid]["webhook"]].send((
