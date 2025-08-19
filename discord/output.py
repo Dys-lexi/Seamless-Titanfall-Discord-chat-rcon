@@ -31,8 +31,7 @@ import psycopg2
 from psycopg2 import pool
 # foo.cache_clear()
 # @functools.lru_cache(maxsize = None)
-# Execution monitoring for stuck detection
-# import threading
+# DASH THEN HASHTAG
 stuck_monitor_lock = threading.Lock()
 current_execution = {'file': None, 'line': None, 'start_time': None}
 
@@ -1244,7 +1243,8 @@ def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry=None)
         return "No players found"
     
     player = matchingplayers[0]
-    serverid = player["lastserverid"]
+    if not serverid:
+        serverid = player["lastserverid"]
     sanction = getpriority(readplayeruidpreferences(player["uid"],False),["banstf2","sanction"])
     if sanction and not (sanction.get("expiry") and sanction["expiry"] and int(time.time()) > sanction["expiry"]):
         try:
@@ -1399,7 +1399,7 @@ async def sanctiontf1(
             "timestamp": int(time.time()),
             "globalmessage": True,
             "overridechannel": "globalchannel",
-            "messagecontent": f"New {sanctiontype} uploaded by {ctx.author.name} for player {name} UID: {"n/a"} {'Expiry: ' + modifyvalue("date",baninfo["expiry"]) if expiry else ''} {'Reason: ' + reason if reason else ''}",
+            "messagecontent": f"New {sanctiontype} uploaded by {ctx.author.name} for player {name} UID: {uid} {'Expiry: ' + modifyvalue("date",baninfo["expiry"]) if expiry else ''} {'Reason: ' + reason if reason else ''}",
             "metadata": {
                 "type": None
             },
@@ -1409,8 +1409,8 @@ async def sanctiontf1(
     sanction_details = f"{sanctiontype.capitalize()} added to {name} (UID: {uid}) Until {expiry_text}\nReason: {reason}"
     await ctx.respond(f"{sanction_details}\n{"Tried to kick player" if sanctiontype == "ban" else "The mute happens on map change"}")
     if sanctiontype == "ban":
-        print(serverid,f'kick {name}')
-        await (returncommandfeedback(*sendrconcommand(str(serverid),f'kick {name}'),"fake context",None,True,False))
+        # print(serverid,f'kick {name}')
+        await (returncommandfeedback(*sendrconcommand(str(serverid),f'banip 7200 {ip}'),"fake context",None,True,False))
     # else: sadly don't know their uid. cannot be bothered to fix tbh I could just kick em but na
     #     await (returncommandfeedback(*sendrconcommand(str(serverid),f'!muteplayer {message["kickid"]} {PREFIXES["warning"]}{(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"} rsn {PREFIXES["warning"]}{list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context",None,True,False), bot.loop)
 
@@ -4246,8 +4246,8 @@ def recieveflaskprintrequests():
             sanction = {}
         elif sanction:
             sanction["expiry"] = modifyvalue(sanction["expiry"], "date") if sanction["expiry"] else "Never ever"
-        print(json.dumps({"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{**({"nameprefix": colourslink[discorduid]["nameprefix"]} if getpriority(colourslink,[discorduid,"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())) else {}),**{x: str(y) for x,y in list(filter(lambda x: internaltoggles.get(x[0]) and (not getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]))  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))},**sanction}},indent=4))
-        return {"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{**({"nameprefix": colourslink[discorduid]["nameprefix"]} if getpriority(colourslink,[discorduid,"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())) else {}),**{x: str(y) for x,y in list(filter(lambda x: internaltoggles.get(x[0]) and (not getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]))  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))},**sanction}}
+        # print(json.dumps({"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{**({"nameprefix": colourslink[discorduid]["nameprefix"]} if getpriority(colourslink,[discorduid,"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())) else {}),**{x: str(y) for x,y in list(filter(lambda x: internaltoggles.get(x[0]) and (not getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]))  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))},**sanction}},indent=4))
+        return {"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{**({"nameprefix": colourslink[discorduid]["nameprefix"]} if getpriority(colourslink,[discorduid,"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())) else {}),**{x: str(y) for x,y in list(filter(lambda x: not internaltoggles.get(x[0],False) or (not getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]))  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))},**sanction}}
         # return output
     @app.route("/getrunningservers", methods=["POST"])
     def getrunningservers():
@@ -6268,7 +6268,9 @@ def checkbantf1(message,serverid,isfromserver):
             # print(f"banreason {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}")
             # print(f'!rcon kickid {message["kickid"]} {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context")
             # print(f'kickid {message["kickid"]} You are banned: {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]} Expires: {(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"}')
-            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'kickid {message["kickid"]} You are banned: {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]} Expires: {(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"}'),"fake context",None,True,False), bot.loop)
+            # asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'kickid {message["kickid"]} You are banned: {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]} Expires: {(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"}'),"fake context",None,True,False), bot.loop)
+            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'banip 7200 {message["ip"]} You are banned: {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]} Expires: {(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"}'),"fake context",None,True,False), bot.loop)
+
             return
         # print("e",list(filter(lambda x: playerid == x["id"],bannedpeople)))
         asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!muteplayer {message["kickid"]} {PREFIXES["warning"]}{(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"} rsn {PREFIXES["warning"]}{list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context",None,True,False), bot.loop)
@@ -6279,7 +6281,7 @@ def findallbannedpeople(potentialbans,originalbans,bandepth):
     for potential in potentialbans:
         matched = False
         for originalban in filter(lambda x: x["exhaustion"] <= bandepth, originalbans):
-            if potential["ip"] == originalban["ip"] or (potential["uid"] == originalban["uid"] and len(str(potential["uid"])) >= 14):
+            if potential["ip"] == originalban["ip"] or (str(potential["uid"]) == str(originalban["uid"]) and len(str(potential["uid"])) >= 10):
                 newbans.append({**potential,"banlinks":originalban["banlinks"],"bantype":originalban["bantype"],"baninfo":originalban["baninfo"],"expire":originalban["expire"],"exhaustion":originalban["exhaustion"]+1,"origbanid":getpriority(originalban,"origbanid","id")})
                 matched = True
                 break
@@ -7136,6 +7138,9 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
                         print("setting pfp too",pfp)
 
                         break
+                else:
+                    value["messages"].append(f"-# {pfp}")
+
             # print("SENDING PFP MESSAGE","\n".join(list(map(lambda x: x["message"],value["messages"]))),f'{PFPROUTE}{pfp}')
             
             async with aiohttp.ClientSession() as session:
@@ -8074,7 +8079,8 @@ def playerpolllog(data,serverid,statuscode):
             if not playercontext[serverid][uid]:
                 del playercontext[serverid][uid]
         except KeyError:
-            traceback.print_exc()
+            # sorted, just remove the print of the execution!
+            # traceback.print_exc()
             # Optional: log or silently skip in case something was already deleted
             pass
 
