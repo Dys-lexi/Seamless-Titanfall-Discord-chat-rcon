@@ -648,6 +648,7 @@ SERVERNAMEISCHOICE = os.getenv("DISCORD_BOT_SERVERNAME_IS_CHOICE", "0")
 SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
 TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass") 
 USEDYNAMICPFPS = os.getenv("USE_DYNAMIC_PFPS","1")
+USEDYNAMICPFPS = "1"
 PFPROUTE = os.getenv("PFP_ROUTE","https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/")
 FILTERNAMESINMESSAGES = os.getenv("FILTER_NAMES_IN_MESSAGES","usermessagepfp,chat_message,command,tf1command,botcommand,connecttf1")
 SENDKILLFEED = os.getenv("SEND_KILL_FEED","1")
@@ -1126,6 +1127,7 @@ async def updateroles():
             context["overriderolesuids"][roletype] = uids
     knownpeople = {x.id:{"name":x.global_name if x.global_name else x.display_name,"nick":x.nick,"username":x.name} for x in guild.members}
     savecontext()
+    checkrconallowedtfuid.cache_clear()
 
 @bot.event
 async def on_member_joinadd(member):
@@ -1283,7 +1285,7 @@ def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry=None)
     )
     expiry_text = "forever" if expiry is None else modifyvalue(expiry, "date")    
     if serverid:
-        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {player["uid"]}'),"fake context",None,True,False), bot.loop)
+        sendrconcommand(serverid,f'!reloadpersistentvars {player["uid"]}',sender=sender,prefix=f"New {sanctiontype}")
     
     # return f"**{sanctiontype.capitalize()}** applied to **{player['name']}** (UID: `{player['uid']}`) until **{expiry_text}**\nReason: {reason}"
     return f"{sanctiontype.capitalize()} added to {player["name"]} (UID: {player["uid"]}) Until {expiry_text}\nReason: {reason}"
@@ -1342,7 +1344,7 @@ async def sanctionremovetf2(
     # It isn't now, I store peoples most recent server!
     # serverid = getchannelidfromname(servername, ctx)
     if player["lastserverid"]:
-        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(player["lastserverid"],f'!reloadpersistentvars {player["uid"]}'),"fake context",None,True,False), bot.loop)
+        sendrconcommand(player["lastserverid"],f'!reloadpersistentvars {player["uid"]}',sender=ctx.author.name)
 
 
 @bot.slash_command(
@@ -1410,7 +1412,7 @@ async def sanctiontf1(
     await ctx.respond(f"{sanction_details}\n{"Tried to kick player" if sanctiontype == "ban" else "The mute happens on map change"}")
     if sanctiontype == "ban":
         # print(serverid,f'kick {name}')
-        await (returncommandfeedback(*sendrconcommand(str(serverid),f'banip 7200 {ip}'),"fake context",None,True,False))
+        sendrconcommand(str(serverid),f'banip 7200 {ip}',sender=ctx.author.name)
     # else: sadly don't know their uid. cannot be bothered to fix tbh I could just kick em but na
     #     await (returncommandfeedback(*sendrconcommand(str(serverid),f'!muteplayer {message["kickid"]} {PREFIXES["warning"]}{(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"} rsn {PREFIXES["warning"]}{list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context",None,True,False), bot.loop)
 
@@ -1513,7 +1515,7 @@ if DISCORDBOTLOGSTATS == "1":
         # recall the rule of sending external commands!
         if not len(str(playerdiscorduid)) > 15 and not playerresolvedfromuid:
             # a few workarounds in play, here, sadly.
-            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} No discord UID found, stats logging disabled"),"fake context",None,True,False), bot.loop)
+            sendrconcommand(serverid,f"!privatemessage {playeruid} No discord UID found, stats logging disabled")
             return
         
         tfdb = postgresem("./data/tf2helper.db")
@@ -1544,7 +1546,7 @@ if DISCORDBOTLOGSTATS == "1":
         """, (playerdiscorduid,))
         bestgame = c.fetchone()
         if not playerstats or not playernamereal:
-            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} Stats for {playername} not found :("),"fake context",None,True,False), bot.loop)
+            sendrconcommand(serverid,f"!privatemessage {playeruid} Stats for {playername} not found :(")
             return
         playernamereal = playernamereal[0]
         while True:
@@ -1555,11 +1557,11 @@ if DISCORDBOTLOGSTATS == "1":
                 break
         
         output = f"[38;5;{colour}m{playernamereal}{PREFIXES["chatcolour"]} has {PREFIXES["stat"]}{playerstats[0]} {PREFIXES["chatcolour"]}Pilot kills, {PREFIXES["stat"]}{playerstats[2]}{PREFIXES["chatcolour"]} Deaths, {PREFIXES["stat"]}{playerstats[3]}{PREFIXES["chatcolour"]} Titan kills and {PREFIXES["stat"]}{modifyvalue(int(playerstats[1] if playerstats[1] else 0),'time')} {PREFIXES["chatcolour"]}Time played"
-        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} {output}"),"fake context",None,True,False), bot.loop)
+        sendrconcommand(serverid,f"!privatemessage {playeruid} {output}")
         if bestgame:
             formatted_date = datetime.fromtimestamp(bestgame[2]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(bestgame[2]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(bestgame[2]).day % 10, 'th')} of %B %Y")
 
-            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!privatemessage {playeruid} [38;5;{colour}m{playernamereal}{PREFIXES["chatcolour"]} had their best game in {PREFIXES["stat"]}{MAP_NAME_TABLE.get(bestgame[1],bestgame[1])}{PREFIXES["chatcolour"]} with {PREFIXES["stat"]}{bestgame[3]}{PREFIXES["chatcolour"]} kills on {PREFIXES["stat"]}{formatted_date}"),"fake context",None,True,False), bot.loop)
+            sendrconcommand(serverid,f"!privatemessage {playeruid} [38;5;{colour}m{playernamereal}{PREFIXES["chatcolour"]} had their best game in {PREFIXES["stat"]}{MAP_NAME_TABLE.get(bestgame[1],bestgame[1])}{PREFIXES["chatcolour"]} with {PREFIXES["stat"]}{bestgame[3]}{PREFIXES["chatcolour"]} kills on {PREFIXES["stat"]}{formatted_date}")
 
     # @bot.slash_command(name="gunleaderboard",description="Gets leaderboards for a gun")
     # async def retrieveleaderboardgun(
@@ -4099,12 +4101,21 @@ def colourmessage(message,serverid):
     if not message.get("metadata",False) or not  message["metadata"].get("uid",False) or not message["metadata"].get("type",False) in ["usermessagepfp","chat_message","impersonate"] :
         # print("oxoxo",message["metadata"])
         return False
-    elif getpriority(message,["metadata","donotcolour"]) and getpriority(colourslink,[discorduidnamelink.get(message["metadata"]["uid"],False),"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduidnamelink.get(message["metadata"]["uid"],False),{}).items()))).values())):
+    discorduid = discorduidnamelink.get(message["metadata"]["uid"],False)
+    if not discorduid and getpriority(message,["metadata","donotcolour"]):
+        tfdb = postgresem("./data/tf2helper.db")
+        c = tfdb
+        c.execute ("SELECT discordid FROM discordlinkdata WHERE uid = ?", (message["metadata"]["uid"],))
+        link = c.fetchone()
+        discorduidnamelink[message["metadata"]["uid"]] = link[0] if link and link[0] else False
+        discorduid = discorduidnamelink.get(message["metadata"]["uid"],False)
+    
+    if getpriority(message,["metadata","donotcolour"]) and getpriority(colourslink,[discorduidnamelink.get(message["metadata"]["uid"],False),"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduidnamelink.get(message["metadata"]["uid"],False),{}).items()))).values())):
         return False
+    # print("HERE",message)
         # I hope this validation works! if donotcolour and only nametag, else "figure it out"
     # getpriority(colourslink,[discorduidnamelink.get(message["metadata"]["uid"],False),"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduidnamelink.get(message["metadata"]["uid"],False),{}).items()))).values()))
     # print("ew")
-    discorduid = discorduidnamelink.get(message["metadata"]["uid"],False)
     if (message["metadata"].get("ismuted") or message["metadata"].get("type",False) == "impersonate") and not discorduid:
             tfdb = postgresem("./data/tf2helper.db")
             c = tfdb
@@ -5841,7 +5852,7 @@ def tftodiscordcommand(specificommand,command,serverid):
         }
         )
         # print("command",f"{keyletter}{getpriority(context["commands"]["ingamecommands"][getpriority(command, 'originalmessage','messagecontent').split(keyletter,1)[1].split(" ",1)[0]],"alias",nofind=getpriority(command, 'originalmessage','messagecontent').split(keyletter,1)[1])} {getpriority(command, 'originalmessage','messagecontent').split(" ",1)[1:]}")
-        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid, (f"{keyletter}{getpriority(context["commands"]["ingamecommands"][getpriority(command, 'originalmessage','messagecontent').split(keyletter,1)[1].split(" ",1)[0]],"alias",nofind=getpriority(command, 'originalmessage','messagecontent').split(keyletter,1)[1].split(" ",1)[0])} {" ".join(getpriority(command, 'originalmessage','messagecontent').split(" ",1)[1:])}")), "fake context", sendthingstoplayer, True, True,getpriority(command,"uid",["meta","uid"])), bot.loop)
+        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid, (f"!{getpriority(context["commands"]["ingamecommands"][getpriority(command, 'originalmessage','messagecontent').split(keyletter,1)[1].split(" ",1)[0]],"alias",nofind=getpriority(command, 'originalmessage','messagecontent').split(keyletter,1)[1].split(" ",1)[0])} {" ".join(getpriority(command, 'originalmessage','messagecontent').split(" ",1)[1:])}"),sender=getpriority(command,"originalname","name")), "fake context", sendthingstoplayer, True, True,getpriority(command,"uid",["meta","uid"])), bot.loop)
     # print(specificommand)
     elif context["commands"]["ingamecommands"][specificommand]["run"] == "thread":
         threading.Thread(target=threadwrap, daemon=True, args=(globals()[context["commands"]["ingamecommands"][specificommand]["function"]], command, serverid, servercommand)).start()
@@ -5940,10 +5951,10 @@ def addsanction(message,serverid,isfromserver):
         discordtotitanfall[serverid]["messages"].append({
             "content":f"{PREFIXES['discord']}{msg}",
         })
-    asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {message["uid"]}'),"fake context",None,True,False), bot.loop)
+    sendrconcommand(serverid,f'!reloadpersistentvars {message["uid"]}',sender=message["sender"])
 
 def autobalance(message,serverid,isfromserver):
-    asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!playerfinder'),"fake context",autobalanceoverride,True,False), bot.loop)
+    asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!playerfinder',sender=getpriority(message,"originalname","name")),"fake context",autobalanceoverride,True,False), bot.loop)
 
 def autobalanceoverride(data, serverid, statuscode):
     data = getjson(data)
@@ -6075,7 +6086,7 @@ def autobalancerun(outputtedteams,serverid):
     time.sleep(5)
     discordtotitanfall[serverid]["messages"].append({
         "content":f"{PREFIXES['discord']} Trying to balance now"})
-    asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f"!bettertb {" ".join([f"2 {x["uid"]}" for x in outputtedteams[0]])} {" ".join([f"3 {x["uid"]}" for x in outputtedteams[1]])}"),"fake context",None,True,False), bot.loop)
+    sendrconcommand(serverid,f"!bettertb {" ".join([f"2 {x["uid"]}" for x in outputtedteams[0]])} {" ".join([f"3 {x["uid"]}" for x in outputtedteams[1]])}",sender="server")
 
 
 def ingamesetusercolour(message,serverid,isfromserver):
@@ -6133,7 +6144,7 @@ def ingamesetusercolour(message,serverid,isfromserver):
     }
     )
     
-    asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {getpriority(message,"uid",["meta","uid"],"originalname","name")}'),"fake context",None,True,False), bot.loop)
+    sendrconcommand(serverid,f'!reloadpersistentvars {getpriority(message,"uid",["meta","uid"],"originalname","name")}',sender=getpriority(message,"originalname"))
 
 def ingamesetusertag(message,serverid,isfromserver):
     """Handles in-game tag setting commands from players"""
@@ -6185,7 +6196,7 @@ def ingamesetusertag(message,serverid,isfromserver):
     }
     )
     
-    asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {getpriority(message,"uid",["meta","uid"],"originalname","name")}'),"fake context",None,True,False), bot.loop)
+    sendrconcommand(serverid,f'!reloadpersistentvars {getpriority(message,"uid",["meta","uid"],"originalname","name")}',sender=getpriority(message,"originalname"))
   
 
 
@@ -6269,11 +6280,11 @@ def checkbantf1(message,serverid,isfromserver):
             # print(f'!rcon kickid {message["kickid"]} {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context")
             # print(f'kickid {message["kickid"]} You are banned: {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]} Expires: {(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"}')
             # asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'kickid {message["kickid"]} You are banned: {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]} Expires: {(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"}'),"fake context",None,True,False), bot.loop)
-            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'banip 7200 {message["ip"]} You are banned: {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]} Expires: {(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"}'),"fake context",None,True,False), bot.loop)
+            sendrconcommand(serverid,f'banip 7200 {message["ip"]} You are banned: {list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]} Expires: {(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"}',sender=None)
 
             return
         # print("e",list(filter(lambda x: playerid == x["id"],bannedpeople)))
-        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!muteplayer {message["kickid"]} {PREFIXES["warning"]}{(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"} rsn {PREFIXES["warning"]}{list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context",None,True,False), bot.loop)
+        sendrconcommand(serverid,f'!muteplayer {message["kickid"]} {PREFIXES["warning"]}{(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"} rsn {PREFIXES["warning"]}{list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}',sender=None)
 def findallbannedpeople(potentialbans,originalbans,bandepth):
     """Recursively finds all banned players using ban depth tracking"""
     newbans = []
@@ -6497,11 +6508,11 @@ def displayendofroundstats(message,serverid,isfromserver):
             stringslist["general"].append(f"{colour}Total deaths: {PREFIXES['stat']}{matchdata['tdeaths']}")
         # print(list(matchdata["kd"].values()))
         if matchdata.get("kd",False) and max(matchdata["kd"].values()) > 0:
-            stringslist["personal"].append(f"{colour}K/D: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +x[1][0]+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kd'].items())[:maxshow]))))}")
+            stringslist["personal"].append(f"{colour}K/D: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +str(x[1][0])+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kd'].items())[:maxshow]))))}")
         if matchdata.get("kpm",False) and max(matchdata["kpm"].values()) > 0:
-            stringslist["personal"].append(f"{colour}K/min: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +x[1][0]+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kpm'].items())[:maxshow]))))}")
+            stringslist["personal"].append(f"{colour}K/min: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +str(x[1][0])+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['kpm'].items())[:maxshow]))))}")
         if matchdata.get("deaths",False) and max(matchdata["deaths"].values()) > 0:
-            stringslist["personal"].append(f"{colour}Deaths: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +x[1][0]+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['deaths'].items())[:maxshow]))))}")
+            stringslist["personal"].append(f"{colour}Deaths: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +str(x[1][0])+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['deaths'].items())[:maxshow]))))}")
 
 
         # output["general"] = f"{colour}General {PREFIXES['chatcolour']}Total kills: {PREFIXES['stat']}{matchdata['tkills']}{PREFIXES['chatcolour']} | Total Deaths: {PREFIXES['stat']}{matchdata['tdeaths']} "
@@ -6512,7 +6523,7 @@ def displayendofroundstats(message,serverid,isfromserver):
             stringslist["general"].append(f"{colour}NPC kills: {PREFIXES['stat']}{matchdata['tnpckillsagainstplayers']}")
         if matchdata["npckillsagainstplayers"] and max(matchdata["npckillsagainstplayers"].values()) > 0:
             # output["top"] = output["top"] +f"| Npc Deaths: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +x[1][0]+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['npckillsagainstplayers'].items())[:maxshow]))))}"
-            stringslist["personal"].append(f"{colour}NPC deaths: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +x[1][0]+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['npckillsagainstplayers'].items())[:maxshow]))))}")
+            stringslist["personal"].append(f"{colour}NPC deaths: {', '.join(list(map(lambda x: PREFIXES['stat']+    ''    +str(x[1][0])+': '+str(x[1][1])+PREFIXES['chatcolour']+'',enumerate(list(matchdata['npckillsagainstplayers'].items())[:maxshow]))))}")
 
 
     for key, value in stringslist.items():
@@ -6630,7 +6641,7 @@ def showingamesettings(message,serverid,isfromserver):
         name = getpriority(message,"originalname","name")
         uid = getpriority(message,"uid",["meta","uid"])
         if not istf1:
-            asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {getpriority(message,"uid",["meta","uid"],"originalname","name")}'),"fake context",None,True,False), bot.loop)
+            sendrconcommand(serverid,f'!reloadpersistentvars {getpriority(message,"uid",["meta","uid"],"originalname","name")}',sender=getpriority(message,"originalname"))
 
             
     if  istf1 and not len(str(getpriority(message,"uid",["meta","uid"]))) > 15:
@@ -6739,7 +6750,7 @@ def togglestats(message,togglething,serverid):
     }
     )
     if not istf1:
-        asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!reloadpersistentvars {getpriority(message,"uid",["meta","uid"],"originalname","name")}'),"fake context",None,True,False), bot.loop)
+        sendrconcommand(serverid,f'!reloadpersistentvars {getpriority(message,"uid",["meta","uid"],"originalname","name")}',sender=getpriority(message,"originalname"))
     for stat in context["commands"]["ingamecommands"][togglething].get("extendeddesc",[]):
         discordtotitanfall[serverid]["messages"].append(
         {
@@ -6819,7 +6830,7 @@ def ingamehelp(message,serverid,isfromserver):
 def senddiscordcommands(message,serverid,isfromserver):
     """Sends Discord-specific commands from in-game chat"""
     print("COMMANDS REQUESTED",f'!senddiscordcommands {" ".join(functools.reduce(lambda a,b: [*a,b[0],str(int(b[1]["shouldblock"]))],context["commands"]["ingamecommands"].items(),[]))}')
-    asyncio.run_coroutine_threadsafe(returncommandfeedback(*sendrconcommand(serverid,f'!senddiscordcommands {" ".join(functools.reduce(lambda a,b: [*a,b[0],str(int(b[1]["shouldblock"]))],context["commands"]["ingamecommands"].items(),[]))}'),"fake context",None,True,False), bot.loop)
+    sendrconcommand(serverid,f'!senddiscordcommands {" ".join(functools.reduce(lambda a,b: [*a,b[0],str(int(b[1]["shouldblock"]))],context["commands"]["ingamecommands"].items(),[]))}',sender=None)
 
 def calcstats(message,serverid,isfromserver):
     """Processes in-game stats requests and formats statistical data for display"""
@@ -7128,6 +7139,7 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
                     pilotstates[serverid]["webhook"] = "ChatBridge"
             pilotstates[serverid] = {"uid":value["uid"],"model":str(value["pfp"]),"webhook":pilotstates[serverid]["webhook"]}
             # print("here")
+            pfperror = False
             pfp = MODEL_DICT.get(str(value["pfp"]),random.choices(list(UNKNOWNPFPS.keys()),weights=list(map(lambda x: x["weight"],UNKNOWNPFPS.values())))[0])
             if pfp in UNKNOWNPFPS and (str(value["pfp"].startswith("true")) or str(value["pfp"].startswith("false"))):
                 print("FALLING BACK TO GUESSING",value["pfp"])
@@ -7139,8 +7151,9 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
 
                         break
                 else:
-                    value["messages"].append(f"-# {pfp}")
 
+                    pfperror =  f"-# {value['pfp']}".replace('"', '').replace('$', '')
+            # print(json.dumps(value["messages"],indent=4))
             # print("SENDING PFP MESSAGE","\n".join(list(map(lambda x: x["message"],value["messages"]))),f'{PFPROUTE}{pfp}')
             
             async with aiohttp.ClientSession() as session:
@@ -7152,7 +7165,7 @@ async def sendpfpmessages(channel,userpfpmessages,serverid):
 
                 # print(f"Tf -> Discord\n{username[0:80]}: {f"\n{username[0:80]}: ".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))}")
                 message = await actualwebhooks[pilotstates[serverid]["webhook"]].send((
-                    "\n".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))),#+" "+pilotstates[serverid]["webhook"],
+                    "\n".join(list(map(lambda x: discord.utils.escape_mentions(x["message"]) if not x["meta"].get("allowmentions",False) else x["message"] ,value["messages"])))+f"{"\n"+pfperror if pfperror else ""}"),#+" "+pilotstates[serverid]["webhook"],
                     username=f"{username[0:80]}",
                     avatar_url=f'{PFPROUTE}{pfp}',
                     wait = True
@@ -7178,7 +7191,7 @@ def initdiscordtotitanfall(serverid): #before I knew about setdefault and .keys(
         discordtotitanfall[serverid]["lastheardfrom"] = 0
     if "onlinestatus" not in discordtotitanfall[serverid].keys():
         discordtotitanfall[serverid]["onlinestatus"] = False
-    discordtotitanfall[serverid].setdefault("currentplayers",[])
+    discordtotitanfall[serverid].setdefault("currentplayers",{})
 
 def getchannelidfromname(name,ctx):
     """Resolves Discord channel ID from channel name using context"""
@@ -7192,15 +7205,17 @@ def getchannelidfromname(name,ctx):
             if server.get("channelid") == ctx.channel.id:
                 return key
     print("could not find overridden server")
-def sendrconcommand(serverid, command):
-    """Sends RCON commands to game server for remote administration"""
+def sendrconcommand(serverid, command, **kwargs):
+    """Runs command on server"""
     global discordtotitanfall
     initdiscordtotitanfall(serverid)
     commandid = random.randint(0, 100000000000000)
     discordtotitanfall[serverid]["commands"].append(
             {"command": command, "id": commandid}
         )
-    return serverid,commandid
+    if kwargs.get("sender",False) is not False:
+        threading.Thread(target=threadwrap, daemon=True, args=(notifydebugchat, f"{f"{kwargs.get("sender")} ran" if kwargs.get("sender") else ""} {command} on {PREFIXES["stat"]}{context["servers"].get(serverid,{"name":"UNKNOWN SERVER"})["name"]}", kwargs.get("prefix", str(inspect.currentframe().f_back.f_code.co_name)))).start()
+    return serverid,commandid,command
 
 def getjson(data): #ty chatgpt
     if isinstance(data, str):
@@ -7262,6 +7277,15 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
             ORDER BY id DESC
         """, (name,))
         data = c.fetchall()
+        # if istf1 is None:
+        #     c.execute(f"""
+        #         SELECT playeruid, playername, lastseenunix, lastserverid FROM uidnamelink{'tf1' if True else ''}
+        #         WHERE playeruid = ?
+        #         ORDER BY id DESC
+        #     """, (name,))
+        #     datacompare = c.fetchall()
+        #     if len(data) and len(datacompare) and int(bool(max(data,key = lambda x: 0 if not x[2] else x[2])[2])) < int(bool(max(datacompare,key = lambda x: 0 if not x[2] else x[2])[2])): data = datacompare
+        #     else:data = datacompare
         name = str(name)
 
     
@@ -7274,7 +7298,7 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
         data = c.fetchall()
         for uid, pname, lastseen,lastserverid in data:
             if not oneuidpermatch or uid not in seen_uids and simplyfy(name) in simplyfy(pname):
-                results.append({"name": pname, "uid": uid,"lastseen":lastseen if lastseen else 0,"lastserverid":str(lastserverid) if lastserverid else lastserverid})
+                results.append({"name": pname, "uid": str(uid),"lastseen":lastseen if lastseen else 0,"lastserverid":str(lastserverid) if lastserverid else lastserverid})
                 seen_uids.add(uid)
 
         results.sort(key=lambda x: len(x["name"]) if int(time.time()) - x["lastseen"] < 86400*3 else int(time.time()) - x["lastseen"])
@@ -7287,7 +7311,7 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
         # print(data)
         for uid, pname, lastseen,lastserverid in data:
             if not oneuidpermatch or uid not in seen_uids:
-                results.append({"name": pname, "uid": uid,"lastseen":lastseen if lastseen else 0,"lastserverid":str(lastserverid)if lastserverid else lastserverid})
+                results.append({"name": pname, "uid": str(uid),"lastseen":lastseen if lastseen else 0,"lastserverid":str(lastserverid)if lastserverid else lastserverid})
                 seen_uids.add(uid)
         
     
@@ -7303,15 +7327,33 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
     
 
     return results
-        
 
-async def returncommandfeedback(serverid, id, ctx,overridemsg = defaultoverride, iscommandnotmessage = True,logthiscommand = True,extraargsintofunction = None):
-    # print(serverid, id, ctx,overridemsg)
-    try:
-        author = ctx.author.name # IF DISCORD
-        
-    except:
-        pass
+def notifydebugchat(message,prefix = "Commandnotify"):
+    # print(json.dumps(discordtotitanfall,indent=4))
+    # print("WOA",list(map(lambda x: max(resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True),key = lambda x: x[0]["lastseen"] if x else 0) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))))
+    # print("WOA",list(map(lambda x: (resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True)) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))))
+    # print("PRETTY",(functools.reduce(lambda a,b:{**a,b[0]["lastserverid"]:[*a.get(b[0]["lastserverid"],[]),b[0]["uid"]]},filter(lambda x: x and x[0]["uid"] in discordtotitanfall[x[0]["lastserverid"]]["currentplayers"] ,map(lambda x: max(resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True),key = lambda x: x[0]["lastseen"] if x else 0) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))),{})))
+    for serverid,uidlist in functools.reduce(lambda a,b:{**a,b[0]["lastserverid"]:[*a.get(b[0]["lastserverid"],[]),b[0]["uid"]]},filter(lambda x: x and x[0]["uid"] in discordtotitanfall[x[0]["lastserverid"]]["currentplayers"] ,map(lambda x: max(resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True),key = lambda x: x[0]["lastseen"] if x else 0) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))),{}).items():
+        istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
+        if istf1:
+            for uid in uidlist:
+                discordtotitanfall[serverid]["messages"].append({
+                    "content":f"{PREFIXES['discord']}{PREFIXES["commandname"]}{prefix}{PREFIXES["offchatcolour"]} {message}",
+                    "uidoverride": [uid]
+                })
+        else:
+            # print("here",[serverid],[uidlist])
+            discordtotitanfall[serverid]["messages"].append({
+                "content":f"{PREFIXES['discord']}{PREFIXES["commandname"]}{prefix}:{PREFIXES["offchatcolour"]} {message}",
+                "uidoverride": uidlist
+            })      
+async def returncommandfeedback(serverid, id,command, ctx,overridemsg = defaultoverride, iscommandnotmessage = True,logthiscommand = True,extraargsintofunction = None):
+    """Once command has been sent, this function is responsible for catching the output of the command
+    the only reason it knows what command has been ran is for logging
+    huh wait have I wasted a ton of time needlessly using this function? I think I have... ohno... that's annoying!
+    ya like seriously so many commands don't have outputs..
+    I'll fix this in time
+    fixed"""
     if not overridemsg:
         overridemsg = defaultoverride
     i = 0
@@ -7384,6 +7426,7 @@ def translaterole(serverid,role):
     if not serverid: return role
     return context["servers"][serverid]["roles"].get(role,role)
 
+@functools.lru_cache(maxsize = None)
 def checkrconallowedtfuid(uid, typeof="rconrole",**kwargs):
     serverid = kwargs.get("serverid",False)
     """Checks if TF UID has RCON permissions for server administration"""
@@ -7479,7 +7522,7 @@ async def {command_name}(ctx, {params_signature}):
         "servername" :context["servers"][serverid]["name"],
         "player":  f"`BOT COMMAND` sent by {{ctx.author.name}}"
     }})
-    await returncommandfeedback(*sendrconcommand(serverid, command), ctx, {outputfunc_expr})
+    await returncommandfeedback(*sendrconcommand(serverid, command, sender = ctx.author.name), ctx, {outputfunc_expr})
 '''
 
     exec(func_code, globals())
@@ -7539,7 +7582,7 @@ if SHOULDUSETHROWAI == "1":
         if ctx.author.id in lasttimethrown["passes"].keys() and lasttimethrown["passes"][ctx.author.id] > time.time() - 60:
             print("has been allowed recently")
             await ctx.defer(ephemeral=False)
-            await  returncommandfeedback(*sendrconcommand(serverid, f"!throw {playername}"), ctx)   
+            await  returncommandfeedback(*sendrconcommand(serverid, f"!throw {playername}",sender=ctx.author.name), ctx)   
             return
         if lasttimethrown["globalcounter"] > time.time() - 60:
             await ctx.respond("This command is on cooldown, try again in " + str(int(60 - (time.time() - lasttimethrown["globalcounter"]))) + " seconds.", ephemeral=False)
@@ -7651,7 +7694,7 @@ your past responses:
                 lasttimethrown["passes"][ctx.author.id] = time.time()
                 
                 await threade.send("# request allowed, executing command")
-                await returncommandfeedback(*sendrconcommand(serverid, f"!throw {playername}"), message)   
+                await returncommandfeedback(*sendrconcommand(serverid, f"!throw {playername}",sender=ctx.author.name), message)   
                 del aibotmessageresponses[keyaireply]
                 return
             elif aibotmessageresponses[keyaireply][-1]["button"] == "more_information_needed":
@@ -7957,6 +8000,7 @@ def playerpolllog(data,serverid,statuscode):
             metadata = data["meta"].copy()
             metadata["matchid"] = (data["meta"]["matchid"])
             data["meta"] = [metadata["map"],50,metadata["matchid"]]#50 is a placeholder for actual time left!
+    # print(players)
     discordtotitanfall[serverid]["currentplayers"] = dict(map(lambda x: [x["uid"],x["name"]],players))
             
     # playercontext[pinfo["uid"]+pinfo["name"]] = {"joined":now,"map":map,"name":pinfo["name"],"uid":pinfo["uid"],"idoverride":0,"endtime":0,"serverid":serverid,"kills":0,"deaths":0,"titankills":0,"npckills":0,"score":0}

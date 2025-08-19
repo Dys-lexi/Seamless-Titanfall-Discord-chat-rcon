@@ -582,10 +582,10 @@ void function Postmessages(outgoingmessage message){
 
     void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure ) : (message)
     {
-		// if (!("uid" in message.metadata && serverdetails.uselocaltags && discordlogpullplayerstat(string(message.metadata["uid"]),"nameprefix") != "")){
+		if (!("uid" in message.metadata && serverdetails.uselocaltags && discordlogpullplayerstat(string(message.metadata["uid"]),"nameprefix") != "")){
         print("[DiscordLogger]Failed to log chat message"  + failure.errorMessage)
 		blockedplayers.hasfailedandneedstorequestagain = true
-		// }
+		}
 
     }
 
