@@ -648,7 +648,6 @@ SERVERNAMEISCHOICE = os.getenv("DISCORD_BOT_SERVERNAME_IS_CHOICE", "0")
 SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
 TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass") 
 USEDYNAMICPFPS = os.getenv("USE_DYNAMIC_PFPS","1")
-USEDYNAMICPFPS = "1"
 PFPROUTE = os.getenv("PFP_ROUTE","https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/")
 FILTERNAMESINMESSAGES = os.getenv("FILTER_NAMES_IN_MESSAGES","usermessagepfp,chat_message,command,tf1command,botcommand,connecttf1")
 SENDKILLFEED = os.getenv("SEND_KILL_FEED","1")
@@ -660,6 +659,7 @@ KILLSTREAKNOTIFYTHRESHOLD = int(os.getenv("KILL_STREAK_NOTIFY_THRESHOLD","5"))
 KILLSTREAKNOTIFYSTEP = int(os.getenv("KILL_STREAK_NOTIFY_STEP","5"))
 REACTONMENTION = os.getenv("REACT_EMOJI_ON_MENTION","0")
 POSTGRESQLDBURL = os.getenv("POSTGRESQL_DB_URL","0")
+NOTIFYCOMMANDSONALLSERVERSDEBUG = int(os.getenv("SHOULD_NOTIFY_ALL_COMMANDS","1"))
 PORT = os.getenv("BOT_PORT","3451")
 MAXTAGLEN = int(os.getenv("MAX_TAG_LEN","6"))
 MORECOLOURS = os.getenv("MORE_COLOURFUL_OUTPUT","1")
@@ -719,7 +719,19 @@ else:
             self._empty_result = False
             self.connection_id = id(self)  # Track this connection instance
             # Establish connection immediately like original code
+            self._connect()
+                    
+        def _connect(self):
+            """Establish database connection"""
             try:
+                if self.conn:
+                    try:
+                        self.pool.putconn(self.conn)
+                    except Exception:
+                        pass
+                    self.conn = None
+                    self.cursor = None
+                    
                 self.conn = self.pool.getconn()
                 self.cursor = self.conn.cursor()
 
@@ -733,6 +745,35 @@ else:
                 traceback.print_exc()
                 self._cleanup()
                 raise
+                
+        def _reconnect(self):
+            """Attempt to reconnect to the database"""
+            if self.closed:
+                return False
+            try:
+                print(f"DB Connection {self.connection_id}: Attempting reconnection...")
+                self._connect()
+                print(f"DB Connection {self.connection_id}: Reconnection successful")
+                return True
+            except Exception:
+                print(f"DB Connection {self.connection_id}: Reconnection failed")
+                traceback.print_exc()
+                return False
+                
+        def _is_connection_lost(self, error):
+            """Check if the error indicates a lost connection"""
+            connection_errors = [
+                'server closed the connection unexpectedly',
+                'connection to server lost',
+                'the database system is shutting down',
+                'terminating connection',
+                'could not receive data from server',
+                'SSL connection has been closed unexpectedly',
+                'connection not open',
+                'no connection to the server'
+            ]
+            error_str = str(error).lower()
+            return any(err_msg in error_str for err_msg in connection_errors)
                     
         def __enter__(self):
             return self
@@ -761,67 +802,143 @@ else:
             self.conn = None
 
         def execute(self, query, params=None):
-            if self.closed or not self.cursor:
+            if self.closed:
                 raise RuntimeError("Database connection is closed")
                 
+            # Check if we need to reconnect
+            if not self.cursor or not self.conn:
+                if not self._reconnect():
+                    raise RuntimeError("Cannot establish database connection")
+                    
             query = query.replace("?", "%s")
             query = re.sub(r'\s+COLLATE\s+NOCASE', '', query, flags=re.IGNORECASE)
             query = re.sub(r'\bLIKE\b', 'ILIKE', query, flags=re.IGNORECASE)
 
-            try:
-                self.cursor.execute(query, params or ())
-            except psycopg2.errors.InvalidTextRepresentation as e:
-                traceback.print_exc()
-                self.conn.rollback()
-                if "invalid input syntax for type bigint" in str(e) and query.strip().upper().startswith("SELECT"):
-                    self._empty_result = True
-                else:
+            max_retries = 2
+            for attempt in range(max_retries):
+                try:
+                    self.cursor.execute(query, params or ())
+                    break
+                except psycopg2.errors.InvalidTextRepresentation as e:
+                    traceback.print_exc()
+                    if self.conn:
+                        self.conn.rollback()
+                    if "invalid input syntax for type bigint" in str(e) and query.strip().upper().startswith("SELECT"):
+                        self._empty_result = True
+                        return
+                    else:
+                        raise
+                except psycopg2.errors.UndefinedFunction as e:
+                    traceback.print_exc()
+                    if self.conn:
+                        self.conn.rollback()
+                    if "operator does not exist" in str(e) and query.strip().upper().startswith("SELECT"):
+                        self._empty_result = True
+                        return
+                    else:
+                        raise
+                except psycopg2.Error as e:
+                    if self._is_connection_lost(e) and attempt < max_retries - 1:
+                        print(f"DB Connection {self.connection_id}: Connection lost during execute, retrying...")
+                        if self._reconnect():
+                            continue
+                    traceback.print_exc()
+                    if self.conn:
+                        try:
+                            self.conn.rollback()
+                        except Exception:
+                            pass
                     raise
-            except psycopg2.errors.UndefinedFunction as e:
-                traceback.print_exc()
-                self.conn.rollback()
-                if "operator does not exist" in str(e) and query.strip().upper().startswith("SELECT"):
-                    self._empty_result = True
-                else:
-                    raise
-            except psycopg2.Error as e:
-                traceback.print_exc()
-                self.conn.rollback() 
-                raise
             else:
                 self._empty_result = False
 
         def fetchall(self):
             if getattr(self, "_empty_result", False):
                 return []
-            if self.closed or not self.cursor:
+            if self.closed:
                 raise RuntimeError("Database connection is closed")
-            return self.cursor.fetchall()
+            if not self.cursor or not self.conn:
+                if not self._reconnect():
+                    raise RuntimeError("Cannot establish database connection")
+            
+            max_retries = 2
+            for attempt in range(max_retries):
+                try:
+                    return self.cursor.fetchall()
+                except psycopg2.Error as e:
+                    if self._is_connection_lost(e) and attempt < max_retries - 1:
+                        print(f"DB Connection {self.connection_id}: Connection lost during fetchall, retrying...")
+                        if self._reconnect():
+                            continue
+                    raise
+            return []
 
         def fetchone(self):
             if getattr(self, "_empty_result", False):
                 return []
-            if self.closed or not self.cursor:
+            if self.closed:
                 raise RuntimeError("Database connection is closed")
-            return self.cursor.fetchone()
+            if not self.cursor or not self.conn:
+                if not self._reconnect():
+                    raise RuntimeError("Cannot establish database connection")
+            
+            max_retries = 2
+            for attempt in range(max_retries):
+                try:
+                    return self.cursor.fetchone()
+                except psycopg2.Error as e:
+                    if self._is_connection_lost(e) and attempt < max_retries - 1:
+                        print(f"DB Connection {self.connection_id}: Connection lost during fetchone, retrying...")
+                        if self._reconnect():
+                            continue
+                    raise
+            return None
 
         def commit(self):
-            if self.closed or not self.conn:
+            if self.closed:
                 raise RuntimeError("Database connection is closed")
-            self.conn.commit()
+            if not self.conn:
+                if not self._reconnect():
+                    raise RuntimeError("Cannot establish database connection")
+            
+            max_retries = 2
+            for attempt in range(max_retries):
+                try:
+                    self.conn.commit()
+                    break
+                except psycopg2.Error as e:
+                    if self._is_connection_lost(e) and attempt < max_retries - 1:
+                        print(f"DB Connection {self.connection_id}: Connection lost during commit, retrying...")
+                        if self._reconnect():
+                            continue
+                    raise
 
         def lastrowid(self):
-            if self.closed or not self.cursor:
+            if self.closed:
                 return None
-            try:
-                if self.cursor.description:
-                    row = self.cursor.fetchone()
-                    return row[0] if row else None
-                else:
+            if not self.cursor or not self.conn:
+                if not self._reconnect():
                     return None
-            except Exception:
-                traceback.print_exc()
-                return None
+                    
+            max_retries = 2
+            for attempt in range(max_retries):
+                try:
+                    if self.cursor.description:
+                        row = self.cursor.fetchone()
+                        return row[0] if row else None
+                    else:
+                        return None
+                except psycopg2.Error as e:
+                    if self._is_connection_lost(e) and attempt < max_retries - 1:
+                        print(f"DB Connection {self.connection_id}: Connection lost during lastrowid, retrying...")
+                        if self._reconnect():
+                            continue
+                    traceback.print_exc()
+                    return None
+                except Exception:
+                    traceback.print_exc()
+                    return None
+            return None
 
         def close(self):
             self._cleanup()
@@ -1376,14 +1493,14 @@ async def sanctiontf1(
             if expiry.isdigit():
                 baninfo["expiry"] = int(expiry)*86400 + int(time.time())
             else:
-                await ctx.respond("Invalid expiry date format. Use yyyy-mm-dd or number of days", ephemeral=True)
+                await ctx.respond("Invalid expiry date format. Use yyyy-mm-dd or number of days", ephemeral=False)
                 return
     else:
         baninfo["expiry"] = None
     print(name)
     print(name.split(" | "))
     if len(name.split(" | ")) != 4:
-        await ctx.respond("Wrong arg count - use the autofill!")
+        await ctx.respond("You have to select one of the options that appear for names, you cannot just put something like 'Lexi'")
         return
     name,ip,uid,lastseen = name.split(" | ")
     c = postgresem("./data/tf2helper.db")
@@ -1401,7 +1518,7 @@ async def sanctiontf1(
             "timestamp": int(time.time()),
             "globalmessage": True,
             "overridechannel": "globalchannel",
-            "messagecontent": f"New {sanctiontype} uploaded by {ctx.author.name} for player {name} UID: {uid} {'Expiry: ' + modifyvalue("date",baninfo["expiry"]) if expiry else ''} {'Reason: ' + reason if reason else ''}",
+            "messagecontent": f"New {sanctiontype} uploaded by {ctx.author.name} for player {name} UID: {"n/a"} {'Expiry: ' + modifyvalue(baninfo["expiry"],"date") if expiry else ''} {'Reason: ' + reason if reason else ''}",
             "metadata": {
                 "type": None
             },
@@ -1414,7 +1531,7 @@ async def sanctiontf1(
         # print(serverid,f'kick {name}')
         sendrconcommand(str(serverid),f'banip 7200 {ip}',sender=ctx.author.name)
     # else: sadly don't know their uid. cannot be bothered to fix tbh I could just kick em but na
-    #     await (returncommandfeedback(*sendrconcommand(str(serverid),f'!muteplayer {message["kickid"]} {PREFIXES["warning"]}{(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"} rsn {PREFIXES["warning"]}{list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context",None,True,False), bot.loop)
+        # await (returncommandfeedback(*sendrconcommand(str(serverid),f'!muteplayer {message["kickid"]} {PREFIXES["warning"]}{(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"]).day % 10, 'th')} of %B %Y")) if list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["expire"] else "never"} rsn {PREFIXES["warning"]}{list(filter(lambda x: playerid == x["id"],bannedpeople))[0]["baninfo"]}'),"fake context",None,True,False), bot.loop)
 
 
 
@@ -2728,15 +2845,22 @@ if DISCORDBOTLOGSTATS == "1":
         # print("weapon_names1",weapon_names)
 
 
-
+        # print("these guns",weapon_kills["main"]["mp_weapon_lstar"])
+        # print("these pew pews",originalweaponnames)
+        # print("ovveride",playeroverride)
+        # print("eeeee",weapon_kills["main"][originalweaponnames["mp_weapon_lstar"]][1012640166434])
+        # print("www",originalweaponnames["mp_weapon_lstar"])
+        # print("wqdqwdq",weapon_names)
             # if not specificweapon:
         if not playeroverride:
-            weapon_names.sort(key=lambda w: max([0,*list(weapon_kills["main"].get(w, {}).values())]), reverse=True)
             weapon_names = list(filter(lambda w: weapon_kills["main"].get(w, False) != False, weapon_names))
+            weapon_names.sort(key=lambda w: max([0,*list(weapon_kills["main"].get(w, {}).values())]), reverse=True)
+
         else:
             # print(playeroverride,list(filter(lambda w: weapon_kills["main"].get(w, {}).get(playeroverride,0) ,weapon_names)))
-            # print(weapon_kills["main"])
-            weapon_names = list(filter(lambda w: weapon_kills["main"].get(originalweaponnames[w], {}).get(playeroverride,0) ,weapon_names))
+            # print(weapon_kills["main"]
+            # print([playeroverride])
+            weapon_names = list(filter(lambda w: weapon_kills["main"].get(originalweaponnames[w], {}).get(playeroverride, 0) ,weapon_names))
             weapon_names.sort(key=lambda w: weapon_kills["main"].get(originalweaponnames[w], {}).get(playeroverride,0), reverse=True)
         # print(weapon_names)
         
@@ -3078,7 +3202,7 @@ if DISCORDBOTLOGSTATS == "1":
             WHERE playeruid = ? 
             ORDER BY id DESC
         """, (player["uid"],))
-        aliases_raw = list(map(lambda x:[x[0],int(x[1]),int(x[2])],c.fetchall()))
+        aliases_raw = list(map(lambda x:[x[0],int(x[1])if x[1] else False,int(x[2])if x[2] else False],c.fetchall()))
         c.execute("""
             SELECT SUM(duration)
             FROM playtime
@@ -7214,7 +7338,7 @@ def sendrconcommand(serverid, command, **kwargs):
             {"command": command, "id": commandid}
         )
     if kwargs.get("sender",False) is not False:
-        threading.Thread(target=threadwrap, daemon=True, args=(notifydebugchat, f"{f"{kwargs.get("sender")} ran" if kwargs.get("sender") else ""} {command} on {PREFIXES["stat"]}{context["servers"].get(serverid,{"name":"UNKNOWN SERVER"})["name"]}", kwargs.get("prefix", str(inspect.currentframe().f_back.f_code.co_name)))).start()
+        threading.Thread(target=threadwrap, daemon=True, args=(notifydebugchat,serverid, f"{f"{kwargs.get("sender")} ran" if kwargs.get("sender") else ""} {command} on {PREFIXES["stat"]}{context["servers"].get(serverid,{"name":"UNKNOWN SERVER"})["name"]}", kwargs.get("prefix", str(inspect.currentframe().f_back.f_code.co_name)))).start()
     return serverid,commandid,command
 
 def getjson(data): #ty chatgpt
@@ -7298,7 +7422,7 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
         data = c.fetchall()
         for uid, pname, lastseen,lastserverid in data:
             if not oneuidpermatch or uid not in seen_uids and simplyfy(name) in simplyfy(pname):
-                results.append({"name": pname, "uid": str(uid),"lastseen":lastseen if lastseen else 0,"lastserverid":str(lastserverid) if lastserverid else lastserverid})
+                results.append({"name": pname, "uid": (uid),"lastseen":lastseen if lastseen else 0,"lastserverid":str(lastserverid) if lastserverid else lastserverid})
                 seen_uids.add(uid)
 
         results.sort(key=lambda x: len(x["name"]) if int(time.time()) - x["lastseen"] < 86400*3 else int(time.time()) - x["lastseen"])
@@ -7311,7 +7435,7 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
         # print(data)
         for uid, pname, lastseen,lastserverid in data:
             if not oneuidpermatch or uid not in seen_uids:
-                results.append({"name": pname, "uid": str(uid),"lastseen":lastseen if lastseen else 0,"lastserverid":str(lastserverid)if lastserverid else lastserverid})
+                results.append({"name": pname, "uid": (uid),"lastseen":lastseen if lastseen else 0,"lastserverid":str(lastserverid)if lastserverid else lastserverid})
                 seen_uids.add(uid)
         
     
@@ -7328,12 +7452,12 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
 
     return results
 
-def notifydebugchat(message,prefix = "Commandnotify"):
+def notifydebugchat(affectedserver,message,prefix = "Commandnotify"):
     # print(json.dumps(discordtotitanfall,indent=4))
     # print("WOA",list(map(lambda x: max(resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True),key = lambda x: x[0]["lastseen"] if x else 0) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))))
     # print("WOA",list(map(lambda x: (resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True)) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))))
     # print("PRETTY",(functools.reduce(lambda a,b:{**a,b[0]["lastserverid"]:[*a.get(b[0]["lastserverid"],[]),b[0]["uid"]]},filter(lambda x: x and x[0]["uid"] in discordtotitanfall[x[0]["lastserverid"]]["currentplayers"] ,map(lambda x: max(resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True),key = lambda x: x[0]["lastseen"] if x else 0) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))),{})))
-    for serverid,uidlist in functools.reduce(lambda a,b:{**a,b[0]["lastserverid"]:[*a.get(b[0]["lastserverid"],[]),b[0]["uid"]]},filter(lambda x: x and x[0]["uid"] in discordtotitanfall[x[0]["lastserverid"]]["currentplayers"] ,map(lambda x: max(resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True),key = lambda x: x[0]["lastseen"] if x else 0) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))),{}).items():
+    for serverid,uidlist in functools.reduce(lambda a,b:{**a,b[0]["lastserverid"]:[*a.get(b[0]["lastserverid"],[]),b[0]["uid"]]},filter(lambda x: x and (NOTIFYCOMMANDSONALLSERVERSDEBUG or x[0]["lastserverid"] == affectedserver) and x[0]["uid"] in discordtotitanfall[x[0]["lastserverid"]]["currentplayers"] ,map(lambda x: max(resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True),key = lambda x: x[0]["lastseen"] if x else 0) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))),{}).items():
         istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
         if istf1:
             for uid in uidlist:
@@ -8001,7 +8125,7 @@ def playerpolllog(data,serverid,statuscode):
             metadata["matchid"] = (data["meta"]["matchid"])
             data["meta"] = [metadata["map"],50,metadata["matchid"]]#50 is a placeholder for actual time left!
     # print(players)
-    discordtotitanfall[serverid]["currentplayers"] = dict(map(lambda x: [x["uid"],x["name"]],players))
+    discordtotitanfall[serverid]["currentplayers"] = dict(map(lambda x: [str(x["uid"]),x["name"]],players))
             
     # playercontext[pinfo["uid"]+pinfo["name"]] = {"joined":now,"map":map,"name":pinfo["name"],"uid":pinfo["uid"],"idoverride":0,"endtime":0,"serverid":serverid,"kills":0,"deaths":0,"titankills":0,"npckills":0,"score":0}
     # print(list(map(lambda x: x["name"],players)))
