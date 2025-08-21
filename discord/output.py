@@ -1320,6 +1320,43 @@ async def bind_logging_to_category(ctx, category_name: str):
         ephemeral=False,
     )
 @bot.slash_command(
+    name="sanctiontf2check",
+    description="Shows a players Sanction"
+)
+async def sanctiontf2check(
+    ctx,
+    name: Option(str, "The playername / uid", autocomplete=autocompletenamesfromdb),
+    # banlinks:Option(int, "How many links needed for a ban to persist (DON'T USE IF DON'T KNOW)",choices=[1,2,3]),
+    #     servername: Option(
+    #     str,
+    #     "The servername (omit for current channel's server)",
+    #     required=False,
+    #     **({
+    #         "choices": list(s.get("name", "Unknown") for s in context["servers"].values())
+    #     } if SERVERNAMEISCHOICE == "1" else {
+    #         "autocomplete": autocompleteserversfromdb
+    #     })
+    # ) = None,
+    ):
+    await ctx.respond(process_matchingtf2(name))
+def process_matchingtf2(name):
+    matchingplayers = resolveplayeruidfromdb(name, None,True)
+    if len(matchingplayers) > 1:
+        multistring = "\n" + "\n".join(f"{i+1}) {p['name']} uid: {p['uid']}" for i, p in enumerate(matchingplayers[0:10]))
+        return f"{len(matchingplayers)} players found, please be more specific: {multistring}"
+    elif len(matchingplayers) == 0:
+        return "No players found"
+    player = matchingplayers[0]
+    sanction = getpriority(readplayeruidpreferences(player["uid"],False),["banstf2","sanction"])
+    if sanction and not (sanction.get("expiry") and sanction["expiry"] and int(time.time()) > sanction["expiry"]):
+        try:
+            expiry_text = modifyvalue(sanction["expiry"], "date") if sanction["expiry"] else "Never"
+        except (OSError, ValueError, OverflowError):
+            expiry_text = f"Invalid date ({sanction['expiry']})"
+        return f"{player['name'].strip()}'s Sanction:\n**Type**: `{sanction['sanctiontype']}`\n**Expires:** `{expiry_text}`\n**Reason:** `{sanction["reason"]}`"
+    return f"No sanction found for {player["name"]}"
+
+@bot.slash_command(
     name="sanctiontf2",
     description="Sanctions a tf2 player - run in a server channel to apply instantly"
 )
@@ -1370,7 +1407,7 @@ def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry=None)
             expiry_text = modifyvalue(sanction["expiry"], "date") if sanction["expiry"] else "Never"
         except (OSError, ValueError, OverflowError):
             expiry_text = f"Invalid date ({sanction['expiry']})"
-        return f"{player['name']} already has a sanction!\n{sanction['sanctiontype']} expires: {expiry_text}"
+        return f"{player['name']} already has a sanction!\n**Type**: `{sanction['sanctiontype']}`\n**Expires:** `{expiry_text}`\n**Reason:** `{sanction["reason"]}`"
     
     if expiry:
         try:
@@ -3233,11 +3270,14 @@ if DISCORDBOTLOGSTATS == "1":
         
 
         aliases = []
+        names = []
+        simplealiases = []
         for name, first, last,playtime in aliases_raw:
             first_str = f"<t:{first}:R>" if first else "unknown"
             last_str = f"<t:{last}:R>" if last else "unknown"
             aliases.append(f"{name} *(first seen: {first_str}, last seen: {last_str}, time played: **{modifyvalue(playtime,'time') if playtime != -1 else 'unknown'}**)*")
-
+            simplealiases.append(f"*(first seen: {first_str}, last seen: {last_str}, time played: **{modifyvalue(playtime,'time') if playtime != -1 else 'unknown'}**)*")
+            names.append(name)
         tfdb.commit()
         tfdb.close()
 
@@ -3252,9 +3292,19 @@ if DISCORDBOTLOGSTATS == "1":
             color=0xff70cb,
             description=f"Most recent to oldest, total playtime **{modifyvalue(totalplaytime,'time') if totalplaytime else 'unknown'}**",
         )
+        sanction = getpriority(readplayeruidpreferences(player["uid"],False),["banstf2","sanction"])
+        if sanction and not (sanction.get("expiry") and sanction["expiry"] and int(time.time()) > sanction["expiry"]):
+            try:
+                expiry_text = modifyvalue(sanction["expiry"], "date") if sanction["expiry"] else "Never"
+            except (OSError, ValueError, OverflowError):
+                expiry_text = f"Invalid date ({sanction['expiry']})"
+            embed.add_field(name=f"Sanction in effect::", value=f"\u200b**Type**: `{sanction['sanctiontype']}`  **Expires:** `{expiry_text}`  **Reason:** `{sanction["reason"]}`", inline=False)
+            MAXALIASESSHOWN -=1
+        # for y, x in enumerate(aliases[0:MAXALIASESSHOWN]):
+        #     embed.add_field(name=f"Alias {y+1}:", value=f"\u200b {x}", inline=False)
+        for y, x in enumerate(simplealiases[0:MAXALIASESSHOWN]):
+            embed.add_field(name=f"{names[y]}:", value=f"\u200b {x}", inline=False)
 
-        for y, x in enumerate(aliases[0:MAXALIASESSHOWN]):
-            embed.add_field(name=f"Alias {y+1}:", value=f"\u200b {x}", inline=False)
 
         if len(aliases) > MAXALIASESSHOWN:
             embed.add_field(
