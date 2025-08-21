@@ -1390,8 +1390,7 @@ def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry=None)
     
     if len(name.rsplit("->",1)) > 1: 
         name = name.rsplit("->",1)[1][1:-1]
-    
-    matchingplayers = resolveplayeruidfromdb(name, "uid",True)
+    matchingplayers = resolveplayeruidfromdb(name, None,True)
     if len(matchingplayers) > 1:
         multistring = "\n" + "\n".join(f"{i+1}) {p['name']} uid: {p['uid']}" for i, p in enumerate(matchingplayers[0:10]))
         return f"{len(matchingplayers)} players found, please be more specific: {multistring}"
@@ -1489,7 +1488,11 @@ async def sanctionremovetf2(
     setplayeruidpreferences(["banstf2", "sanction"], None, player['uid'])
     print(ban)
     if ban:
-        await ctx.respond(f"**{ban.get("sanctiontype")}** removed for **{player['name']}** (UID: `{player['uid']}`)")
+        try:
+            expiry_text = modifyvalue(ban["expiry"], "date") if ban["expiry"] else "Never"
+        except (OSError, ValueError, OverflowError):
+            expiry_text = f"Invalid date ({ban['expiry']})"
+        await ctx.respond(f"**Type**: `{ban['sanctiontype']}`\n**Expires:** `{expiry_text}`\n**Reason:** `{ban["reason"]}`\nremoved for **{player['name']}** (UID: `{player['uid']}`)")
     else:
         await ctx.respond(f"No sanction found for {player["name"]} (UID: `{player['uid']}`)")
         return
@@ -3298,7 +3301,7 @@ if DISCORDBOTLOGSTATS == "1":
                 expiry_text = modifyvalue(sanction["expiry"], "date") if sanction["expiry"] else "Never"
             except (OSError, ValueError, OverflowError):
                 expiry_text = f"Invalid date ({sanction['expiry']})"
-            embed.add_field(name=f"Sanction in effect::", value=f"\u200b**Type**: `{sanction['sanctiontype']}`  **Expires:** `{expiry_text}`  **Reason:** `{sanction["reason"]}`", inline=False)
+            embed.add_field(name=f"Sanction in effect::", value=f"\u200bType: `{sanction['sanctiontype']}`  Expires: `{expiry_text}`  Reason: `{sanction["reason"]}`", inline=False)
             MAXALIASESSHOWN -=1
         # for y, x in enumerate(aliases[0:MAXALIASESSHOWN]):
         #     embed.add_field(name=f"Alias {y+1}:", value=f"\u200b {x}", inline=False)
@@ -7435,16 +7438,17 @@ def resolveplayeruidfromdb(name, uidnameforce=None, oneuidpermatch=False,istf1 =
     
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
-
-    name_like = f"%{name}%"
-    query = f"""
-        SELECT playeruid, playername, lastseenunix, lastserverid FROM uidnamelink{'tf1' if istf1 else ''}
-        WHERE LOWER(playername) LIKE LOWER(?)
-        ORDER BY id DESC, playername COLLATE NOCASE
-    """
-    c.execute(query, (name_like,))
-    data = c.fetchall()
-    if not data and (uidnameforce == "uid" or uidnameforce is None) and name.isdigit():
+    data = ()
+    if uidnameforce != "uid":
+        name_like = f"%{name}%"
+        query = f"""
+            SELECT playeruid, playername, lastseenunix, lastserverid FROM uidnamelink{'tf1' if istf1 else ''}
+            WHERE LOWER(playername) LIKE LOWER(?)
+            ORDER BY id DESC, playername COLLATE NOCASE
+        """
+        c.execute(query, (name_like,))
+        data = c.fetchall()
+    if (uidnameforce != "name" or not data) and name.isdigit():
         c.execute(f"""
             SELECT playeruid, playername, lastseenunix, lastserverid FROM uidnamelink{'tf1' if istf1 else ''}
             WHERE playeruid = ?
@@ -7507,7 +7511,7 @@ def notifydebugchat(affectedserver,message,prefix = "Commandnotify"):
     # print("WOA",list(map(lambda x: max(resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True),key = lambda x: x[0]["lastseen"] if x else 0) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))))
     # print("WOA",list(map(lambda x: (resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True)) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))))
     # print("PRETTY",(functools.reduce(lambda a,b:{**a,b[0]["lastserverid"]:[*a.get(b[0]["lastserverid"],[]),b[0]["uid"]]},filter(lambda x: x and x[0]["uid"] in discordtotitanfall[x[0]["lastserverid"]]["currentplayers"] ,map(lambda x: max(resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True),key = lambda x: x[0]["lastseen"] if x else 0) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))),{})))
-    for serverid,uidlist in functools.reduce(lambda a,b:{**a,b[0]["lastserverid"]:[*a.get(b[0]["lastserverid"],[]),b[0]["uid"]]},filter(lambda x: x and (NOTIFYCOMMANDSONALLSERVERSDEBUG or x[0]["lastserverid"] == affectedserver) and x[0]["uid"] in discordtotitanfall[x[0]["lastserverid"]]["currentplayers"] ,map(lambda x: max(resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True),key = lambda x: x[0]["lastseen"] if x else 0) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))),{}).items():
+    for serverid,uidlist in functools.reduce(lambda a,b:{**a,b[0]["lastserverid"]:[*a.get(b[0]["lastserverid"],[]),b[0]["uid"]]},filter(lambda x: x and (NOTIFYCOMMANDSONALLSERVERSDEBUG or x[0]["lastserverid"] == affectedserver) and x[0]["uid"] in discordtotitanfall[x[0]["lastserverid"]]["currentplayers"] ,map(lambda x: list(map(lambda y: {**y,"uid":str(y["uid"])},max(resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True),key = lambda x: x[0]["lastseen"] if x else 0))) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))),{}).items():
         istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
         if istf1:
             for uid in uidlist:
