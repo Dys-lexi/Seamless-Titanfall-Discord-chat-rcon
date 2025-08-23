@@ -473,12 +473,7 @@ def bantf1():
         """)
     # c.execute("ALTER TABLE banstf1 ADD COLUMN lastserverid INTEGER")
     
-    # Add messageid column if it doesn't exist
-    # try:
-    #     c.execute("ALTER TABLE banstf1 ADD COLUMN messageid INTEGER")
-    # except:
-    #     # Column already exists
-    #     pass
+
 
     tfdb.commit()
     tfdb.close()
@@ -1367,14 +1362,7 @@ def process_matchingtf2(name):
     sanction,messageid = pullsanction(player["uid"])
     if sanction:
         
-        return {
-            "name": player['name'].strip(),
-            "uid": str(player['uid']),
-            "sanctiontype": sanction['sanctiontype'],
-            "expiry": sanction["humanexpire"],
-            "reason": sanction["reason"],
-            "link": sanction["link"] if sanction["link"] else "No link available"
-        }
+        return sanction
     return f"No sanction found for {player["name"]}"
 
 @bot.slash_command(
@@ -1406,7 +1394,7 @@ async def sanctiontf2(
         return
     
     # serverid = getchannelidfromname(servername,ctx)
-    output = await process_sanctiontf2(False,ctx.author.name,name ,sanctiontype, reason, expiry,True)
+    output = await process_sanctiontf2(False,ctx.author.name,name ,sanctiontype, reason, expiry,f"https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id}/{ctx.interaction.id}")
     if isinstance(output,str):
         await ctx.respond(output)
         return
@@ -1421,7 +1409,7 @@ async def embedjson(name,output,ctx):
     for field,data in output.items():
         embed.add_field(
             name=f"> {field.title()}:",
-            value=f"\u200b \u200b \u200b \u200b \u200b \u200b \u200b {data}",
+            value=f"{"\u200b \u200b \u200b \u200b \u200b \u200b \u200b" if False else ""} {data}",
             inline=True
     )
     await ctx.respond(embed=embed)
@@ -1433,12 +1421,17 @@ def pullsanction(uid):
             expiry_text = (modifyvalue(existing_sanction["expiry"], "date") if existing_sanction["expiry"] else "Never") 
         except (OSError, ValueError, OverflowError):
             expiry_text = f"Invalid date ({existing_sanction['expiry']})"
+        name = resolveplayeruidfromdb(uid, None,True)
+        if name:
+            name = name[0]["name"]
+        else: name = "Unknown player"
         return {**existing_sanction,
+        "affectedplayer":name,
         "humanexpire":expiry_text,
         "link":f"https://discord.com/channels/{context['activeguild']}/{context["overridechannels"]["globalchannel"]}/{existing_sanction.get("messageid")}" if existing_sanction.get("messageid") else None,
-        "textversion":f"**Type**: `{existing_sanction['sanctiontype']}`\n**Expires:** `{expiry_text}`\n**Reason:** `{existing_sanction["reason"]}`"+(f"\n**Link:** https://discord.com/channels/{context['activeguild']}/{context["overridechannels"]["globalchannel"]}/{existing_sanction.get("messageid")}"  if existing_sanction.get("messageid") else None)
+        "textversion":f"**Type**: `{existing_sanction['sanctiontype']}`\n**Expires:** `{expiry_text}`\n**Reason:** `{existing_sanction["reason"]}`"+(f"\n**Issuer:** {existing_sanction.get("issuer")}"  if existing_sanction.get("issuer") else "\nNo Issuer found")+(f"\n**Source:** {existing_sanction.get("source")}"  if existing_sanction.get("source") else "\nNo source found")+(f"\n**Playingissuedelta:** {existing_sanction.get("playingissuedelta")}"  if existing_sanction.get("playingissuedelta") else "\nUnknown playingissuedelta")+(f"\n**Link:** https://discord.com/channels/{context['activeguild']}/{context["overridechannels"]["globalchannel"]}/{existing_sanction.get("messageid")}"  if existing_sanction.get("messageid") else "\nNo link found")
         },existing_sanction.get("messageid")
-    return {},existing_sanction.get("messageid")
+    return {},existing_sanction.get("messageid") if existing_sanction else False
 async def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry=None,iscommand = False):
     
     if len(name.rsplit("->",1)) > 1: 
@@ -1487,8 +1480,10 @@ async def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry
         message_id = message.id
     else:
         message_id = None
-    
-    setplayeruidpreferences(["banstf2","sanction"], {"reason":reason,"expiry":expiry,"sanctiontype":sanctiontype,"messageid":message_id}, player['uid'])
+        # str(player["uid"])
+    print(modifyvalue(peopleonline.get(str(player["uid"]),player)["lastseen"],"deltadate"))
+    lastseen = modifyvalue(peopleonline.get(str(player["uid"]),player)["lastseen"],"deltadate")
+    setplayeruidpreferences(["banstf2","sanction"], {"reason":reason,"expiry":expiry,"sanctiontype":sanctiontype,"messageid":message_id,"issuer":sender,"playingissuedelta":lastseen,"source":iscommand if iscommand else "in game"}, player['uid'])
     expiry_text = "forever" if expiry is None else modifyvalue(expiry, "date")    
     if serverid:
         sendrconcommand(serverid,f'!reloadpersistentvars {player["uid"]}',sender=sender,prefix=f"New {sanctiontype}")
@@ -1496,7 +1491,7 @@ async def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry
     # return f"**{sanctiontype.capitalize()}** applied to **{player['name']}** (UID: `{player['uid']}`) until **{expiry_text}**\nReason: {reason}"
     if iscommand:
         return {
-            **player,"expiry":expiry_text,"sanctiontype":sanctiontype,"reason":reason
+            **player, **{"reason":reason,"expiry":expiry,"sanctiontype":sanctiontype,"messageid":message_id,"issuer":sender,"playingissuedelta":lastseen,"source":iscommand if iscommand else "in game"}
         }
 
     return f"{sanctiontype.capitalize()} added to {player["name"]} (UID: {player["uid"]}) Until {expiry_text}\nReason: {reason}"
@@ -1560,15 +1555,7 @@ async def sanctionremovetf2(
         
         setplayeruidpreferences(["banstf2", "sanction"], {"messageid": message_id}, player['uid'])
         
-        output = {
-            "name": player['name'],
-            "uid": str(player['uid']),
-            "sanctiontype": ban['sanctiontype'],
-            "expiry": ban["humanexpire"],
-            "reason": ban["reason"],
-            "status": "removed",
-            "Link": ban["link"],
-        }
+        output = ban
         await embedjson("Removing Sanction:",output, ctx)
     else:
         await ctx.respond(f"No sanction found for {player["name"]} (UID: `{player['uid']}`)")
@@ -3219,7 +3206,7 @@ if DISCORDBOTLOGSTATS == "1":
         return best_font if best_font else ImageFont.load_default()
     def modifyvalue(value, format, calculation=None):
         """takes in a value, and makes it prettier, I should add a way to display dates to ti"""
-        if format is None:
+        if format is None or not value:
             return value
         elif format == "time":
             hours = value // 3600
@@ -3253,6 +3240,13 @@ if DISCORDBOTLOGSTATS == "1":
             return str(MAP_NAME_TABLE.get(value, str(MAP_NAME_TABLE.get("mp_"+value, value))))
         elif format == "date":
             return datetime.fromtimestamp(value).strftime(f"%-d{'th' if 11 <= datetime.fromtimestamp(value).day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(datetime.fromtimestamp(value).day % 10, 'th')} of %B %Y")
+        elif format == "deltadate":
+            time_diff = int(time.time()) - int(value)
+            days = time_diff // 86400
+            hours = (time_diff % 86400) // 3600
+            minutes = (time_diff % 3600) // 60
+            time_ago = f"{days}d {hours}h {minutes}m"
+            return time_ago
         return value
     
         
@@ -5957,7 +5951,7 @@ def messageloop():
                         if not message["pfp"] or not message["name"] or not message["uid"]:
                             print("VERY BIG ERROR, PLEASE LOOK INTO IT",message)
                             if not message.get("pfp"):
-                                message["pfp"] = "I don't know, so this should trigger unknown response"
+                                message["pfp"] = "player has no model :("
                             else:
                                 continue
                         userpfpmessages.setdefault(message["name"],{"messages":[],"pfp":message["pfp"],"uid":message["uid"],"originalname":message["originalname"]})
@@ -7984,6 +7978,7 @@ your past responses:
 playercontext = {}
 matchids = []
 playerjoinlist = {}
+peopleonline = {}
 
 def checkandaddtouidnamelink(uid, playername,serverid ,istf1 = False):
     """Updates player UID-name mapping in database with timestamp tracking"""
@@ -8228,7 +8223,7 @@ def playerpolllog(data,serverid,statuscode):
     """Processes server player poll data and manages join/leave events with database updates"""
     # print("playerpoll",serverid,statuscode)
     Ithinktheplayerhasleft = 90
-    global discordtotitanfall,playercontext,playerjoinlist,matchids
+    global discordtotitanfall,playercontext,playerjoinlist,matchids,peopleonline
     # save who is playing on the specific server into playercontext.
     # dicts kind of don't support composite primary keys..
     # use the fact that theoretically one player can be on just one server at a time
@@ -8257,6 +8252,7 @@ def playerpolllog(data,serverid,statuscode):
             data["meta"] = [metadata["map"],50,metadata["matchid"]]#50 is a placeholder for actual time left!
     # print(players)
     discordtotitanfall[serverid]["currentplayers"] = dict(map(lambda x: [str(x["uid"]),x["name"]],players))
+    peopleonline = {**peopleonline,**dict(map(lambda x: [str(x["uid"]),{"name":x["name"],"lastseen":now}],players))}
             
     # playercontext[pinfo["uid"]+pinfo["name"]] = {"joined":now,"map":map,"name":pinfo["name"],"uid":pinfo["uid"],"idoverride":0,"endtime":0,"serverid":serverid,"kills":0,"deaths":0,"titankills":0,"npckills":0,"score":0}
     # print(list(map(lambda x: x["name"],players)))
@@ -9080,4 +9076,6 @@ signal.signal(signal.SIGTERM, shutdown_handler)
 
 
 
+
 bot.run(TOKEN)
+
