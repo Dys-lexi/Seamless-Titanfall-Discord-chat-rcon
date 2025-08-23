@@ -1429,7 +1429,7 @@ def pullsanction(uid):
         "affectedplayer":name,
         "humanexpire":expiry_text,
         "link":f"https://discord.com/channels/{context['activeguild']}/{context["overridechannels"]["globalchannel"]}/{existing_sanction.get("messageid")}" if existing_sanction.get("messageid") else None,
-        "textversion":f"**Type**: `{existing_sanction['sanctiontype']}`\n**Expires:** `{expiry_text}`\n**Reason:** `{existing_sanction["reason"]}`"+(f"\n**Issuer:** {existing_sanction.get("issuer")}"  if existing_sanction.get("issuer") else "\nNo Issuer found")+(f"\n**Source:** {existing_sanction.get("source")}"  if existing_sanction.get("source") else "\nNo source found")+(f"\n**Playingissuedelta:** {existing_sanction.get("playingissuedelta")}"  if existing_sanction.get("playingissuedelta") else "\nUnknown playingissuedelta")+(f"\n**Link:** https://discord.com/channels/{context['activeguild']}/{context["overridechannels"]["globalchannel"]}/{existing_sanction.get("messageid")}"  if existing_sanction.get("messageid") else "\nNo link found")
+        "textversion":f"**Type**: `{existing_sanction['sanctiontype']}`\n**Expires:** `{expiry_text}`\n**Reason:** `{existing_sanction["reason"]}`"+(f"\n**Issuer:** {existing_sanction.get("issuer")}"  if existing_sanction.get("issuer") else "\nNo Issuer found")+(f"\n**Source:** {existing_sanction.get("source")}"  if existing_sanction.get("source") else "\nNo source found")+(f"\n**Issuedelta:** {existing_sanction.get("issuedelta")}"  if existing_sanction.get("issuedelta") else "\nUnknown issuedelta")+(f"\n**Link:** https://discord.com/channels/{context['activeguild']}/{context["overridechannels"]["globalchannel"]}/{existing_sanction.get("messageid")}"  if existing_sanction.get("messageid") else "\nNo link found")
         },existing_sanction.get("messageid")
     return {},existing_sanction.get("messageid") if existing_sanction else False
 async def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry=None,iscommand = False):
@@ -1483,7 +1483,7 @@ async def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry
         # str(player["uid"])
     print(modifyvalue(peopleonline.get(str(player["uid"]),player)["lastseen"],"deltadate"))
     lastseen = modifyvalue(peopleonline.get(str(player["uid"]),player)["lastseen"],"deltadate")
-    setplayeruidpreferences(["banstf2","sanction"], {"reason":reason,"expiry":expiry,"sanctiontype":sanctiontype,"messageid":message_id,"issuer":sender,"playingissuedelta":lastseen,"source":iscommand if iscommand else "in game"}, player['uid'])
+    setplayeruidpreferences(["banstf2","sanction"], {"reason":reason,"expiry":expiry,"sanctiontype":sanctiontype,"messageid":message_id,"issuer":sender,"issuedelta":lastseen,"source":iscommand if iscommand else "in game"}, player['uid'])
     expiry_text = "forever" if expiry is None else modifyvalue(expiry, "date")    
     if serverid:
         sendrconcommand(serverid,f'!reloadpersistentvars {player["uid"]}',sender=sender,prefix=f"New {sanctiontype}")
@@ -1491,7 +1491,7 @@ async def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry
     # return f"**{sanctiontype.capitalize()}** applied to **{player['name']}** (UID: `{player['uid']}`) until **{expiry_text}**\nReason: {reason}"
     if iscommand:
         return {
-            **player, **{"reason":reason,"expiry":expiry,"sanctiontype":sanctiontype,"messageid":message_id,"issuer":sender,"playingissuedelta":lastseen,"source":iscommand if iscommand else "in game"}
+            **player, **{"reason":reason,"expiry":expiry,"sanctiontype":sanctiontype,"messageid":message_id,"issuer":sender,"issuedelta":lastseen,"source":iscommand if iscommand else "in game"}
         }
 
     return f"{sanctiontype.capitalize()} added to {player["name"]} (UID: {player["uid"]}) Until {expiry_text}\nReason: {reason}"
@@ -7582,7 +7582,7 @@ def notifydebugchat(affectedserver,message,prefix = "Commandnotify"):
     # print("WOA",list(map(lambda x: max(resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True),key = lambda x: x[0]["lastseen"] if x else 0) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))))
     # print("WOA",list(map(lambda x: (resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True)) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))))
     # print("PRETTY",(functools.reduce(lambda a,b:{**a,b[0]["lastserverid"]:[*a.get(b[0]["lastserverid"],[]),b[0]["uid"]]},filter(lambda x: x and x[0]["uid"] in discordtotitanfall[x[0]["lastserverid"]]["currentplayers"] ,map(lambda x: max(resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True),key = lambda x: x[0]["lastseen"] if x else 0) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))),{})))
-    for serverid,uidlist in functools.reduce(lambda a,b:{**a,b[0]["lastserverid"]:[*a.get(b[0]["lastserverid"],[]),b[0]["uid"]]},filter(lambda x: x and (NOTIFYCOMMANDSONALLSERVERSDEBUG or x[0]["lastserverid"] == affectedserver) and x[0]["uid"] in discordtotitanfall[x[0]["lastserverid"]]["currentplayers"] ,map(lambda x: list(map(lambda y: {**y,"uid":str(y["uid"])},max(resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True),key = lambda x: x[0]["lastseen"] if x else 0))) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))),{}).items():
+    for serverid,uidlist in functools.reduce(lambda a,b:{**a,b[0]["lastserverid"]:[*a.get(b[0]["lastserverid"],[]),b[0]["uid"]]},filter(lambda x: x and (NOTIFYCOMMANDSONALLSERVERSDEBUG or x[0]["lastserverid"] == affectedserver) and  x[0]["lastserverid"] in discordtotitanfall and x[0]["uid"] in discordtotitanfall[x[0]["lastserverid"]]["currentplayers"] ,map(lambda x: list(map(lambda y: {**y,"uid":str(y["uid"])},max(resolveplayeruidfromdb(str(pullid(x,"tf")),"uid",True),resolveplayeruidfromdb(str(x),"uid",True,True),key = lambda x: x[0]["lastseen"] if x else 0))) if pullid(x,"tf") else False ,context["overriderolesuids"].get("debugchat",[]))),{}).items():
         istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
         if istf1:
             for uid in uidlist:
