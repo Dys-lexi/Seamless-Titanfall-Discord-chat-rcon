@@ -463,6 +463,7 @@ void function checkshouldblockmessages(entity player){
 	table params = {}
 	params["password"] <- serverdetails.password
 	params["uid"] <- player.GetUID()
+	params["name"] <- player.GetPlayerName()
 	params["serverid"] <- serverdetails.serverid
 	HttpRequest request
 	request.method = HttpRequestMethod.POST
@@ -500,6 +501,7 @@ void function checkshouldblockmessages(entity player){
 		// table textsv2 = expect table(responses["textsv2"])
 		// string textvalidation = expect string(messagess["textvalid
 		// discordlogsendmessage(discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype"))
+		// print("MEOWMDQOQ"+discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype"))
 			if (discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "ban" && serverdetails.enforcesanctions){
 				NSDisconnectPlayer(player,"You are banned, JOIN THE DISCORD IN SERVER DESC TO COMPLAIN. Expires: "+discordlogpullplayerstat(expect string(responses["uid"]),"expiry")+" Reason: "+ discordlogpullplayerstat(expect string(responses["uid"]),"reason"))
 			}

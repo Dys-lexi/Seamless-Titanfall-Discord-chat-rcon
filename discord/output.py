@@ -212,7 +212,7 @@ def discorduidinfodb():
     # print(output)
     teams = ["FRIENDLY","ENEMY","NEUTRAL"]
     # print(json.dumps(list(output),indent=4))
-    colourslink = {x[0]:{"nameprefix":(x[3]) if x[3] and x[3] != "reset" else None,"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,**(({team:(list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) ) for team in teams}if "[" not in x[2] else json.loads(x[2])) if x[2] is not None and x[2] != "reset" else {})}  for x in output}
+    colourslink = {x[0]:{"discordcolour":list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[1].split("|"))) if x[1] is not None and x[1] != "reset" else [] ,**(({team:(list(map(lambda y: tuple(map(int, y.strip("()").split(","))), x[2].split("|"))) ) for team in teams}if "[" not in x[2] else json.loads(x[2])) if x[2] is not None and x[2] != "reset" else {}),"nameprefix":(x[3]) if x[3] and x[3] != "reset" else None}  for x in output}
     # print(json.dumps(colourslink,indent=4))
     c.execute("SELECT discorduid, choseningamecolour FROM discorduiddata")
     # output = c.fetchall()
@@ -990,6 +990,8 @@ context = {
         "banwords":[
         ],
         "notifybadwords":[
+        ],
+        "namestokick":[
         ]
     },
     "logging_cat_id": 0,
@@ -1110,6 +1112,17 @@ async def autocompletenamesanduidsfromdb(ctx):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["No one matches"]
     return output
+
+async def autocompletefilterwordcomplete(ctx):
+    """toggles wordfilter"""
+    serverid = getchannelidfromname(False,ctx.interaction)
+    if not checkrconallowed(ctx.interaction.user,serverid=serverid):
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        return ["You don't have permission to use this command"]
+    potential = list(map (lambda x:f"{x[1]} - {x[0]}", filter(lambda x: ctx.value.lower() in x[1].lower(), [[x[0], y] for x in context["wordfilter"].items() for y in x[1]])))
+    if not potential:
+        return ["No matches. whatever you type will be a new rule"]
+    return potential
 
 async def autocompletenamesfromtf1bans(ctx):
     """autocompletes tf1 bans"""
@@ -1350,7 +1363,7 @@ async def sanctiontf2check(
     if isinstance(output, str):
         await ctx.respond(output)
         return
-    await embedjson("Existing Sanction:",output, ctx)
+    await ctx.respond(embed=embedjson("Existing Sanction:",output, ctx))
 def process_matchingtf2(name):
     matchingplayers = resolveplayeruidfromdb(name, None,True)
     # if len(matchingplayers) > 1:
@@ -1364,6 +1377,27 @@ def process_matchingtf2(name):
         
         return sanction
     return f"No sanction found for {player["name"]}"
+
+@bot.slash_command(
+    name="togglewordfilter",
+    description="Adds or removes a word filter"
+)
+async def keywordtoggle(
+    ctx,
+    typeofkeyword: Option(str, "what list the keyword should be in / removed from", choices=list(context["wordfilter"].keys()) ),
+    keywordtotoggle: Option(str, "The keyword to remove / add", autocomplete=autocompletefilterwordcomplete),
+    ):
+    keywordtotoggle = keywordtotoggle.rsplit("-",1)[0].strip(" ")
+    if keywordtotoggle in context["wordfilter"][typeofkeyword]:
+        context["wordfilter"][typeofkeyword].pop(context["wordfilter"][typeofkeyword].index(keywordtotoggle))
+        savecontext()
+        await ctx.respond(f"Deleted {keywordtotoggle} from {typeofkeyword}")
+        return
+    context["wordfilter"][typeofkeyword].append(keywordtotoggle.lower())
+    savecontext()
+    await ctx.respond(f"Added {keywordtotoggle} to {typeofkeyword}")
+
+    
 
 @bot.slash_command(
     name="sanctiontf2",
@@ -1398,21 +1432,22 @@ async def sanctiontf2(
     if isinstance(output,str):
         await ctx.respond(output)
         return
-    await embedjson("New Sanction:",output,ctx)
+    await ctx.respond(embed=embedjson("New Sanction:",output,ctx))
 
-async def embedjson(name,output,ctx):
+def embedjson(name,output,ctx = False):
     embed = discord.Embed(
     title=f"**{name}**",
     color=0xff70cb,
     # description=output["title"]["description"],
 )
     for field,data in output.items():
+        if field == "textversion": continue
         embed.add_field(
             name=f"> {field.title()}:",
             value=f"{"\u200b \u200b \u200b \u200b \u200b \u200b \u200b" if False else ""} {data}",
             inline=True
     )
-    await ctx.respond(embed=embed)
+    return embed
 
 def pullsanction(uid):
     existing_sanction = getpriority(readplayeruidpreferences(uid,False),["banstf2","sanction"],nofind = {})
@@ -1556,7 +1591,7 @@ async def sanctionremovetf2(
         setplayeruidpreferences(["banstf2", "sanction"], {"messageid": message_id}, player['uid'])
         
         output = ban
-        await embedjson("Removing Sanction:",output, ctx)
+        await ctx.respond(embed=embedjson("Removing Sanction:",output, ctx))
     else:
         await ctx.respond(f"No sanction found for {player["name"]} (UID: `{player['uid']}`)")
         return
@@ -1632,7 +1667,7 @@ async def sanctiontf1(
         "status": "Tried to kick player" if sanctiontype == "ban" else "The mute happens on map change"
     }
     
-    await embedjson("New Sanction:",output, ctx)
+    await ctx.respond(embed=embedjson("New Sanction:",output, ctx))
     if sanctiontype == "ban":
         # print(serverid,f'kick {name}')
         sendrconcommand(str(serverid),f'banip 7200 {ip}',sender=ctx.author.name)
@@ -4475,6 +4510,7 @@ def recieveflaskprintrequests():
             print("invalid password used on playerdetails")
             return {"message":"sorry, wrong pass"}
         discorduid = discorduidnamelink.get(data["uid"],False)
+        playername = data["name"]
         if not discorduid:
             tfdb = postgresem("./data/tf2helper.db")
             c = tfdb
@@ -4497,10 +4533,14 @@ def recieveflaskprintrequests():
         # print(any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())),"e")
         # print(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values()))
         # print(json.dumps({"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{**({"nameprefix": colourslink[discorduid]["nameprefix"]} if getpriority(colourslink,[discorduid,"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())) else {}),**{x: str(y) for x,y in list(filter(lambda x:  not getpriority(context,["commands","ingamecommands",x[0],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",x[0],"serversenabled"])  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))}}},indent=4))
+        
         sanction,messageid = pullsanction(str(data["uid"]))
         if sanction:
             sanction["expiry"] = sanction["humanexpire"]
-        # print(json.dumps({"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{**({"nameprefix": colourslink[discorduid]["nameprefix"]} if getpriority(colourslink,[discorduid,"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())) else {}),**{x: str(y) for x,y in list(filter(lambda x: internaltoggles.get(x[0]) and (not getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]))  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))},**sanction}},indent=4))
+            sanction = {"expiry":sanction["expiry"],"reason":sanction["reason"],"sanctiontype":sanction["sanctiontype"]}
+        if playername.lower() in context["wordfilter"]["namestokick"]:
+            sanction = {"expiry":"on name change","reason":"change your name","sanctiontype":"ban"}
+        print(json.dumps({"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{**({"nameprefix": colourslink[discorduid]["nameprefix"]} if getpriority(colourslink,[discorduid,"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())) else {}),**{x: str(y) for x,y in list(filter(lambda x: not internaltoggles.get(x[0],False) or (not getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]))  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))},**sanction}},indent=4))
         return {"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{**({"nameprefix": colourslink[discorduid]["nameprefix"]} if getpriority(colourslink,[discorduid,"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())) else {}),**{x: str(y) for x,y in list(filter(lambda x: not internaltoggles.get(x[0],False) or (not getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]))  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))},**sanction}}
         # return output
     @app.route("/getrunningservers", methods=["POST"])
@@ -5303,6 +5343,18 @@ def getmessagewidget(metadata,serverid,messagecontent,message):
                 data2 = sum(list(map(lambda x: x[0]-x[1], data2)))
                 output += f" - {data2//3600}h {data2//60%60}m time playing"
             output += ")"
+        try:
+            if getpriority(message,["metadata","uid"]):
+                # print(getpriority(message,["metadata","uid"]))
+                sanction = process_matchingtf2(getpriority(message,["metadata","uid"]))
+                if sanction and  not isinstance(sanction, str):
+                    # asyncio.run_coroutine_threadsafe(channel.fetch_message(leaderboardid), bot.loop)
+                    channel = (bot.get_channel(context["servers"][serverid]["channelid"]) if (serverid in context["servers"] and "channelid" in context["servers"][serverid]) else bot.get_channel(context["overridechannels"][serverid]))
+                    # print(channel,channel.name,sanction)
+                    asyncio.run_coroutine_threadsafe(channel.send(embed=embedjson(f"Sanction enforced for {player}",sanction)), bot.loop)
+        except Exception as e:
+            traceback.print_exc()
+            print(e)
     elif metadata["type"] in ["command","botcommand","tf1command"]:
         if DISCORDBOTLOGCOMMANDS != "1":
             return "",player
@@ -6511,6 +6563,8 @@ def checkbantf1(message,serverid,isfromserver):
     bans = list(map(lambda x: {"ip":x[0],"name":x[1],"uid":x[2],"bantype":x[3],"banlinks":x[4],"baninfo":x[5],"expire":x[6],"exhaustion":0,"id":x[7]} ,list(c.fetchall())))
     # print(bans)
     # print("MEOW")
+    if message["name"].lower() in context["wordfilter"]["namestokick"]:
+        sendrconcommand(serverid,f'banip 60 {message["ip"]} You are banned for 60s Change your name then rejoin')
     bannedpeople = findallbannedpeople(bans,list(filter(lambda x:x["bantype"] and (x["expire"] is None or x["expire"] > int(time.time())),bans)),10)
         # print("DONE")
     # print(json.dumps(bannedpeople,indent=4))
