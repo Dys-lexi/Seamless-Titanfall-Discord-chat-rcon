@@ -1088,10 +1088,10 @@ processaliases()
 bot = discord.Bot(intents=intents)
 
 async def autocompleteserversfromdb(ctx):
-    if not ctx.value:
+    if not ctx.value.strip(" "):
         return []
     server_names = [s.get("name", "Unknown") for s in context["servers"].values() if s.get("name")]
-    output = [name for name in server_names if ctx.value.lower() in name.lower()][:20]
+    output = [name for name in server_names if ctx.value.strip(" ").lower() in name.lower()][:20]
     if len(output) == 0:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["No server matches"]
@@ -1099,7 +1099,7 @@ async def autocompleteserversfromdb(ctx):
 
 async def autocompletenamesfromdb(ctx):
     """autocompletes tf2 names"""
-    output =  [x["name"] if x["name"].strip() else str(x["uid"]) for x in  resolveplayeruidfromdb(ctx.value,None,True)][:20]
+    output =  [x["name"] if x["name"].strip() else str(x["uid"]) for x in  resolveplayeruidfromdb(ctx.value.strip(" "),None,True)][:20]
     if len(output) == 0:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["No one matches"]
@@ -1107,7 +1107,7 @@ async def autocompletenamesfromdb(ctx):
 
 async def autocompletenamesanduidsfromdb(ctx):
     """autocompletes tf2 names and uids"""
-    output =  [f"{x["name"]}->({x["uid"]})" if x["name"].strip() else str(x["uid"]) for x in  resolveplayeruidfromdb(ctx.value,None,True)][:20]
+    output =  [f"{x["name"]}->({x["uid"]})" if x["name"].strip() else str(x["uid"]) for x in  resolveplayeruidfromdb(ctx.value.strip(" "),None,True)][:20]
     if len(output) == 0:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["No one matches"]
@@ -1119,7 +1119,7 @@ async def autocompletefilterwordcomplete(ctx):
     if not checkrconallowed(ctx.interaction.user,serverid=serverid):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["You don't have permission to use this command"]
-    potential = list(map (lambda x:f"{x[1]} - {x[0]}", filter(lambda x: ctx.value.lower() in x[1].lower(), [[x[0], y] for x in context["wordfilter"].items() for y in x[1]])))
+    potential = list(map (lambda x:f"{x[1]} - {x[0]}", filter(lambda x: ctx.value.strip(" ").lower() in x[1].lower(), [[x[0], y] for x in context["wordfilter"].items() for y in x[1]])))
     if not potential:
         return ["No matches. whatever you type will be a new rule"]
     return potential
@@ -1131,7 +1131,7 @@ async def autocompletenamesfromtf1bans(ctx):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["You don't have permission to use this command"]
     # print("meow")
-    if not ctx.value:
+    if not ctx.value.strip(" "):
         return []
     
     try:
@@ -1145,7 +1145,7 @@ async def autocompletenamesfromtf1bans(ctx):
                 b.lastseen DESC,
                 LENGTH(b.playername)
             LIMIT 25
-        """, (f"%{ctx.value.lower()}%", f"{ctx.value.lower()}%"))
+        """, (f"%{ctx.value.strip(" ").lower()}%", f"{ctx.value.strip(" ").lower()}%"))
         
         results = c.fetchall()
         c.close()
@@ -1188,7 +1188,7 @@ async def autocompletenamesfromingame(ctx):
     if channel and channel in discordtotitanfall:
         main.extend(list(discordtotitanfall[channel]["currentplayers"].values()))
     main = list(set([str(p) for p in main]))
-    output = sorted(list(filter(lambda x: ctx.value.lower() in x.lower(),main)),key = lambda x: x.lower().startswith(ctx.value.lower())* 50, reverse = True)
+    output = sorted(list(filter(lambda x: ctx.value.strip(" ").lower() in x.lower(),main)),key = lambda x: x.lower().startswith(ctx.value.strip(" ").lower())* 50, reverse = True)
     if len(main) == 2:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["No one playing"]
@@ -1204,7 +1204,7 @@ async def autocompletenamesfromingamenowildcard(ctx):
     if channel and channel in discordtotitanfall:
         main = list(discordtotitanfall[channel]["currentplayers"].values())
     main = list(set([str(p) for p in main]))
-    output = sorted(list(filter(lambda x: ctx.value.lower() in x.lower(),main)),key = lambda x: x.lower().startswith(ctx.value.lower())* 50, reverse = True)
+    output = sorted(list(filter(lambda x: ctx.value.strip(" ").lower() in x.lower(),main)),key = lambda x: x.lower().startswith(ctx.value.strip(" ").lower())* 50, reverse = True)
     if len(main) == 0:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["No one playing"]
@@ -1223,7 +1223,7 @@ def getallweaponnames(weapon):
     return sorted(list(map(lambda x: WEAPON_NAMES.get(x[0],x[0]),list(filter(lambda x: (WEAPON_NAMES.get(x[0],False) and weapon.lower() in WEAPON_NAMES.get(x[0],"").lower()) or weapon.lower() in x[0].lower(),weapons)))),key = lambda x: x.lower().startswith(weapon.lower())* 50 ,reverse = True)[:30]
 async def weaponnamesautocomplete(ctx):
     """probably should not cache this, due to new guns being added, but this returns all matching guns"""
-    return getallweaponnames(ctx.value)
+    return getallweaponnames(ctx.value.strip(" "))
 
 
 
@@ -1399,7 +1399,7 @@ async def keywordtoggle(
         return
     context["wordfilter"][typeofkeyword].append(keywordtotoggle.lower())
     savecontext()
-    await ctx.respond(f"Added {keywordtotoggle} to {typeofkeyword}")
+    await ctx.respond(f"Added `{keywordtotoggle}` to {typeofkeyword}")
 
     
 
