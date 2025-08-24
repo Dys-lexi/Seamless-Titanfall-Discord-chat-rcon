@@ -1085,6 +1085,24 @@ processaliases()
 # print(json.dumps(internaltoggles,indent=4))
 # print(json.dumps(context["commands"]["ingamecommands"],indent=2))
             
+# Monkey patch to add integration_types to all slash commands
+original_slash_command = discord.Bot.slash_command
+
+def patched_slash_command(self, *args, **kwargs):
+    if "integration_types" not in kwargs:
+        kwargs["integration_types"] = {
+            discord.IntegrationType.guild_install,
+            discord.IntegrationType.user_install
+        }
+    if "contexts" not in kwargs:
+        kwargs["contexts"] = {
+            discord.InteractionContextType.guild, 
+            discord.InteractionContextType.private_channel
+        }
+    return original_slash_command(self, *args, **kwargs)
+
+discord.Bot.slash_command = patched_slash_command
+
 bot = discord.Bot(intents=intents)
 
 async def autocompleteserversfromdb(ctx):
@@ -1432,7 +1450,11 @@ async def sanctiontf2(
         return
     
     # serverid = getchannelidfromname(servername,ctx)
-    output = await process_sanctiontf2(False,ctx.author.name,name ,sanctiontype, reason, expiry,f"https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id}/{ctx.interaction.id}")
+    try:
+        where = f"https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id}/{ctx.interaction.id}"
+    except:
+        where = "RAN IN A DM"
+    output = await process_sanctiontf2(False,ctx.author.name,name ,sanctiontype, reason, expiry,where)
     if isinstance(output,str):
         await ctx.respond(output)
         return
@@ -4514,7 +4536,7 @@ def recieveflaskprintrequests():
             print("invalid password used on playerdetails")
             return {"message":"sorry, wrong pass"}
         discorduid = discorduidnamelink.get(data["uid"],False)
-        playername = data["name"]
+        playername = data.get("name","")
         if not discorduid:
             tfdb = postgresem("./data/tf2helper.db")
             c = tfdb
