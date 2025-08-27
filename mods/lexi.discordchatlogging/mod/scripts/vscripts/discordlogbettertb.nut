@@ -12,16 +12,19 @@ discordlogcommand function discordlogplayerfinder(discordlogcommand commandin) {
 		if (player != null){
 
             array<string> recenthurts
-            if (IsAlive(player) &&  GetPlayerArray().len() > 1){
+            
+            if (IsAlive(player) &&  (GetPlayerArray()).len() > 1){
+                int remove = 0
                 array<entity> otherPlayers = GetPlayerArray()
                 for(int i = 0; i < otherPlayers.len(); i++){
                     if(otherPlayers[i] == player){
-                        otherPlayers.remove(i)
+                        remove = i
                         break
                     }
                 }
+                otherPlayers.remove(remove)
                 recenthurts.append(GetClosest(otherPlayers,player.GetOrigin()).GetUID())
-            float recent = Time() - 12
+            float recent = Time() - 20
             foreach ( history in player.e.recentDamageHistory )
             {
                 if ( history.time < recent )

@@ -1085,7 +1085,6 @@ processaliases()
 # print(json.dumps(internaltoggles,indent=4))
 # print(json.dumps(context["commands"]["ingamecommands"],indent=2))
             
-# Monkey patch to add integration_types to all slash commands
 original_slash_command = discord.Bot.slash_command
 
 def patched_slash_command(self, *args, **kwargs):
@@ -1097,7 +1096,8 @@ def patched_slash_command(self, *args, **kwargs):
     if "contexts" not in kwargs:
         kwargs["contexts"] = {
             discord.InteractionContextType.guild, 
-            discord.InteractionContextType.private_channel
+            discord.InteractionContextType.private_channel,
+            discord.InteractionContextType.bot_dm
         }
     return original_slash_command(self, *args, **kwargs)
 
@@ -1533,11 +1533,11 @@ async def process_sanctiontf2(serverid,sender,name ,sanctiontype, reason, expiry
         if existing_messageid:
             try:
                 existing_message = await global_channel.fetch_message(existing_messageid)
-                message = await existing_message.reply(f"New {sanctiontype} uploaded by {sender} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry_log_text if expiry_log_text else ''} {'Reason: ' + reason if reason else ''}")
+                message = await existing_message.reply(f"New {sanctiontype} uploaded by {sender} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry_log_text if expiry_log_text else ''} {'Reason: ' + reason if reason else ''} Source: {iscommand if iscommand else 'in game'}")
             except:
-                message = await global_channel.send(f"New {sanctiontype} uploaded by {sender} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry_log_text if expiry_log_text else ''} {'Reason: ' + reason if reason else ''}")
+                message = await global_channel.send(f"New {sanctiontype} uploaded by {sender} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry_log_text if expiry_log_text else ''} {'Reason: ' + reason if reason else ''} Source: {iscommand if iscommand else 'in game'}")
         else:
-            message = await global_channel.send(f"New {sanctiontype} uploaded by {sender} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry_log_text if expiry_log_text else ''} {'Reason: ' + reason if reason else ''}")
+            message = await global_channel.send(f"New {sanctiontype} uploaded by {sender} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry_log_text if expiry_log_text else ''} {'Reason: ' + reason if reason else ''} Source: {iscommand if iscommand else 'in game'}")
         message_id = message.id
     else:
         message_id = None
@@ -3425,7 +3425,7 @@ if DISCORDBOTLOGSTATS == "1":
             alsomatching[entry["uid"]] = entry["name"]
 
         embed = discord.Embed(
-            title=f"Aliases for uid {player['uid']} ({len(alsomatching.keys()) + 1} match{'es' if len(alsomatching.keys()) > 0 else ''} for '{originalname}')",
+            title=f"*Aliases* for uid {player['uid']} ({len(alsomatching.keys()) + 1} match{'es' if len(alsomatching.keys()) > 0 else ''} for '{originalname}')",
             color=0xff70cb,
             description=f"Most recent to oldest, total playtime **{modifyvalue(totalplaytime,'time') if totalplaytime else 'unknown'}**",
         )
@@ -3767,7 +3767,7 @@ async def bind_global_role(
     """binds a role, to give it specific powers on the bot."""
     global context
     guild = ctx.guild
-    if guild.id != context["activeguild"]:
+    if guild and guild.id != context["activeguild"]:
         await ctx.respond("This guild is not the active guild.", ephemeral=False)
         return
     if not checkrconallowed(ctx.author):
@@ -3794,7 +3794,7 @@ async def bind_global_channel(
     """binds a channel to a certain output of the bots, like leaderboards, ban messages, nonowordnotifys"""
     global context
     guild = ctx.guild
-    if guild.id != context["activeguild"]:
+    if guild and guild.id != context["activeguild"]:
         await ctx.respond("This guild is not the active guild.", ephemeral=False)
         return
     if not checkrconallowed(ctx.author):
@@ -4317,9 +4317,9 @@ def replace_mentions_with_display_names(message):
     content = message.content
     for user in message.mentions:
         display_name = user.display_name if user.display_name else user.global_name
-        content = content.replace(f'<@{user.id}>', f'@{display_name}')
-        content = content.replace(f'<@!{user.id}>', f'@{display_name}')
-    print("cont",content)
+        content = content.replace(f'<@{user.id}>', f'{PREFIXES["stat"]}@{display_name}{PREFIXES["chatcolour"]}')
+        content = content.replace(f'<@!{user.id}>', f'{PREFIXES["stat"]}@{display_name}{PREFIXES["chatcolour"]}')
+    # print("cont",content)
     return content
 
 @bot.event
@@ -4392,6 +4392,18 @@ def pullid(uid,force = False):
     if not force or force == "discord":
         c.execute("SELECT discordid FROM discordlinkdata WHERE uid = ?", (uid,))
         result = c.fetchone()
+        if resolveplayeruidfromdb(uid, uidnameforce="uid", oneuidpermatch=True, istf1=False) and not result:
+            negative_discord_id = -int(time.time() * 10)
+            c.execute(
+                "INSERT INTO discordlinkdata (uid, discordid, linktime) VALUES (?, ?, ?)",
+                (uid, negative_discord_id, int(time.time()))
+            )
+            tfdb.commit()
+            result = (negative_discord_id,)
+        else:
+            c.close()
+            tfdb.close()
+            return False
     if result is None and (not force or force == "tf"):
         c.execute("SELECT uid FROM discordlinkdata WHERE discordid = ?", (uid,))
         result = c.fetchone()
@@ -9153,7 +9165,6 @@ def shutdown_handler(sig, frame):
 
 signal.signal(signal.SIGINT, shutdown_handler)
 signal.signal(signal.SIGTERM, shutdown_handler)
-
 
 
 
