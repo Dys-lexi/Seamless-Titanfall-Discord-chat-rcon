@@ -71,6 +71,9 @@ UNKNOWNPFPS = {
     "unknown/steamquestion.png": {
         "weight": 100
     },
+    "unknown/missingfinals.png": {
+        "weight": 100
+    },
     "unknown/steamexclamation.png": {
         "weight": 20
     }
