@@ -4400,7 +4400,7 @@ def pullid(uid,force = False):
             )
             tfdb.commit()
             result = (negative_discord_id,)
-        else:
+        elif not result:
             c.close()
             tfdb.close()
             return False
