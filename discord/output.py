@@ -1594,7 +1594,10 @@ async def sanctionremovetf2(
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("No players found", ephemeral=False)
         return
-    
+    try:
+        where = f"https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id}/{ctx.interaction.id}"
+    except:
+        where = "RAN IN A DM"
     player = matchingplayers[0]
     
     await ctx.defer()
@@ -1605,11 +1608,11 @@ async def sanctionremovetf2(
             if existing_messageid:
                 try:
                     existing_message = await global_channel.fetch_message(existing_messageid)
-                    message = await existing_message.reply(f"Removed sanction for {player['name']} (UID: {player['uid']}) - Type: {ban['sanctiontype']} - Reason: {ban['reason']}")
+                    message = await existing_message.reply(f"Removed sanction for {player['name']} (UID: {player['uid']}) - Type: {ban['sanctiontype']} - Reason: {ban['reason']} - Source: {where}")
                 except:
-                    message = await global_channel.send(f"Removed sanction for {player['name']} (UID: {player['uid']}) - Type: {ban['sanctiontype']} - Reason: {ban['reason']}")
+                    message = await global_channel.send(f"Removed sanction for {player['name']} (UID: {player['uid']}) - Type: {ban['sanctiontype']} - Reason: {ban['reason']} - Source: {where}")
             else:
-                message = await global_channel.send(f"Removed sanction for {player['name']} (UID: {player['uid']}) - Type: {ban['sanctiontype']} - Reason: {ban['reason']}")
+                message = await global_channel.send(f"Removed sanction for {player['name']} (UID: {player['uid']}) - Type: {ban['sanctiontype']} - Reason: {ban['reason']} - Source: {where}")
             message_id = message.id
         else:
             message_id = None
@@ -7761,7 +7764,8 @@ def checkrconallowed(author,typeof = "rconrole",**kwargs):
     # if author.id not in context["RCONallowedusers"]:
     #     return False
     # author.guild_permissions.administrator (THERE IS A "and False" here, it used to be "and author.guild_permissions.administrator")
-    return (not hasattr(author, "roles") and  author.id in context["overriderolesuids"][translated]) or(hasattr(author, "roles") and (( typeof == "rconrole" and False) or (typeof == "coolperksrole" and OVVERRIDEROLEREQUIRMENT == "1") or functools.reduce(lambda a, x: a or x in list(map (lambda w: w.id ,author.roles)) ,[context["overrideroles"][translated]] if isinstance(context["overrideroles"][translated], int) else context["overrideroles"][translated] ,False)))
+    # first TRUE used to be (not hasattr(author, "roles") or not author.roles). but this fails in alternate guilds
+    return (True  and  author.id in context["overriderolesuids"][translated]) or(hasattr(author, "roles") and (( typeof == "rconrole" and False) or (typeof == "coolperksrole" and OVVERRIDEROLEREQUIRMENT == "1") or functools.reduce(lambda a, x: a or x in list(map (lambda w: w.id ,author.roles and [])) ,[context["overrideroles"][translated]] if isinstance(context["overrideroles"][translated], int) else context["overrideroles"][translated] ,False)))
 # command slop
 def translaterole(serverid,role):
     if not serverid: return role
