@@ -5769,8 +5769,7 @@ def tf1readsend(serverid,checkstatus):
     for index, commandid in enumerate(discordtotitanfall[serverid]["commands"]):
         idlist[commandid["id"]] = index
     for index, commandid in enumerate(discordtotitanfall[serverid]["messages"]):
-        messagelist[commandid["id"]] = index
-    messageflag = False
+        messagelist[commandid.get("id",random.randint(0,1000000))] = index    messageflag = False
     ids = []
     # print(discordtotitanfall[serverid]["commands"])
     senttoolongmessages =[]
