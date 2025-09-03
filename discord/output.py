@@ -670,6 +670,8 @@ NOTIFYCOMMANDSONALLSERVERSDEBUG = int(os.getenv("SHOULD_NOTIFY_ALL_COMMANDS","1"
 PORT = os.getenv("BOT_PORT","3451")
 MAXTAGLEN = int(os.getenv("MAX_TAG_LEN","6"))
 MORECOLOURS = os.getenv("MORE_COLOURFUL_OUTPUT","1")
+NOCAROENDPOINT = os.getenv("NOCARO_API_ENDPOINT","https://nocaro.awesome.tf/")
+NOCAROAUTH = os.getenv("NOCARO_AUTH",False)
 GLOBALIP = 0
 if OVERRIDEIPFORCDNLEADERBOARD == "use_actual_ip":
     GLOBALIP ="http://"+requests.get('https://api.ipify.org').text+":"+"34511"
@@ -4386,7 +4388,7 @@ async def on_message(message):
         #     f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {PREFIXES['neutral']}{addedmentions}"
         # )
 @functools.lru_cache(maxsize = None)
-def pullid(uid,force = False):
+def pullid(uid,force = False,mustbereal=False):
     """converts a tf2 uid to and from discord"""
     global context
     result = None
@@ -4395,7 +4397,7 @@ def pullid(uid,force = False):
     if not force or force == "discord":
         c.execute("SELECT discordid FROM discordlinkdata WHERE uid = ?", (uid,))
         result = c.fetchone()
-        if resolveplayeruidfromdb(uid, uidnameforce="uid", oneuidpermatch=True, istf1=False) and not result:
+        if not result and not mustbereal and resolveplayeruidfromdb(uid, uidnameforce="uid", oneuidpermatch=True, istf1=False) :
             negative_discord_id = -int(time.time() * 10)
             c.execute(
                 "INSERT INTO discordlinkdata (uid, discordid, linktime) VALUES (?, ?, ?)",
@@ -4759,7 +4761,7 @@ def recieveflaskprintrequests():
                     str(command["id"])
                     for command in discordtotitanfall[serverid]["commands"]
                 ]                    
-                textsv2 = {str(i):{"content":value["content"],"validation":str(value["id"]),"teamoverride":value.get("teamoverride",4),"isteammessage":value.get("isteammessage",False),"uidoverride":",".join(list(map(lambda x: str(x),value.get("uidoverride",[]))))} for i, value in enumerate(discordtotitanfall[serverid]["messages"])}
+                textsv2 = {str(i):{"content":value["content"],"validation":str(value["id"]),"teamoverride":value.get("teamoverride",4),"isteammessage":value.get("isteammessage",False),"uidoverride":",".join(list(map(lambda x: str(x),value.get("uidoverride",[])))) if not isinstance(value.get("uidoverride",[]),(str,int)) else f"{value.get("uidoverride",[])}"} for i, value in enumerate(discordtotitanfall[serverid]["messages"])}
                 textsv3 = packfortextsv3(discordtotitanfall[serverid]["messages"])
                 discordtotitanfall[serverid]["messages"] = []
                 discordtotitanfall[serverid]["commands"] = []
@@ -5564,7 +5566,7 @@ def tf1readsend(serverid,checkstatus):
                 continue   #TRADEOFF HERE. EITHER I SEND IT EACH RCON CALL (and don't update the timestamp) OR I do what I do here and only send it once, wait untill yellow dot cleaner comes, then send again.
             if len(message["content"]) > tf1messagesizeadd:
                 toolongmessages.append(message["id"])
-            commands[message["id"]] = {"type":"msg","command":"sendmessage","id":message["id"],"args":(f'placeholder{",".join(list(map(lambda x: str(x),message.get("uidoverride",[]))))}') +  " "+(message["content"][0:tf1messagesizeadd])}
+            commands[message["id"]] = {"type":"msg","command":"sendmessage","id":message["id"],"args":(f'placeholder{",".join(list(map(lambda x: str(x),message.get("uidoverride",[])))) if not isinstance(message.get("uidoverride",[]),(str,int)) else f"{message.get("uidoverride",[])}"}') +  " "+(message["content"][0:tf1messagesizeadd])}
         if len(discordtotitanfall[serverid]["returnids"]["messages"].keys()) != -1 and messages:# and discordtotitanfall[serverid]["serveronline"]:
             
             for messageid in list(map(lambda x: str(x["id"]),list(filter(lambda x: True ,discordtotitanfall[serverid]["messages"])))):
@@ -5613,7 +5615,7 @@ def tf1readsend(serverid,checkstatus):
                 titanfall1currentlyplaying[serverid] = [statusoutput[x][0] for x in list(filter(lambda x: x != "meta", statusoutput.keys()))]
                 # print("ONLINE",serverid,"ONLINE",bool (len(statusoutput.keys()) -1),statusoutput)
                 
-                if not discordtotitanfall[serverid]["serveronline"] and not  (len(statusoutput.keys()) -1):
+                if not discordtotitanfall[serverid].get("serveronline") and not  (len(statusoutput.keys()) -1):
                     # print("MEOW")
                     offlinethisloop = True
                     return
@@ -5669,8 +5671,8 @@ def tf1readsend(serverid,checkstatus):
         outputstring = ""
         status = ""
         discordtotitanfall[serverid]["serveronline"] = False
-        # return False
-        # traceback.print_exc()
+        return False
+        traceback.print_exc()
     else:
         if not offlinethisloop:
             discordtotitanfall[serverid]["lastheardfrom"] = int(time.time())
@@ -6255,7 +6257,7 @@ def pingperson(message,serverid,isfromserver):
     "content":f"{PREFIXES['discord']}Pinging {PREFIXES["commandname" ] }{matches[key]["name"]} {PREFIXES["chatcolour"]}{"- "+PREFIXES["commandname" ] + " " + matches[key]["nick"] if matches[key]["nick"] else ""}",
     "uidoverride": [getpriority(message,"uid",["meta","uid"])]
     })
-    print(message["meta"])
+    # print(message["meta"])
     messageflush.append(
         {
             "player":getpriority(message,"originalname","name"),
@@ -6428,6 +6430,114 @@ def autobalancerun(outputtedteams,serverid):
     discordtotitanfall[serverid]["messages"].append({
         "content":f"{PREFIXES['discord']} Trying to balance now"})
     sendrconcommand(serverid,f"!bettertb {" ".join([f"2 {x["uid"]}" for x in outputtedteams[0]])} {" ".join([f"3 {x["uid"]}" for x in outputtedteams[1]])}",sender="server")
+
+# nocaros stuff
+
+def nocarobalance(message,serverid,isfromserver):
+    if not (result := nocarocompleterequest(getpriority(message,"uid",["meta","uid"]),serverid,context["servers"].get(serverid, {}).get("istf1server", False) != False,"user/balance")): return
+    discordtotitanfall[serverid]["messages"].append({
+        "content":f"{PREFIXES['nocaro']}{PREFIXES["commandname"]}{getpriority(message,"originalname","name")}{PREFIXES["chatcolour"]} has {PREFIXES["stat"]}{int(result["text"]):,}{PREFIXES["chatcolour"]} bouge buck{(int(result["text"])-1 and "s") or ""}",
+        #"uidoverride": getpriority(message,"uid",["meta","uid"])
+    })
+    
+
+def nocaroslots(message,serverid,isfromserver):
+    if not len(getpriority(message,"originalmessage").split(" ",1)[1:]) or not (getpriority(message,"originalmessage").split(" ",1)[1]).isdigit() or abs(bet := int(getpriority(message,"originalmessage").split(" ",1)[1])) != float(getpriority(message,"originalmessage").split(" ",1)[1]):
+        discordtotitanfall[serverid]["messages"].append({
+            "content":f"{PREFIXES['nocaro']}Error: you must specify a bet value! (eg !slots 50)",
+            "uidoverride": getpriority(message,"uid",["meta","uid"])
+        })
+        return
+    if not (result := nocarocompleterequest(getpriority(message,"uid",["meta","uid"]),serverid,context["servers"].get(serverid, {}).get("istf1server", False) != False,"games/slots",{"bet":bet})): return
+    keys = [
+        "[38;2;254;0;0m• ",
+        "[38;2;0;254;0m↑ ",
+        "[38;2;100;100;254m↓ ",
+        "[38;2;254;254;0m→",
+        "[38;2;254;0;254m←",
+        "[38;2;51;114;110m§"
+    ]
+    for slot in result["json"]["spinners"]:
+        discordtotitanfall[serverid]["messages"].append({
+            "content":f"{PREFIXES['nocaro']}{" ".join(list(map(lambda x: keys[x],slot)))}",
+            "uidoverride": getpriority(message,"uid",["meta","uid"])
+        })
+        time.sleep(1)
+    if not result["json"]["winner"]:
+        discordtotitanfall[serverid]["messages"].append({
+            "content":f"{PREFIXES['nocaro']}Nothing, you lose {PREFIXES["stat"]}{result["json"]["amount_won"]}{PREFIXES["chatcolour"]} bouge bucks.",
+            "uidoverride": getpriority(message,"uid",["meta","uid"])
+        })
+    elif result["json"].get("jackpot"):
+        discordtotitanfall[serverid]["messages"].append({
+            "content":f"{PREFIXES['nocaro']}What the fuck? You got the gunga jackpot! You win {PREFIXES["stat"]}{result["json"]["amount_won"]}{PREFIXES["chatcolour"]} bouge bucks!",
+            "uidoverride": getpriority(message,"uid",["meta","uid"])
+        })
+    
+    elif result["json"]["spinners"][-1].count(max(set(result["json"]["spinners"][-1]), key= result["json"]["spinners"][-1].count)) == len(result["json"]["spinners"][-1]):
+        discordtotitanfall[serverid]["messages"].append({
+            "content":f"{PREFIXES['nocaro']}Jackpot! You get {PREFIXES["stat"]}{result["json"]["amount_won"]}{PREFIXES["chatcolour"]} bouge bucks!!!",
+            "uidoverride": getpriority(message,"uid",["meta","uid"])
+        })
+    elif result["json"]["spinners"][-1].count(max(set(result["json"]["spinners"][-1]), key= result["json"]["spinners"][-1].count)) == len(result["json"]["spinners"][-1])-1:
+        discordtotitanfall[serverid]["messages"].append({
+            "content":f"{PREFIXES['nocaro']}Nice, you get {PREFIXES["stat"]}{result["json"]["amount_won"]}{PREFIXES["chatcolour"]} bouge bucks.",
+            "uidoverride": getpriority(message,"uid",["meta","uid"])
+        })
+def nocaromap(message,serverid,isfromserver):
+    if not (result := nocarocompleterequest(getpriority(message,"uid",["meta","uid"]),serverid,context["servers"].get(serverid, {}).get("istf1server", False) != False,"user/map")): return
+    if int(result["text"]) == 0:
+        output = "your map was so bad you got nothing out of it."
+    elif int(result["text"]) > 99:
+        output = f"you maped and it was a banger, you still didn't get any money but you got {PREFIXES["stat"]}{result["text"]}{PREFIXES["chatcolour"]} bouge bucks!"
+    else:
+        output = f"you maped for money but got {PREFIXES["stat"]}{result["text"]}{PREFIXES["chatcolour"]} bouge buck{(int(result["text"])-1 and "s") or ""} instead."
+    discordtotitanfall[serverid]["messages"].append({
+        "content":f"{PREFIXES['nocaro']}{output}",
+        "uidoverride": getpriority(message,"uid",["meta","uid"])
+    })
+    
+def nocarocompleterequest(uid,serverid,istf1,route,extra_querys = {}):
+    if not NOCAROAUTH:
+        discordtotitanfall[serverid]["messages"].append({
+            "content":f"{PREFIXES['nocaro']}Error: {PREFIXES["warning"]}No auth key provided for Nocaro - Server error",
+            "uidoverride": uid
+        })
+        return
+    if istf1 and len(str(uid)) > 15:
+        discorduid = uid
+    elif istf1:
+        discordtotitanfall[serverid]["messages"].append({
+            "content":f"{PREFIXES['nocaro']}Error: {PREFIXES["warning"]}Discord not linked - cannot use Nocaro right now",
+            "uidoverride": uid
+        })
+    elif not (discorduid := pullid(uid,"discord",True)):
+        discordtotitanfall[serverid]["messages"].append({
+            "content":f"{PREFIXES['nocaro']}Error: Discord not linked - use {PREFIXES["warning"]}/linktf2account",
+            "uidoverride": uid
+        })
+        return
+    r = requests.get(f"{NOCAROENDPOINT}{route}", params={**extra_querys,"user_id":discorduid},timeout = 10,headers = {"authentication":NOCAROAUTH})
+
+    if not r.ok and r.status_code != 403:
+        discordtotitanfall[serverid]["messages"].append({
+            "content":f"{PREFIXES['nocaro']}Error: {PREFIXES["warning"]}{r.reason} {PREFIXES["chatcolour"]}(code: {PREFIXES["warning"]}{r.status_code}{PREFIXES["chatcolour"]})",
+            "uidoverride": uid
+        })
+        discordtotitanfall[serverid]["messages"].append({
+            "content":f"{PREFIXES['nocaro']}Extended error: {PREFIXES["warning"]}{r.text}",
+            "uidoverride": uid
+        })
+        return
+    if r.status_code == 403:
+        discordtotitanfall[serverid]["messages"].append({
+            "content":f"{PREFIXES['nocaro']}You must run {PREFIXES["warning"]}/apiconsent {PREFIXES["chatcolour"]}on Nocaro to allow the commands to work here",
+            "uidoverride": uid
+        })
+        return
+    return {"ok":r.ok,"code":r.status_code,"status":r.reason,"json":r.json(),"text":r.text}
+
+    
 
 
 def ingamesetusercolour(message,serverid,isfromserver):
@@ -7232,7 +7342,7 @@ def calcstats(message,serverid,isfromserver):
                 "content":stat,
                 # "teamoverride": 4,
                 # "isteammessage": False,
-                "uidoverride": [name] if not len(message.get("originalmessage","w").split(" ")) > 1 else []
+                "uidoverride": name if not len(message.get("originalmessage","w").split(" ")) > 1 else []
                 # "dotreacted": dotreacted
             }
             )
@@ -8542,7 +8652,7 @@ def packfortextsv3(texts,output = {}):
     if not len(texts):
         # print(texts)
         return output
-    return {"content":texts[0]["content"],"validation":str(texts[0]["id"]),"teamoverride":texts[0].get("teamoverride",4),"isteammessage":texts[0].get("isteammessage",False),"uidoverride":",".join(list(map(lambda x: str(x), texts[0].get("uidoverride",[]) if texts[0].get("uidoverride",[]) else []))),"nextmessage":packfortextsv3(texts[1:]) if len(texts[1:]) else None}
+    return {"content":texts[0]["content"],"validation":str(texts[0]["id"]),"teamoverride":texts[0].get("teamoverride",4),"isteammessage":texts[0].get("isteammessage",False),"uidoverride":",".join(list(map(lambda x: str(x), texts[0].get("uidoverride",[])))) if  not isinstance(texts[0].get("uidoverride",[]),(str,int)) else f"{texts[0].get("uidoverride",[])}","nextmessage":packfortextsv3(texts[1:]) if len(texts[1:]) else None}
 
 
 def getpriority(ditionary,*priority,**kwargs):
