@@ -5671,8 +5671,8 @@ def tf1readsend(serverid,checkstatus):
         outputstring = ""
         status = ""
         discordtotitanfall[serverid]["serveronline"] = False
-        return False
-        traceback.print_exc()
+        # return False
+        # traceback.print_exc()
     else:
         if not offlinethisloop:
             discordtotitanfall[serverid]["lastheardfrom"] = int(time.time())
@@ -7341,7 +7341,7 @@ def calcstats(message,serverid,isfromserver):
                 "content":stat,
                 # "teamoverride": 4,
                 # "isteammessage": False,
-                "uidoverride": name if not len(message.get("originalmessage","w").split(" ")) > 1 else []
+                "uidoverride": [name] if not len(message.get("originalmessage","w").split(" ")) > 1 else []
                 # "dotreacted": dotreacted
             }
             )
