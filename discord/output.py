@@ -5857,7 +5857,7 @@ def computeauthornick(
                             [
                                 RGBCOLOUR[rgbcolouroverride],
                                 *colourslink.get(idauthor, {}).get(
-                                    "discordcolour", [RGBCOLOUR[rgbcolouroverride]]
+                                    colourlinksovverride, [RGBCOLOUR[rgbcolouroverride]]
                                 ),
                             ]
                         )
@@ -5881,7 +5881,7 @@ def computeauthornick(
                             [
                                 RGBCOLOUR[rgbcolouroverride],
                                 *colourslink.get(idauthor, {}).get(
-                                    "discordcolour", [RGBCOLOUR[rgbcolouroverride]]
+                                    colourlinksovverride, [RGBCOLOUR[rgbcolouroverride]]
                                 ),
                             ]
                         )
@@ -8095,7 +8095,7 @@ def messageloop():
 
 def sendthingstoplayer(outputstring, serverid, statuscode, uidoverride):
     """Sends messages to specific players in-game via server communication"""
-    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     discordtotitanfall[serverid]["messages"].append(
         {
             # "id": str(int(time.time()*100)),
@@ -8124,7 +8124,7 @@ keyletter = "!"
 def tftodiscordcommand(specificommand, command, serverid):
     """Handles all commands from TF2 to Discord, processing in-game commands and routing to Discord functions"""  # handles all commands in !helpdc, and generally most recent tf2 commands that execute stuff on discord
     global context
-    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     if specificommand:
         print(
             "server command requested for",
@@ -8315,7 +8315,7 @@ def tftodiscordcommand(specificommand, command, serverid):
 def pingperson(message, serverid, isfromserver):
     """Ping somone on the discord"""
     global knownpeople
-    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     command = message["originalmessage"].split(" ", 1)
     # need to pull closest person..
     if len(command) == 1:
@@ -8583,7 +8583,6 @@ def autobalanceoverride(data, serverid, statuscode):
     outputtedteams[len(outputtedteams) - 1].append(
         {**stats_list[-1], "originalteam": data[str(stats_list[-1]["uid"])]["team"]}
     )
-    shouldflip = False
     if functools.reduce(
         lambda a, b: a + 1 * (b["originalteam"] == 2), outputtedteams[0], 0
     ) < functools.reduce(
@@ -8662,7 +8661,7 @@ def nocarobalance(message, serverid, isfromserver):
         result := nocarocompleterequest(
             getpriority(message, "uid", ["meta", "uid"]),
             serverid,
-            context["servers"].get(serverid, {}).get("istf1server", False) != False,
+            context["servers"].get(serverid, {}).get("istf1server", False),
             "user/balance",
         )
     ):
@@ -8693,7 +8692,7 @@ def nocaroslots(message, serverid, isfromserver):
         result := nocarocompleterequest(
             getpriority(message, "uid", ["meta", "uid"]),
             serverid,
-            context["servers"].get(serverid, {}).get("istf1server", False) != False,
+            context["servers"].get(serverid, {}).get("istf1server", False),
             "games/slots",
             {"bet": bet},
         )
@@ -8764,7 +8763,7 @@ def nocaromap(message, serverid, isfromserver):
         result := nocarocompleterequest(
             getpriority(message, "uid", ["meta", "uid"]),
             serverid,
-            context["servers"].get(serverid, {}).get("istf1server", False) != False,
+            context["servers"].get(serverid, {}).get("istf1server", False),
             "user/map",
         )
     ):
@@ -8849,7 +8848,7 @@ def nocarocompleterequest(uid, serverid, istf1, route, extra_querys={}):
 
 def ingamesetusercolour(message, serverid, isfromserver):
     """Handles in-game color setting commands from players"""
-    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     name = getpriority(message, "originalname", "name")
     teamspecify = False
     teams = {
@@ -8922,7 +8921,7 @@ def ingamesetusercolour(message, serverid, isfromserver):
 
 def ingamesetusertag(message, serverid, isfromserver):
     """Handles in-game tag setting commands from players"""
-    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     name = getpriority(message, "originalname", "name")
 
     if len(message.get("originalmessage", "w").split(" ")) == 1:
@@ -8980,7 +8979,7 @@ def ingamesetusertag(message, serverid, isfromserver):
 def shownamecolours(message, serverid, isfromserver):
     """Shows available color options to players in-game"""
     # print("HERHEHRHE")
-    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     name = getpriority(message, "originalname", "name")
     if len(message.get("originalmessage", "w").split(" ")) > 1:
         name = " ".join(message["originalmessage"].split(" ")[1:])
@@ -9176,7 +9175,7 @@ def displayendofroundstats(message, serverid, isfromserver):
     """Calculates and displays comprehensive end-of-round statistics including kills, deaths, and performance metrics"""
     # print("HEREEE")
     global maxkills, lexitoneapicache
-    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
 
     if not isfromserver:
         tfdb = postgresem("./data/tf2helper.db")
@@ -9586,7 +9585,7 @@ def displayendofroundstats(message, serverid, isfromserver):
 
 def togglepersistentvar(message, serverid, isfromserver):
     """Toggles persistent server variables like stats tracking and notifications"""
-    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     args = message["originalmessage"].split(" ")[1:]
     if args and args[0] not in [
         *list(
@@ -9678,7 +9677,7 @@ def togglepersistentvar(message, serverid, isfromserver):
 
 def showingamesettings(message, serverid, isfromserver):
     """Displays current server settings and configuration to players"""
-    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     if len(message.get("originalmessage", "w").split(" ")) > 1:
         account = resolveplayeruidfromdb(
             (" ".join(message["originalmessage"].split(" ")[1:])), None, True, istf1
@@ -9826,7 +9825,7 @@ def togglestats(message, togglething, serverid):
     internaltoggle = context["commands"]["ingamecommands"][togglething].get(
         "internaltoggle", togglething
     )
-    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     if istf1 and not len(str(getpriority(message, "uid", ["meta", "uid"]))) > 15:
         discordtotitanfall[serverid]["messages"].append(
             {
@@ -9904,7 +9903,7 @@ def togglestats(message, togglething, serverid):
 
 def ingamehelp(message, serverid, isfromserver):
     """Displays help information for in-game commands to players"""
-    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     backslash = ""
     # uid = getpriority(message,"uid",["meta","uid"])
     commandoverride = False
@@ -9989,7 +9988,7 @@ def senddiscordcommands(message, serverid, isfromserver):
 def calcstats(message, serverid, isfromserver):
     """Processes in-game stats requests and formats statistical data for display"""
     # print("e",message)
-    istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     # print(isfromserver,readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]),istf1) )
     # print("BLEHHHH",getpriority(message,"uid",["meta","uid"]))
     if (
@@ -10685,7 +10684,7 @@ def notifydebugchat(affectedserver, message, prefix="Commandnotify"):
         ),
         {},
     ).items():
-        istf1 = context["servers"].get(serverid, {}).get("istf1server", False) != False
+        istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
         if istf1:
             for uid in uidlist:
                 discordtotitanfall[serverid]["messages"].append(
