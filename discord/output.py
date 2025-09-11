@@ -1151,6 +1151,7 @@ if TOKEN == 0:
     print("NO TOKEN FOUND")
 stoprequestsforserver = {}
 discordtotitanfall = {}
+pilotstates = {}
 colourslink = {}
 titanfall1currentlyplaying = {}
 consecutivekills = {}
@@ -1317,6 +1318,36 @@ def patched_slash_command(self, *args, **kwargs):
 discord.Bot.slash_command = patched_slash_command
 
 bot = discord.Bot(intents=intents)
+
+
+async def droppycallback(interaction):
+    custom_id = interaction.data.get('custom_id', '')
+    
+    if custom_id and 'dropdown' in custom_id and '_' in custom_id:
+        parts = custom_id.split('_')
+        function_name = parts[0]
+        
+        if function_name in globals() and callable(globals()[function_name]):
+            func = globals()[function_name]
+            await func(interaction, parts[1:])
+        else:
+            print(f"No handler function found for: {function_name}")
+
+
+async def moderation(interaction, parts):
+    # parts = ["dropdown", "userid", "serverid", "messageid"]
+    user_id = parts[1]
+    original_message_id = parts[3]
+    message_link = f"https://discord.com/channels/{context["activeguild"]}/{context["servers"][parts[2]]["channelid"]}/{original_message_id}"
+    
+    action_map = {
+        "mute_30": {"duration": 30, "action_text": "30 day mute", "type": "mute"},
+        "mute_60": {"duration": 60, "action_text": "60 day mute", "type": "mute"}, 
+        "ban_30": {"duration": 30, "action_text": "30 day ban", "type": "ban"},
+        "ban_60": {"duration": 60, "action_text": "60 day ban", "type": "ban"}
+    }
+    selected_action = action_map[interaction.data['values'][0]]
+    await quickaddsanction(user_id, selected_action, interaction, message_link)
 
 
 async def autocompleteserversfromdb(ctx):
@@ -1560,6 +1591,20 @@ async def on_ready():
     botisalreadyready = True
 
 
+@bot.event
+async def on_interaction(interaction):
+    # Only handle component interactions with "dropdown" in custom_id
+    if (interaction.type == discord.InteractionType.component and 
+        interaction.data.get('custom_id', '') and 
+        'dropdown' in interaction.data.get('custom_id', '')):
+        
+        await droppycallback(interaction)
+        return
+    
+    # For all other interactions, explicitly process them with the bot
+    await bot.process_application_commands(interaction)
+
+
 @tasks.loop(seconds=1800)
 async def updateroles():
     """If a user messages the bot in dms, they have no roles. this serves to check their roles, so if they run a admin command, the bot knows they are admin in a dm"""
@@ -1587,6 +1632,11 @@ async def updateroles():
     }
     savecontext()
     checkrconallowedtfuid.cache_clear()
+
+
+
+
+
 
 
 @bot.event
@@ -1871,10 +1921,20 @@ def pullsanction(uid):
         }, existing_sanction.get("messageid")
     return {}, existing_sanction.get("messageid") if existing_sanction else False
 
+async def quickaddsanction(target,action,interaction,link):
+    print(interaction.user.id)
 
+    # link = f"https://discord.com/channels/{context["activeguild"]}/{context["servers"][link[0]]["channelid"]}/{link[1]}"
+    interaction_link = f"https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}/{interaction.message.id}"
+    output = await process_sanctiontf2(False,interaction.user.name,target,action["type"],link,str(action["duration"]),interaction_link)
+    if isinstance(output, str):
+        await interaction.respond(output)
+        return
+    await interaction.respond(embed=embedjson("New Sanction:", output, interaction))
 async def process_sanctiontf2(
     serverid, sender, name, sanctiontype, reason, expiry=None, iscommand=False
 ):
+    name = str(name)
     if len(name.rsplit("->", 1)) > 1:
         name = name.rsplit("->", 1)[1][1:-1]
     matchingplayers = resolveplayeruidfromdb(name, None, True)
@@ -2039,15 +2099,15 @@ async def sanctionremovetf2(
                         existing_messageid
                     )
                     message = await existing_message.reply(
-                        f"Removed sanction for {player['name']} (UID: {player['uid']}) - Type: {ban['sanctiontype']} - Reason: {ban['reason']} - Source: {where}"
+                        f"{ctx.author.name} removed sanction for {player['name']} (UID: {player['uid']}) - Type: {ban['sanctiontype']} - Reason: {ban['reason']} - Source: {where}"
                     )
                 except:
                     message = await global_channel.send(
-                        f"Removed sanction for {player['name']} (UID: {player['uid']}) - Type: {ban['sanctiontype']} - Reason: {ban['reason']} - Source: {where}"
+                        f"{ctx.author.name} removed sanction for {player['name']} (UID: {player['uid']}) - Type: {ban['sanctiontype']} - Reason: {ban['reason']} - Source: {where}"
                     )
             else:
                 message = await global_channel.send(
-                    f"Removed sanction for {player['name']} (UID: {player['uid']}) - Type: {ban['sanctiontype']} - Reason: {ban['reason']} - Source: {where}"
+                    f"{ctx.author.name} removed sanction for {player['name']} (UID: {player['uid']}) - Type: {ban['sanctiontype']} - Reason: {ban['reason']} - Source: {where}"
                 )
             message_id = message.id
         else:
@@ -10119,7 +10179,6 @@ async def checkverify(message, serverid):
             "uidoverride": [uid],
         }
     )
-
     del accountlinker[str(content).strip()]
 
 
@@ -10212,6 +10271,7 @@ async def checkfilters(messages, message):
         if not notify_channel:
             return
 
+
         bad_msg = next((x for x in messages if x.get("isbad", [0, 0])[0] == 2), None)
         if bad_msg:
             print("BAN MESSAGE FOUND", json.dumps(bad_msg, indent=4))
@@ -10220,13 +10280,29 @@ async def checkfilters(messages, message):
                 and bad_msg.get("uid", False)
                 and bad_msg["messagecontent"]
             ):
+
+                select = discord.ui.Select(
+                    placeholder="Buttons!",
+                    custom_id=f"moderation_dropdown_{bad_msg['uid']}_{bad_msg["oserverid"]}_{message.id}",
+                    options=[
+                        discord.SelectOption(label="30 day mute", value="mute_30", emoji="🔇"),
+                        discord.SelectOption(label="60 day mute", value="mute_60", emoji="🔇"),
+                        discord.SelectOption(label="30 day ban", value="ban_30", emoji="🔨"),
+                        discord.SelectOption(label="60 day ban", value="ban_60", emoji="🔨"),
+                    ]
+                )
+
+                view = discord.ui.View(timeout=None)
+                view.add_item(select)
+                
                 await notify_channel.send(
                     discord.utils.escape_mentions(f""">>> **Ban word found**
     Sent by: **{bad_msg["originalname"]}**
     UID: **{bad_msg["uid"]}**
     Message: "{getpriority(bad_msg, "originalmessage", "messagecontent", "message")}"
     Found pattern: "{bad_msg["isbad"][1]}"
-    Message Link: {message_link}""")
+    Message Link: {message_link}"""),
+                    view= not context["servers"].get(bad_msg["oserverid"], {}).get("istf1server", False) and view or None
                 )
             else:
                 await notify_channel.send(
@@ -10247,13 +10323,29 @@ async def checkfilters(messages, message):
                 and notify_msg["messagecontent"]
             ):
                 # print("HERE3")
+
+                select = discord.ui.Select(
+                    placeholder="Buttons!",
+                    custom_id=f"moderation_dropdown_{notify_msg['uid']}_{notify_msg["oserverid"]}_{message.id}",
+                    options=[
+                        discord.SelectOption(label="30 day mute", value="mute_30", emoji="🔇"),
+                        discord.SelectOption(label="60 day mute", value="mute_60", emoji="🔇"),
+                        discord.SelectOption(label="30 day ban", value="ban_30", emoji="🔨"),
+                        discord.SelectOption(label="60 day ban", value="ban_60", emoji="🔨"),
+                    ]
+                )
+
+                view = discord.ui.View(timeout=None)
+                view.add_item(select)
+                
                 await notify_channel.send(
                     discord.utils.escape_mentions(f""">>> **Filtered word found**
     Sent by: **{notify_msg["originalname"]}**
     UID: **{notify_msg["uid"]}**
     Message: "{getpriority(notify_msg, "originalmessage", "messagecontent", "message")}"
     Found pattern: "{notify_msg["isbad"][1]}"
-    Message Link: {message_link}""")
+    Message Link: {message_link}"""),
+                    view= not context["servers"].get(notify_msg["oserverid"], {}).get("istf1server", False) and view or None
                 )
             else:
                 # print("HERE4")
@@ -10301,7 +10393,7 @@ async def checkfilters(messages, message):
 #     "unknown": "unknown/unkownpfp.png"
 # }
 
-pilotstates = {}
+
 
 
 # PFPROUTE

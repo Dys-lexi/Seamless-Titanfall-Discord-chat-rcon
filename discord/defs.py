@@ -92,6 +92,7 @@ TITAN_NAMES = {
 }
 
 WEAPON_NAMES = {
+    "damagedef_titan_step":"Stepped on",
     "mp_titanweapon_xo16_shorty":"Expi's gun",
     "outOfBounds":"Tried to flee battle",
     "titan_execution":"Titan execution",
