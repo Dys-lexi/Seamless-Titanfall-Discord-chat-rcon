@@ -5578,7 +5578,7 @@ async def on_message(message,isresponse=False): #↖
     
         
 
-    addedmentions = replace_mentions_with_display_names(message)
+    addedmentions = replace_mentions_with_display_names(message) if not isresponse else message
     name = False
     if message.author == bot.user and message.webhook_id is not None and isresponse:
         name,addedmentions = strip_webhook_formatting(addedmentions).split(":",1)
@@ -5654,7 +5654,7 @@ async def on_message(message,isresponse=False): #↖
                     # "dotreacted": dotreacted
                 })
         else:
-            return f"(REPLY) {authornick}{': ' if not bool(context['servers'].get(serverid, {}).get('istf1server', False)) else ''}{PREFIXES['stat2']}{': ' if bool(context['servers'].get(serverid, {}).get('istf1server', False)) else ''}{addedmentions}"
+            return f"(REPLY) {authornick}{': ' if not bool(context['servers'].get(serverid, {}).get('istf1server', False)) else ''}{PREFIXES['commandname']}{': ' if bool(context['servers'].get(serverid, {}).get('istf1server', False)) else ''}{addedmentions}"
     if not isresponse:
         if (
             discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 45
