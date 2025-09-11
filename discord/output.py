@@ -5530,18 +5530,18 @@ def rgb_to_ansi(value, vary=0):
     return output
 
 
-def replace_mentions_with_display_names(message):
+def replace_mentions_with_display_names(message,isresponse):
     """Replace Discord mentions with display names"""
     content = message.content
     for user in message.mentions:
         display_name = user.display_name if user.display_name else user.global_name
         content = content.replace(
             f"<@{user.id}>",
-            f"{PREFIXES['stat']}@{display_name}{PREFIXES['chatcolour']}",
+            f"{PREFIXES['stat']}@{display_name}{PREFIXES['chatcolour'] if not isresponse else PREFIXES["commandname"]}",
         )
         content = content.replace(
             f"<@!{user.id}>",
-            f"{PREFIXES['stat']}@{display_name}{PREFIXES['chatcolour']}",
+            f"{PREFIXES['stat']}@{display_name}{PREFIXES['chatcolour'] if not isresponse else PREFIXES["commandname"]}",
         )
     # print("cont",content)
     return content
@@ -5578,7 +5578,7 @@ async def on_message(message,isresponse=False): #↖
     
         
 
-    addedmentions = replace_mentions_with_display_names(message) if not isresponse else message
+    addedmentions = replace_mentions_with_display_names(message,isresponse)
     name = False
     if message.author == bot.user and message.webhook_id is not None and isresponse:
         name,addedmentions = strip_webhook_formatting(addedmentions).split(":",1)
