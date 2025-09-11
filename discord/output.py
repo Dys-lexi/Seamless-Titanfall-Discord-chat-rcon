@@ -5584,7 +5584,7 @@ async def on_message(message,isresponse=False): #↖
         name,addedmentions = strip_webhook_formatting(addedmentions).split(":",1)
     elif  message.webhook_id is not None and isresponse:
         name = message.author.name
-    addedmentionsreallen = f"{(respondedto or "") and "→ "}{addedmentions}"
+    addedmentionsreallen = f"{(respondedto or "") and "→ "}{addedmentions}{"(REPLY) "if isresponse else "" }"
     initdiscordtotitanfall(serverid)
     if (
         len(
@@ -10540,6 +10540,7 @@ async def sendpfpmessages(channel, userpfpmessages, serverid):
                 list(
                     map(
                         lambda x: {
+                            **x,
                             "isbad": x["isbad"],
                             "messagecontent": x["messagecontent"],
                             "message": f"{username}: {x['message']}",
