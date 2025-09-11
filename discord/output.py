@@ -772,7 +772,7 @@ intents.message_content = True
 intents.messages = True
 intents.members = True
 intents.presences = True
-
+# ENV VARS
 TOKEN = os.getenv("DISCORD_BOT_TOKEN", "0")
 SHOULDUSEIMAGES = os.getenv("DISCORD_BOT_USE_IMAGES", "0")
 SHOULDUSETHROWAI = os.getenv("DISCORD_BOT_USE_THROWAI", "1")
@@ -787,6 +787,7 @@ SERVERNAMEISCHOICE = os.getenv("DISCORD_BOT_SERVERNAME_IS_CHOICE", "0")
 SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
 TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass")
 USEDYNAMICPFPS = os.getenv("USE_DYNAMIC_PFPS", "1")
+# USEDYNAMICPFPS = "1"
 PFPROUTE = os.getenv(
     "PFP_ROUTE",
     "https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/",
@@ -1922,7 +1923,7 @@ def pullsanction(uid):
     return {}, existing_sanction.get("messageid") if existing_sanction else False
 
 async def quickaddsanction(target,action,interaction,link):
-    print(interaction.user.id)
+    # print(interaction.user.id)
 
     # link = f"https://discord.com/channels/{context["activeguild"]}/{context["servers"][link[0]]["channelid"]}/{link[1]}"
     interaction_link = f"https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}/{interaction.message.id}"
@@ -5545,77 +5546,115 @@ def replace_mentions_with_display_names(message):
     return content
 
 
+def strip_webhook_formatting(message_content):
+
+    content = re.sub(r'\*\*(.*?)\*\*:', r'\1:', message_content)
+    return content
+
 @bot.event
-async def on_message(message):
+async def on_message(message,isresponse=False): #↖
     """handles capturing a message, colouring it, and sending to the relevant server"""
     global context, discordtotitanfall
-    if message.author == bot.user or message.webhook_id is not None:
+    if (message.author == bot.user or message.webhook_id is not None) and not isresponse:
         return
     if REACTONMENTION != "0" and bot.user in message.mentions:
         await message.add_reaction(REACTONMENTION)
-    if any(
+    if not any(
         server.get("channelid") == message.channel.id
         for server in context["servers"].values()
     ):
-        # print("discord message recieved")
-        serverid = [
-            key
-            for key, server in context["servers"].items()
-            if server.get("channelid") == message.channel.id
-        ][0]
-        # if serverid not in messagestosend.keys():
-        #     messagestosend[serverid] = []
+        return
+    # print("discord message recieved")
+    serverid = [
+        key
+        for key, server in context["servers"].items()
+        if server.get("channelid") == message.channel.id
+    ][0]
+    # if serverid not in messagestosend.keys():
+    #     messagestosend[serverid] = []
+    if not (respondedto:= False)  and not isresponse and  message.reference and message.reference.message_id :
+        respondedto = await on_message(await message.channel.fetch_message(message.reference.message_id),True)
+    
+        
 
-        addedmentions = replace_mentions_with_display_names(message)
-
-        initdiscordtotitanfall(serverid)
-        if (
-            len(
-                f"{ANSICOLOUR}{message.author.nick if message.author.nick is not None else message.author.display_name}: {PREFIXES['neutral']}{addedmentions}"
-            )
-            > 254
-            - bool(context["servers"].get(serverid, {}).get("istf1server", False))
-            * tf1messagesizesubtract
-        ):
-            await message.channel.send("Message too long, cannot send.")
-            return
-        authornick = computeauthornick(
-            message.author.nick
-            if message.author.nick is not None
-            else message.author.display_name,
-            message.author.id,
-            addedmentions,
-            serverid,
+    addedmentions = replace_mentions_with_display_names(message)
+    name = False
+    if message.author == bot.user and message.webhook_id is None and isresponse:
+        name,addedmentions = strip_webhook_formatting(addedmentions).split(":",1)
+    elif  message.webhook_id is not None and isresponse:
+        name = message.author.name
+    addedmentionsreallen = f"{(respondedto or "") and "→ "}{addedmentions}"
+    initdiscordtotitanfall(serverid)
+    if (
+        len(
+            f"{ANSICOLOUR}{message.author.nick if not name and message.author.nick is not None   else name or message.author.display_name}: {PREFIXES['neutral']}{addedmentionsreallen}"
         )
-        # dotreacted = None
-        # if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 45:
-        #     dotreacted = "🔴"
-        # elif discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5:
-        #     dotreacted = "🟡"
-        if (
-            addedmentions != ""
-        ):  # and not context["servers"].get(serverid, {}).get("istf1server",False):
-            # print(f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {addedmentions}")
-            # print(len(f"{authornick}: {PREFIXES['neutral']}{addedmentions}"),f"{authornick}: {PREFIXES['neutral']}{addedmentions}\033[0m")
-            print(
-                f"{getpriority(context, ['servers', serverid, 'name'])}:",
-                len(
-                    f"{authornick}{': ' if not bool(context['servers'].get(serverid, {}).get('istf1server', False)) else ''}{PREFIXES['neutral']}{': ' if bool(context['servers'].get(serverid, {}).get('istf1server', False)) else ''}{addedmentions}"
-                ),
-                (
-                    f"{authornick}{': ' if not bool(context['servers'].get(serverid, {}).get('istf1server', False)) else ''}{PREFIXES['neutral']}{': ' if bool(context['servers'].get(serverid, {}).get('istf1server', False)) else ''}{addedmentions}"
-                ),
-            )
+        > 254
+        - bool(context["servers"].get(serverid, {}).get("istf1server", False))
+        * tf1messagesizesubtract
+    ):
+        await message.channel.send("Message too long, cannot send.")
+        return
+    authornick = computeauthornick(
+        message.author.nick
+        if  not name and  message.author.nick is not None 
+        else name or message.author.display_name,
+        message.author.id,
+        addedmentionsreallen,
+        serverid,
+    )
+
+    # dotreacted = None
+    # if discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 45:
+    #     dotreacted = "🔴"
+    # elif discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 5:
+    #     dotreacted = "🟡"
+    if (
+        addedmentions != ""
+    ):  # and not context["servers"].get(serverid, {}).get("istf1server",False):
+        # print(f"{message.author.nick if message.author.nick is not None else message.author.display_name}: {addedmentions}")
+        # print(len(f"{authornick}: {PREFIXES['neutral']}{addedmentions}"),f"{authornick}: {PREFIXES['neutral']}{addedmentions}\033[0m")
+        print(
+            f"{getpriority(context, ['servers', serverid, 'name'])}:",
+            len(
+                f"{authornick}{': ' if not bool(context['servers'].get(serverid, {}).get('istf1server', False)) else ''}{PREFIXES['neutral']}{': ' if bool(context['servers'].get(serverid, {}).get('istf1server', False)) else ''}{addedmentionsreallen}"
+            ),
+            (
+                f"{authornick}{': ' if not bool(context['servers'].get(serverid, {}).get('istf1server', False)) else ''}{PREFIXES['neutral']}{': ' if bool(context['servers'].get(serverid, {}).get('istf1server', False)) else ''}{addedmentionsreallen}"
+            ),
+        )
+        if not isresponse:
+            if respondedto:
+                # discordtotitanfall[serverid]["messages"].append(
+                #     {
+                #         "id": message.id,
+                #         "content": f"{PREFIXES['stat2']}",
+                #         # "teamoverride": 4,
+                #         # "isteammessage": False,
+                #         # "uidoverride": []
+                #         # "dotreacted": dotreacted
+                #     })
+                discordtotitanfall[serverid]["messages"].append(
+                    {
+                        "id": message.id,
+                        "content": f"↓ {respondedto}",
+                        # "teamoverride": 4,
+                        # "isteammessage": False,
+                        # "uidoverride": []
+                        # "dotreacted": dotreacted
+                    })
             discordtotitanfall[serverid]["messages"].append(
                 {
                     "id": message.id,
-                    "content": f"{authornick}{': ' if not bool(context['servers'].get(serverid, {}).get('istf1server', False)) else ''}{PREFIXES['neutral']}{': ' if bool(context['servers'].get(serverid, {}).get('istf1server', False)) else ''}{addedmentions}",
+                    "content": f"{(respondedto or "") and "→ "}{authornick}{': ' if not bool(context['servers'].get(serverid, {}).get('istf1server', False)) else ''}{PREFIXES['neutral']}{': ' if bool(context['servers'].get(serverid, {}).get('istf1server', False)) else ''}{addedmentions}",
                     # "teamoverride": 4,
                     # "isteammessage": False,
                     # "uidoverride": []
                     # "dotreacted": dotreacted
-                }
-            )
+                })
+        else:
+            return f"(REPLY) {authornick}{': ' if not bool(context['servers'].get(serverid, {}).get('istf1server', False)) else ''}{PREFIXES['stat2']}{': ' if bool(context['servers'].get(serverid, {}).get('istf1server', False)) else ''}{addedmentions}"
+    if not isresponse:
         if (
             discordtotitanfall[serverid]["lastheardfrom"] < int(time.time()) - 45
         ):  # server crash (likely)
