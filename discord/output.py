@@ -1815,9 +1815,9 @@ async def sanctiontf2(
     reason: Option(str, "The reason for the sanction", required=True),
     expiry: Option(
         str,
-        "The expiry date in format yyyy-mm-dd, (or enter num days) omit is forever (uses gmt time)",
-        required=False,
-    ) = None,
+        "The expiry date in format yyyy-mm-dd, (or enter num days) 'never' is forever (uses gmt time)",
+
+    ),
     #     servername: Option(
     #     str,
     #     "The servername (omit for current channel's server)",
@@ -1840,7 +1840,7 @@ async def sanctiontf2(
     except:
         where = "RAN IN A DM"
     output = await process_sanctiontf2(
-        False, ctx.author.name, name, sanctiontype, reason, expiry, where
+        False, ctx.author.name, name, sanctiontype, reason, ("never" != expiry or None) and expiry , where
     )
     if isinstance(output, str):
         await ctx.respond(output)
@@ -2031,6 +2031,7 @@ async def process_sanctiontf2(
             **{
                 "reason": reason,
                 "expiry": expiry,
+                "humanexpiry":expiry_text,
                 "sanctiontype": sanctiontype,
                 "messageid": message_id,
                 "issuer": sender,
@@ -2149,9 +2150,9 @@ async def sanctiontf1(
     reason: Option(str, "The reason for the sanction", required=True),
     expiry: Option(
         str,
-        "The expiry date in format yyyy-mm-dd (or enter num days), omit is forever (uses gmt time)",
-        required=False,
-    ) = None,
+        "The expiry date in format yyyy-mm-dd (or enter num days), 'never' is forever (uses gmt time)",
+
+    ) 
 ):
     """ban somone in tf1 (or mute)"""
     if not checkrconallowed(ctx.author):
@@ -2165,7 +2166,7 @@ async def sanctiontf1(
         "type": sanctiontype,
         "reason": reason,
     }
-
+    expiry = ("never" != expiry or None) and expiry
     if expiry:
         try:
             expiry_date = datetime.strptime(expiry, "%Y-%m-%d").replace(
@@ -5579,7 +5580,7 @@ async def on_message(message,isresponse=False): #↖
 
     addedmentions = replace_mentions_with_display_names(message)
     name = False
-    if message.author == bot.user and message.webhook_id is None and isresponse:
+    if message.author == bot.user and message.webhook_id is not None and isresponse:
         name,addedmentions = strip_webhook_formatting(addedmentions).split(":",1)
     elif  message.webhook_id is not None and isresponse:
         name = message.author.name
