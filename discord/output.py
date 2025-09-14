@@ -14,7 +14,7 @@ import inspect
 from flask import Flask, jsonify, request, send_from_directory, send_file
 from waitress import serve
 from discord.ext import  tasks
-from datetime import datetime,  timezone
+from datetime import datetime,  timezone, timedelta
 import discord
 import requests
 import functools
@@ -1924,7 +1924,9 @@ def pullsanction(uid):
 
 async def quickaddsanction(target,action,interaction,link):
     # print(interaction.user.id)
-
+    if not checkrconallowed(interaction.user):
+        await interaction.respond("You are not allowed to use this interaction.",ephemeral = True)
+        return
     # link = f"https://discord.com/channels/{context["activeguild"]}/{context["servers"][link[0]]["channelid"]}/{link[1]}"
     interaction_link = f"https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}/{interaction.message.id}"
     output = await process_sanctiontf2(False,interaction.user.name,target,action["type"],link,str(action["duration"]),interaction_link)
@@ -7546,7 +7548,7 @@ def tf1readsend(serverid, checkstatus):
                 ):
                     # print("MEOW")
                     offlinethisloop = True
-                    return
+                    # return
                 discordtotitanfall[serverid]["serveronline"] = bool(
                     len(statusoutput.keys()) - 1
                 )
