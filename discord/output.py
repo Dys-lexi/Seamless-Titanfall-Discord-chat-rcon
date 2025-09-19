@@ -1,4 +1,3 @@
-# chat relay for tf|1 and tf|2 by @dyslexi! it does a LOT more than just relay chat however
 import asyncio
 import json
 import os
@@ -28,6 +27,16 @@ import sys
 import logging
 import psycopg2
 from psycopg2 import pool
+from sanshelper import sans
+
+def safe_eval(calculation, data):
+    """Safely evaluate calculation with division by zero protection"""
+    try:
+        return eval(calculation, {}, data)
+    except ZeroDivisionError:
+        return 0
+    except:
+        return 0
 
 # foo.cache_clear()
 # @functools.lru_cache(maxsize = None)
@@ -817,6 +826,7 @@ MAXTAGLEN = int(os.getenv("MAX_TAG_LEN", "6"))
 MORECOLOURS = os.getenv("MORE_COLOURFUL_OUTPUT", "1")
 NOCAROENDPOINT = os.getenv("NOCARO_API_ENDPOINT", "https://nocaro.awesome.tf/")
 NOCAROAUTH = os.getenv("NOCARO_AUTH", False)
+SANSURL = os.getenv("SANS_URL",False)
 GLOBALIP = 0
 if OVERRIDEIPFORCDNLEADERBOARD == "use_actual_ip":
     GLOBALIP = "http://" + requests.get("https://api.ipify.org").text + ":" + "34511"
@@ -1195,6 +1205,7 @@ create_all_indexes()
 serverchannels = []
 pngcounter = random.randint(0, 9)
 imagescdn = {}
+sansthings = False
 accountlinker = {}
 if not os.path.exists("./data"):
     os.makedirs("./data")
@@ -1333,6 +1344,7 @@ async def droppycallback(interaction):
             await func(interaction, parts[1:])
         else:
             print(f"No handler function found for: {function_name}")
+
 
 
 async def moderation(interaction, parts):
@@ -2546,12 +2558,14 @@ if DISCORDBOTLOGSTATS == "1":
             output = {}
             colour = 0
             for logid in range(len(context["leaderboardchannelmessages"])):
+                # print(logid)
                 if "name" in context["leaderboardchannelmessages"][logid].get(
                     "merge", ""
                 ):
                     output[logid] = await updateleaderboard(
                         logid, specificuidsearch=str(player[0]["uid"]), compact=True
                     )
+                    # print("here")
                     if output[logid]:
                         colour = output[logid]["title"]["color"]
         else:
@@ -2966,9 +2980,8 @@ if DISCORDBOTLOGSTATS == "1":
                 x[1][leaderboardcategorysshown[leaderboardorderby]["columnsbound"][0]]
                 if len(leaderboardcategorysshown[leaderboardorderby]["columnsbound"])
                 == 1
-                else eval(
+                else safe_eval(
                     leaderboardcategorysshown[leaderboardorderby]["calculation"],
-                    {},
                     x[1],
                 )
             ),
@@ -3444,9 +3457,8 @@ if DISCORDBOTLOGSTATS == "1":
                 x[1][leaderboardcategorysshown[leaderboardorderby]["columnsbound"][0]]
                 if len(leaderboardcategorysshown[leaderboardorderby]["columnsbound"])
                 == 1
-                else eval(
+                else safe_eval(
                     leaderboardcategorysshown[leaderboardorderby]["calculation"],
-                    {},
                     x[1],
                 )
             ),
@@ -6023,8 +6035,10 @@ def computeauthornick(
 
 def recieveflaskprintrequests():
     """all tf2 communication is done here"""
+    global sansthings
     app = Flask(__name__)
-
+    if SANSURL:
+        sansthings = sans(SANSURL,app,bot.loop)
     # def handle_flask_exception(e):
     #     logging.error(
     #         "Flask error during request to %s [%s]: %s",
@@ -8142,7 +8156,7 @@ def messageloop():
                     asyncio.run_coroutine_threadsafe(
                         sendpfpmessages(channel, userpfpmessages, serverid), bot.loop
                     )
-
+                    # print("output",output)
                     asyncio.run_coroutine_threadsafe(
                         outputmsg(channel, output, serverid, USEDYNAMICPFPS), bot.loop
                     )
@@ -10297,6 +10311,7 @@ async def outputmsg(channel, output, serverid, USEDYNAMICPFPS):
     message = await channel.send(("\n".join(content)))
     # print(f"Sent message ID: {message.id}")
     # print("OUTPUT",output[serverid])
+    # print("qeqw",output)
     await checkfilters(output[serverid], message)
 
 
@@ -11135,6 +11150,102 @@ for command_name, command_info in context["commands"]["botcommands"].items():
         if "regularconsolecommand" in command_info
         else False,
     )
+# Sans fight
+if SANSURL:
+    @bot.slash_command(name="giftnonrcon", description="Give yourself a gun! that easy!")
+    async def giftnonrcon(
+        ctx,
+        player: Option(
+            str, "Player to gift", autocomplete=autocompletenamesfromingame
+        ),
+        weapon: Option(
+            str, "Weapon to gift to player", autocomplete=weaponnamesautocomplete
+        ),
+        mods: Option(
+            str, "Weapon mods (comma or space separated)", required=False
+        ) = None,
+    ):
+        global sansthings, lasttimethrown
+
+        mods_str = f" with mods: {mods}" if mods else ""
+        print(f"Gift command from {ctx.author.id} for {player} with {weapon}{mods_str}")
+        serverid = getchannelidfromname(None, ctx)
+        if serverid is None:
+            await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+            await ctx.respond(
+                "Server not bound to this channel, could not send command.",
+                ephemeral=False,
+            )
+            return
+        # Check cooldown similar to thrownonrcon
+        if (
+            ctx.author.id in lasttimethrown["passes"].keys()
+            and lasttimethrown["passes"][ctx.author.id] > time.time() - 60
+        ):
+            print("User has been allowed recently")
+            await ctx.defer(ephemeral=False)
+            weapon_with_mods = f"{weapon}{f' with mods: {mods}' if mods else ''}"
+            await ctx.respond(f"**{weapon_with_mods} gifted to {player}** (verification bypass - recently completed challenge)", ephemeral=False)
+            sendrconcommand(
+            serverid,
+            f'sv_cheats 1;  script CheckWeaponId(discordlogmatchplayers("{player}")[0],"{weapon}"{mods and (f",{str(mods.split(",") if "," in mods else mods.split(" ")).replace("'",'"')}") or "" }); sv_cheats 0',
+            sender=ctx.author.name,
+            )
+            return
+
+        if lasttimethrown["globalcounter"] > time.time() - 60:
+            await ctx.respond(
+                "This command is on cooldown, try again in "
+                + str(int(60 - (time.time() - lasttimethrown["globalcounter"])))
+                + " seconds.",
+                ephemeral=False,
+            )
+            return
+
+        await ctx.defer(ephemeral=False)
+        original_message = await ctx.interaction.original_response()
+        challenge = sansthings.createchallenge(maxtries=-1)
+
+        challenge_url = await challenge.__anext__()
+        await ctx.respond("meow", ephemeral=False)
+        thread = await original_message.create_thread(
+            name=f"Gift Verification: {ctx.author.display_name} | {challenge_url}",
+            auto_archive_duration=60,
+        )
+
+        weapon_display = f"{weapon}{f' with mods: {mods}' if mods else ''}"
+        await thread.send(f"""
+To gift `{weapon_display}` to `{player}`, you must complete this Captcha:
+Challenge URL: {challenge_url}
+-# (Select normal mode - otherwise will not be valid)
+""")
+        challenge_completed = False
+        try:
+            async for game_data in challenge:
+                if game_data:
+                    await thread.send(f"Result found:\n```json\n{json.dumps({"winstate":game_data["condition"],"time taken":modifyvalue(int(float(game_data["time"])),"time"), "validresult":game_data["valid"]}, indent=2)}\n```")
+                    if game_data.get('condition') == 'lucky' and game_data.get('valid', False):
+                        challenge_completed = True
+                        await thread.send("** completed successfully!** Gift command approved.")
+                        lasttimethrown["passes"][ctx.author.id] = time.time()
+                        lasttimethrown["globalcounter"] = time.time()
+                        await thread.send(f"**{weapon_display} gifted to {player}!**")
+                        # print(f'sv_cheats 1;  script CheckWeaponId(discordlogmatchplayers("{player}")[0],"{weapon}"{mods and (f",{mods.split(",") if "," in mods else mods.split(" ")}") or "" }); sv_cheats 0')
+                        sendrconcommand(
+                        serverid,
+                        f'sv_cheats 1;  script CheckWeaponId(discordlogmatchplayers("{player}")[0],"{weapon}"{mods and (f",{str(mods.split(",") if "," in mods else mods.split(" ")).replace("'",'"')}") or "" }); sv_cheats 0',
+                        sender=ctx.author.name,
+                        )
+                        break
+
+        except Exception as e:
+            await thread.send(f"**Error monitoring challenge:** {str(e)}")
+            traceback.print_exc()
+        if not challenge_completed:
+            await thread.send(f"**Challenge failed or timed out!** {weapon_display} gift to {player} denied.")
+            lasttimethrown["globalcounter"] = time.time()
+
+
 # THROW AI NON SLOP
 if SHOULDUSETHROWAI == "1":
     print("ai throw enabled")
@@ -12900,6 +13011,5 @@ def shutdown_handler(sig, frame):
 
 signal.signal(signal.SIGINT, shutdown_handler)
 signal.signal(signal.SIGTERM, shutdown_handler)
-
 
 bot.run(TOKEN)
