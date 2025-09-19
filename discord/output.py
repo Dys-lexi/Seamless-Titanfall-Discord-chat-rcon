@@ -11166,7 +11166,16 @@ if SANSURL:
         ) = None,
     ):
         global sansthings, lasttimethrown
-
+        realweapon = False
+        for pewpew,vanity in WEAPON_NAMES.items():
+            if vanity == weapon: realweapon = pewpew
+        if not realweapon:
+            await ctx.respond(
+                f"{weapon} not found",
+                ephemeral=False,
+            )
+            return
+        weapon = realweapon
         mods_str = f" with mods: {mods}" if mods else ""
         print(f"Gift command from {ctx.author.id} for {player} with {weapon}{mods_str}")
         serverid = getchannelidfromname(None, ctx)
