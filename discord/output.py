@@ -8716,11 +8716,11 @@ def autobalanceoverride(data, serverid, statuscode):
         if playername:
             playername = playername[0].get("name", player)
         playernamecache[player] = playername
-    discordtotitanfall[serverid]["messages"].append(
-        {
-            "content": f"{PREFIXES['discord']}{PREFIXES['stat']}TEAMBALANCE{PREFIXES['neutral']} Names in {PREFIXES['warning']}this colour{PREFIXES['neutral']} are people you have interacted with recently"
-        }
-    )
+    # discordtotitanfall[serverid]["messages"].append(
+    #     {
+    #         "content": f"{PREFIXES['discord']}{PREFIXES['stat']}TEAMBALANCE{PREFIXES['neutral']} Names in {PREFIXES['warning']}this colour{PREFIXES['neutral']} are people you have interacted with recently"
+    #     }
+    # )
     discordtotitanfall[serverid]["messages"].append(
         {
             "content": f"{PREFIXES['discord']}Below is the new teambalance, along with each players weight"
@@ -8833,7 +8833,7 @@ def nocaroslots(message, serverid, isfromserver):
     if not result["json"]["winner"]:
         discordtotitanfall[serverid]["messages"].append(
             {
-                "content": f"{PREFIXES['nocaro']}Nothing, you lose {PREFIXES['stat']}{result['json']['amount_won']}{PREFIXES['chatcolour']} bouge bucks.",
+                "content": f"{PREFIXES['nocaro']}Nothing, you lose {PREFIXES['stat']}{bet}{PREFIXES['chatcolour']} bouge bucks.",
                 "uidoverride": getpriority(message, "uid", ["meta", "uid"]),
             }
         )
@@ -10068,7 +10068,7 @@ def ingamehelp(message, serverid, isfromserver):
             discordtotitanfall[serverid]["messages"].append(
                 {
                     # "id": str(i) + str(int(time.time()*100)),
-                    "content": f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2'] + command.get('permsneeded', False) + ' ' if command.get('permsneeded', False) else ''}{PREFIXES['commandname']}{name}{', ' + extra if extra else ''}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
+                    "content": f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['bronze'] + command.get('permsneeded', False) + ' ' if command.get('permsneeded', False) else ''}{PREFIXES['commandname']}{name}{', ' + extra if extra else ''}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
                     # "teamoverride": 4,
                     # "isteammessage": False,
                     "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
@@ -11167,14 +11167,13 @@ if SANSURL:
     ):
         global sansthings, lasttimethrown
         realweapon = False
+        unsure = False
         for pewpew,vanity in WEAPON_NAMES.items():
             if vanity == weapon: realweapon = pewpew
         if not realweapon:
-            await ctx.respond(
-                f"{weapon} not found",
-                ephemeral=False,
-            )
-            return
+            unsure = True
+            realweapon = weapon
+        
         weapon = realweapon
         mods_str = f" with mods: {mods}" if mods else ""
         print(f"Gift command from {ctx.author.id} for {player} with {weapon}{mods_str}")
@@ -11227,6 +11226,7 @@ if SANSURL:
 To gift `{weapon_display}` to `{player}`, you must complete this Captcha:
 Challenge URL: {challenge_url}
 -# (Select normal mode - otherwise will not be valid)
+{"" if not unsure else f"> `{weapon}` might not exist, trying to gift anyways"}
 """)
         challenge_completed = False
         try:
