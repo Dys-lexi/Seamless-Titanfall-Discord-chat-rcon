@@ -18,6 +18,7 @@ import discord
 import requests
 import functools
 from rcon.source import Client
+import importlib.util
 import sqlite3
 import re
 import aiohttp
@@ -1598,8 +1599,10 @@ async def on_ready():
         if DISCORDBOTLOGSTATS == "1":
             updateleaderboards.start()
         updateroles.start()
+        load_extensions()
         await asyncio.sleep(30)
         updatechannels.start()
+        
 
     botisalreadyready = True
 
@@ -2359,10 +2362,11 @@ if DISCORDBOTLOGSTATS == "1":
         # recall the rule of sending external commands!
         if not len(str(playerdiscorduid)) > 15 and not playerresolvedfromuid:
             # a few workarounds in play, here, sadly.
-            sendrconcommand(
-                serverid,
-                f"!privatemessage {playeruid} No discord UID found, stats logging disabled",
-            )
+            # disabled for now :)
+            # sendrconcommand(
+            #     serverid,
+            #     f"!privatemessage {playeruid} No discord UID found, stats logging disabled",
+            # )
             return
 
         tfdb = postgresem("./data/tf2helper.db")
@@ -5931,7 +5935,7 @@ def colourmessage(message, serverid):
         )
         return False
     if MORECOLOURS == "1":
-        print(f"OUTPUT[0m {'[0m, '.join([f'{x[0]}: {x[1]}' for x in output.items()])}")
+        print(f"OUTPUT[0m {'[0m, '.join([f'{x[0]}: {len(x[1])} {x[1]}' for x in output.items()])}")
 
     return {**output, "messageteam": message["metadata"]["teamint"]}
 
@@ -6697,6 +6701,8 @@ def recieveflaskprintrequests():
                     else False
                 )
                 or (data.get("victim_type", False) == "npc_titan")
+
+                or True
             ):
                 # print("this crill counted")
                 consecutivekills[data["match_id"]][
@@ -12286,6 +12292,31 @@ def setlotsofdefault(dicto, value, *nests):
     if len(nests) == 1:
         return dicto.setdefault(nests[0], value)
     return setlotsofdefault(dicto.setdefault(nests[0], {}), value, *nests[1:])
+
+
+def load_extensions():
+    """Load optional extension modules"""
+    extensions_dir = "extensions"
+    if not os.path.exists(extensions_dir):
+        return
+
+    for filename in os.listdir(extensions_dir):
+        if filename.endswith('.py') and not filename.startswith('_'):
+            module_name = filename[:-3]
+            try:
+                spec = importlib.util.spec_from_file_location(
+                    f"extensions.{module_name}",
+                    f"{extensions_dir}/{filename}"
+                )
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+
+                if hasattr(module, 'setup'):
+                    module.setup(bot, postgresem, globals())
+                    print(f"Loaded extension: {module_name}")
+            except Exception as e:
+                print(f"Failed to load extension {module_name}: {e}")
+                traceback.print_exc()
 
 
 @tasks.loop(seconds=360)

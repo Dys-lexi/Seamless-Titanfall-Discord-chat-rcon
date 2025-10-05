@@ -10,6 +10,7 @@ mods/*
 discord/discordtitanfall/*
 discord/discordtitanfall/**
 discord/data/*
+discord/extensions/*
 !discord/data/commands.json
 discord/venv
 discord/db
