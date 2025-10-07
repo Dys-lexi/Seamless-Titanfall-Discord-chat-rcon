@@ -763,11 +763,11 @@ def print(*message, end="\033[0m\n"):
         linecolours[line] = colour
     if MORECOLOURS != "1":
         realprint(
-            f"[0m{(('[' + function[:9] + ']').ljust(11) if True else '⯈'.ljust(11))}{('[' + line + ']').ljust(6)}[{datetime.now().strftime('%H:%M:%S %d/%m')}] {message}"
+            f"[0m{(('[' + function[:9] + ']').ljust(11) if True else '⯈'.ljust(11))}{('[' + line + ']').ljust(7)}[{datetime.now().strftime('%H:%M:%S %d/%m')}] {message}"
         )
     else:
         realprint(
-            f"[38;2;215;22;105m{(('[' + function[:9] + ']').ljust(11) if True else '⯈'.ljust(11))}[38;2;126;89;140m{('[' + line + ']').ljust(6)}[38;2;27;64;152m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{linecolours[line]}m {(message)}",
+            f"[38;2;215;22;105m{(('[' + function[:9] + ']').ljust(11) if True else '⯈'.ljust(11))}[38;2;126;89;140m{('[' + line + ']').ljust(7)}[38;2;27;64;152m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{linecolours[line]}m {(message)}",
             end=end,
         )
 
@@ -6702,7 +6702,7 @@ def recieveflaskprintrequests():
                 )
                 or (data.get("victim_type", False) == "npc_titan")
 
-                or True
+                # or True
             ):
                 # print("this crill counted")
                 consecutivekills[data["match_id"]][
