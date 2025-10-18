@@ -546,7 +546,8 @@ def playeruidnamelinktf1():
             playername TEXT,
             lastseenunix INTEGER,
             firstseenunix INTEGER,
-            lastserverid INTEGER
+            lastserverid INTEGER,
+            ipinfo TEXT
             )"""
     )
     if POSTGRESQLDBURL != "0":
@@ -555,7 +556,7 @@ def playeruidnamelinktf1():
         ALTER COLUMN playeruid TYPE BIGINT USING playeruid::BIGINT;
         """)
     # try:
-    #     c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN lastserverid INTEGER")
+    #     c.execute("ALTER TABLE uidnamelinktf1 ADD COLUMN ipinfo TEXT")
     # except:
     #     pass
     tfdb.commit()
@@ -682,7 +683,8 @@ def playeruidnamelink():
             playername TEXT,
             lastseenunix INTEGER,
             firstseenunix INTEGER,
-            lastserverid INTEGER
+            lastserverid INTEGER,
+            ipinfo TEXT
             )"""
     )
     if POSTGRESQLDBURL != "0":
@@ -691,7 +693,7 @@ def playeruidnamelink():
         ALTER COLUMN playeruid TYPE BIGINT USING playeruid::BIGINT;
         """)
     # try:
-    #     c.execute("ALTER TABLE uidnamelink ADD COLUMN lastserverid INTEGER")
+    #     c.execute("ALTER TABLE uidnamelink ADD COLUMN ipinfo TEXT")
     # except:
     #     pass
     tfdb.commit()
@@ -7163,12 +7165,20 @@ async def createchannel(guild, category, servername, serverid):
         if serverid not in context["servers"]:
             context["servers"][serverid] = {}
         context["servers"][serverid]["channelid"] = channel.id
+        context["servers"][serverid]["roles"] = {
+                "rconrole": "rconrole",
+                "coolperksrole": "coolperksrole"
+            }
         savecontext()
         return
     channel = await guild.create_text_channel(servername, category=category)
     if serverid not in context["servers"]:
         context["servers"][serverid] = {}
     context["servers"][serverid]["channelid"] = channel.id
+    context["servers"][serverid]["roles"] = {
+            "rconrole": "rconrole",
+            "coolperksrole": "coolperksrole"
+        }
     savecontext()
 
 
@@ -10933,7 +10943,7 @@ async def returncommandfeedback(
                     except Exception as e:
                         print("error in defaultoverride", e)
                         overridemsg = None
-            if iscommandnotmessage and not isinstance(ctx, str):
+            if iscommandnotmessage and not isinstance(ctx, str) and command != "!playingpoll":
                 try:
                     await ctx.respond(
                         f"Command sent to server: **{context['servers'][serverid]['name']}**."
@@ -11537,35 +11547,50 @@ playerjoinlist = {}
 peopleonline = {}
 
 
-def checkandaddtouidnamelink(uid, playername, serverid, istf1=False):
+def checkandaddtouidnamelink(uid, playername, serverid, istf1=False,playerinfo={}):
+    
     """Updates player UID-name mapping in database with timestamp tracking"""
     global playercontext
+    # print("PLAYERINFO",json.dumps(playerinfo))
     now = int(time.time())
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
     c.execute(
-        f"SELECT id, playername FROM uidnamelink{'tf1' if istf1 else ''} WHERE playeruid = ? ORDER BY id DESC LIMIT 1",
+        f"SELECT id, playername, ipinfo FROM uidnamelink{'tf1' if istf1 else ''} WHERE playeruid = ? ORDER BY id DESC LIMIT 1",
         (uid,),
     )
     row = c.fetchone()
     if row:
-        last_id, last_name = row
+        last_id, last_name, ipinfo = row
+        if ipinfo:
+            ipinfo = json.loads(ipinfo)
+
+        if not istf1 and playerinfo and playerinfo.get("ipaddr"):
+            if ipinfo:
+                if ipinfo.get(playerinfo["ipaddr"]):
+                    ipinfo[playerinfo["ipaddr"]]["last"] = now
+                else:
+                    ipinfo[playerinfo["ipaddr"]] = {"first":now,"last":now}
+            else:
+                ipinfo = {playerinfo["ipaddr"]:{"first":now,"last":now}}
+
+
         if str(playername) == str(last_name):
             c.execute(
-                f"UPDATE uidnamelink{'tf1' if istf1 else ''} SET lastseenunix = ?, lastserverid = ? WHERE id = ?",
-                (now, int(serverid), last_id),
+                f"UPDATE uidnamelink{'tf1' if istf1 else ''} SET lastseenunix = ?, lastserverid = ?, ipinfo = ?  WHERE id = ?",
+                (now, int(serverid), json.dumps(ipinfo) if ipinfo else None, last_id),
             )
         else:
             resolveplayeruidfromdb.cache_clear()
             c.execute(
-                f"INSERT INTO uidnamelink{'tf1' if istf1 else ''} (playeruid, playername, firstseenunix, lastseenunix, lastserverid) VALUES (?, ?, ?, ?, ?)",
-                (uid, playername, now, now, int(serverid)),
+                f"INSERT INTO uidnamelink{'tf1' if istf1 else ''} (playeruid, playername, firstseenunix, lastseenunix, lastserverid, ipinfo) VALUES (?, ?, ?, ?, ?, ?)",
+                (uid, playername, now, now, int(serverid), json.dumps(ipinfo) if ipinfo else None),
             )
     else:
         resolveplayeruidfromdb.cache_clear()
         c.execute(
-            f"INSERT INTO uidnamelink{'tf1' if istf1 else ''} (playeruid, playername, firstseenunix, lastseenunix, lastserverid) VALUES (?, ?, ?, ?, ?)",
-            (uid, playername, now, now, int(serverid)),
+            f"INSERT INTO uidnamelink{'tf1' if istf1 else ''} (playeruid, playername, firstseenunix, lastseenunix, lastserverid, ipinfo) VALUES (?, ?, ?, ?, ?, ?)",
+            (uid, playername, now, now, int(serverid), json.dumps({playerinfo["ipaddr"]:{"first":now,"last":now}}) if playerinfo.get("ipaddr") else None),
         )
     tfdb.commit()
     tfdb.close()
@@ -11746,6 +11771,9 @@ def savestats(saveinfo):
                 ][saveinfo["index"]]["name"],
                 saveinfo["serverid"],
                 istf1,
+                playercontext[saveinfo["serverid"]][saveinfo["uid"]][
+                    saveinfo["name"]
+                ][saveinfo["matchid"]][saveinfo["index"]]
             )
         if (
             playercontext[saveinfo["serverid"]][saveinfo["uid"]][saveinfo["name"]][
@@ -11980,6 +12008,7 @@ def playerpolllog(data, serverid, statuscode):
                 "titankills": x[1][5],
                 "npckills": x[1][6],
                 "timecounter": x[1][7],
+                "ipaddr": x[1][8] if len(x[1]) > 8 else False
             }
             for x in list(filter(lambda x: x[0] != "meta", list(data.items())))
         ]
@@ -11995,6 +12024,7 @@ def playerpolllog(data, serverid, statuscode):
                 "titankills": x[1][4],
                 "npckills": x[1][6],
                 "timecounter": x[1][6],
+                "ipaddr": False
             }
             for x in filter(lambda x: x[0] != "meta" and len(x[0]) > 15, data.items())
         ]
@@ -12036,7 +12066,7 @@ def playerpolllog(data, serverid, statuscode):
             # print([player["uid"]],list(playercontext[serverid].keys()))
             # print("here")
             # onplayerjoin(player["uid"],serverid,player["name"])
-            checkandaddtouidnamelink(player["uid"], player["name"], serverid, istf1)
+            checkandaddtouidnamelink(player["uid"], player["name"], serverid, istf1, player)
             playercontext[serverid][player["uid"]][player["name"]][matchid] = [
                 {  # ON FIRST MAP JOIN
                     "joined": player[
@@ -12057,6 +12087,7 @@ def playerpolllog(data, serverid, statuscode):
                     "mostrecentsave": False,
                     "playerhasleft": False,
                     "timecounter": player["timecounter"],
+                    "ipaddr":player["ipaddr"]
                 }
             ]
         elif (
@@ -12073,6 +12104,7 @@ def playerpolllog(data, serverid, statuscode):
                 -1
             ].get("loadedfromsave", False):
                 onplayerjoin(player["uid"], serverid, player["name"])
+            checkandaddtouidnamelink(player["uid"], player["name"], serverid, istf1, player)
             # ohgodIamreadyingthisWHATONEARTH how does it know to save? oh because it keeps accumulating iirc.. but timecounter???
             # print("beep boop",playercontext[serverid][player["uid"]][player["name"]][matchid][-1].get("loadedfromsave",False),playercontext[serverid][player["uid"]][player["name"]][matchid][-1]["playerhasleft"], playercontext[serverid][player["uid"]][player["name"]][matchid][-1]["timecounter"] != player["timecounter"])
             playercontext[serverid][player["uid"]][player["name"]][matchid].append(
@@ -12093,6 +12125,7 @@ def playerpolllog(data, serverid, statuscode):
                     "mostrecentsave": False,
                     "playerhasleft": False,
                     "timecounter": player["timecounter"],
+                    "ipaddr":player["ipaddr"]
                 }
             )
         else:

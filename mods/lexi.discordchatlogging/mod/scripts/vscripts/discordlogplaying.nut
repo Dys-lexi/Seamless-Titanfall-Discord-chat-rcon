@@ -40,6 +40,7 @@ struct playerinfopoll {
 	int npckills = 0
 	string uid = "0"
 	int timeconnected = 0
+	string ip = "0"
 }
 
 table<string, string> MAP_NAME_TABLE = {
@@ -88,6 +89,7 @@ discordlogcommand function discordlogplayingpoll(discordlogcommand commandin) {
 			playerinfoe.deaths = player.GetPlayerGameStat(2)
 			playerinfoe.npckills = player.GetPlayerGameStat(5)
 			playerinfoe.titankills = player.GetPlayerGameStat(4)
+			playerinfoe.ip = split(player.GetIPString(), ":]")[2]
 
 			// print("gamestat 1 " + string(player.GetPlayerGameStat(1)))
 			// print("gamestat 2 " + string(player.GetPlayerGameStat(2)))
@@ -122,7 +124,7 @@ discordlogcommand function discordlogplayingpoll(discordlogcommand commandin) {
 			{
 				playerinfoe.timeconnected = playerconnectimes[playerinfoe.uid]
 			}
-			playerlist[playerinfoe.uid] <- [playerinfoe.score,playerinfoe.team,playerinfoe.kills,playerinfoe.deaths,playerinfoe.playername,playerinfoe.titankills,playerinfoe.npckills,playerinfoe.timeconnected]
+			playerlist[playerinfoe.uid] <- [playerinfoe.score,playerinfoe.team,playerinfoe.kills,playerinfoe.deaths,playerinfoe.playername,playerinfoe.titankills,playerinfoe.npckills,playerinfoe.timeconnected,playerinfoe.ip]
 
 		}
 	}
