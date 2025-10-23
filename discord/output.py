@@ -11212,7 +11212,7 @@ if SANSURL:
             await ctx.respond(f"**{weapon_with_mods} gifted to {player}** (verification bypass - recently completed challenge)", ephemeral=False)
             sendrconcommand(
             serverid,
-            f'sv_cheats 1;  script CheckWeaponId(discordlogmatchplayers("{player}")[0],"{weapon}"{mods and (f",{str(mods.split(",") if "," in mods else mods.split(" ")).replace("'",'"')}") or "" }); sv_cheats 0',
+            f'!compilestring CheckWeaponId(discordlogmatchplayers("{player}")[0],"{weapon}"{mods and (f",{str(mods.split(",") if "," in mods else mods.split(" ")).replace("'",'"')}") or "" })',
             sender=ctx.author.name,
             )
             return
