@@ -5937,7 +5937,7 @@ def colourmessage(message, serverid):
         )
         return False
     if MORECOLOURS == "1":
-        print(f"OUTPUT[0m {'[0m, '.join([f'{x[0]}: {len(x[1])} {x[1]}' for x in output.items()])}")
+        print(f"OUTPUT[0m {'[0m, '.join([f'{x[0]}: {len(x[1])} {x[1]}' for x in output.items() if isinstance(x,bool)])}")
 
     return {**output, "messageteam": message["metadata"]["teamint"]}
 
@@ -10943,7 +10943,7 @@ async def returncommandfeedback(
                     except Exception as e:
                         print("error in defaultoverride", e)
                         overridemsg = None
-            if iscommandnotmessage and not isinstance(ctx, str) and command != "!playingpoll":
+            if iscommandnotmessage and not isinstance(ctx, str) and not (command.replace("!","").replace("/","").lower()).startswith("playingpoll"):
                 try:
                     await ctx.respond(
                         f"Command sent to server: **{context['servers'][serverid]['name']}**."
