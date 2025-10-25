@@ -392,13 +392,13 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 
 	bool found = false
 	foreach (string key,table value in blockedplayers.players){
-		if (message.player.GetUID() == key && blockedplayers.players[key].shouldblockmessages){
+		if (message.player.GetUID() == key && key in blockedplayers.players && blockedplayers.players[key].shouldblockmessages){
 			found = true
 			break
 		}
 	}
-	meta["blockedmessage"] <- (found && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain)
-	if (found && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain) {
+	meta["blockedmessage"] <- (found && message.player.GetUID() in blockedplayers.players && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain)
+	if (found && message.player.GetUID() in blockedplayers.players && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain) {
 		message.shouldBlock = true;
 		// discordlogsendmessage("HEREEEE")
 	}
