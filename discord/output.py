@@ -11255,10 +11255,10 @@ Challenge URL: {challenge_url}
                         lasttimethrown["passes"][ctx.author.id] = time.time()
                         lasttimethrown["globalcounter"] = time.time()
                         await thread.send(f"**{weapon_display} gifted to {player}!**")
-                        # print(f'sv_cheats 1;  script CheckWeaponId(discordlogmatchplayers("{player}")[0],"{weapon}"{mods and (f",{mods.split(",") if "," in mods else mods.split(" ")}") or "" }); sv_cheats 0')
+                        # print(f'!compilestring CheckWeaponId(discordlogmatchplayers("{player}")[0],"{weapon}"{mods and (f",{mods.split(",") if "," in mods else mods.split(" ")}") or "" })')
                         sendrconcommand(
                         serverid,
-                        f'sv_cheats 1;  script CheckWeaponId(discordlogmatchplayers("{player}")[0],"{weapon}"{mods and (f",{str(mods.split(",") if "," in mods else mods.split(" ")).replace("'",'"')}") or "" }); sv_cheats 0',
+                        f'!compilestring CheckWeaponId(discordlogmatchplayers("{player}")[0],"{weapon}"{mods and (f",{str(mods.split(",") if "," in mods else mods.split(" ")).replace("'",'"')}") or "" })',
                         sender=ctx.author.name,
                         )
                         break
