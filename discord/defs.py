@@ -92,6 +92,8 @@ TITAN_NAMES = {
 }
 
 WEAPON_NAMES = {
+    "mp_weapon_peacekraber": "PeaceKraber",
+    "mp_titanweapon_triplethreat":"Triple Threat",
     "damagedef_titan_step":"Stepped on",
     "mp_titanweapon_xo16_shorty":"Expi's gun",
     "outOfBounds":"Tried to flee battle",

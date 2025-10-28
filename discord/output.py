@@ -1360,7 +1360,8 @@ async def moderation(interaction, parts):
         "mute_30": {"duration": 30, "action_text": "30 day mute", "type": "mute"},
         "mute_60": {"duration": 60, "action_text": "60 day mute", "type": "mute"}, 
         "ban_30": {"duration": 30, "action_text": "30 day ban", "type": "ban"},
-        "ban_60": {"duration": 60, "action_text": "60 day ban", "type": "ban"}
+        "ban_60": {"duration": 60, "action_text": "60 day ban", "type": "ban"},
+        "unsanction":"unsanction"
     }
     selected_action = action_map[interaction.data['values'][0]]
     await quickaddsanction(user_id, selected_action, interaction, message_link)
@@ -1946,11 +1947,14 @@ async def quickaddsanction(target,action,interaction,link):
         return
     # link = f"https://discord.com/channels/{context["activeguild"]}/{context["servers"][link[0]]["channelid"]}/{link[1]}"
     interaction_link = f"https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}/{interaction.message.id}"
-    output = await process_sanctiontf2(False,interaction.user.name,target,action["type"],link,str(action["duration"]),interaction_link)
+    if action == "unsanction":
+        output = await process_sanctionremovetf2(interaction.user.name,target,interaction_link)
+    else:
+        output = await process_sanctiontf2(False,interaction.user.name,target,action["type"],link,str(action["duration"]),interaction_link)
     if isinstance(output, str):
         await interaction.respond(output)
         return
-    await interaction.respond(embed=embedjson("New Sanction:", output, interaction))
+    await interaction.respond(embed=embedjson("New Sanction:" if action != "unsanction" else "Removed Sanction:", output, interaction))
 async def process_sanctiontf2(
     serverid, sender, name, sanctiontype, reason, expiry=None, iscommand=False
 ):
@@ -2062,6 +2066,62 @@ async def process_sanctiontf2(
     return f"{sanctiontype.capitalize()} added to {player['name']} (UID: {player['uid']}) Until {expiry_text}\nReason: {reason}"
 
 
+async def process_sanctionremovetf2(sender, name, where):
+    name = str(name)
+    if len(name.rsplit("->", 1)) > 1:
+        name = name.rsplit("->", 1)[1][1:-1]
+
+    matchingplayers = resolveplayeruidfromdb(name, None, True)
+    if len(matchingplayers) > 1:
+        multistring = "\n" + "\n".join(
+            f"{i + 1}) {p['name']} uid: {p['uid']}"
+            for i, p in enumerate(matchingplayers[0:10])
+        )
+        return f"{len(matchingplayers)} players found, please be more specific: {multistring}"
+    elif len(matchingplayers) == 0:
+        return "No players found"
+    
+    player = matchingplayers[0]
+    ban, existing_messageid = pullsanction(player["uid"])
+    if ban:
+        global_channel = bot.get_channel(context["overridechannels"]["globalchannel"])
+        if global_channel:
+            if existing_messageid:
+                try:
+                    existing_message = await global_channel.fetch_message(
+                        existing_messageid
+                    )
+                    message = await existing_message.reply(
+                        f"{sender} removed sanction for {player['name']} (UID: {player['uid']}) - Type: {ban['sanctiontype']} - Reason: {ban['reason']} - Source: {where}"
+                    )
+                except:
+                    message = await global_channel.send(
+                        f"{sender} removed sanction for {player['name']} (UID: {player['uid']}) - Type: {ban['sanctiontype']} - Reason: {ban['reason']} - Source: {where}"
+                    )
+            else:
+                message = await global_channel.send(
+                    f"{sender} removed sanction for {player['name']} (UID: {player['uid']}) - Type: {ban['sanctiontype']} - Reason: {ban['reason']} - Source: {where}"
+                )
+            message_id = message.id
+        else:
+            message_id = None
+
+        setplayeruidpreferences(
+            ["banstf2", "sanction"], {"messageid": message_id}, player["uid"]
+        )
+
+        if player["lastserverid"]:
+            sendrconcommand(
+                player["lastserverid"],
+                f"!reloadpersistentvars {player['uid']}",
+                sender=sender,
+            )
+        
+        return ban
+    else:
+        return f"No sanction found for {player['name']} (UID: `{player['uid']}`)"
+
+
 @bot.slash_command(
     name="sanctionremovetf2",
     description="Removes a ban from a TF2 player - run in a server channel to apply instantly",
@@ -2085,76 +2145,17 @@ async def sanctionremovetf2(
         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
         return
 
-    if len(name.rsplit("->", 1)) > 1:
-        name = name.rsplit("->", 1)[1][1:-1]
-
-    matchingplayers = resolveplayeruidfromdb(name, None, True)
-    if len(matchingplayers) > 1:
-        multistring = "\n" + "\n".join(
-            f"{i + 1}) {p['name']} uid: {p['uid']}"
-            for i, p in enumerate(matchingplayers[0:10])
-        )
-        await ctx.respond(
-            f"{len(matchingplayers)} players found, please be more specific: {multistring}",
-            ephemeral=False,
-        )
-        return
-    elif len(matchingplayers) == 0:
-        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-        await ctx.respond("No players found", ephemeral=False)
-        return
     try:
         where = f"https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id}/{ctx.interaction.id}"
     except:
         where = "RAN IN A DM"
-    player = matchingplayers[0]
 
     await ctx.defer()
-    ban, existing_messageid = pullsanction(player["uid"])
-    if ban:
-        global_channel = bot.get_channel(context["overridechannels"]["globalchannel"])
-        if global_channel:
-            if existing_messageid:
-                try:
-                    existing_message = await global_channel.fetch_message(
-                        existing_messageid
-                    )
-                    message = await existing_message.reply(
-                        f"{ctx.author.name} removed sanction for {player['name']} (UID: {player['uid']}) - Type: {ban['sanctiontype']} - Reason: {ban['reason']} - Source: {where}"
-                    )
-                except:
-                    message = await global_channel.send(
-                        f"{ctx.author.name} removed sanction for {player['name']} (UID: {player['uid']}) - Type: {ban['sanctiontype']} - Reason: {ban['reason']} - Source: {where}"
-                    )
-            else:
-                message = await global_channel.send(
-                    f"{ctx.author.name} removed sanction for {player['name']} (UID: {player['uid']}) - Type: {ban['sanctiontype']} - Reason: {ban['reason']} - Source: {where}"
-                )
-            message_id = message.id
-        else:
-            message_id = None
-
-        setplayeruidpreferences(
-            ["banstf2", "sanction"], {"messageid": message_id}, player["uid"]
-        )
-
-        output = ban
-        await ctx.respond(embed=embedjson("Removing Sanction:", output, ctx))
-    else:
-        await ctx.respond(
-            f"No sanction found for {player['name']} (UID: `{player['uid']}`)"
-        )
+    output = await process_sanctionremovetf2(ctx.author.name, name, where)
+    if isinstance(output, str):
+        await ctx.respond(output)
         return
-    # I do not believe a servername is needed anymore - bans are enforced after playerdata is loaded now, so we don't need to manually reload it here
-    # it is. mutes would not reload (till map change / any other toggle)
-    # It isn't now, I store peoples most recent server!
-    # serverid = getchannelidfromname(servername, ctx)
-    if player["lastserverid"]:
-        sendrconcommand(
-            player["lastserverid"],
-            f"!reloadpersistentvars {player['uid']}",
-            sender=ctx.author.name,
-        )
+    await ctx.respond(embed=embedjson("Removing Sanction:", output, ctx))
 
 
 @bot.slash_command(
@@ -10347,12 +10348,18 @@ async def checkfilters(messages, message):
 
         bad_msg = next((x for x in messages if x.get("isbad", [0, 0])[0] == 2), None)
         if bad_msg:
+            sanctionalreadyfoundmessage = ""
             print("BAN MESSAGE FOUND", json.dumps(bad_msg, indent=4))
             if (
                 bad_msg["originalname"]
                 and bad_msg.get("uid", False)
                 and bad_msg["messagecontent"]
             ):
+                sanction, messageid =  pullsanction(bad_msg["uid"])
+                
+                if sanction:
+                    sanctionalreadyfoundmessage = f"\n    __ALREADY SANCTIONED__ Link: {sanction["link"]}"
+
 
                 select = discord.ui.Select(
                     placeholder="Buttons!",
@@ -10362,6 +10369,7 @@ async def checkfilters(messages, message):
                         discord.SelectOption(label="60 day mute", value="mute_60", emoji="🔇"),
                         discord.SelectOption(label="30 day ban", value="ban_30", emoji="🔨"),
                         discord.SelectOption(label="60 day ban", value="ban_60", emoji="🔨"),
+                        *((discord.SelectOption(label = "remove sanction (to add new one)",value = "unsanction",emoji = "⛓️‍💥")) if sanction else ())
                     ]
                 )
 
@@ -10370,7 +10378,7 @@ async def checkfilters(messages, message):
                 
                 await notify_channel.send(
                     discord.utils.escape_mentions(f""">>> **Ban word found**
-    Sent by: **{bad_msg["originalname"]}**
+    Sent by: **{bad_msg["originalname"]}{sanctionalreadyfoundmessage}**
     UID: **{bad_msg["uid"]}**
     Message: "{getpriority(bad_msg, "originalmessage", "messagecontent", "message")}"
     Found pattern: "{bad_msg["isbad"][1]}"
@@ -10388,13 +10396,18 @@ async def checkfilters(messages, message):
         notify_msg = next((x for x in messages if x.get("isbad", [0.0])[0] == 1), None)
         # print("HERE")
         if notify_msg:
+            sanctionalreadyfoundmessage = ""
             print("NOTIFY MESSAGE FOUND", json.dumps(notify_msg, indent=4))
+
             # print("HERE2")
             if (
                 notify_msg["originalname"]
                 and notify_msg.get("uid", False)
                 and notify_msg["messagecontent"]
             ):
+                sanction, messageid =  pullsanction(notify_msg["uid"])
+                if sanction:
+                    sanctionalreadyfoundmessage = f"\n    __ALREADY SANCTIONED__ Link: {sanction["link"]}"
                 # print("HERE3")
 
                 select = discord.ui.Select(
@@ -10405,6 +10418,7 @@ async def checkfilters(messages, message):
                         discord.SelectOption(label="60 day mute", value="mute_60", emoji="🔇"),
                         discord.SelectOption(label="30 day ban", value="ban_30", emoji="🔨"),
                         discord.SelectOption(label="60 day ban", value="ban_60", emoji="🔨"),
+                        *((discord.SelectOption(label = "remove sanction (to add new one)",value = "unsanction",emoji = "⛓️‍💥"),) if sanction else ())
                     ]
                 )
 
@@ -10413,7 +10427,7 @@ async def checkfilters(messages, message):
                 
                 await notify_channel.send(
                     discord.utils.escape_mentions(f""">>> **Filtered word found**
-    Sent by: **{notify_msg["originalname"]}**
+    Sent by: **{notify_msg["originalname"]}{sanctionalreadyfoundmessage}**
     UID: **{notify_msg["uid"]}**
     Message: "{getpriority(notify_msg, "originalmessage", "messagecontent", "message")}"
     Found pattern: "{notify_msg["isbad"][1]}"
@@ -11187,10 +11201,14 @@ if SANSURL:
         for pewpew,vanity in WEAPON_NAMES.items():
             if vanity == weapon: realweapon = pewpew
         if not realweapon:
+            await ctx.respond("weapon not found", ephemeral=False)
             unsure = True
             realweapon = weapon
-        
-        weapon = realweapon
+        player = player[:20]
+        weapon = realweapon[:20]
+        mods = mods[:20] if mods else None
+        if  len(list(filter(lambda x: x.isalpha() or x in ", _" or x.isdigit() ,list(player+weapon)))) != len(list(player+weapon)):
+            await ctx.respond("mods or player not in a-z", ephemeral=False)
         mods_str = f" with mods: {mods}" if mods else ""
         print(f"Gift command from {ctx.author.id} for {player} with {weapon}{mods_str}")
         serverid = getchannelidfromname(None, ctx)
@@ -11217,10 +11235,10 @@ if SANSURL:
             )
             return
 
-        if lasttimethrown["globalcounter"] > time.time() - 60:
+        if lasttimethrown["globalcounter"] > time.time() - 0:
             await ctx.respond(
                 "This command is on cooldown, try again in "
-                + str(int(60 - (time.time() - lasttimethrown["globalcounter"])))
+                + str(int(0 - (time.time() - lasttimethrown["globalcounter"])))
                 + " seconds.",
                 ephemeral=False,
             )
