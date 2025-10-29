@@ -11207,7 +11207,7 @@ if SANSURL:
         player = player[:20]
         weapon = realweapon[:20]
         mods = mods[:20] if mods else None
-        if  len(list(filter(lambda x: x.isalpha() or x in ", _" or x.isdigit() ,list(player+weapon)))) != len(list(player+weapon)):
+        if  len(list(filter(lambda x: x.isalpha() or x in ", -_" or x.isdigit() ,list(player+weapon)))) != len(list(player+weapon)):
             await ctx.respond("mods or player not in a-z", ephemeral=False)
         mods_str = f" with mods: {mods}" if mods else ""
         print(f"Gift command from {ctx.author.id} for {player} with {weapon}{mods_str}")
