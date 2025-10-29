@@ -767,6 +767,13 @@ GUNS_PILOT = [
         "killedby" : ["player"]
     },
     {
+        "weapon_name": "mp_weapon_peacekraber",
+        "png_name": "mp_weapon_peacekraber",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
         "weapon_name": "mp_weapon_sniper",
         "png_name": "mp_weapon_sniper",
         "mods": [],
