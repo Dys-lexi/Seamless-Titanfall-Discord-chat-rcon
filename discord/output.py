@@ -6063,6 +6063,7 @@ def recieveflaskprintrequests():
         """returns a players settings, eg should the server block messages as being modified, do they have any persistentsettings"""
         global context, discorduidnamelink
         data = request.get_json()
+        now = int(time.time())
         if data["password"] != SERVERPASS and SERVERPASS != "*":
             print("invalid password used on playerdetails")
             return {"message": "sorry, wrong pass"}
@@ -6094,8 +6095,11 @@ def recieveflaskprintrequests():
         # print(json.dumps({"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{**({"nameprefix": colourslink[discorduid]["nameprefix"]} if getpriority(colourslink,[discorduid,"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())) else {}),**{x: str(y) for x,y in list(filter(lambda x:  not getpriority(context,["commands","ingamecommands",x[0],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",x[0],"serversenabled"])  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))}}},indent=4))
 
         sanction, messageid = pullsanction(str(data["uid"]))
+        # print(sanction)
         if sanction:
-            sanction["expiry"] = sanction["humanexpire"]
+    
+            sanction["expiry"] = modifyvalue(sanction["expiry"] - now,"time") if  sanction.get("expiry") and sanction["expiry"] - now < 86400*2 else sanction["humanexpire"]
+
             sanction = {
                 "expiry": sanction["expiry"],
                 "reason": sanction["reason"],
@@ -11205,7 +11209,7 @@ if SANSURL:
             unsure = True
             realweapon = weapon
         player = player[:20]
-        weapon = realweapon[:20]
+        weapon = realweapon[:40]
         mods = mods[:20] if mods else None
         if  len(list(filter(lambda x: x.isalpha() or x in ", -_" or x.isdigit() ,list(player+weapon)))) != len(list(player+weapon)):
             await ctx.respond("mods or player not in a-z", ephemeral=False)
