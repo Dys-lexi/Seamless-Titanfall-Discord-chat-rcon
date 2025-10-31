@@ -64,7 +64,8 @@ array <discordlogcommand functionref(discordlogcommand)> function getregisteredf
 		reloadpersistentsettings,
 		discordloghostiletitanfall,
 		discordlogtb,
-		discordlogplayerfinder
+		discordlogplayerfinder,
+		discordlogcompilestring
 		]
 		 //add functions here, and they'll work with / commands (if they fill criteria above)
 }
@@ -319,20 +320,19 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	string teammessage = "not team"
     if( message.isTeam && serverdetails.showchatprefix )
     {
-	int playerteam = message.player.GetTeam()
-	if( playerteam <= 0 )
-	teammessage = "Spec"
-    if( playerteam == 1 )
-    teammessage = "None"
-    if( playerteam == 2 )
-    teammessage = "IMC"
-    if( playerteam == 3 )
-    teammessage = "Militia"
-    if( playerteam >= 4 )
-    teammessage = "Both"
-	teammessage = "[Team-" + teammessage + "]"
+		int playerteam = message.player.GetTeam()
+		if( playerteam <= 0 )
+			teammessage = "Spec"
+    	if( playerteam == 1 )
+    		teammessage = "None"
+    	if( playerteam == 2 )
+    		teammessage = "IMC"
+    	if( playerteam == 3 )
+    		teammessage = "Militia"
+    	if( playerteam >= 4 )
+    		teammessage = "Both"
+		teammessage = "[Team-" + teammessage + "]"
 	}
-	// print(teammessage)
 	outgoingmessage newmessage
 	newmessage.playername = teamnewmessage
 	newmessage.message = message.message
@@ -392,13 +392,13 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 
 	bool found = false
 	foreach (string key,table value in blockedplayers.players){
-		if (message.player.GetUID() == key && blockedplayers.players[key].shouldblockmessages){
+		if (message.player.GetUID() == key && "shouldblockmessages" in blockedplayers.players[ key ] && blockedplayers.players[key].shouldblockmessages){
 			found = true
 			break
 		}
 	}
-	meta["blockedmessage"] <- (found && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain)
-	if (found && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain) {
+	meta["blockedmessage"] <- (found && message.player.GetUID() in blockedplayers.players && "shouldblockmessages" in blockedplayers.players[ message.player.GetUID() ] && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain)
+	if (found && message.player.GetUID() in blockedplayers.players && "shouldblockmessages" in blockedplayers.players[ message.player.GetUID() ] && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain) {
 		message.shouldBlock = true;
 		// discordlogsendmessage("HEREEEE")
 	}
@@ -484,26 +484,24 @@ void function checkshouldblockmessages(entity player){
 
 		// print(response.body)
 		table responses = DecodeJSON(response.body)
-		if ("notfound" in responses) {return}
+		if ( "notfound" in responses )
+			return
+		if ( !( "output" in responses && "otherdata" in responses && "uid" in responses ) )
+			return
 		table output = expect table(responses["output"])
 		table otheroutputs = expect table(responses["otherdata"])
-		// blockedplayers.players[expect string(responses["uid"])]
-		// string uid = expect string(responses["uid"])
+		string uid = expect string(responses["uid"])
 		table actualoutput
 		foreach (key,value in otheroutputs){
 			actualoutput[ expect string(key)] <- expect string(value)
 		}
-		actualoutput.shouldblockmessages <- expect bool(output["shouldblockmessages"])
-		blockedplayers.players[expect string(responses["uid"])] <- actualoutput
-		// string texts = expect string(responses["texts"])
-		// check.timeof = expect string(responses["time"])
-		// table texts = expect table(responses["texts"])
-		// table textsv2 = expect table(responses["textsv2"])
-		// string textvalidation = expect string(messagess["textvalid
-		// discordlogsendmessage(discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype"))
-		// print("MEOWMDQOQ"+discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype"))
-			if (discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "ban" && serverdetails.enforcesanctions){
-				NSDisconnectPlayer(player,"You are banned, JOIN THE DISCORD IN SERVER DESC TO COMPLAIN. Expires: "+discordlogpullplayerstat(expect string(responses["uid"]),"expiry")+" Reason: "+ discordlogpullplayerstat(expect string(responses["uid"]),"reason"))
+		if ( "shouldblockmessages" in responses )
+			actualoutput.shouldblockmessages <- expect bool(output["shouldblockmessages"])
+		else if ( !( uid in blockedplayers.players ) )
+			actualoutput.shouldblockmessages <- false
+		blockedplayers.players[ uid ] <- actualoutput
+			if (discordlogpullplayerstat(uid,"sanctiontype") == "ban" && serverdetails.enforcesanctions){
+				NSDisconnectPlayer(player,"You are banned, JOIN THE DISCORD IN SERVER DESC TO COMPLAIN. Expires: "+discordlogpullplayerstat(uid,"expiry")+" Reason: "+ discordlogpullplayerstat(uid,"reason"))
 			}
     }
 
@@ -758,58 +756,36 @@ void function waitisalive(entity player) {
 }
 void function DiscordClientMessageinloop()
 {
-	// check.textcheck = []
-	// check.commandcheck = []
-	// check.postmatch = 999999
-
-	while (true) {
-		// print("gamestate "+GetGameState())
-		if (shouldsend == 0){
+	while ( true ) {
+		if ( shouldsend == 0 ){
 			wait 1
 			breakercounter++
-			if (breakercounter > 50){
+			if ( breakercounter > 50 ){
 				shouldsend = 1
 				breakercounter = 0
-				// print("breaking")
 			}
-			else {
+			else
 				continue
-			}
 		}
-	// if (check.postmatch == 1){
-	// 	wait 1
-	// 	continue
-	// }
-	// wait 1
 	breakercounter = 0
-	// print(GetPlayerArray().len())
-	if(eCount==3 || GetPlayerArray().len() == 222220) //set to 0 to not relay if no people are on
+	if ( eCount == 3 )
 	{
 		wait 2
 		eCount = 0
-
 	}
 
 	table params = {}
 	params["password"] <- serverdetails.password
-	// params["blockerror"] <- blockedplayers.hasfailedandneedstorequestagain
 
 	params["serverid"] <- serverdetails.serverid
-	// array<string>params["texts"] <- check.textcheck
 	if (check.commandcheck.len() > 0){
 	params["commands"] <- check.commandcheck}
 	foreach (text in check.textcheck) {
-		// print(text)
     	params[text] <- text
 	}
 	if (check.timeof != "0"){
 		params["time"] <- check.timeof
 	}
-	// foreach (key,value in check.commandcheck){
-	// 	string commandid = expect string(key)
-	// 	string returntext = expect string(value)
-	// 	params[commandid] <- returntext
-	// }
 
     HttpRequest request
     request.method = HttpRequestMethod.POST
@@ -826,32 +802,14 @@ void function DiscordClientMessageinloop()
 		continue
 	}
 
-	// else if (check.allowlogging == 1 && GameTime_TimeLeftSeconds() < 60){
-	// 	// if (GameTime_TimeLeftSeconds()> check.postmatch || GameTime_TimeLeftSeconds() == 0){
-	// 	// 	wait 1
-	// 	// 	continue
-	// 	// }
-	// 	// print(GameTime_TimeLeftSeconds())
-	// 	// timeout = GameTime_TimeLeftSeconds()
-	// 	check.postmatch = GameTime_TimeLeftSeconds()
-	// }
-	// else {
-	// 	check.postmatch = 999999
-	// }
-	// if(GetScoreLimit_FromPlaylist()-50 <GameRules_GetTeamScore(TEAM_MILITIA) || GetScoreLimit_FromPlaylist()*0.95 <GameRulfes_GetTeamScore(TEAM_IMC) || GameTime_TimeLeftSeconds() < 60)
-
 	request.timeout = timeout
 
-	// print("[DiscordLogger] Sending req:")
     void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse messages )
     {
 
 		eCount = 0;
-		// print("recieved")
 		shouldsend = 1
-		// print("[DiscordLogger] MSG RECIEVED")
-		if (messages.statusCode
-		!= 200)
+		if ( messages.statusCode!= 200 )
 		{
 			print("[DiscordLogger] Error: "+messages.statusCode)
 			// print("[DiscordLogger] "+serverdetails.Requestpath + "/askformessage")
@@ -863,92 +821,35 @@ void function DiscordClientMessageinloop()
 		check.commandcheck = {}
 		// print(messages.body)
 		table messagess = DecodeJSON(messages.body)
+		if ( !( "commands" in messagess && "time" in messagess && "textsv2" in messagess && "textsv3" in messagess ) )
+			return
+
 		table commands = expect table(messagess["commands"])
-		// string texts = expect string(messagess["texts"])
 		check.timeof = expect string(messagess["time"])
-		// table texts = expect table(messagess["texts"])
 		table textsv2 = expect table(messagess["textsv2"])
 		table textsv3 = expect table(messagess["textsv3"])
-		// string textvalidation = expect string(messagess["textvalidation"])
-		// array<string> splittextvalidation = split(textvalidation,"%&%&")
-		// array<string> splittexts = split(texts,"%&%&")
-		// array<string> splitcommands = split(commands,"⌨")
-		// print(texts.len())
-		foreach (value,key in commands){
+		foreach ( value,key in commands ){
 
 			string command = expect string(key)
 			string validation = expect string(value)
 
-			print("[DiscordLogger] COMMAND "+command)
+			if ( command != "!playingpoll" && command != "/playingpoll" )
+				print("[DiscordLogger] COMMAND "+command)
 			if (command[0] == 47 || command[0] == 33){
 						runcommand(command, validation)
 			}
-			else{
-
-			ServerCommand(command)
-			// table output = {commandid="validation",returntext=command+": command not found"}
-			check.commandcheck[validation] <- EncodeJSON({statuscode=-2,output=command+": successfully ran console command"})
+			else
+			{
+				ServerCommand( command )
+				check.commandcheck[validation] <- EncodeJSON({statuscode=-2,output=command + ": Successfully ran console command."})
 
 
 		}}
-		// else if (commands.len() > 0){
-		// 	print("[DiscordLogger] RCON is not enabled, but commands were sent")
-		// }
-		// array<string> splitsenders = split(senders,"%&%#[")
-		// if(splittexts.len()!=splittextvalidation.len())
-		// {
-		// 	return
-		// }
-		// foreach (value, key in texts){
-		// 	string validation = expect string(value)
-		// 	string text = expect string(key)
-		// 	print("[DiscordLogger] MESSAGE "+text)
-		// 	check.textcheck.append(validation)
-		// 	thread discordlogsendmessage(text)
-		// 	// foreach (entity player in GetPlayerArray()) {
-		// 	// 	Chat_PrivateMessage(player,player,"\x1b[38;5;105m"+text,false)
-		// 	// }
-
-		// }
-			
-
-			// // rn textsv2 is
-			// {
-			// 	a:text,
-			// 	b:text,
-			// 	c:text,
-			// }
-			// // new format it
-			// {
-			// 	a:text
-			// 	b:overridechannel
-			// 	c:validated
-			// 	d:uid
-			// 	e:nexttext
-			// }
-			// PrintTable(textsv3)
 			foreach (v3message in orderedrecursiveunpack(textsv3,[])){
 				printt("SENDING "+v3message.content)
 				check.textcheck.append(v3message.validation)
 				thread discordlogsendmessage(v3message.content,v3message.teamoverride,v3message.uidoverride)
 			}
-		// 		foreach (key, value in textsv2){
-		// 	table textw = expect table(value)
-		// 	string text = expect string(textw["content"])
-		// 	int teamoverride = expect int(textw["teamoverride"])
-		// 	string validation = expect string(textw["validation"])
-		// 	string ovverrideuids = expect string(textw["uidoverride"])
-		// 	array<string> uidoverride =  split(ovverrideuids,",")
-		// 	print("[DiscordLogger] MESSAGE "+text)
-		// 	check.textcheck.append(validation)
-		// 	thread discordlogsendmessage(text,teamoverride,uidoverride)
-		// 	// foreach (entity player in GetPlayerArray()) {
-		// 	// 	Chat_PrivateMessage(player,player,"\x1b[38;5;105m"+text,false)
-		// 	// }
-
-		// }
-		
-
 	}
 
     void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
@@ -1017,10 +918,10 @@ void function runcommandondiscordreal(string commandname, table paramaters){
 	NSHttpRequest( request, onSuccess, onFailure )
 }
 void function runcommand(string command,string validation) {
-	check.commandcheck[validation] <- EncodeJSON({statuscode=-3,output=command+": Special command not found"})
+	check.commandcheck[validation] <- EncodeJSON({statuscode=-3,output="Unknown command."})
 	discordlogcommand commandstruct
 	commandstruct.matchid = serverdetails.matchid
-	commandstruct.returnmessage = "Nothing returned by command"
+	commandstruct.returnmessage = "No return message."
 	commandstruct.command = split(command," ")[0]
 	array <string> commandargs = split(command," ")
 	commandargs.remove(0)
