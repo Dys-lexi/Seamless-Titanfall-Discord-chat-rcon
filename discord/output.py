@@ -8460,7 +8460,69 @@ def tftodiscordcommand(specificommand, command, serverid):
         ](command, serverid, servercommand)
         return returnvalue
 
-
+async def ingameleaderboard(message,serverid,isfromserver):
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
+    command = message["originalmessage"].split(" ", 1)
+    player = [{"uid":None}]
+    if len(command) == 2:
+        player = resolveplayeruidfromdb(command[1],True,False)
+        if not player:
+            discordtotitanfall[serverid]["messages"].append(
+            {
+                "content": f"{PREFIXES['discord']}You specified {command[1]} However that name does not exist in the database",
+                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+            }
+            )
+            return
+    discordtotitanfall[serverid]["messages"].append(
+    {
+        "content": f"{PREFIXES['discord']}{f"Calculating leaderboard for {player[0]["name"]}" if player[0]["uid"] else "Calculating leaderboard"}",
+        "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+    }
+    )
+    timestamp = await asyncio.to_thread(
+                getweaponspng,
+                False,
+                False,
+                10,
+                False,
+                350,
+                player[0]["uid"],
+            )
+    cdn_url = f"{GLOBALIP}/cdn/{timestamp}"
+    if not timestamp:
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content": f"{PREFIXES['discord']}Failed to calculate leaderboard - the function crashed",
+            "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+        }
+        )
+        return
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(cdn_url + "TEST") as response:
+                if response.status != 200:
+                    discordtotitanfall[serverid]["messages"].append(
+                    {
+                        "content": f"{PREFIXES['discord']}Failed to calculate pngleaderboard - cdn error",
+                        "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+                    }
+                    )
+                    return   
+        except:
+            traceback.print_exc()
+            discordtotitanfall[serverid]["messages"].append(
+            {
+                "content": f"{PREFIXES['discord']}Failed to calculate pngleaderboard - cdn error",
+                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+            }
+            )
+            return
+    discordtotitanfall[serverid]["messages"].append(
+    {
+        "content": f"{PREFIXES['discord']}Open leaderboard in browser (open console and copy link):\n{PREFIXES["stat"]}{cdn_url}",
+    }
+    )
 def pingperson(message, serverid, isfromserver):
     """Ping somone on the discord"""
     global knownpeople

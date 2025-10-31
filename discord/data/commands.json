@@ -11,6 +11,15 @@
             "shouldblock": false,
             "permsneeded": "coolperksrole"
         },
+        "leaderboard": {
+            "games": [
+                "tf2"
+            ],
+            "function": "ingameleaderboard",
+            "run": "async",
+            "description": "Get a leaderboard. optionally do '!leaderboard lexi' for a player",
+            "shouldblock": false
+        },
         "toggle": {
             "games": [
                 "tf2","tf1"
