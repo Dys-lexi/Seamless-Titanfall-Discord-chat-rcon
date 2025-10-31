@@ -109,7 +109,7 @@ NPC_NAMES = {
     "npc_gunship": "Gunship",
     "npc_gunship_scripted": "Scripted Gunship",
     "npc_marvin": "MRVN",
-    "npc_pilot_elite":"Elite Pilot"
+    "npc_pilot_elite":"Elite Pilot",
     "npc_pilot_elite_assassin": "Elite Assassin Pilot",
     "npc_pilot_elite_assassin_cqb": "Elite Assassin Pilot (CQB)",
     "npc_pilot_elite_assassin_sniper": "Elite Assassin Pilot (Sniper)",
