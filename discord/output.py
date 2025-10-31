@@ -2451,22 +2451,26 @@ if DISCORDBOTLOGSTATS == "1":
         ctx,
         playername: Option(
             str, "Who to get a leaderboard for", autocomplete=autocompletenamesfromdb
-        ),
+        ) = None,
         leaderboard: Option(
             str,
             "What weapon (please select one or pay my power bills)",
             autocomplete=weaponnamesautocomplete,
         ) = None,
         fliptovictims: Option(str, "Flip to victims?", choices=["Yes", "No"]) = "No",
+        onlynpcscount: Option(str, "Only show leaderboards for npcs?", choices=["Yes", "No"]) = "No",
     ):
         """return a specific pngleaderboard to a person"""
         await ctx.defer()
         # def getweaponspng(swoptovictims = False,specificweapon=False, max_players=10, COLUMNS=False):
         # timestamp = await asyncio.to_thread(getweaponspng, leaderboard_entry.get("displayvictims", False),leaderboardcategorysshown, maxshown, leaderboard_entry.get("columns", False))
-        player = resolveplayeruidfromdb(playername, None, True)
-        if not player:
-            await ctx.respond(f"{playername} player not found", ephemeral=False)
-            return
+        if playername:
+            player = resolveplayeruidfromdb(playername, None, True)
+            if not player:
+                await ctx.respond(f"{playername} player not found", ephemeral=False)
+                return
+        else:
+            player = [{"uid":None,"name":"Everyone"}]
         searchterm = False
         if leaderboard:
             # tfdb = postgresem("./data/tf2helper.db")
@@ -2509,6 +2513,7 @@ if DISCORDBOTLOGSTATS == "1":
             False,
             350,
             player[0]["uid"],
+            onlynpcscount == "Yes"
         )
         cdn_url = f"{GLOBALIP}/cdn/{timestamp}"
         if not timestamp:
@@ -3675,6 +3680,7 @@ if DISCORDBOTLOGSTATS == "1":
         COLUMNS=False,
         widthoverride=300,
         playeroverride=False,
+        canonlybenpcs=False
     ):
         """calculates all the pngleaderboards"""
         global imagescdn
@@ -3859,12 +3865,12 @@ if DISCORDBOTLOGSTATS == "1":
                     modsfiltertype = specificweapon[index].get("modswanted", "include")
                     mustbekilledby = specificweapon[index].get("killedby", [])
                     # print(specificweapon[index])
-                    if (
-                        mustbekilledby
-                        and whomurdered
-                        and whomurdered not in mustbekilledby
-                    ):
-                        continue
+                    # if (
+                    #     mustbekilledby
+                    #     and whomurdered
+                    #     and whomurdered not in mustbekilledby   ###DISABLED ANYONE CAN BE IN THE LEADERBOARDS, EVEN REAPERS :D
+                    # ):
+                    #     continue
                     if (
                         not (
                             modsfiltertype == "include"
@@ -3891,6 +3897,8 @@ if DISCORDBOTLOGSTATS == "1":
                         continue
                     if not killer:
                         killer = whomurdered
+                    elif canonlybenpcs:
+                        continue
                     weapon_kills[name].setdefault(specificweapon[index]["png_name"], {})
                     weapon_kills[name][specificweapon[index]["png_name"]].setdefault(
                         killer, 0
@@ -3899,56 +3907,58 @@ if DISCORDBOTLOGSTATS == "1":
                         stabcount
                     )
 
-                for weapon, killer, mods, stabcount, whomurdered in stabsofweapons:
-                    if weapon not in specificweaponsallowedex:
-                        continue
-                    index = specificweaponsallowedex.index(weapon)
-                    modswanted = specificweapon[index].get("mods", [])
-                    modsused = mods.split(" ")
-                    if modsused == [""]:
-                        modsused = []
-                    modsfiltertype = specificweapon[index].get("modswanted", "include")
-                    mustbekilledby = specificweapon[index].get("killedby", [])
-                    # print(specificweapon[index])
-                    if (
-                        mustbekilledby
-                        and whomurdered
-                        and whomurdered not in mustbekilledby
-                    ):
-                        continue
-                    if (
-                        not (
-                            modsfiltertype == "include"
-                            and (
-                                not modswanted
-                                or list(filter(lambda x: x in modsused, modswanted))
-                            )
-                        )
-                        and not (
-                            modsfiltertype == "anyof"
-                            and len(set([*modswanted, *modsused]))
-                            < len([*modswanted, *modsused])
-                        )
-                        and not (
-                            modsfiltertype == "exclude"
-                            and len(set([*modswanted, *modsused]))
-                            == len([*modswanted, *modsused])
-                        )
-                        and not (
-                            modsfiltertype == "exact"
-                            and str(sorted(modswanted)) == str(sorted(modsused))
-                        )
-                    ):
-                        continue
-                    if not killer:
-                        killer = whomurdered
-                    weapon_kills[name].setdefault(specificweapon[index]["png_name"], {})
-                    weapon_kills[name][specificweapon[index]["png_name"]].setdefault(
-                        killer, 0
-                    )
-                    weapon_kills[name][specificweapon[index]["png_name"]][killer] += (
-                        stabcount
-                    )
+                # for weapon, killer, mods, stabcount, whomurdered in stabsofweapons:
+                #     if weapon not in specificweaponsallowedex:
+                #         continue
+                #     index = specificweaponsallowedex.index(weapon)
+                #     modswanted = specificweapon[index].get("mods", [])
+                #     modsused = mods.split(" ")
+                #     if modsused == [""]:
+                #         modsused = []
+                #     modsfiltertype = specificweapon[index].get("modswanted", "include")
+                #     mustbekilledby = specificweapon[index].get("killedby", [])
+                #     # print(specificweapon[index])
+                #     if (
+                #         mustbekilledby
+                #         and whomurdered
+                #         and whomurdered not in mustbekilledby
+                #     ):
+                #         continue
+                #     if (
+                #         not (
+                #             modsfiltertype == "include"
+                #             and (
+                #                 not modswanted
+                #                 or list(filter(lambda x: x in modsused, modswanted))
+                #             )
+                #         )
+                #         and not (
+                #             modsfiltertype == "anyof"
+                #             and len(set([*modswanted, *modsused]))
+                #             < len([*modswanted, *modsused])
+                #         )
+                #         and not (
+                #             modsfiltertype == "exclude"
+                #             and len(set([*modswanted, *modsused]))
+                #             == len([*modswanted, *modsused])
+                #         )
+                #         and not (
+                #             modsfiltertype == "exact"
+                #             and str(sorted(modswanted)) == str(sorted(modsused))
+                #         )
+                #     ):
+                #         continue
+                #     if not killer:
+                #         killer = whomurdered
+                #     elif canonlybenpcs:
+                #         continue
+                #     weapon_kills[name].setdefault(specificweapon[index]["png_name"], {})
+                #     weapon_kills[name][specificweapon[index]["png_name"]].setdefault(
+                #         killer, 0
+                #     )
+                #     weapon_kills[name][specificweapon[index]["png_name"]][killer] += (
+                #         stabcount
+                #     )
         else:
             weapon_kills = {"main": {}, "cutoff": {}}
             for name, cutoff in timecutoffs.items():
@@ -3957,6 +3967,8 @@ if DISCORDBOTLOGSTATS == "1":
                 ):
                     if not killer:
                         killer = whomurdered
+                    elif canonlybenpcs:
+                        continue
                     weapon_kills[name].setdefault(f"{weapon}", {})
                     weapon_kills[name][f"{weapon}"].setdefault(killer, 0)
                     weapon_kills[name][f"{weapon}"][killer] += stabcount
@@ -4191,10 +4203,10 @@ if DISCORDBOTLOGSTATS == "1":
                     resolved = resolveplayeruidfromdb(attacker, "uid", True)
                     if not playeroverride:
                         name = (
-                            resolved[0]["name"] if attacker and resolved else attacker
+                            resolved[0]["name"] if attacker and resolved else NPC_NAMES.get(attacker,attacker)
                         )
                     else:
-                        name = f"{i + 1 + sorted_player_index}) {resolved[0]['name'] if attacker and resolved else attacker}"
+                        name = f"{i + 1 + sorted_player_index}) {resolved[0]['name'] if attacker and resolved else NPC_NAMES.get(attacker,attacker)}"
                     delta_kills = count - oldkills
                     previous_index = sorted_players_cutoff.index(attacker)
                     delta = previous_index - i
