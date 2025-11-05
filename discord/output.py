@@ -10040,7 +10040,7 @@ def togglepersistentvar(message, serverid, isfromserver):
 
     
     
-    if commandnotenabledonthisserver := (
+    if (commandnotenabledonthisserver := (
             len(args) and
              int(serverid) not in getpriority(
         context,
@@ -10050,7 +10050,7 @@ def togglepersistentvar(message, serverid, isfromserver):
             args[0],
             "serversenabled",
         ],nofind=[int(serverid)])
-        ) or (not len(args) or args[0] not in [
+        )) or (not len(args) or args[0] not in [
         *list(
             map(
                 lambda x: x[0],
@@ -10062,7 +10062,7 @@ def togglepersistentvar(message, serverid, isfromserver):
         )]):
         # we need to find all the toggle commands! they all run toggle stats.
         cmdcounter = 0
-        if not commandnotenabledonthisserver:
+        if not commandnotenabledonthisserver or not len(args):
             for name, command in context["commands"]["ingamecommands"].items():
                 if (
                     command.get("run") != "togglestat"
@@ -10471,10 +10471,10 @@ def calcstats(message, serverid, isfromserver):
         tf1pullstats(message, serverid)
     else:
         if len(message.get("originalmessage", "w").split(" ")) > 1:
-            output = getstats(" ".join(message["originalmessage"].split(" ")[1:]))
+            output = getstats(" ".join(message["originalmessage"].split(" ")[1:]),isfromserver)
         else:
             # print(getpriority(message,"originalname","name"))
-            output = getstats(str(getpriority(message, "originalname", "name")))
+            output = getstats(str(getpriority(message, "originalname", "name")),isfromserver)
         name = resolveplayeruidfromdb(
             getpriority(message, "originalname", "name"), None, True
         )
@@ -12878,7 +12878,7 @@ def convansi(rgb):
     return ansi_code
 
 
-def getstats(playeruid):
+def getstats(playeruid,isfromserver = False):
     """Comprehensive player statistics calculator with kill/death ratios, rankings, and weapon usage data"""
     # print(int(time.time()))
     tfdb = postgresem("./data/tf2helper.db")
@@ -12893,6 +12893,7 @@ def getstats(playeruid):
         output = output[0]
         name = output["name"]
         playeruid = output["uid"]
+        lastserverid = output["lastserverid"]
     except:
         traceback.print_exc()
         name = "unknown"
@@ -13086,6 +13087,36 @@ def getstats(playeruid):
     # top_weapons.append( (request.get_json()["current_weapon"],currentgun[0]))
     # print(currentgun)
     # output["total"]["top_weapons"] = top_weapons
+    c.execute("""
+    SELECT
+        SUM(CASE
+                WHEN matchid != ? AND
+                    ((initiator=? AND initiatorscore>receiverscore) OR
+                    (receiver=?   AND receiverscore>initiatorscore))
+                THEN 1 ELSE 0
+            END) AS wins,
+        SUM(CASE
+                WHEN matchid != ? AND
+                    ((initiator=? AND initiatorscore<receiverscore) OR
+                    (receiver=?   AND receiverscore<initiatorscore))
+                THEN 1 ELSE 0
+            END) AS losses,
+        SUM(CASE
+                WHEN matchid != ? AND
+                    (initiator=? OR receiver=?) AND
+                    initiatorscore=receiverscore
+                THEN 1 ELSE 0
+            END) AS draws,
+        SUM(CASE
+                WHEN (initiator=? OR receiver=?)
+                THEN 1 ELSE 0
+            END) AS duels
+    FROM duels
+    """, (str(isfromserver or mostrecentmatchids.get(lastserverid) or True),playeruid, playeruid,str(isfromserver or mostrecentmatchids.get(lastserverid) or True),playeruid, playeruid,str(isfromserver or mostrecentmatchids.get(lastserverid) or True),playeruid, playeruid,playeruid,playeruid))
+    # print(isfromserver or mostrecentmatchids.get(lastserverid))
+    duelstats = (c.fetchone() or [0,0,0,0] )
+    duelstats = {"win":duelstats[0],"defeat":duelstats[1],"draw":duelstats[2],"total duel":duelstats[3]}
+    output["duelstats"] = duelstats
     c.execute(
         """
         SELECT cause_of_death, COUNT(*) as kill_count
@@ -13157,6 +13188,12 @@ def getstats(playeruid):
         f"[38;5;{colour}m{name}{PREFIXES['chatcolour']} has {PREFIXES['stat']}{output['total']['killstoday']}{' ' + PREFIXES['stat2'] + '#' + str(output['total']['killslasthourpos']) if output['total']['killslasthourpos'] else ''}{PREFIXES['chatcolour']} kill{'s' if output['total']['killstoday'] != 1 else ''} today and {PREFIXES['stat']}{output['total']['deathstoday']}{' ' + PREFIXES['stat2'] + '#' + str(output['total']['deathslasthourpos']) if output['total']['deathslasthourpos'] else ''} {PREFIXES['chatcolour']}death{'s' if output['total']['deathstoday'] != 1 else ''} today"
     )
     offset += 1
+    if output["duelstats"]["total duel"]:
+        messages[str(offset)] = (
+            f"[38;5;{colour}m{name}{PREFIXES['chatcolour']} duel stats are: {", ".join(list(map(lambda x: f"{PREFIXES['stat']}{x[1]}{PREFIXES["chatcolour"]} {x[0]}{"s" if x[1] -1 else ""}", output["duelstats"].items())))} "
+        )
+        offset += 1
+
 
     # if len(messages):
     # output["messages"] = messages
