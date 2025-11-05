@@ -252,6 +252,39 @@ def messagelogger():
     tfdb.commit()
     tfdb.close()
 
+def duelsinit():
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
+    # c.execute("DROP TABLE IF EXISTS DUELS")
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS duels (
+            initiator INTEGER,
+            receiver INTEGER,
+            matchid TEXT,
+            initiatorscore INTEGER,
+            receiverscore INTEGER,
+            serverid TEXT,
+            isfinished INTEGER,
+            PRIMARY KEY (initiator, receiver,matchid)
+        )"""
+    )
+    # try:
+    #     c.execute("ALTER TABLE messagelogger ADD COLUMN serverid INTEGER")
+    #     c.execute("ALTER TABLE messagelogger ADD COLUMN type TEXT")
+    # except sqlite3.OperationalError:
+    #     pass
+    if POSTGRESQLDBURL != "0":
+        c.execute("""
+        ALTER TABLE duels
+        ALTER COLUMN initiator TYPE BIGINT USING initiator::BIGINT;
+        """)
+    if POSTGRESQLDBURL != "0":
+        c.execute("""
+        ALTER TABLE duels
+        ALTER COLUMN receiver TYPE BIGINT USING receiver::BIGINT;
+        """)
+    tfdb.commit()
+    tfdb.close()
 
 def discorduidinfodb():
     global colourslink
@@ -713,6 +746,7 @@ discorduidnamelink = {}
 reactedyellowtoo = []
 knownpeople = {}
 currentduels = {}
+mostrecentmatchids = {}
 potentialduels = {}
 registeredaccepts = {}
 
@@ -1201,6 +1235,7 @@ playeruidnamelink()
 joincounterdb()
 matchid()
 discorduidinfodb()
+duelsinit()
 messagelogger()
 playeruidpreferences()
 creatediscordlinkdb()
@@ -8577,9 +8612,10 @@ def acceptsomething(message,serverid,isfromserver):
 
 def duelcallback(kill):
     global currentduels
-    # print(potentialduels)
-    # print([potentialduels[kill["match_id"]]])
-    if not potentialduels.get(kill["match_id"]) or not kill.get("victim_id") or not kill.get("attacker_id") and kill.get("victim_type") == "player" or getpriority(potentialduels,[kill["match_id"],str(kill["victim_id"])]) != str(kill["attacker_id"]):
+    # print(json.dumps(kill,indent=4))
+    # print(json.dumps(potentialduels,indent=4))
+    if not potentialduels.get(kill["match_id"]) or not kill.get("victim_id") or not kill.get("attacker_id") or kill.get("victim_type") != "player" or str(kill["attacker_id"]) not in  getpriority(potentialduels,[kill["match_id"],str(kill["victim_id"])],nofind = []) :
+        # print("here1")
         return # a duel has been requested, and may or may not exist
         # print("this one counts!")
     if getpriority(currentduels,[kill["server_id"],kill["match_id"],kill["victim_id"],kill["attacker_id"]]):
@@ -8587,32 +8623,68 @@ def duelcallback(kill):
     elif getpriority(currentduels,[kill["server_id"],kill["match_id"],kill["attacker_id"],kill["victim_id"]]):
         whogoesfirst = ("attacker_id","victim_id")
     else:
+        # print("here2")
         return # duel no exist
     currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["attacker_id"]] +=1
     equalkills = not currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["attacker_id"]] - currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["victim_id"]]
-    discordtotitanfall[kill["server_id"]]["messages"].append(
-        {
-            "content": f"{PREFIXES['duel']}{f" {PREFIXES["commandname"]}vs ".join(list(functools.reduce(lambda a,x:[a[0]+1,[*a[1],f"{PREFIXES[("green" if not a[0]  else "warning") if not equalkills else "silver"]}{resolveplayeruidfromdb(x[0],None,False)[0]["name"]}: {PREFIXES["stat"]}{x[1]} {PREFIXES['chatcolour']}kill{x[1]-1 and "s" or ""}"]],sorted(list(currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]].items()),key =lambda x: x[1],reverse = True),[0,[]])[1]))}",
-            "uidoverride": [kill["attacker_id"],kill["victim_id"]],
-        }
-    )
+    discordtotitanfall[kill["server_id"]]["messages"].append({"content": f"{PREFIXES['duel']}{f" {PREFIXES["commandname"]}vs ".join(list(functools.reduce(lambda a,x:[a[0]+1,[*a[1],f"{PREFIXES[("green" if not a[0]  else "warning") if not equalkills else "silver"]}{resolveplayeruidfromdb(x[0],None,False)[0]["name"]}: {PREFIXES["stat"]}{x[1]} {PREFIXES['chatcolour']}kill{x[1]-1 and "s" or ""}"]],sorted(list(currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]].items()),key =lambda x: x[1],reverse = True),[0,[]])[1]))}","uidoverride": [kill["attacker_id"],kill["victim_id"]],})
     # print(f"{PREFIXES['duel']}{" vs ".join(list(map(lambda x:f"{PREFIXES["green" if x[0] == kill["attacker_id"] else "warning"]}{resolveplayeruidfromdb(x[0],None,False)[0]["name"]}: {x[1]} kill{x[1]-1 and "s" or ""}",sorted(list(currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]].items()),key =lambda x: x[1],reverse = True))))}")
-
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
+    c.execute("UPDATE duels SET initiatorscore = ?, receiverscore = ? WHERE initiator = ? AND receiver = ? AND matchid = ?",
+    (currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["attacker_id"]],currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["victim_id"]],kill[whogoesfirst[0]],kill[whogoesfirst[1]],kill["match_id"]))
+    tfdb.commit()
+    tfdb.close()
 def startaduel(who):
     global currentduels
+    # print(mostrecentmatchids)
+    # print(json.dumps(currentduels,indent=4))
 
-
-
+    for serverid in currentduels:
+        for matchid in currentduels[serverid]:
+            if mostrecentmatchids.get(serverid) and mostrecentmatchids.get(serverid) != matchid:
+                # print(mostrecentmatchids.get(serverid),matchid)
+                del currentduels[matchid]
     person1 = resolveplayeruidfromdb(who["inituid"],None,True)[0]
     person2 = resolveplayeruidfromdb(who["otheruid"],None,True)[0]
+    # print(person1,person2)
+    # print(who["inituid"],who["otheruid"])
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
+    c.execute("SELECT initiatorscore, receiverscore FROM duels WHERE initiator = ? AND receiver = ? AND matchid = ?",
+    (who["inituid"],who["otheruid"],who["matchid"]))
+    currentstabs = (c.fetchone())
+    if not currentstabs:
+        c.execute("SELECT initiatorscore, receiverscore FROM duels WHERE receiver = ? AND initiator = ? AND matchid = ?",(who["inituid"],who["otheruid"],who["matchid"]))
+        currentstabs = (c.fetchone())
+        if currentstabs:
+            person1, person2 = person2, person1
+            currentstabs = list(currentstabs)
+        else:
+            currentstabs = [0,0]
+
+    c.execute("INSERT INTO duels (initiator,receiver,matchid,initiatorscore,receiverscore,serverid,isfinished) VALUES (?,?,?,?,?,?,?) ON CONFLICT DO NOTHING",(who["inituid"],who["otheruid"],who["matchid"],0,0,who["serverid"],0))
+    c.execute("SELECT initiatorscore, receiverscore FROM duels WHERE initiator = ? AND receiver = ? AND matchid = ?",
+    (who["inituid"],who["otheruid"],who["matchid"]))
+    
+    
+    tfdb.commit()
+    tfdb.close()
+    deep_set(currentduels,[who["serverid"],who["matchid"],str(person1["uid"]),str(person2["uid"])],{str(person1["uid"]):currentstabs[0],str(person2["uid"]):currentstabs[1]})
+    # print(json.dumps(currentduels,indent=4))
+    if currentstabs != [0,0]:
+        discordtotitanfall[who["serverid"]]["messages"].append(
+            {
+                "content": f"{PREFIXES['discord']}Resuming existing duel bettween {PREFIXES["stat"]}{person1["name"]}{PREFIXES["chatcolour"]} and {PREFIXES["stat"]}{person2["name"]}{PREFIXES["chatcolour"]}",
+                "uidoverride": [who["otheruid"],who["inituid"]],
+            }
+        )
     discordtotitanfall[who["serverid"]]["messages"].append(
         {
             "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{person2["name"]}{PREFIXES["chatcolour"]} has agreed to duel {PREFIXES["stat"]}{person1["name"]}{PREFIXES["chatcolour"]}!",
             # "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
         }
     )
-    deep_set(currentduels,[who["serverid"],who["matchid"],str(person1["uid"]),str(person2["uid"])],{str(person1["uid"]):0,str(person2["uid"]):0})
-
 def duelsomone(message,serverid,isfromserver):
     global potentialduels
     """Duels!"""
@@ -8641,7 +8713,7 @@ def duelsomone(message,serverid,isfromserver):
         )
         return
     # print(potentialduels)
-    if list(duelymatches.keys())[0] != getpriority(potentialduels,[list(duelymatches.values())[0]["matchid"],(str(getpriority(message, "uid", ["meta", "uid"])))]):
+    if list(duelymatches.keys())[0] not in getpriority(potentialduels,[list(duelymatches.values())[0]["matchid"],(str(getpriority(message, "uid", ["meta", "uid"])))],nofind = []):
         command = registernewaccept(list(duelymatches.keys())[0],list(duelymatches.values())[0]["matchid"],{"matchid":list(duelymatches.values())[0]["matchid"],"inituid":str(getpriority(message, "uid", ["meta", "uid"])),"otheruid":list(duelymatches.keys())[0],"serverid":serverid},startaduel)
         discordtotitanfall[serverid]["messages"].append(
         {
@@ -8654,8 +8726,8 @@ def duelsomone(message,serverid,isfromserver):
             "uidoverride": [list(duelymatches.keys())[0]],
         })
         potentialduels.setdefault(list(duelymatches.values())[0]["matchid"],{})
-        potentialduels[list(duelymatches.values())[0]["matchid"]][list(duelymatches.keys())[0]] = str(getpriority(message, "uid", ["meta", "uid"]))
-        potentialduels[list(duelymatches.values())[0]["matchid"]][str(getpriority(message, "uid", ["meta", "uid"]))] = list(duelymatches.keys())[0]
+        potentialduels[list(duelymatches.values())[0]["matchid"]].setdefault(list(duelymatches.keys())[0],[]) .append( str(getpriority(message, "uid", ["meta", "uid"])))
+        potentialduels[list(duelymatches.values())[0]["matchid"]].setdefault(str(getpriority(message, "uid", ["meta", "uid"])),[]) .append( list(duelymatches.keys())[0])
 
         # print(json.dumps(currentduels,indent=4))
     else:
@@ -12239,7 +12311,7 @@ def playerpolllog(data, serverid, statuscode):
     """Processes server player poll data and manages join/leave events with database updates"""
     # print("playerpoll",serverid,statuscode)
     Ithinktheplayerhasleft = 90
-    global discordtotitanfall, playercontext, playerjoinlist, matchids, peopleonline
+    global discordtotitanfall, playercontext, playerjoinlist, matchids, peopleonline,mostrecentmatchids
     # save who is playing on the specific server into playercontext.
     # dicts kind of don't support composite primary keys..
     # use the fact that theoretically one player can be on just one server at a time
@@ -12312,6 +12384,7 @@ def playerpolllog(data, serverid, statuscode):
             )
         ),
     }
+    mostrecentmatchids[serverid] = matchid
     # print(peopleonline)
 
     # playercontext[pinfo["uid"]+pinfo["name"]] = {"joined":now,"map":map,"name":pinfo["name"],"uid":pinfo["uid"],"idoverride":0,"endtime":0,"serverid":serverid,"kills":0,"deaths":0,"titankills":0,"npckills":0,"score":0}
