@@ -8636,7 +8636,7 @@ def duelcallback(kill):
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
     c.execute("UPDATE duels SET initiatorscore = ?, receiverscore = ? WHERE initiator = ? AND receiver = ? AND matchid = ?",
-    (currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["attacker_id"]],currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["victim_id"]],kill[whogoesfirst[0]],kill[whogoesfirst[1]],kill["match_id"]))
+    (currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill[whogoesfirst[0]]],currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill[whogoesfirst[1]]],kill[whogoesfirst[0]],kill[whogoesfirst[1]],kill["match_id"]))
     tfdb.commit()
     tfdb.close()
 
