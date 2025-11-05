@@ -6309,6 +6309,10 @@ def recieveflaskprintrequests():
             traceback.print_exc()
             pass
         # print("ASKING SERVER TO STOP")
+        try:
+            printduelwinnings(data["serverid"])
+        except:
+            traceback.print_exc()
         if not data.get("dontdisablethings"):
             stoprequestsforserver[data["serverid"]] = True
             try:
@@ -8635,6 +8639,35 @@ def duelcallback(kill):
     (currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["attacker_id"]],currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["victim_id"]],kill[whogoesfirst[0]],kill[whogoesfirst[1]],kill["match_id"]))
     tfdb.commit()
     tfdb.close()
+
+def printduelwinnings(serverid):
+    if not( matchid:= mostrecentmatchids.get(serverid) )or not getpriority(currentduels,[serverid,matchid]):
+        return
+    for attacker in currentduels[serverid][matchid]:
+        for otherperson in currentduels[serverid][matchid][attacker]:
+            if currentduels[serverid][matchid][attacker][otherperson][attacker] > currentduels[serverid][matchid][attacker][otherperson][otherperson]:
+                discordtotitanfall[serverid]["messages"].append(
+                    {
+                        "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{resolveplayeruidfromdb(attacker,None,True)[0]["name"]}{PREFIXES["chatcolour"]} won the duel against {PREFIXES["stat"]}{resolveplayeruidfromdb(otherperson,None,True)[0]["name"]}{PREFIXES["chatcolour"]}! ({currentduels[serverid][matchid][attacker][otherperson][attacker]}:{currentduels[serverid][matchid][attacker][otherperson][otherperson]})",
+                        # "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+                    }
+                )   
+            elif currentduels[serverid][matchid][attacker][otherperson][attacker] == currentduels[serverid][matchid][attacker][otherperson][otherperson]:
+                discordtotitanfall[serverid]["messages"].append(
+                    {
+                        "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{resolveplayeruidfromdb(attacker,None,True)[0]["name"]}{PREFIXES["chatcolour"]} tied in the duel against {PREFIXES["stat"]}{resolveplayeruidfromdb(otherperson,None,True)[0]["name"]}{PREFIXES["chatcolour"]}! ({currentduels[serverid][matchid][attacker][otherperson][attacker]}:{currentduels[serverid][matchid][attacker][otherperson][otherperson]})",
+                        # "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+                    }
+                )   
+            elif currentduels[serverid][matchid][attacker][otherperson][attacker] < currentduels[serverid][matchid][attacker][otherperson][otherperson]:
+                discordtotitanfall[serverid]["messages"].append(
+                    {
+                        "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{resolveplayeruidfromdb(attacker,None,True)[0]["name"]}{PREFIXES["chatcolour"]} lost the duel against {PREFIXES["stat"]}{resolveplayeruidfromdb(otherperson,None,True)[0]["name"]}{PREFIXES["chatcolour"]}! ({currentduels[serverid][matchid][attacker][otherperson][attacker]}:{currentduels[serverid][matchid][attacker][otherperson][otherperson]})",
+                        # "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+                    }
+                )   
+            else:
+                print("sob")
 def startaduel(who):
     global currentduels
     # print(mostrecentmatchids)
