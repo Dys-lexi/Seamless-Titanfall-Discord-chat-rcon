@@ -8677,7 +8677,7 @@ def startaduel(who):
         for matchid in currentduels[serverid]:
             if mostrecentmatchids.get(serverid) and mostrecentmatchids.get(serverid) != matchid:
                 # print(mostrecentmatchids.get(serverid),matchid)
-                del currentduels[matchid]
+                del currentduels[serverid][matchid]
     person1 = resolveplayeruidfromdb(who["inituid"],None,True)[0]
     person2 = resolveplayeruidfromdb(who["otheruid"],None,True)[0]
     # print(person1,person2)
