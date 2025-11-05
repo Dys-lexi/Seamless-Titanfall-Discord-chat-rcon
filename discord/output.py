@@ -8577,12 +8577,9 @@ def acceptsomething(message,serverid,isfromserver):
 
 def duelcallback(kill):
     global currentduels
-    print(json.dumps(kill,indent=4))
     # print(potentialduels)
     # print([potentialduels[kill["match_id"]]])
-    print(currentduels)
     if not potentialduels.get(kill["match_id"]) or not kill.get("victim_id") or not kill.get("attacker_id") and kill.get("victim_type") == "player" or getpriority(potentialduels,[kill["match_id"],str(kill["victim_id"])]) != str(kill["attacker_id"]):
-        print("here")
         return # a duel has been requested, and may or may not exist
         # print("this one counts!")
     if getpriority(currentduels,[kill["server_id"],kill["match_id"],kill["victim_id"],kill["attacker_id"]]):
@@ -8590,21 +8587,21 @@ def duelcallback(kill):
     elif getpriority(currentduels,[kill["server_id"],kill["match_id"],kill["attacker_id"],kill["victim_id"]]):
         whogoesfirst = ("attacker_id","victim_id")
     else:
-        print("here2")
         return # duel no exist
     currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["attacker_id"]] +=1
+    equalkills = not currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["attacker_id"]] - currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["victim_id"]]
     discordtotitanfall[kill["server_id"]]["messages"].append(
         {
-            "content": f"{PREFIXES['duel']}{f" {PREFIXES["commandname"]}vs ".join(list(map(lambda x:f"{PREFIXES["green" if x[0] == kill["attacker_id"] else "warning"]}{resolveplayeruidfromdb(x[0],None,False)[0]["name"]}: {PREFIXES["stat"]}{x[1]} {PREFIXES['chatcolour']}kill{x[1]-1 and "s" or ""}",sorted(list(currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]].items()),key =lambda x: x[1],reverse = True))))}",
+            "content": f"{PREFIXES['duel']}{f" {PREFIXES["commandname"]}vs ".join(list(functools.reduce(lambda a,x:[a[0]+1,[*a[1],f"{PREFIXES[("green" if not a[0]  else "warning") if not equalkills else "silver"]}{resolveplayeruidfromdb(x[0],None,False)[0]["name"]}: {PREFIXES["stat"]}{x[1]} {PREFIXES['chatcolour']}kill{x[1]-1 and "s" or ""}"]],sorted(list(currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]].items()),key =lambda x: x[1],reverse = True),[0,[]])[1]))}",
             "uidoverride": [kill["attacker_id"],kill["victim_id"]],
         }
     )
-    print(f"{PREFIXES['duel']}{" vs ".join(list(map(lambda x:f"{PREFIXES["green" if x[0] == kill["attacker_id"] else "warning"]}{resolveplayeruidfromdb(x[0],None,False)[0]["name"]}: {x[1]} kill{x[1]-1 and "s" or ""}",sorted(list(currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]].items()),key =lambda x: x[1],reverse = True))))}")
+    # print(f"{PREFIXES['duel']}{" vs ".join(list(map(lambda x:f"{PREFIXES["green" if x[0] == kill["attacker_id"] else "warning"]}{resolveplayeruidfromdb(x[0],None,False)[0]["name"]}: {x[1]} kill{x[1]-1 and "s" or ""}",sorted(list(currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]].items()),key =lambda x: x[1],reverse = True))))}")
 
 def startaduel(who):
     global currentduels
 
-    print(who["inituid"],who["otheruid"])
+
 
     person1 = resolveplayeruidfromdb(who["inituid"],None,True)[0]
     person2 = resolveplayeruidfromdb(who["otheruid"],None,True)[0]
@@ -8615,7 +8612,7 @@ def startaduel(who):
         }
     )
     deep_set(currentduels,[who["serverid"],who["matchid"],str(person1["uid"]),str(person2["uid"])],{str(person1["uid"]):0,str(person2["uid"]):0})
-    print(json.dumps(currentduels,indent=4))
+
 def duelsomone(message,serverid,isfromserver):
     global potentialduels
     """Duels!"""
@@ -8634,7 +8631,7 @@ def duelsomone(message,serverid,isfromserver):
     
     duelymatches = dict(filter(lambda x: person.lower() in x[1]["name"].lower() and x[1]["serverid"] == serverid, peopleonline.items()))
     
-    print(duelymatches)
+    # print(duelymatches)
     if  (cannotduelyourself := str(getpriority(message, "uid", ["meta", "uid"])) in duelymatches and False) or (toomany := (len(duelymatches) > 1)) or not len(duelymatches) :
         discordtotitanfall[serverid]["messages"].append(
             {
@@ -8643,7 +8640,7 @@ def duelsomone(message,serverid,isfromserver):
             }
         )
         return
-    print(potentialduels)
+    # print(potentialduels)
     if list(duelymatches.keys())[0] != getpriority(potentialduels,[list(duelymatches.values())[0]["matchid"],(str(getpriority(message, "uid", ["meta", "uid"])))]):
         command = registernewaccept(list(duelymatches.keys())[0],list(duelymatches.values())[0]["matchid"],{"matchid":list(duelymatches.values())[0]["matchid"],"inituid":str(getpriority(message, "uid", ["meta", "uid"])),"otheruid":list(duelymatches.keys())[0],"serverid":serverid},startaduel)
         discordtotitanfall[serverid]["messages"].append(
