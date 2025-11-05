@@ -435,11 +435,12 @@ def readplayeruidpreferences(uid, istf1=False):
     return output
 
 
-def deep_set(d, keys, value):
+def deep_set(d, keys, value="not added"):
     """like setdefault, but seeeeets default"""
     for key in keys[:-1]:
         d = d.setdefault(key, {})
-    d[keys[-1]] = value
+    if value != "not added":
+        d[keys[-1]] = value
 
 
 def setplayeruidpreferences(path, value, uid, istf1=False):
@@ -711,6 +712,9 @@ Ijuststarted = time.time()
 discorduidnamelink = {}
 reactedyellowtoo = []
 knownpeople = {}
+currentduels = {}
+potentialduels = {}
+registeredaccepts = {}
 
 
 # log_file = "logs"
@@ -6968,7 +6972,10 @@ def recieveflaskprintrequests():
                     # "victimweapon":data.get("victim_current_weapon", None),
                 }
             )
-
+        try:
+            duelcallback(data)
+        except:
+            traceback.print_exc()
         tfdb = postgresem("./data/tf2helper.db")
         c = tfdb
         c.execute(
@@ -8369,6 +8376,7 @@ def tftodiscordcommand(specificommand, command, serverid):
             )
             return
         if (
+            specificommand in context["commands"]["ingamecommands"] and
             not istf1
             and bool(getpriority(command, ["meta", "blockedcommand"]))
             != bool(
@@ -8377,7 +8385,9 @@ def tftodiscordcommand(specificommand, command, serverid):
             and specificommand != "toggle"
         ) or (
             specificommand == "toggle"
+
             and command["originalmessage"].split(" ")[1:]
+            and command["originalmessage"].split(" ")[1:][0] in context["commands"]["ingamecommands"]
             and bool(getpriority(command, ["meta", "blockedcommand"]))
             != bool(
                 context["commands"]["ingamecommands"][
@@ -8523,6 +8533,142 @@ async def ingameleaderboard(message,serverid,isfromserver):
         "content": f"{PREFIXES['discord']}Open leaderboard in browser (open console and copy link):\n{PREFIXES["stat"]}{cdn_url}",
     }
     )
+
+def registernewaccept(uid,matchid,additionaldata,function):
+    global registeredaccepts
+    registeredaccepts.setdefault(str(matchid),{}).setdefault(str(uid),[]).append({"additional":additionaldata,"func":function})
+    if  len(registeredaccepts[str(matchid)][str(uid)]) == 1:
+        return "!accept"
+    else:
+        return f"!accept {len(registeredaccepts[str(matchid)][str(uid)])}"
+
+def acceptsomething(message,serverid,isfromserver):
+    accept = message["originalmessage"].split(" ", 1)
+    acceptednumber = 1
+    if len(accept) == 2 and accept[1].isdigit():
+        acceptednumber = int(accept[1])
+    elif len(accept) == 2:
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                "content": f"{PREFIXES['discord']}You have to use a number as the second arg (!accept 2)",
+                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+            }
+        )    
+        return
+    acceptednumber -= 1
+    if  len(getpriority(registeredaccepts,[peopleonline.get(str(getpriority(message, "uid", ["meta", "uid"])),{}).get("matchid"),str(getpriority(message, "uid", ["meta", "uid"]))],nofind = [])) <= acceptednumber:
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                "content": f"{PREFIXES['discord']}You have nothing to accept / you put in an invalid number",
+                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+            }
+        )
+        return
+    if not getpriority(registeredaccepts,[peopleonline.get(str(getpriority(message, "uid", ["meta", "uid"])),{}).get("matchid"),str(getpriority(message, "uid", ["meta", "uid"]))],nofind = [])[acceptednumber]:
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                "content": f"{PREFIXES['discord']}You already accepted this!",
+                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+            }
+        )
+        return
+    getpriority(registeredaccepts,[peopleonline.get(str(getpriority(message, "uid", ["meta", "uid"])),{}).get("matchid"),str(getpriority(message, "uid", ["meta", "uid"]))],nofind = [])[acceptednumber]["func"](getpriority(registeredaccepts,[peopleonline.get(str(getpriority(message, "uid", ["meta", "uid"])),{}).get("matchid"),str(getpriority(message, "uid", ["meta", "uid"]))],nofind = [])[acceptednumber]["additional"])
+    registeredaccepts[peopleonline.get(str(getpriority(message, "uid", ["meta", "uid"])),{}).get("matchid")][str(getpriority(message, "uid", ["meta", "uid"]))][acceptednumber] = False
+
+def duelcallback(kill):
+    global currentduels
+    print(json.dumps(kill,indent=4))
+    # print(potentialduels)
+    # print([potentialduels[kill["match_id"]]])
+    print(currentduels)
+    if not potentialduels.get(kill["match_id"]) or not kill.get("victim_id") or not kill.get("attacker_id") and kill.get("victim_type") == "player" or getpriority(potentialduels,[kill["match_id"],str(kill["victim_id"])]) != str(kill["attacker_id"]):
+        print("here")
+        return # a duel has been requested, and may or may not exist
+        # print("this one counts!")
+    if getpriority(currentduels,[kill["server_id"],kill["match_id"],kill["victim_id"],kill["attacker_id"]]):
+        whogoesfirst = ("victim_id","attacker_id")
+    elif getpriority(currentduels,[kill["server_id"],kill["match_id"],kill["attacker_id"],kill["victim_id"]]):
+        whogoesfirst = ("attacker_id","victim_id")
+    else:
+        print("here2")
+        return # duel no exist
+    currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["attacker_id"]] +=1
+    discordtotitanfall[kill["server_id"]]["messages"].append(
+        {
+            "content": f"{PREFIXES['duel']}{f" {PREFIXES["commandname"]}vs ".join(list(map(lambda x:f"{PREFIXES["green" if x[0] == kill["attacker_id"] else "warning"]}{resolveplayeruidfromdb(x[0],None,False)[0]["name"]}: {PREFIXES["stat"]}{x[1]} {PREFIXES['chatcolour']}kill{x[1]-1 and "s" or ""}",sorted(list(currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]].items()),key =lambda x: x[1],reverse = True))))}",
+            "uidoverride": [kill["attacker_id"],kill["victim_id"]],
+        }
+    )
+    print(f"{PREFIXES['duel']}{" vs ".join(list(map(lambda x:f"{PREFIXES["green" if x[0] == kill["attacker_id"] else "warning"]}{resolveplayeruidfromdb(x[0],None,False)[0]["name"]}: {x[1]} kill{x[1]-1 and "s" or ""}",sorted(list(currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]].items()),key =lambda x: x[1],reverse = True))))}")
+
+def startaduel(who):
+    global currentduels
+
+    print(who["inituid"],who["otheruid"])
+
+    person1 = resolveplayeruidfromdb(who["inituid"],None,True)[0]
+    person2 = resolveplayeruidfromdb(who["otheruid"],None,True)[0]
+    discordtotitanfall[who["serverid"]]["messages"].append(
+        {
+            "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{person2["name"]}{PREFIXES["chatcolour"]} has agreed to duel {PREFIXES["stat"]}{person1["name"]}{PREFIXES["chatcolour"]}!",
+            # "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+        }
+    )
+    deep_set(currentduels,[who["serverid"],who["matchid"],str(person1["uid"]),str(person2["uid"])],{str(person1["uid"]):0,str(person2["uid"]):0})
+    print(json.dumps(currentduels,indent=4))
+def duelsomone(message,serverid,isfromserver):
+    global potentialduels
+    """Duels!"""
+
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
+    command = message["originalmessage"].split(" ", 1)
+    if len(command) == 1:
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                "content": f"{PREFIXES['discord']}You need to specify a name, or part of one to duel a player",
+                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+            }
+        )
+        return
+    person = command[1]
+    
+    duelymatches = dict(filter(lambda x: person.lower() in x[1]["name"].lower() and x[1]["serverid"] == serverid, peopleonline.items()))
+    
+    print(duelymatches)
+    if  (cannotduelyourself := str(getpriority(message, "uid", ["meta", "uid"])) in duelymatches and False) or (toomany := (len(duelymatches) > 1)) or not len(duelymatches) :
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{person}{PREFIXES["chatcolour"]} {("does not match anyone on the server - perhaps wait a bit for the bot to discover people" if not toomany else f"matches {", ".join(map(lambda x:x["name"],duelymatches.values()))}") if not cannotduelyourself else "matches yourself - you cannot duel yourself!"}",
+                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+            }
+        )
+        return
+    print(potentialduels)
+    if list(duelymatches.keys())[0] != getpriority(potentialduels,[list(duelymatches.values())[0]["matchid"],(str(getpriority(message, "uid", ["meta", "uid"])))]):
+        command = registernewaccept(list(duelymatches.keys())[0],list(duelymatches.values())[0]["matchid"],{"matchid":list(duelymatches.values())[0]["matchid"],"inituid":str(getpriority(message, "uid", ["meta", "uid"])),"otheruid":list(duelymatches.keys())[0],"serverid":serverid},startaduel)
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content": f"{PREFIXES['discord']}Requesting a duel with {PREFIXES["stat"]}{list(duelymatches.values())[0]["name"]}{PREFIXES["chatcolour"]}, tell them to type '{PREFIXES["commandname"]}{command}{PREFIXES["chatcolour"]}' to accept!",
+            "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+        })
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{(getpriority(message,"originalname","name"))}{PREFIXES["chatcolour"]} wants to duel with you, type '{PREFIXES["commandname"]}{command}{PREFIXES["chatcolour"]}' to accept!",
+            "uidoverride": [list(duelymatches.keys())[0]],
+        })
+        potentialduels.setdefault(list(duelymatches.values())[0]["matchid"],{})
+        potentialduels[list(duelymatches.values())[0]["matchid"]][list(duelymatches.keys())[0]] = str(getpriority(message, "uid", ["meta", "uid"]))
+        potentialduels[list(duelymatches.values())[0]["matchid"]][str(getpriority(message, "uid", ["meta", "uid"]))] = list(duelymatches.keys())[0]
+
+        # print(json.dumps(currentduels,indent=4))
+    else:
+        discordtotitanfall[serverid]["messages"].append(
+        {
+            "content": f"{PREFIXES['discord']}You are already dueling / requesting a duel from {PREFIXES["stat"]}{list(duelymatches.values())[0]["name"]}",
+            "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+        })
+    
+
 def pingperson(message, serverid, isfromserver):
     """Ping somone on the discord"""
     global knownpeople
@@ -8532,7 +8678,7 @@ def pingperson(message, serverid, isfromserver):
     if len(command) == 1:
         discordtotitanfall[serverid]["messages"].append(
             {
-                "content": f"{PREFIXES['discord']}You need to specify a name, or part of one",
+                "content": f"{PREFIXES['discord']}You need to specify a name, or part of one to ping",
                 "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
             }
         )
@@ -9794,6 +9940,7 @@ def displayendofroundstats(message, serverid, isfromserver):
     # )
 
 
+
 def togglepersistentvar(message, serverid, isfromserver):
     """Toggles persistent server variables like stats tracking and notifications"""
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
@@ -9822,7 +9969,19 @@ def togglepersistentvar(message, serverid, isfromserver):
             }
         )
 
-    if not len(args) or args[0] not in [
+    
+    
+    if commandnotenabledonthisserver := (
+            len(args) and
+             int(serverid) not in getpriority(
+        context,
+        [
+            "commands",
+            "ingamecommands",
+            args[0],
+            "serversenabled",
+        ],nofind=[int(serverid)])
+        ) or (not len(args) or args[0] not in [
         *list(
             map(
                 lambda x: x[0],
@@ -9831,25 +9990,37 @@ def togglepersistentvar(message, serverid, isfromserver):
                     context["commands"]["ingamecommands"].items(),
                 ),
             )
-        )
-    ]:
+        )]):
         # we need to find all the toggle commands! they all run toggle stats.
         cmdcounter = 0
-        for name, command in context["commands"]["ingamecommands"].items():
-            if (
-                command.get("run") != "togglestat"
-                or ("tf1" if istf1 else "tf2") not in command.get("games")
-                or (
-                    command.get("serversenabled")
-                    and int(serverid) not in command.get("serversenabled")
+        if not commandnotenabledonthisserver:
+            for name, command in context["commands"]["ingamecommands"].items():
+                if (
+                    command.get("run") != "togglestat"
+                    or ("tf1" if istf1 else "tf2") not in command.get("games")
+                    or (
+                        command.get("serversenabled")
+                        and int(serverid) not in command.get("serversenabled")
+                    )
+                ):
+                    continue
+                cmdcounter += 1
+                discordtotitanfall[serverid]["messages"].append(
+                    {
+                        # "id": str(i) + str(int(time.time()*100)),
+                        "content": f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2'] + command.get('permsneeded', False) + ' ' if command.get('permsneeded', False) else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{keyletter}toggle {name}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
+                        # "teamoverride": 4,
+                        # "isteammessage": False,
+                        "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+                        # "dotreacted": dotreacted
+                    }
                 )
-            ):
-                continue
-            cmdcounter += 1
+        else:
+            cmdcounter+=1
             discordtotitanfall[serverid]["messages"].append(
                 {
                     # "id": str(i) + str(int(time.time()*100)),
-                    "content": f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2'] + command.get('permsneeded', False) + ' ' if command.get('permsneeded', False) else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{keyletter}toggle {name}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
+                    "content": f"{PREFIXES['discord']}{PREFIXES['warning']}Could not toggle {args[0]}{PREFIXES['chatcolour']} - it is not enabled on this server",
                     # "teamoverride": 4,
                     # "isteammessage": False,
                     "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
@@ -9985,10 +10156,10 @@ def showingamesettings(message, serverid, isfromserver):
         discorduid = None
     cmdcounter = 0
     if not any(
-        {
+        list(map(lambda x: x if x != False else True, {
             **preferencesuid,
             **(discordstats.get(discorduid, {}) if discorduid else {}),
-        }.values()
+        }.values()))
     ):
         discordtotitanfall[serverid]["messages"].append(
             {
@@ -10139,7 +10310,7 @@ def ingamehelp(message, serverid, isfromserver):
         # print(  (not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"])),command.get("permsneeded",False)) )
         if (
             name != "helpdc"
-            and (not commandoverride or commandoverride.lower() in name)
+            and ((not commandoverride and not command.get("hiddencommand", False)) or (commandoverride and commandoverride.lower() in name))
             and ("tf1" if istf1 else "tf2") in command["games"]
             and (
                 not command.get("permsneeded", False)
@@ -10177,7 +10348,7 @@ def ingamehelp(message, serverid, isfromserver):
                 "content": f"{PREFIXES['discord']}{PREFIXES['commandname']}[38;5;201m[{cmdcounter - 10}]{PREFIXES['warning']} More command{'s' if cmdcounter - 10 > 1 else ''} hidden above.{PREFIXES['commandname']} open chat box and press up arrow {PREFIXES['warning']}to see them!",
                 # "teamoverride": 4,
                 # "isteammessage": False,
-                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+                "uidoverride": ([getpriority(message, "uid", ["meta", "uid"])] if commandoverride else []),
                 # "dotreacted": dotreacted
             }
         )
@@ -12140,10 +12311,11 @@ def playerpolllog(data, serverid, statuscode):
         **peopleonline,
         **dict(
             map(
-                lambda x: [str(x["uid"]), {"name": x["name"], "lastseen": now}], players
+                lambda x: [str(x["uid"]), {"name": x["name"], "lastseen": now,"serverid":serverid,"matchid":matchid}], players
             )
         ),
     }
+    # print(peopleonline)
 
     # playercontext[pinfo["uid"]+pinfo["name"]] = {"joined":now,"map":map,"name":pinfo["name"],"uid":pinfo["uid"],"idoverride":0,"endtime":0,"serverid":serverid,"kills":0,"deaths":0,"titankills":0,"npckills":0,"score":0}
     # print(list(map(lambda x: x["name"],players)))

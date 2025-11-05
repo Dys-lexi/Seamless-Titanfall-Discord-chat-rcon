@@ -418,8 +418,10 @@ MAP_NAME_TABLE = {
 
 ANSICOLOUR = "[38;5;105m"
 RGBCOLOUR = {"DISCORD":(135, 135, 255),"FRIENDLY":(80, 229, 255),"ENEMY":(213, 80, 16),"NEUTRAL":(200,200,200)}
-PREFIXES = {"lexicmdprivate":"[38;5;213m[Lexicmd][110m "
-        ,"discord":"[38;2;135;135;254m[Discord][110m ",
+PREFIXES = {
+        "lexicmdprivate":"[38;5;213m[Lexicmd][110m ",
+        "discord":"[38;2;135;135;254m[Discord][110m ",
+        "duel":"[38;5;214m[Duel] ",
         "chatcolour":"[110m",
         "neutral":"[110m",
         "offchatcolour":"[38;5;249m",
@@ -436,6 +438,7 @@ PREFIXES = {"lexicmdprivate":"[38;5;213m[Lexicmd][110m "
         "enemy":"[112m",
         "discordcolour":"[38;2;135;135;254m",
         "warning":"[38;5;203m",
+        "green":"[38;5;10m",
         "nocaro":"[38;2;51;114;110m[Nocaro][110m "
         }
 CSS_COLOURS = {

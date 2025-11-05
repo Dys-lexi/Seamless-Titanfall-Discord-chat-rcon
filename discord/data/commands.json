@@ -20,6 +20,25 @@
             "description": "Get a leaderboard. optionally do '!leaderboard lexi' for a player",
             "shouldblock": false
         },
+        "duel": {
+            "games": [
+                "tf2"
+            ],
+            "function": "duelsomone",
+            "run": "thread",
+            "description": "Duel somone! - !duel lexi",
+            "shouldblock": true
+        },
+        "accept": {
+            "games": [
+                "tf2","tf1"
+            ],
+            "function": "acceptsomething",
+            "hiddencommand":true,
+            "run": "thread",
+            "description": "Accept a invitation to do something",
+            "shouldblock": true
+        },
         "toggle": {
             "games": [
                 "tf2","tf1"
