@@ -167,6 +167,7 @@ table<string, string> MAP_NAME_TABLE = {
 
 
 void function discordloggerinit() {
+	PrecacheModel( $"models/domestic/nessy_doll.mdl" )
 	AddCallback_OnPlayerRespawned( OnPlayerRespawned )
 
 	serverdetails.matchid = GetUnixTimestamp()+"_" + GetConVarString("discordloggingserverid")
@@ -756,6 +757,33 @@ void function discordlogsendmessagemakesureissent(string message, int team = 4, 
 }
 void function OnPlayerRespawned(entity player) {
 	thread waitisalive(player)
+	if (discordlogpullplayerstat(player.GetUID(),"sanctiontype") == "nessify"){
+		thread nessifyplayer(player)
+	}
+}
+
+void function nessifyplayer(entity player){
+	// player.MakeInvisible()
+	// wait 5
+	// player.SetModel($"models/dev/empty_physics.mdl")
+	// discordlogsendmessage(player.GetPlayerName()+"qdq")
+	entity Prop = CreateEntity( "prop_dynamic" )
+	Prop.SetValueForModelKey( $"models/domestic/nessy_doll.mdl" )
+	Prop.SetOrigin( player.GetOrigin())
+	Prop.SetAngles( <player.GetAngles().x ,player.GetAngles().y+90,player.GetAngles().z>)
+	
+	Prop.kv.solid = 0
+    Prop.kv.rendercolor = "81 130 151"
+	// entity mover = CreateScriptMover( player.GetOrigin(), player.GetAngles() )
+	player.kv.modelscale = 0.1
+	DispatchSpawn( Prop )
+	
+	SetTeam( Prop, 1 )
+	Prop.SetParent( player,"HEADSHOT")
+	Prop.SetAngles( <0,270,0>)
+	// mover.SetParent(player,"REF")
+	
+
 }
 
 void function waitisalive(entity player) {

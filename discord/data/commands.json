@@ -1,7 +1,9 @@
 {
     "ingamecommands": {
         "namecolour": {
-            "aliases":["namecolor"],
+            "aliases": [
+                "namecolor"
+            ],
             "games": [
                 "tf2"
             ],
@@ -29,19 +31,33 @@
             "description": "Duel somone! - !duel lexi",
             "shouldblock": true
         },
+        "duels": {
+            "aliases": [
+                "bigduels"
+            ],
+            "games": [
+                "tf2"
+            ],
+            "function": "duelstats",
+            "run": "thread",
+            "description": "duel leaderboards. optionally put a playername or 'global'",
+            "shouldblock": false
+        },
         "accept": {
             "games": [
-                "tf2","tf1"
+                "tf2",
+                "tf1"
             ],
             "function": "acceptsomething",
-            "hiddencommand":true,
+            "hiddencommand": true,
             "run": "thread",
             "description": "Accept a invitation to do something",
             "shouldblock": true
         },
         "toggle": {
             "games": [
-                "tf2","tf1"
+                "tf2",
+                "tf1"
             ],
             "function": "togglepersistentvar",
             "run": "thread",
@@ -49,9 +65,12 @@
             "shouldblock": false
         },
         "ping": {
-            "aliases":["pingtest"],
+            "aliases": [
+                "pingtest"
+            ],
             "games": [
-                "tf2","tf1"
+                "tf2",
+                "tf1"
             ],
             "function": "pingperson",
             "run": "thread",
@@ -59,16 +78,16 @@
             "shouldblock": false
         },
         "sanction": {
-            "games": [
-            ],
+            "games": [],
             "function": "addsanction",
             "run": "thread",
             "description": "Sanction somone, internal function",
             "shouldblock": false
         },
-        "settings":{
+        "settings": {
             "games": [
-                "tf2","tf1"
+                "tf2",
+                "tf1"
             ],
             "function": "showingamesettings",
             "run": "thread",
@@ -94,7 +113,9 @@
             "shouldblock": false
         },
         "hostiletf": {
-            "aliases":["ht"],
+            "aliases": [
+                "ht"
+            ],
             "games": [
                 "tf2"
             ],
@@ -132,7 +153,7 @@
             "run": "togglestat",
             "description": "True = disable auto showing of stats",
             "shouldblock": false,
-            "internaltoggle":"togglestats"
+            "internaltoggle": "togglestats"
         },
         "helpdc": {
             "games": [
@@ -145,7 +166,9 @@
             "shouldblock": false
         },
         "bettertb": {
-            "aliases":["tbbbbbbb"],
+            "aliases": [
+                "tbbbbbbb"
+            ],
             "games": [
                 "tf2"
             ],
@@ -171,10 +194,9 @@
             "permsneeded": "rconrole"
         },
         "checkbantf1": {
-            "games": [
-            ],
+            "games": [],
             "run": "thread",
-            "function":"checkbantf1",
+            "function": "checkbantf1",
             "description": "internal command to check if somone is banned / muted",
             "shouldblock": true
         }

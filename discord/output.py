@@ -1866,7 +1866,7 @@ async def sanctiontf2(
     sanctiontype: Option(
         str,
         "The type of sanction to apply (meanmute does not alert the person muted)",
-        choices=["mute", "ban", "meanmute"],
+        choices=["mute", "ban", "meanmute","nessify"],
     ),
     # banlinks:Option(int, "How many links needed for a ban to persist (DON'T USE IF DON'T KNOW)",choices=[1,2,3]),
     reason: Option(str, "The reason for the sanction", required=True),
@@ -6312,6 +6312,7 @@ def recieveflaskprintrequests():
         try:
             printduelwinnings(data["serverid"])
         except:
+            print("errord")
             traceback.print_exc()
         if not data.get("dontdisablethings"):
             stoprequestsforserver[data["serverid"]] = True
@@ -8641,8 +8642,13 @@ def duelcallback(kill):
     tfdb.close()
 
 def printduelwinnings(serverid):
+    print("calculating duel stats")
+    print(mostrecentmatchids.get(serverid))
+    print( getpriority(currentduels,[serverid,mostrecentmatchids.get(serverid)]))
+    print(currentduels)
     if not( matchid:= mostrecentmatchids.get(serverid) )or not getpriority(currentduels,[serverid,matchid]):
         return
+    print("duels found")
     for attacker in currentduels[serverid][matchid]:
         for otherperson in currentduels[serverid][matchid][attacker]:
             if currentduels[serverid][matchid][attacker][otherperson][attacker] > currentduels[serverid][matchid][attacker][otherperson][otherperson]:
@@ -8677,7 +8683,7 @@ def startaduel(who):
         for matchid in currentduels[serverid]:
             if mostrecentmatchids.get(serverid) and mostrecentmatchids.get(serverid) != matchid:
                 # print(mostrecentmatchids.get(serverid),matchid)
-                del currentduels[serverid][matchid]
+                currentduels[serverid][matchid] = None
     person1 = resolveplayeruidfromdb(who["inituid"],None,True)[0]
     person2 = resolveplayeruidfromdb(who["otheruid"],None,True)[0]
     # print(person1,person2)
@@ -8769,7 +8775,68 @@ def duelsomone(message,serverid,isfromserver):
             "content": f"{PREFIXES['discord']}You are already dueling / requesting a duel from {PREFIXES["stat"]}{list(duelymatches.values())[0]["name"]}",
             "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
         })
+def duelstats(message, serverid, isfromserver):
+    command = message["originalmessage"].split(" ", 1)
+    player = [{"uid":None}]
+    if len(command) == 2:
+        if command[1].lower() != "global":
+
+            player = resolveplayeruidfromdb(command[1],None,True)
+    if not player[0]["uid"]:
+        player = [{"uid":getpriority(message, "uid", ["meta", "uid"]),"name":getpriority(message,"originalname","name")}]
+    if not player:
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{command[1]}{PREFIXES["chatcolour"]} does not match any known players",
+                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+            }
+        )
+        return
     
+    duelinfo = pullduelstats(player[0]["uid"],limit = 9 if command[0] != keyletter+"bigduels" else 99)
+    lastdate = None
+    if duelinfo:
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                "content": f"{PREFIXES['discord']} {"Global Duels stats" if not player[0]["uid"] else f"Duels stats for {PREFIXES["stat"]}{player[0]["name"]}"}",
+                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+            }
+        )
+    for duel in duelinfo:
+        winnercolour = (duel["draw"] and PREFIXES["silver"]) or PREFIXES["green"]
+        losercolour = (duel["draw"] and PREFIXES["silver"]) or PREFIXES["warning"]
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                "content": f"{winnercolour}{resolveplayeruidfromdb(duel["winner"]["uid"],None,False)[0]["name"]} {PREFIXES["commandname"]}vs {losercolour}{resolveplayeruidfromdb(duel["loser"]["uid"],None,False)[0]["name"]} {PREFIXES["stat"]}{duel["winner"]["score"]} : {duel["loser"]["score"]} {f"{PREFIXES["stat2"]}({duel["humantimestamp"]}) and before" if lastdate != duel["humantimestamp"] else ""}",
+                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+            }
+        )
+        lastdate =  duel["humantimestamp"]
+
+
+
+def pullduelstats(who = None, **kwargs):
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
+    limit = kwargs.get("limit",99999)
+    if not who:
+        c.execute("""SELECT d.initiator, d.receiver, d.matchid, d.initiatorscore, d.receiverscore, m.map, m.time 
+                      FROM duels d 
+                      JOIN matchid m ON d.matchid = m.matchid 
+                      """)
+
+    else:
+        c.execute("""SELECT d.initiator, d.receiver, d.matchid, d.initiatorscore, d.receiverscore, m.map, m.time 
+                     FROM duels d 
+                     JOIN matchid m ON d.matchid = m.matchid 
+                     WHERE d.initiator = ? OR d.receiver = ?""", (who, who))
+
+    # modifyvalue value "date"
+
+    allduels = list(map(lambda x: {**x ,"draw":x["initiatorscore"] == x["receiverscore"] ,"winner":max([{"uid":x["initiator"],"score":x["initiatorscore"]},{"uid":x["receiver"],"score":x["receiverscore"]}],key = lambda x: x["score"]),"loser":min([{"uid":x["receiver"],"score":x["receiverscore"]},{"uid":x["initiator"],"score":x["initiatorscore"]}],key = lambda x: x["score"])}, reversed([{"initiator":x[0],"receiver":x[1],"matchid":x[2],"initiatorscore":x[3],"receiverscore":x[4],"map":x[5],"timestamp":x[6],"humantimestamp":modifyvalue(x[6],"date")} for x in c.fetchall()[:limit]])))
+    tfdb.close()
+    # print(json.dumps(allduels,indent=4))
+    return allduels
 
 def pingperson(message, serverid, isfromserver):
     """Ping somone on the discord"""
@@ -9053,35 +9120,37 @@ def autobalanceoverride(data, serverid, statuscode):
     # time.sleep(10)
     # return {"message": "ok", "stats": {"2":{x["uid"]:{**x,"uid":str(x["uid"])} for x in outputtedteams[0]},"3":{x["uid"]:{**x,"uid":str(x["uid"])} for x in outputtedteams[1]}}}
     playernamecache = {}
+    # print(json.dumps(data,indent=4))
     for player in data:
         playername = player
         playername = resolveplayeruidfromdb(player, "uid", True)
         if playername:
             playername = playername[0].get("name", player)
         playernamecache[player] = playername
-    # discordtotitanfall[serverid]["messages"].append(
-    #     {
-    #         "content": f"{PREFIXES['discord']}{PREFIXES['stat']}TEAMBALANCE{PREFIXES['neutral']} Names in {PREFIXES['warning']}this colour{PREFIXES['neutral']} are people you have interacted with recently"
-    #     }
-    # )
     discordtotitanfall[serverid]["messages"].append(
         {
-            "content": f"{PREFIXES['discord']}Below is the new teambalance, along with each players weight"
+            "content": f"{PREFIXES['discord']}{PREFIXES['stat']}TEAMBALANCE{PREFIXES['neutral']} Names in {PREFIXES['warning']}this colour{PREFIXES['neutral']} are people you have interacted with recently"
         }
     )
+
+    # discordtotitanfall[serverid]["messages"].append(
+    #     {
+    #         "content": f"{PREFIXES['discord']}Below is the new teambalance, along with each players weight"
+    #     }
+    # )
     for teamint, team in enumerate(outputtedteams):
         for player in team:
             # if player["uid"] != "1012640166434":
             #     continue
             discordtotitanfall[serverid]["messages"].append(
                 {
-                    "content": f"{PREFIXES['stat']}Your team: {', '.join(functools.reduce(lambda a, b: {'lastcolour': PREFIXES['warning'] if b in data[player['uid']]['scary'] else PREFIXES['friendly'], 'output': [*a['output'], f'{(PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["friendly"]) if (PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["friendly"]) != a["lastcolour"] else ""}{playernamecache[b]}:{searchablestats[b]["kph"]:.2f}']}, list(map(lambda x: x['uid'], outputtedteams[teamint])), {'lastcolour': False, 'output': []})['output'])}",
+                    "content": f"{PREFIXES['stat']}Your team: {', '.join(functools.reduce(lambda a, b: {'lastcolour': PREFIXES['warning'] if int(b) in data[player['uid']]['scary'] else PREFIXES['friendly'], 'output': [*a['output'], f'{(PREFIXES["warning"] if int(b) in data[player["uid"]]["scary"] else PREFIXES["friendly"]) if (PREFIXES["warning"] if int(b) in data[player["uid"]]["scary"] else PREFIXES["friendly"]) != a["lastcolour"] else ""}{playernamecache[b]}:{searchablestats[b]["kph"]:.2f}']}, list(map(lambda x: x['uid'], outputtedteams[teamint])), {'lastcolour': False, 'output': []})['output'])}",
                     "uidoverride": [player["uid"]],
                 }
             )
             discordtotitanfall[serverid]["messages"].append(
                 {
-                    "content": f"{PREFIXES['stat']}Enemy team: {', '.join(functools.reduce(lambda a, b: {'lastcolour': PREFIXES['warning'] if b in data[player['uid']]['scary'] else PREFIXES['enemy'], 'output': [*a['output'], f'{(PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["enemy"]) if (PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["enemy"]) != a["lastcolour"] else ""}{playernamecache[b]}:{searchablestats[b]["kph"]:.2f}']}, list(map(lambda x: x['uid'], outputtedteams[abs(teamint - 1)])), {'lastcolour': False, 'output': []})['output'])}",
+                    "content": f"{PREFIXES['stat']}Enemy team: {', '.join(functools.reduce(lambda a, b: {'lastcolour': PREFIXES['warning'] if int(b) in data[player['uid']]['scary'] else PREFIXES['enemy'], 'output': [*a['output'], f'{(PREFIXES["warning"] if int(b) in data[player["uid"]]["scary"] else PREFIXES["enemy"]) if (PREFIXES["warning"] if int(b) in data[player["uid"]]["scary"] else PREFIXES["enemy"]) != a["lastcolour"] else ""}{playernamecache[b]}:{searchablestats[b]["kph"]:.2f}']}, list(map(lambda x: x['uid'], outputtedteams[abs(teamint - 1)])), {'lastcolour': False, 'output': []})['output'])}",
                     "uidoverride": [player["uid"]],
                 }
             )
@@ -9090,6 +9159,7 @@ def autobalanceoverride(data, serverid, statuscode):
         target=threadwrap, daemon=True, args=(autobalancerun, outputtedteams, serverid)
     ).start()
     return defaultoverride(data, serverid, statuscode)
+
 
 
 def autobalancerun(outputtedteams, serverid):
@@ -13224,6 +13294,11 @@ def getstats(playeruid,isfromserver = False):
     if output["duelstats"]["total duel"]:
         messages[str(offset)] = (
             f"[38;5;{colour}m{name}{PREFIXES['chatcolour']} duel stats are: {", ".join(list(map(lambda x: f"{PREFIXES['stat']}{x[1]}{PREFIXES["chatcolour"]} {x[0]}{"s" if x[1] -1 else ""}", output["duelstats"].items())))} "
+        )
+        offset += 1
+    else:
+        messages[str(offset)] = (
+            f"[38;5;{colour}m{name}{PREFIXES['chatcolour']} has no duels, use {PREFIXES["commandname"]}!duel <name>{PREFIXES["chatcolour"]} to duel a player!"
         )
         offset += 1
 
