@@ -511,6 +511,11 @@ void function checkshouldblockmessages(entity player){
 			if (discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "ban" && serverdetails.enforcesanctions){
 				NSDisconnectPlayer(player,"You are banned, JOIN THE DISCORD IN SERVER DESC TO COMPLAIN. Expires: "+discordlogpullplayerstat(expect string(responses["uid"]),"expiry")+" Reason: "+ discordlogpullplayerstat(expect string(responses["uid"]),"reason"))
 			}
+				if (discordlogpullplayerstat(player.GetUID(),"sanctiontype") == "nessify" && (!GetConVarBool("fatal_script_errors") || !GetConVarBool("fatal_script_errors_server "))){
+
+		thread nessifyplayer(player)
+	}
+			
     }
 
     void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
@@ -768,7 +773,11 @@ void function nessifyplayer(entity player,bool saywords = true){
 	// wait 5
 	// player.SetModel($"models/dev/empty_physics.mdl")
 	// discordlogsendmessage(player.GetPlayerName()+"qdq")
+	if (!(player.GetMainWeapons().len())){
+		return
+	}
 	if (saywords){
+
 	discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m you are nessified and cannot attack. Expires: [38;5;203m"+discordlogpullplayerstat(player.GetUID(),"expiry"),4,[player.GetUID()])
 	discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Reason: [38;5;203m"+discordlogpullplayerstat(player.GetUID(),"reason"),4,[player.GetUID()])
 	discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Join the discord at [38;5;219m!discord[110m to complain",4,[player.GetUID()])}
@@ -812,41 +821,14 @@ void function nessifyplayer(entity player,bool saywords = true){
 		}
 	int current = 0
 
-	// while (true)  {
-	// 			entity Prop = CreateEntity( "prop_dynamic" )
-	// 	Prop.SetValueForModelKey( $"models/domestic/nessy_doll.mdl" )
-	// 	Prop.SetOrigin( player.GetOrigin())
-	// 	Prop.SetAngles( <player.GetAngles().x ,player.GetAngles().y+90,player.GetAngles().z>)
-		
-	// 	Prop.kv.solid = 0
-	// 	Prop.kv.rendercolor = "81 130 151"
-	// 	// entity mover = CreateScriptMover( player.GetOrigin(), player.GetAngles() )
 
-	// 	DispatchSpawn( Prop )
-	// 	Prop.SetParent( player,"ORIGIN")
-
-	// 	vector thing = <RandomIntRange( -range, range ),RandomIntRange( -range, range ),RandomIntRange( -range, range )>
-	// 	vector thing2 = <RandomIntRange( -180, 180 ),RandomIntRange( -180, 180 ),RandomIntRange( -180, 180 )>
-	// 	Prop.SetAngles(thing2)
-	// 	Prop.SetOrigin(thing)
-
-	// 	SetTeam( Prop, 1 )
-	// 	proparray[current] = Prop
-	// 	wait 100
-	// 	current += 1
-	// 	current = current % (proparray).len()
-	// }
-		// thread PlayAnim( player, "mv_idle_unarmed" )
-	// proparray[0].SetParent( player,"HEADSHOT")
-	// proparray[1].SetParent( player,"L_HAND")
-	// proparray[2].SetParent( player,"R_HAND")
-	
-	// proparray[4].SetParent( player,"FLAG")
-	// proparray[5].SetParent( player,"vent_left_back")
-	// proparray[6].SetParent( player,"vent_right_back")
-	// proparray[7].SetParent( player,"3p_zipline_detach")
-	
 	thread Fish (player)
+	player.WaitSignal("OnDeath")
+	player.kv.modelscale = 1
+	foreach (entity prop in proparray) {
+		prop.Destroy()
+	}
+
 }
 void function Fish(entity player)
 {
@@ -862,6 +844,7 @@ void function Fish(entity player)
 		nessifyplayer(player,false)
 		break
 	  }
+	//   discordlogsendmessage(player.GetMainWeapons().len()+"w")
       wait 0.5
     }
 }
