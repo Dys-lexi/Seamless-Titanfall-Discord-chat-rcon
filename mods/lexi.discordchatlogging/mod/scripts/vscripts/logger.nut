@@ -168,6 +168,7 @@ table<string, string> MAP_NAME_TABLE = {
 
 void function discordloggerinit() {
 	PrecacheModel( $"models/domestic/nessy_doll.mdl" )
+	PrecacheModel( $"models/domestic/nessy_blue_doll.mdl" )
 	AddCallback_OnPlayerRespawned( OnPlayerRespawned )
 
 	serverdetails.matchid = GetUnixTimestamp()+"_" + GetConVarString("discordloggingserverid")
@@ -375,7 +376,6 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 			discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m you are muted. Expires: [38;5;203m"+discordlogpullplayerstat(message.player.GetUID(),"expiry"),4,[message.player.GetUID()])
 			discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Reason: [38;5;203m"+discordlogpullplayerstat(message.player.GetUID(),"reason"),4,[message.player.GetUID()])
 			discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Join the discord at [38;5;219m!discord[110m to complain",4,[message.player.GetUID()])
-
 		}
 	}
 	meta["teamtype"] <- teammessage
@@ -757,39 +757,54 @@ void function discordlogsendmessagemakesureissent(string message, int team = 4, 
 }
 void function OnPlayerRespawned(entity player) {
 	thread waitisalive(player)
-	if (discordlogpullplayerstat(player.GetUID(),"sanctiontype") == "nessify"){
+	if (discordlogpullplayerstat(player.GetUID(),"sanctiontype") == "nessify" && (!GetConVarBool("fatal_script_errors") || !GetConVarBool("fatal_script_errors_server "))){
+
 		thread nessifyplayer(player)
 	}
 }
 
-void function nessifyplayer(entity player){
+void function nessifyplayer(entity player,bool saywords = true){
 	// player.MakeInvisible()
 	// wait 5
 	// player.SetModel($"models/dev/empty_physics.mdl")
 	// discordlogsendmessage(player.GetPlayerName()+"qdq")
+	if (saywords){
+	discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m you are nessified and cannot attack. Expires: [38;5;203m"+discordlogpullplayerstat(player.GetUID(),"expiry"),4,[player.GetUID()])
+	discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Reason: [38;5;203m"+discordlogpullplayerstat(player.GetUID(),"reason"),4,[player.GetUID()])
+	discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Join the discord at [38;5;219m!discord[110m to complain",4,[player.GetUID()])}
 	array<entity> proparray = []
 	array<asset> propslist = getallmodels()
-	int range = 40
-	player.SetModel($"models/dev/empty_physics.mdl")
-	for (int i = 0; i <200; i++) { 
+
+	player.SetModel($"models/robots/marvin/marvin.mdl")
+	player.kv.modelscale = 0.1
+	for (int i = 0; i <50; i++) { 
 		entity Prop = CreateEntity( "prop_dynamic" )
-		Prop.SetValueForModelKey($"models/weapons/arms/buddypov.mdl")
+		Prop.SetValueForModelKey([$"models/domestic/nessy_doll.mdl",$"models/domestic/nessy_blue_doll.mdl"].getrandom())
 		Prop.SetOrigin( player.GetOrigin())
 		Prop.SetAngles( <player.GetAngles().x ,player.GetAngles().y+90,player.GetAngles().z>)
 		
 		Prop.kv.solid = 0
-		Prop.kv.rendercolor = "254 254 254"
+		Prop.kv.rendercolor = "1 254 254"
 		// entity mover = CreateScriptMover( player.GetOrigin(), player.GetAngles() )
 
 		DispatchSpawn( Prop )
-		Prop.SetParent( player,"ORIGIN")
-		int firstdistance = RandomIntRange( -60, 60 )
-		int seconddistance = RandomIntRange( -60, 60 )
-		int total = abs(5400 - firstdistance*firstdistance - seconddistance*seconddistance)
-		
-		vector thing = <firstdistance,seconddistance,sqrt(total)*[-1,1].getrandom()>
+		Prop.SetParent( player,"REF")
+		float radius = 10;
+		float PI = 3.14159265;
+
+		float theta = RandomFloatRange(0, 2 * PI);
+		float phi   = RandomFloatRange(0, PI);
+
+		float x = radius * sin(phi) * cos(theta);
+		float y = radius * sin(phi) * sin(theta);
+		float z = radius * cos(phi);
+
+		vector thing = <x, y, z+10>;
+
+				
+
 		vector thing2 = <RandomIntRange( -180, 180 ),RandomIntRange( -180, 180 ),RandomIntRange( -180, 180 )>
-		Prop.SetAngles(thing2)
+		Prop.SetAngles(<0,thing.y-90,thing.z>)
 		Prop.SetOrigin(thing)
 
 		SetTeam( Prop, 1 )
@@ -831,11 +846,25 @@ void function nessifyplayer(entity player){
 	// proparray[6].SetParent( player,"vent_right_back")
 	// proparray[7].SetParent( player,"3p_zipline_detach")
 	
-	// mover.SetParent(player,"REF")
-	
-
+	thread Fish (player)
 }
-
+void function Fish(entity player)
+{
+    player.EndSignal("OnDeath")
+    while (IsAlive(player))
+    {  
+      foreach(entity weapon in player.GetMainWeapons()){
+          player.TakeWeaponNow( weapon.GetWeaponClassName() )
+      }
+	  if (player.IsTitan()){
+		TitanEjectPlayer(player,true)
+		wait 1
+		nessifyplayer(player,false)
+		break
+	  }
+      wait 0.5
+    }
+}
 void function waitisalive(entity player) {
 	playerrespawn[player.GetUID()+""] <- Time() + 1
 }
