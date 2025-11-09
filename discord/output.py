@@ -30,6 +30,7 @@ import psycopg2
 from psycopg2 import pool
 from sanshelper import sans
 
+
 def safe_eval(calculation, data):
     """Safely evaluate calculation with division by zero protection"""
     try:
@@ -1174,7 +1175,7 @@ else:
             self._cleanup()
 
 
-bantf1()
+
 
 
 # tf1matchplayers()
@@ -1244,6 +1245,8 @@ playeruidnamelinktf1()
 tf1matchplayers()
 playtimedbtf1()
 create_all_indexes()
+bantf1()
+
 serverchannels = []
 pngcounter = random.randint(0, 9)
 imagescdn = {}
@@ -4609,7 +4612,7 @@ if DISCORDBOTLOGSTATS == "1":
         if len(aliases) > MAXALIASESSHOWN:
             embed.add_field(
                 name=f"{len(aliases) - MAXALIASESSHOWN} more alias{'es' if len(aliases) - MAXALIASESSHOWN > 1 else ''}",
-                value=f"({', '.join(list(map(lambda x: f'*{x}*', aliases[MAXALIASESSHOWN:])))})",
+                value=f"({', '.join(list(map(lambda x: f'*{x}*', aliases[MAXALIASESSHOWN:])))})"[:1020],
             )
 
         if len(alsomatching.keys()) > 0:
@@ -6381,6 +6384,7 @@ def recieveflaskprintrequests():
         initdiscordtotitanfall(serverid)
         if "commands" in data.keys():
             for key, value in data["commands"].items():
+                # print(value,json.dumps(getjson(value),indent=4))
                 discordtotitanfall[serverid]["returnids"]["commandsreturn"][key] = (
                     getjson(value)
                 )
@@ -6506,6 +6510,37 @@ def recieveflaskprintrequests():
     # len(x[0]) > 15
 
     # step one, check the len of the discorduid
+    @app.route("/playtime/<playername>", methods=["GET"])
+    def getplayerplaytimeinaprettyapi(playername):
+        serverid = int(request.args.get("serverid", 0))
+        istf1 = bool(request.args.get("istf1",False) )
+        
+        person = resolveplayeruidfromdb(playername,None,True,istf1)
+        if not person:
+            return {"message":"no one found"} , 404
+        person = person[0]
+        tfdb = postgresem("./data/tf2helper.db")
+        c = tfdb
+        if  not serverid:
+            c.execute(f"SELECT matchid, serverid,time,map FROM matchid{"tf1" if istf1 else ""}")
+        else:
+            c.execute(f"SELECT matchid, serverid,time ,map FROM matchid{"tf1" if istf1 else ""} WHERE serverid = ?",(serverid,))
+        # matchids = list(map(lambda x: {"matchid":x[0],"serverid":x[1]} ,c.fetchall()))
+        matchids = {}
+        matchtimestamplink = {}
+        for entry in c.fetchall():
+            matchids.setdefault(entry[1],[]).append(entry[0])
+            matchtimestamplink[entry[0]] = {"timestamp":entry[2],"map":entry[3]}
+
+
+        if not serverid:
+            c.execute(f"SELECT joinatunix,leftatunix,duration, matchid, serverid  FROM playtime{"tf1" if istf1 else ""} WHERE playeruid = ?",(person["uid"],))
+        else:
+            c.execute(f"SELECT joinatunix,leftatunix,duration, matchid, serverid FROM playtime{"tf1" if istf1 else ""} WHERE playeruid = ? AND serverid = ?",(person["uid"],serverid))
+        # serverid -> matchid
+        realplaytime =list( map(lambda x:  {**x[1],"duration":x[1]["leftatunix"] -x[1]["joinatunix"] } if len(reduceoutput) == x[0] + 1 or matchids[x[1]["serverid"]].index(x[1]["matchid"]) + 1 >= len(matchids[x[1]["serverid"]]) or matchids[x[1]["serverid"]][matchids[x[1]["serverid"]].index(x[1]["matchid"]) + 1] != reduceoutput[x[0]+1]["matchid"] else {**x[1],"duration":matchtimestamplink[matchids[x[1]["serverid"]][matchids[x[1]["serverid"]].index(x[1]["matchid"]) + 1]]["timestamp"] -x[1]["joinatunix"],"leftatunix":matchtimestamplink[matchids[x[1]["serverid"]][matchids[x[1]["serverid"]].index(x[1]["matchid"]) + 1]]["timestamp"]} , enumerate(reduceoutput:= functools.reduce(lambda a,b: ([*a,{**b,"joinatunix":matchtimestamplink[b["matchid"]]["timestamp"],"map":matchtimestamplink[b["matchid"]]["map"]}] if not len(a) or a[-1]["matchid"] != b["matchid"] else [*a[:-1],{**a[-1],"leftatunix":b["leftatunix"]}]) ,list(map(lambda x: {"joinatunix":x[0],"leftatunix":x[1],"duration":x[2],"matchid":x[3],"serverid":x[4]} ,c.fetchall())),[]))))
+        # format = [{"started":timestamp,"stopped":timestamp,"serverid":serverid,"matchid":matchid}]
+        return realplaytime
     @app.route("/players/<playeruid>", methods=["GET", "POST"])
     def getplayerstats(playeruid):
         return getstats(playeruid)
@@ -11095,6 +11130,9 @@ def getjson(data):  # ty chatgpt
     if isinstance(data, str):
         try:
             parsed = json.loads(data)
+            if  isinstance(parsed, int) :
+                return data
+                # print([parsed,data])
             return getjson(parsed)
         except json.JSONDecodeError:
             return data
@@ -12487,6 +12525,7 @@ def playerpolllog(data, serverid, statuscode):
             )
         ),
     }
+    # print(json.dumps(peopleonline,indent=4))
     mostrecentmatchids[serverid] = matchid
     # print(peopleonline)
 

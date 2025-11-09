@@ -767,20 +767,70 @@ void function nessifyplayer(entity player){
 	// wait 5
 	// player.SetModel($"models/dev/empty_physics.mdl")
 	// discordlogsendmessage(player.GetPlayerName()+"qdq")
-	entity Prop = CreateEntity( "prop_dynamic" )
-	Prop.SetValueForModelKey( $"models/domestic/nessy_doll.mdl" )
-	Prop.SetOrigin( player.GetOrigin())
-	Prop.SetAngles( <player.GetAngles().x ,player.GetAngles().y+90,player.GetAngles().z>)
+	array<entity> proparray = []
+	array<asset> propslist = getallmodels()
+	int range = 40
+	player.SetModel($"models/dev/empty_physics.mdl")
+	for (int i = 0; i <200; i++) { 
+		entity Prop = CreateEntity( "prop_dynamic" )
+		Prop.SetValueForModelKey($"models/weapons/arms/buddypov.mdl")
+		Prop.SetOrigin( player.GetOrigin())
+		Prop.SetAngles( <player.GetAngles().x ,player.GetAngles().y+90,player.GetAngles().z>)
+		
+		Prop.kv.solid = 0
+		Prop.kv.rendercolor = "254 254 254"
+		// entity mover = CreateScriptMover( player.GetOrigin(), player.GetAngles() )
+
+		DispatchSpawn( Prop )
+		Prop.SetParent( player,"ORIGIN")
+		int firstdistance = RandomIntRange( -60, 60 )
+		int seconddistance = RandomIntRange( -60, 60 )
+		int total = abs(5400 - firstdistance*firstdistance - seconddistance*seconddistance)
+		
+		vector thing = <firstdistance,seconddistance,sqrt(total)*[-1,1].getrandom()>
+		vector thing2 = <RandomIntRange( -180, 180 ),RandomIntRange( -180, 180 ),RandomIntRange( -180, 180 )>
+		Prop.SetAngles(thing2)
+		Prop.SetOrigin(thing)
+
+		SetTeam( Prop, 1 )
+		proparray.append(Prop)
+		}
+	int current = 0
+
+	// while (true)  {
+	// 			entity Prop = CreateEntity( "prop_dynamic" )
+	// 	Prop.SetValueForModelKey( $"models/domestic/nessy_doll.mdl" )
+	// 	Prop.SetOrigin( player.GetOrigin())
+	// 	Prop.SetAngles( <player.GetAngles().x ,player.GetAngles().y+90,player.GetAngles().z>)
+		
+	// 	Prop.kv.solid = 0
+	// 	Prop.kv.rendercolor = "81 130 151"
+	// 	// entity mover = CreateScriptMover( player.GetOrigin(), player.GetAngles() )
+
+	// 	DispatchSpawn( Prop )
+	// 	Prop.SetParent( player,"ORIGIN")
+
+	// 	vector thing = <RandomIntRange( -range, range ),RandomIntRange( -range, range ),RandomIntRange( -range, range )>
+	// 	vector thing2 = <RandomIntRange( -180, 180 ),RandomIntRange( -180, 180 ),RandomIntRange( -180, 180 )>
+	// 	Prop.SetAngles(thing2)
+	// 	Prop.SetOrigin(thing)
+
+	// 	SetTeam( Prop, 1 )
+	// 	proparray[current] = Prop
+	// 	wait 100
+	// 	current += 1
+	// 	current = current % (proparray).len()
+	// }
+		// thread PlayAnim( player, "mv_idle_unarmed" )
+	// proparray[0].SetParent( player,"HEADSHOT")
+	// proparray[1].SetParent( player,"L_HAND")
+	// proparray[2].SetParent( player,"R_HAND")
 	
-	Prop.kv.solid = 0
-    Prop.kv.rendercolor = "81 130 151"
-	// entity mover = CreateScriptMover( player.GetOrigin(), player.GetAngles() )
-	player.kv.modelscale = 0.1
-	DispatchSpawn( Prop )
+	// proparray[4].SetParent( player,"FLAG")
+	// proparray[5].SetParent( player,"vent_left_back")
+	// proparray[6].SetParent( player,"vent_right_back")
+	// proparray[7].SetParent( player,"3p_zipline_detach")
 	
-	SetTeam( Prop, 1 )
-	Prop.SetParent( player,"HEADSHOT")
-	Prop.SetAngles( <0,270,0>)
 	// mover.SetParent(player,"REF")
 	
 
