@@ -782,7 +782,7 @@ void function nessifyplayer(entity player,bool saywords = true){
 	discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Reason: [38;5;203m"+discordlogpullplayerstat(player.GetUID(),"reason"),4,[player.GetUID()])
 	discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Join the discord at [38;5;219m!discord[110m to complain",4,[player.GetUID()])}
 	array<entity> proparray = []
-	array<asset> propslist = getallmodels()
+	// array<asset> propslist = getallmodels()
 
 	player.SetModel($"models/robots/marvin/marvin.mdl")
 	player.kv.modelscale = 0.1
