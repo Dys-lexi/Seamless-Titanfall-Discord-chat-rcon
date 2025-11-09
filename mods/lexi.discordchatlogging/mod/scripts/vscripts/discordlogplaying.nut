@@ -82,9 +82,9 @@ discordlogcommand function discordlogplayingpoll(discordlogcommand commandin) {
 		playerinfopoll playerinfoe
 		if (player != null){
 			playerinfoe.playername = player.GetPlayerName()
-			if (player.GetUID() == "1012640166434"){
-				playerinfoe.playername = "123456"
-			}
+			// if (player.GetUID() == "1012640166434"){
+			// 	playerinfoe.playername = "123456"
+			// }
 			playerinfoe.uid = player.GetUID()
 			// print(PGS_SCORE)
 			playerinfoe.score = player.GetPlayerGameStat(8)
