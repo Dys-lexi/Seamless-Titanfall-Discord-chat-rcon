@@ -788,7 +788,7 @@ void function nessifyplayer(entity player,bool saywords = true){
 	player.kv.modelscale = 0.1
 	for (int i = 0; i <50; i++) { 
 		entity Prop = CreateEntity( "prop_dynamic" )
-		Prop.SetValueForModelKey([$"models/domestic/nessy_doll.mdl",$"models/domestic/nessy_blue_doll.mdl"].getrandom())
+		Prop.SetValueForModelKey([$"models/domestic/nessy_doll.mdl"].getrandom())
 		Prop.SetOrigin( player.GetOrigin())
 		Prop.SetAngles( <player.GetAngles().x ,player.GetAngles().y+90,player.GetAngles().z>)
 		

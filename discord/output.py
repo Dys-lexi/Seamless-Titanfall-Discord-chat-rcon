@@ -10,6 +10,7 @@ from discord.commands import Option
 from io import BytesIO
 import signal
 import inspect
+from flask_cors import CORS
 from flask import Flask, jsonify, request, send_from_directory, send_file
 from waitress import serve
 from discord.ext import  tasks
@@ -29,6 +30,7 @@ import logging
 import psycopg2
 from psycopg2 import pool
 from sanshelper import sans
+
 
 
 def safe_eval(calculation, data):
@@ -1213,8 +1215,13 @@ lexitoneapicache = {}
 # Load channel ID from file
 context = {
     "wordfilter": {"banwords": [], "notifybadwords": [], "namestokick": []},
-    "logging_cat_id": 0,
-    "activeguild": 0,
+    "categoryinfo":{
+        "logging_cat_id":0,
+        "hidden_cat_id":0,
+        "idealorder":[],
+        "activeguild": 0
+    },
+
     "servers": {},
     "overridechannels": {
         "globalchannel": 0,
@@ -1266,8 +1273,8 @@ if os.path.exists("./data/" + channel_file):
         for key in tempcontext.keys():
             context[key] = tempcontext[key]
 else:
-    context["logging_cat_id"] = 0
-    context["activeguild"] = 0
+    context["categoryinfo"]["logging_cat_id"] = 0
+    context["categoryinfo"]["activeguild"] = 0
     print("Channel file not found, using default channel ID 0.")
 savecontext()
 context["commands"] = {"botcommands": {}, "ingamecommands": {}}
@@ -1396,7 +1403,7 @@ async def moderation(interaction, parts):
     # parts = ["dropdown", "userid", "serverid", "messageid"]
     user_id = parts[1]
     original_message_id = parts[3]
-    message_link = f"https://discord.com/channels/{context["activeguild"]}/{context["servers"][parts[2]]["channelid"]}/{original_message_id}"
+    message_link = f"https://discord.com/channels/{context["categoryinfo"]["activeguild"]}/{context["servers"][parts[2]]["channelid"]}/{original_message_id}"
     
     action_map = {
         "mute_30": {"duration": 30, "action_text": "30 day mute", "type": "mute"},
@@ -1635,15 +1642,16 @@ async def on_ready():
     global context
     global botisalreadyready
     print(f"{bot.user} Connected!!")
-    if context["logging_cat_id"] != 0:
+    if context["categoryinfo"]["logging_cat_id"] != 0:
         # get all channels in the category and store in serverchannels
-        guild = bot.get_guild(context["activeguild"])
-        category = guild.get_channel(context["logging_cat_id"])
+        guild = bot.get_guild(context["categoryinfo"]["activeguild"])
+        category = guild.get_channel(context["categoryinfo"]["logging_cat_id"])
         serverchannels = category.channels
     if not botisalreadyready:
         if DISCORDBOTLOGSTATS == "1":
             updateleaderboards.start()
         updateroles.start()
+        hideandshowchannels.start()
         load_extensions()
         await asyncio.sleep(30)
         updatechannels.start()
@@ -1670,9 +1678,9 @@ async def on_interaction(interaction):
 async def updateroles():
     """If a user messages the bot in dms, they have no roles. this serves to check their roles, so if they run a admin command, the bot knows they are admin in a dm"""
     global knownpeople, context
-    if not context["activeguild"]:
+    if not context["categoryinfo"]["activeguild"]:
         return
-    guild = bot.get_guild(context["activeguild"])
+    guild = bot.get_guild(context["categoryinfo"]["activeguild"])
     for roletype, potentialrole in context["overrideroles"].items():
         if isinstance(potentialrole, int):
             potentialrole = [potentialrole]
@@ -1694,9 +1702,38 @@ async def updateroles():
     savecontext()
     checkrconallowedtfuid.cache_clear()
 
+@tasks.loop(seconds=7200)
+async def hideandshowchannels(serveridforce = None):
+    """hide inactive servers"""
+    timelimit = 86400*3
+    print("run")
+    if not context["categoryinfo"]["hidden_cat_id"] or not timelimit:
+        return
+    now = time.time()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
+    for server,details in filter(lambda x: not serveridforce or serveridforce == x[0], context["servers"].items()):
+        istf1 = bool(details.get("istf1",False) )
+        c.execute("SELECT time FROM matchid WHERE serverid = ? ORDER BY time DESC LIMIT 1",(server,))
+        mostrecentmatchid = c.fetchone()
+        if not mostrecentmatchid: continue
+        mostrecentmatchid = mostrecentmatchid[0]
+        channel = bot.get_channel(details["channelid"])
+        category = channel.category
+        guild = bot.get_guild(context["categoryinfo"]["activeguild"])
+        hidden = discord.utils.get(guild.categories, id=context["categoryinfo"]["hidden_cat_id"])
+        print(hidden.name)
+        if category.id == context["categoryinfo"]["logging_cat_id"] and now - timelimit < mostrecentmatchid:
+            
 
+            await channel.edit(sync_permissions=True,category=hidden)
+            pass
+            # show the channel
+        elif category.id == context["categoryinfo"]["logging_cat_id"] and now - timelimit > mostrecentmatchid:
+            pass
+            # hide the channel
 
-
+        
 
 
 
@@ -1766,7 +1803,7 @@ async def bind_logging_to_category(ctx, category_name: str):
     global context
 
     guild = ctx.guild
-    if guild.id == context["activeguild"] and context["logging_cat_id"] != 0:
+    if guild.id == context["categoryinfo"]["activeguild"] and context["categoryinfo"]["logging_cat_id"] != 0:
         await ctx.respond("Logging is already bound to a category.", ephemeral=False)
         return
     # Create the new category, unless the name exists, then bind to that one
@@ -1777,19 +1814,51 @@ async def bind_logging_to_category(ctx, category_name: str):
         category = await guild.create_category(category_name)
         print("creating new category")
 
-    context["logging_cat_id"] = category.id
+    context["categoryinfo"]["logging_cat_id"] = category.id
     # Store the channel ID in the variable
-    # context["logging_cat_id"]= channel.id
-    context["activeguild"] = guild.id
+    # context["categoryinfo"]["logging_cat_id"]= channel.id
+    context["categoryinfo"]["activeguild"] = guild.id
 
     # Save the channel ID to the file for persistence
     savecontext()
 
     await ctx.respond(
-        f"Logging channel created under category '{category_name}' with channel ID {context['logging_cat_id']}.",
+        f"Logging channel cat created under category '{category_name}' with channel ID {context["categoryinfo"]["logging_cat_id"]}.",
         ephemeral=False,
     )
 
+@bot.slash_command(
+    name="bindinactivechannelcategory",
+    description="designate a category where servers that have not been played for 3 days will be moved",
+)
+async def bind_hidden_to_category(ctx, category_name: str):
+    """only used once. tells the bot to use a specific category on discord to add new servers"""
+    global context
+
+    guild = ctx.guild
+    if guild.id != context["categoryinfo"]["activeguild"]:
+        await ctx.respond("This category is not in the same guild", ephemeral=False)
+        return
+    # Create the new category, unless the name exists, then bind to that one
+    if category_name in [category.name for category in guild.categories]:
+        category = discord.utils.get(guild.categories, name=category_name)
+        print("binding to existing category")
+    else:
+        category = await guild.create_category(category_name)
+        print("creating new category")
+
+    context.setdefault("categoryinfo",{})["hidden_cat_id"] = category.id
+    # Store the channel ID in the variable
+    # context["categoryinfo"]["logging_cat_id"]= channel.id
+    # context["categoryinfo"]["activeguild"] = guild.id
+
+    # Save the channel ID to the file for persistence
+    savecontext()
+
+    await ctx.respond(
+        f"hidden channel cat created under category '{category_name}' with channel ID {context["categoryinfo"]["logging_cat_id"]}.",
+        ephemeral=False,
+    )
 
 @bot.slash_command(name="sanctionchecktf2", description="Shows a players Sanction")
 async def sanctiontf2check(
@@ -1955,7 +2024,7 @@ def pullsanction(uid):
             **existing_sanction,
             "affectedplayer": name,
             "humanexpire": expiry_text,
-            "link": f"https://discord.com/channels/{context['activeguild']}/{context['overridechannels']['globalchannel']}/{existing_sanction.get('messageid')}"
+            "link": f"https://discord.com/channels/{context["categoryinfo"]["activeguild"]}/{context['overridechannels']['globalchannel']}/{existing_sanction.get('messageid')}"
             if existing_sanction.get("messageid")
             else None,
             "textversion": f"**Type**: `{existing_sanction['sanctiontype']}`\n**Expires:** `{expiry_text}`\n**Reason:** `{existing_sanction['reason']}`"
@@ -1987,7 +2056,7 @@ async def quickaddsanction(target,action,interaction,link):
     if not checkrconallowed(interaction.user):
         await interaction.respond("You are not allowed to use this interaction.",ephemeral = True)
         return
-    # link = f"https://discord.com/channels/{context["activeguild"]}/{context["servers"][link[0]]["channelid"]}/{link[1]}"
+    # link = f"https://discord.com/channels/{context["categoryinfo"]["activeguild"]}/{context["servers"][link[0]]["channelid"]}/{link[1]}"
     interaction_link = f"https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}/{interaction.message.id}"
     if action == "unsanction":
         output = await process_sanctionremovetf2(interaction.user.name,target,interaction_link)
@@ -2687,7 +2756,7 @@ if DISCORDBOTLOGSTATS == "1":
     #     )):
     #     global context
     #     guild = ctx.guild
-    #     if guild.id != context["activeguild"]:
+    #     if guild.id != context["categoryinfo"]["activeguild"]:
     #         await ctx.respond("This guild is not the active guild.", ephemeral=False)
     #         return
     #     # if channel exists
@@ -4944,7 +5013,7 @@ def listplayersoverride(data, serverid, statuscode):
 #     )):
 #     global context
 #     guild = ctx.guild
-#     if guild.id != context["activeguild"]:
+#     if guild.id != context["categoryinfo"]["activeguild"]:
 #         await ctx.respond("This guild is not the active guild.", ephemeral=False)
 #         return
 #     if ctx.author.id not in context["RCONallowedusers"]:
@@ -5017,7 +5086,7 @@ async def bind_global_role(
     """binds a role, to give it specific powers on the bot."""
     global context
     guild = ctx.guild
-    if guild and guild.id != context["activeguild"]:
+    if guild and guild.id != context["categoryinfo"]["activeguild"]:
         await ctx.respond("This guild is not the active guild.", ephemeral=False)
         return
     if not checkrconallowed(ctx.author):
@@ -5044,7 +5113,7 @@ async def bind_global_channel(
     """binds a channel to a certain output of the bots, like leaderboards, ban messages, nonowordnotifys"""
     global context
     guild = ctx.guild
-    if guild and guild.id != context["activeguild"]:
+    if guild and guild.id != context["categoryinfo"]["activeguild"]:
         await ctx.respond("This guild is not the active guild.", ephemeral=False)
         return
     if not checkrconallowed(ctx.author):
@@ -6089,7 +6158,7 @@ def computeauthornick(
 #     global context
 #     # get all the server ids and names from context, and present as options
 #     guild = ctx.guild
-#     if guild.id == activeguild and context["logging_cat_id"]!= 0:
+#     if guild.id == activeguild and context["categoryinfo"]["logging_cat_id"]!= 0:
 #         await ctx.respond("Logging is already bound to a category.")
 #         return
 
@@ -7149,7 +7218,7 @@ def recieveflaskprintrequests():
             print("invalid password used on printmessage")
             return {"message": "invalid password"}
         newmessage = {}
-        if context["logging_cat_id"] == 0:
+        if context["categoryinfo"]["logging_cat_id"] == 0:
             return jsonify({"message": "no category bound"})
         if "servername" in data.keys():
             newmessage["servername"] = data["servername"]
@@ -7242,12 +7311,12 @@ def recieveflaskprintrequests():
             or "channelid" not in context["servers"][newmessage["serverid"]]
         ):
             # Get guild and category
-            guild = bot.get_guild(context["activeguild"])
-            category = guild.get_channel(context["logging_cat_id"])
+            guild = bot.get_guild(context["categoryinfo"]["activeguild"])
+            category = guild.get_channel(context["categoryinfo"]["logging_cat_id"])
         if returnable:
             return {"message": "success", **returnable}
         return {"message": "success"}
-
+    CORS(app, resources={r"/*": {"origins": "*"}})
     serve(app, host="0.0.0.0", port=PORT, threads=40, connection_limit=200)  # prod
     # app.run(host="0.0.0.0", port=3451)  #dev
 
@@ -8031,8 +8100,8 @@ def messageloop():
                         # print(message)
                         # print(list( context["servers"].keys()),   message["serverid"])
 
-                        guild = bot.get_guild(context["activeguild"])
-                        category = guild.get_channel(context["logging_cat_id"])
+                        guild = bot.get_guild(context["categoryinfo"]["activeguild"])
+                        category = guild.get_channel(context["categoryinfo"]["logging_cat_id"])
                         asyncio.run_coroutine_threadsafe(
                             createchannel(
                                 guild,
@@ -8053,7 +8122,7 @@ def messageloop():
                         and not addflag
                     ):
                         addflag = True
-                        guild = bot.get_guild(context["activeguild"])
+                        guild = bot.get_guild(context["categoryinfo"]["activeguild"])
                         asyncio.run_coroutine_threadsafe(
                             changechannelname(
                                 guild, message["servername"], message["serverid"]
