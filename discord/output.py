@@ -1445,6 +1445,7 @@ async def autocompletenamesfromdb(ctx):
 
 async def autocompletenamesanduidsfromdb(ctx):
     """autocompletes tf2 names and uids"""
+    print([ctx.value.strip(" ")])
     output = [
         f"{x['name']}->({x['uid']})" if x["name"].strip() else str(x["uid"])
         for x in resolveplayeruidfromdb(ctx.value.strip(" "), None, True)
@@ -11255,7 +11256,7 @@ def resolveplayeruidfromdb(
 
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
-    data = ()
+    data = []
     if uidnameforce != "uid":
         name_like = f"%{name}%"
         query = f"""
@@ -11264,7 +11265,8 @@ def resolveplayeruidfromdb(
             ORDER BY id DESC, playername COLLATE NOCASE
         """
         c.execute(query, (name_like,))
-        data = c.fetchall()
+        data = list(c.fetchall())
+
     if (uidnameforce != "name" or not data) and name.isdigit():
         c.execute(
             f"""
@@ -11274,7 +11276,10 @@ def resolveplayeruidfromdb(
         """,
             (name,),
         )
-        data = c.fetchall()
+        
+        data.extend(list(c.fetchall()))
+
+
         # if istf1 is None:
         #     c.execute(f"""
         #         SELECT playeruid, playername, lastseenunix, lastserverid FROM uidnamelink{'tf1' if True else ''}
