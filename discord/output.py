@@ -2055,7 +2055,7 @@ def pullsanction(uid):
                 else "\nUnknown issuedelta"
             )
             + (
-                f"\n**Link:** https://discord.com/channels/{context['activeguild']}/{context['overridechannels']['globalchannel']}/{existing_sanction.get('messageid')}"
+                f"\n**Link:** https://discord.com/channels/{context["categoryinfo"]["activeguild"]}/{context['overridechannels']['globalchannel']}/{existing_sanction.get('messageid')}"
                 if existing_sanction.get("messageid")
                 else "\nNo link found"
             ),
