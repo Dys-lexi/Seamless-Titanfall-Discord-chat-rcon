@@ -9681,7 +9681,12 @@ def shownamecolours(message, serverid, isfromserver):
 def checkbantf1(message, serverid, isfromserver):
     """Checks and processes TF1 ban status for players"""
     # print("CHECKING BANNNS")
-
+    if int(message["uid"]) in context["overriderolesuids"].get(translaterole(serverid, "rconrole"), []):
+        sendrconcommand(
+            serverid,
+            f"!promote {message["uid"]} 1",
+            sender=None,
+        )
     c = postgresem("./data/tf2helper.db")
     c.execute(
         "SELECT id FROM banstf1 WHERE playerip = ? AND playername = ? AND playeruid = ?",
