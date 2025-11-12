@@ -10640,7 +10640,7 @@ def ingamehelp(message, serverid, isfromserver):
                 "content": f"{PREFIXES['discord']}{PREFIXES['commandname']}[38;5;201m[{cmdcounter - 10}]{PREFIXES['warning']} More command{'s' if cmdcounter - 10 > 1 else ''} hidden above.{PREFIXES['commandname']} open chat box and press up arrow {PREFIXES['warning']}to see them!",
                 # "teamoverride": 4,
                 # "isteammessage": False,
-                "uidoverride": ([getpriority(message, "uid", ["meta", "uid"])] if commandoverride else []),
+                "uidoverride": ([getpriority(message, "uid", ["meta", "uid"])]),
                 # "dotreacted": dotreacted
             }
         )
