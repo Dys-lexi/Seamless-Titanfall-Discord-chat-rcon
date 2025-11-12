@@ -1655,6 +1655,7 @@ async def on_ready():
             updateleaderboards.start()
         updateroles.start()
         hideandshowchannels.start()
+        # await hideandshowchannels(None,True)
         load_extensions()
         await asyncio.sleep(30)
         updatechannels.start()
@@ -5081,7 +5082,7 @@ async def addserverwidget(
     context["servers"][serverid]["widget"] = widget
     savecontext()
     await ctx.respond(f"Changed widget to {widget}", ephemeral=False)
-    hideandshowchannels(serverid,True)
+    await hideandshowchannels(serverid,True)
 
 
 @bot.slash_command(name="bindrole", description="Bind a role to the bot.")
@@ -7363,7 +7364,7 @@ async def createchannel(guild, category, servername, serverid):
     context["servers"][serverid]["ishidden"] = False
 
     savecontext()
-    hideandshowchannels(serverid,True)
+    await hideandshowchannels(serverid,True)
 
 async def reactomessages(messages, serverid, emoji="🟢"):
     # print(messages,"wqdqw")
@@ -12535,7 +12536,7 @@ def addmatchtodb(matchid, serverid, currentmap):
     tfdb.commit()
     tfdb.close()
     matchids.append(matchid)
-    hideandshowchannels(serverid)
+    asyncio.run_coroutine_threadsafe(hideandshowchannels(serverid), bot.loop)
 
 
 def playerpolllog(data, serverid, statuscode):
@@ -13696,3 +13697,4 @@ def shutdown_handler(sig, frame):
 
 signal.signal(signal.SIGINT, shutdown_handler)
 signal.signal(signal.SIGTERM, shutdown_handler)
+bot.run(TOKEN)
