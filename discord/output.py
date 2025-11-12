@@ -515,34 +515,34 @@ def setplayeruidpreferences(path, value, uid, istf1=False):
     tfdb.close()
 
 
-# def matchidtf1():
-#     tfdb = postgresem("./data/tf2helper.db")
-#     c = tfdb
-#     c.execute(
-#         """CREATE TABLE IF NOT EXISTS matchidtf1 (
-#             matchid TEXT,
-#             serverid INTEGER,
-#             map TEXT,
-#             time INTEGER,
-#             PRIMARY KEY (matchid, serverid)
-#             )"""
-#     )
-#     tfdb.commit()
-#     tfdb.close()
-def tf1matchplayers():
+def matchidtf1():
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
-    # c.execute("DROP TABLE IF EXISTS playtimetfw1")
     c.execute(
-        """CREATE TABLE IF NOT EXISTS matchtf1 (
-            matchid TEXT PRIMARY KEY,
+        """CREATE TABLE IF NOT EXISTS matchidtf1 (
+            matchid TEXT,
+            serverid INTEGER,
             map TEXT,
             time INTEGER,
-            serverid INTEGER
+            PRIMARY KEY (matchid, serverid)
             )"""
     )
     tfdb.commit()
     tfdb.close()
+# def tf1matchplayers():
+#     tfdb = postgresem("./data/tf2helper.db")
+#     c = tfdb
+#     # c.execute("DROP TABLE IF EXISTS playtimetfw1")
+#     c.execute(
+#         """CREATE TABLE IF NOT EXISTS matchtf1 (
+#             matchid TEXT PRIMARY KEY,
+#             map TEXT,
+#             time INTEGER,
+#             serverid INTEGER
+#             )"""
+#     )
+#     tfdb.commit()
+#     tfdb.close()
 
 
 def playtimedbtf1():
@@ -871,6 +871,7 @@ MORECOLOURS = os.getenv("MORE_COLOURFUL_OUTPUT", "1")
 NOCAROENDPOINT = os.getenv("NOCARO_API_ENDPOINT", "https://nocaro.awesome.tf/")
 NOCAROAUTH = os.getenv("NOCARO_AUTH", False)
 SANSURL = os.getenv("SANS_URL",False)
+TIMETILLCHANNELSGETHIDDEN = int(os.getenv("TIME_TO_HIDE_CHANNEL",86400*3))
 GLOBALIP = 0
 if OVERRIDEIPFORCDNLEADERBOARD == "use_actual_ip":
     GLOBALIP = "http://" + requests.get("https://api.ipify.org").text + ":" + "34511"
@@ -1181,7 +1182,7 @@ else:
 
 
 # tf1matchplayers()
-# matchidtf1()
+
 def savecontext():
     """saves varible context to channels.json"""
     global context
@@ -1249,7 +1250,8 @@ playeruidpreferences()
 creatediscordlinkdb()
 specifickilltrackerdb()
 playeruidnamelinktf1()
-tf1matchplayers()
+# tf1matchplayers()
+matchidtf1()
 playtimedbtf1()
 create_all_indexes()
 bantf1()
@@ -1704,37 +1706,45 @@ async def updateroles():
     checkrconallowedtfuid.cache_clear()
 
 @tasks.loop(seconds=7200)
-async def hideandshowchannels(serveridforce = None):
+async def hideandshowchannels(serveridforce = None, force = False):
     """hide inactive servers"""
-    timelimit = 86400*3
-    print("run")
-    if not context["categoryinfo"]["hidden_cat_id"] or not timelimit:
+    if not context["categoryinfo"]["hidden_cat_id"] or not TIMETILLCHANNELSGETHIDDEN:
         return
     now = time.time()
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
-    for server,details in filter(lambda x: not serveridforce or serveridforce == x[0], context["servers"].items()):
-        istf1 = bool(details.get("istf1",False) )
-        c.execute("SELECT time FROM matchid WHERE serverid = ? ORDER BY time DESC LIMIT 1",(server,))
+    guild = bot.get_guild(context["categoryinfo"]["activeguild"])
+    hidden = discord.utils.get(guild.categories, id=context["categoryinfo"]["hidden_cat_id"])
+    found = discord.utils.get(guild.categories, id=context["categoryinfo"]["logging_cat_id"])
+    for index,(server,details) in enumerate(sorted(sorted(filter(lambda x: not serveridforce or serveridforce == x[0], context["servers"].items()),key = lambda x: x[0]),key = lambda x: x[1].get("widget","zzzz"))):
+        if server not in context["categoryinfo"]["idealorder"]: context["categoryinfo"]["idealorder"].insert(index,server)
+        placement = functools.reduce(lambda a,b: {**a,"hasfound":True} if b == server else (a if a["hasfound"] or context["servers"][b].get("ishidden",bot.get_channel(context["servers"][b]["channelid"]).id != context["categoryinfo"]["logging_cat_id"]) == True else {**a,"server":b}),  context["categoryinfo"]["idealorder"],{"server":None,"hasfound":False})["server"]
+        istf1 = bool(details.get("istf1server",False) )
+        c.execute(f"SELECT time FROM matchid{"tf1" if istf1 else ""} WHERE serverid = ? ORDER BY time DESC LIMIT 1",(server,))
         mostrecentmatchid = c.fetchone()
         if not mostrecentmatchid: continue
         mostrecentmatchid = mostrecentmatchid[0]
         channel = bot.get_channel(details["channelid"])
         category = channel.category
-        guild = bot.get_guild(context["categoryinfo"]["activeguild"])
-        hidden = discord.utils.get(guild.categories, id=context["categoryinfo"]["hidden_cat_id"])
-        print(hidden.name)
-        if category.id == context["categoryinfo"]["logging_cat_id"] and now - timelimit < mostrecentmatchid:
-            
+        # set to not equal for now, instead of == hidden_cat_id so that the ones in the weird old limbo cat slowly get moved
+        if (force or category.id != context["categoryinfo"]["logging_cat_id"]) and now - TIMETILLCHANNELSGETHIDDEN < mostrecentmatchid:
+            print("showing",context["servers"][server]["name"],placement)
 
-            await channel.edit(sync_permissions=True,category=hidden)
+            if not placement:
+                await channel.move(sync_permissions=True,category=found,beginning=True)
+            else:
+                await channel.move(sync_permissions=True,category=found,after=bot.get_channel(context["servers"][placement]["channelid"]))
+            context["servers"][server]["ishidden"] = False
             pass
             # show the channel
-        elif category.id == context["categoryinfo"]["logging_cat_id"] and now - timelimit > mostrecentmatchid:
-            pass
-            # hide the channel
+        elif (force or category.id == context["categoryinfo"]["logging_cat_id"]) and now - TIMETILLCHANNELSGETHIDDEN > mostrecentmatchid:
+            print("hiding",context["servers"][server]["name"])
 
-        
+            await channel.edit(sync_permissions=True,category=hidden)
+            context["servers"][server]["ishidden"] = True
+            # hide the channel
+    savecontext()
+    tfdb.close()
 
 
 
@@ -5071,6 +5081,7 @@ async def addserverwidget(
     context["servers"][serverid]["widget"] = widget
     savecontext()
     await ctx.respond(f"Changed widget to {widget}", ephemeral=False)
+    hideandshowchannels(serverid,True)
 
 
 @bot.slash_command(name="bindrole", description="Bind a role to the bot.")
@@ -7338,6 +7349,7 @@ async def createchannel(guild, category, servername, serverid):
                 "rconrole": "rconrole",
                 "coolperksrole": "coolperksrole"
             }
+        context["servers"][serverid]["ishidden"] = False
         savecontext()
         return
     channel = await guild.create_text_channel(servername, category=category)
@@ -7348,8 +7360,10 @@ async def createchannel(guild, category, servername, serverid):
             "rconrole": "rconrole",
             "coolperksrole": "coolperksrole"
         }
-    savecontext()
+    context["servers"][serverid]["ishidden"] = False
 
+    savecontext()
+    hideandshowchannels(serverid,True)
 
 async def reactomessages(messages, serverid, emoji="🟢"):
     # print(messages,"wqdqw")
@@ -12517,9 +12531,11 @@ def addmatchtodb(matchid, serverid, currentmap):
         (matchid, serverid, currentmap, int(time.time())),
     )
 
+
     tfdb.commit()
     tfdb.close()
     matchids.append(matchid)
+    hideandshowchannels(serverid)
 
 
 def playerpolllog(data, serverid, statuscode):
@@ -13680,5 +13696,3 @@ def shutdown_handler(sig, frame):
 
 signal.signal(signal.SIGINT, shutdown_handler)
 signal.signal(signal.SIGTERM, shutdown_handler)
-
-bot.run(TOKEN)
