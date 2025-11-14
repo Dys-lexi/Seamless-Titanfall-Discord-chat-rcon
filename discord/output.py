@@ -1447,7 +1447,7 @@ async def autocompletenamesfromdb(ctx):
 
 async def autocompletenamesanduidsfromdb(ctx):
     """autocompletes tf2 names and uids"""
-    print([ctx.value.strip(" ")])
+    # print([ctx.value.strip(" ")])
     output = [
         f"{x['name']}->({x['uid']})" if x["name"].strip() else str(x["uid"])
         for x in resolveplayeruidfromdb(ctx.value.strip(" "), None, True)
@@ -11569,7 +11569,7 @@ def checkrconallowed(author, typeof="rconrole", **kwargs):
             (typeof == "rconrole" and False)
             or (typeof == "coolperksrole" and OVVERRIDEROLEREQUIRMENT == "1")
             or functools.reduce(
-                lambda a, x: a or x in list(map(lambda w: w.id, author.roles and [])),
+                lambda a, x: a or x in list(map(lambda w: w.id, author.roles or [])),
                 [context["overrideroles"][translated]]
                 if isinstance(context["overrideroles"][translated], int)
                 else context["overrideroles"][translated],
