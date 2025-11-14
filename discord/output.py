@@ -9020,7 +9020,7 @@ def duelstats(message, serverid, isfromserver):
         )
         return
     
-    duelinfo = pullduelstats(player[0]["uid"],limit = 9 if command[0] != keyletter+"bigduels" else 99)
+    duelinfo = reversed(pullduelstats(player[0]["uid"],limit = 9 if command[0] != keyletter+"bigduels" else 99))
     lastdate = None
     if duelinfo:
         discordtotitanfall[serverid]["messages"].append(
@@ -9049,14 +9049,14 @@ def pullduelstats(who = None, **kwargs):
     if not who:
         c.execute("""SELECT d.initiator, d.receiver, d.matchid, d.initiatorscore, d.receiverscore, m.map, m.time 
                       FROM duels d 
-                      JOIN matchid m ON d.matchid = m.matchid 
+                      JOIN matchid m ON d.matchid = m.matchid ORDER BY m.time DESC
                       """)
 
     else:
         c.execute("""SELECT d.initiator, d.receiver, d.matchid, d.initiatorscore, d.receiverscore, m.map, m.time 
                      FROM duels d 
                      JOIN matchid m ON d.matchid = m.matchid 
-                     WHERE d.initiator = ? OR d.receiver = ?""", (who, who))
+                     WHERE d.initiator = ? OR d.receiver = ? ORDER BY m.time DESC""", (who, who))
 
     # modifyvalue value "date"
 
@@ -12574,7 +12574,7 @@ def savestats(saveinfo):
 
 def addmatchtodb(matchid, serverid, currentmap):
     """Adds match information to database for tracking game sessions"""
-    global matchids, playercontext
+    global matchids, playercontext, currentduels, potentialduels
     istf1 = (
         context["servers"].get(serverid, {}).get("istf1server", False)
     )  # {'tf1' if istf1 else ''}
@@ -12646,6 +12646,14 @@ def addmatchtodb(matchid, serverid, currentmap):
                 }
             )
         matchids.append(matchid)
+        c.execute("SELECT initiator, receiver, initiatorscore, receiverscore FROM duels WHERE matchid = ?",(str(matchid),))
+        currentstabs = (c.fetchall())
+        for duel in currentstabs:
+            potentialduels.setdefault(matchid,{}).setdefault(str(duel[0]),[]).append(str(duel[1]))
+            potentialduels.setdefault(matchid,{}).setdefault(str(duel[1]),[]).append(str(duel[0]))
+            currentduels.setdefault(serverid,{}).setdefault(matchid,{}).setdefault(str(duel[0]),{}).setdefault(str(duel[1]),{str(duel[0]):duel[2],str(duel[1]):duel[3]})
+        #     print("e")
+        # print(json.dumps(currentduels,indent = 4))
         return
     c.execute(
         f"INSERT INTO matchid{'tf1' if istf1 else ''} (matchid,serverid,map,time) VALUES (?,?,?,?)",
