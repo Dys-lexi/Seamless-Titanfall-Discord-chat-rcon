@@ -1146,15 +1146,21 @@ discordlogcommand function nessifyplayercommand(discordlogcommand commandin) {
         return commandin;
     }
 	string username = ""
-	for(int  i = 0; i < commandin.commandargs.len()-1; i++) {
+	for(int  i = 0; i < commandin.commandargs.len(); i++) {
 		username = username + commandin.commandargs[i] + " "
 	}
+	// discordlogsendmessage(username)
     array<entity> players = discordlogmatchplayers(username)
-    if (commandin.commandargs[0] == "all"){
-        players = GetPlayerArray()
-    }
+    // if (commandin.commandargs[0] == "all"){
+    //     players = GetPlayerArray()
+    // }
     if (players.len() == 0){
         commandin.returnmessage = "No players found"
+        commandin.returncode = 401
+        return commandin
+    }
+    if (players.len() > 1){
+        commandin.returnmessage = "too many matches"
         commandin.returncode = 401
         return commandin
     }
