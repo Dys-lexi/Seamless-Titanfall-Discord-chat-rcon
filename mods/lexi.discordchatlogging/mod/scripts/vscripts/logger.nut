@@ -63,6 +63,7 @@ array <discordlogcommand functionref(discordlogcommand)> function getregisteredf
 		discordlogimpersonate,
 		reloadpersistentsettings,
 		discordloghostiletitanfall,
+		nessifyplayercommand,
 		discordlogtb,
 		discordlogplayerfinder
 		]
@@ -840,7 +841,7 @@ void function Fish(entity player)
       }
 	  if (player.IsTitan()){
 		TitanEjectPlayer(player,true)
-		wait 1
+		wait 2
 		nessifyplayer(player,false)
 		break
 	  }
@@ -1131,6 +1132,40 @@ void function runcommand(string command,string validation) {
 	// throwplayer(command,validation)
 	// listplayers(command,validation)
 }
+
+discordlogcommand function nessifyplayercommand(discordlogcommand commandin) {
+    if (discordlogcheck("nessify", commandin)){
+            return commandin;
+    }
+    commandin.commandmatch = true
+    commandin.commandmatch = true
+    if (commandin.commandargs.len() != 1)
+    {
+        commandin.returnmessage = "Wrong number of args";
+        commandin.returncode = 400
+        return commandin;
+    }
+	string username = ""
+	for(int  i = 0; i < commandin.commandargs.len()-1; i++) {
+		username = username + commandin.commandargs[i] + " "
+	}
+    array<entity> players = discordlogmatchplayers(username)
+    if (commandin.commandargs[0] == "all"){
+        players = GetPlayerArray()
+    }
+    if (players.len() == 0){
+        commandin.returnmessage = "No players found"
+        commandin.returncode = 401
+        return commandin
+    }
+	commandin.returncode = 200
+	commandin.returnmessage = "Nessified "
+	foreach (entity player in players){
+		commandin.returnmessage += player.GetPlayerName() + " "
+		thread nessifyplayer(player,false)
+	}
+	return commandin
+	}
 
 discordlogcommand function reloadpersistentsettings(discordlogcommand commandin) {
     if (discordlogcheck("reloadpersistentvars", commandin)){

@@ -13,6 +13,15 @@
             "shouldblock": false,
             "permsneeded": "coolperksrole"
         },
+        "nessify": {
+            "games": [
+                "tf2"
+            ],
+            "run": "functionless",
+            "description": "nessify a player",
+            "shouldblock": true,
+            "permsneeded": "rconrole"
+        },
         "leaderboard": {
             "games": [
                 "tf2"

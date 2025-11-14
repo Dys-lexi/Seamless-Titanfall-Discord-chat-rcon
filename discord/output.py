@@ -1444,6 +1444,16 @@ async def autocompletenamesfromdb(ctx):
         return ["No one matches"]
     return output
 
+async def autocompletetf1namesfromdb(ctx):
+    """autocompletes tf1 names"""
+    output = [
+        x["name"] if x["name"].strip() else str(x["uid"])
+        for x in resolveplayeruidfromdb(ctx.value.strip(" "), None, True,True)
+    ][:20]
+    if len(output) == 0:
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        return ["No one matches"]
+    return output
 
 async def autocompletenamesanduidsfromdb(ctx):
     """autocompletes tf2 names and uids"""
@@ -1907,6 +1917,98 @@ def process_matchingtf2(name):
     if sanction:
         return sanction
     return f"No sanction found for {player['name']}"
+
+
+@bot.slash_command(name="sanctionchecktf1", description="Shows a TF1 player's sanction")
+async def sanctiontf1check(
+    ctx,
+    name: Option(str, "The playername", autocomplete=autocompletetf1namesfromdb),
+):
+    await ctx.defer()
+    output = process_matchingtf1(name)
+    if isinstance(output, str):
+        await ctx.respond(output)
+        return
+    await ctx.respond(embed=embedjson("Existing Sanction:", output, ctx))
+
+
+def process_matchingtf1(name):
+    matchingplayers = resolveplayeruidfromdb(name, None, True, True)
+    
+    if len(matchingplayers) == 0:
+        return "No players found"
+    
+    player = matchingplayers[0]
+    player_name = player['name']
+    player_uid = player['uid']
+    
+    c = postgresem("./data/tf2helper.db")
+    
+    c.execute(
+        "SELECT id FROM banstf1 WHERE playername = ? AND playeruid = ?",
+        (player_name, int(player_uid))
+    )
+    playerid = c.fetchone()
+    
+    if not playerid:
+        c.close()
+        return f"No ban record found for {player_name}"
+    
+    playerid = playerid[0]
+    
+
+    c.execute(
+        "SELECT playerip, playername, playeruid, bantype, banlinks, baninfo, expire, id FROM banstf1"
+    )
+    bans = list(
+        map(
+            lambda x: {
+                "ip": x[0],
+                "name": x[1],
+                "uid": x[2],
+                "bantype": x[3],
+                "banlinks": x[4],
+                "baninfo": x[5],
+                "expire": x[6],
+                "exhaustion": 0,
+                "id": x[7],
+            },
+            list(c.fetchall()),
+        )
+    )
+    c.close()
+    
+
+    bannedpeople = findallbannedpeople(
+        bans,
+        list(
+            filter(
+                lambda x: x["bantype"]
+                and (x["expire"] is None or x["expire"] > int(time.time())),
+                bans,
+            )
+        ),
+        10,  
+    )
+    
+
+    player_ban = list(filter(lambda x: playerid == x["id"], bannedpeople))
+    
+    if not player_ban:
+        return f"No sanction found for {player_name}"
+    
+    ban = player_ban[0]
+    
+    sanction_info = {
+        "name": player_name,
+        "uid": str(player_uid),
+        "sanctiontype": ban["bantype"],
+        "reason": ban["baninfo"] if ban["baninfo"] else "No reason provided",
+        "expiry": modifyvalue(ban["expire"], "date") if ban["expire"] else "Never",
+        "status": "Active (inherited)" if ban.get("origbanid") and ban["origbanid"] != ban["id"] else "Active"
+    }
+    
+    return sanction_info
 
 
 @bot.slash_command(name="togglewordfilter", description="Adds or removes a word filter")
@@ -6074,7 +6176,7 @@ def colourmessage(message, serverid):
         )
         return False
     if MORECOLOURS == "1":
-        print(f"OUTPUT[0m {'[0m, '.join([f'{x[0]}: {len(x[1])} {x[1]}' for x in output.items() if isinstance(x,bool)])}")
+        print(f"OUTPUT[0m {'[0m, '.join([f'{x[0]}: {len(x[1])} {x[1]}' for x in output.items() if not isinstance(x,bool)])}")
 
     return {**output, "messageteam": message["metadata"]["teamint"]}
 
