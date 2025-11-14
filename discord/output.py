@@ -1408,8 +1408,12 @@ async def moderation(interaction, parts):
     message_link = f"https://discord.com/channels/{context["categoryinfo"]["activeguild"]}/{context["servers"][parts[2]]["channelid"]}/{original_message_id}"
     
     action_map = {
+        "mute_h_1": {"duration": 1/24, "action_text": "1 hour mute", "type": "mute"},
+        "mute_1": {"duration": 1, "action_text": "1 day mute", "type": "mute"},
         "mute_30": {"duration": 30, "action_text": "30 day mute", "type": "mute"},
         "mute_60": {"duration": 60, "action_text": "60 day mute", "type": "mute"}, 
+        "ban_h_1": {"duration": 1/24, "action_text": "1 hour ban", "type": "ban"},
+        "ban_1": {"duration": 1, "action_text": "1 day ban", "type": "ban"},
         "ban_30": {"duration": 30, "action_text": "30 day ban", "type": "ban"},
         "ban_60": {"duration": 60, "action_text": "60 day ban", "type": "ban"},
         "unsanction":"unsanction"
@@ -2212,9 +2216,10 @@ async def process_sanctiontf2(
             expiry = int(expiry_date.timestamp())
         except ValueError:
             if expiry.isdigit():
-                expiry = int(expiry) * 86400 + int(time.time())
+                expiry = int(float(expiry) * 86400 + int(time.time()))
             else:
-                return "Invalid expiry date format. Use yyyy-mm-dd"
+                try: expiry = int(float(expiry) * 86400 + int(time.time()))
+                except: return "Invalid expiry date format. Use yyyy-mm-dd"
     else:
         expiry = None
 
@@ -8865,9 +8870,9 @@ def duelcallback(kill):
 
 def printduelwinnings(serverid):
     print("calculating duel stats")
-    print(mostrecentmatchids.get(serverid))
-    print( getpriority(currentduels,[serverid,mostrecentmatchids.get(serverid)]))
-    print(currentduels)
+    # print(mostrecentmatchids.get(serverid))
+    # print( getpriority(currentduels,[serverid,mostrecentmatchids.get(serverid)]))
+    # print(currentduels)
     if not( matchid:= mostrecentmatchids.get(serverid) )or not getpriority(currentduels,[serverid,matchid]):
         return
     print("duels found")
@@ -11013,8 +11018,12 @@ async def checkfilters(messages, message):
                     placeholder="Buttons!",
                     custom_id=f"moderation_dropdown_{bad_msg['uid']}_{bad_msg["oserverid"]}_{message.id}",
                     options=[
+                        discord.SelectOption(label="1 hour mute", value="mute_h_1", emoji="🔇"),
+                        discord.SelectOption(label="1 day mute", value="mute_1", emoji="🔇"),         
                         discord.SelectOption(label="30 day mute", value="mute_30", emoji="🔇"),
                         discord.SelectOption(label="60 day mute", value="mute_60", emoji="🔇"),
+                        discord.SelectOption(label="1 hour ban", value="ban_h_1", emoji="🔨"),
+                        discord.SelectOption(label="1 day ban", value="ban_1", emoji="🔨"),
                         discord.SelectOption(label="30 day ban", value="ban_30", emoji="🔨"),
                         discord.SelectOption(label="60 day ban", value="ban_60", emoji="🔨"),
                         *((discord.SelectOption(label = "remove sanction (to add new one)",value = "unsanction",emoji = "⛓️‍💥")) if sanction else ())
@@ -11062,11 +11071,15 @@ async def checkfilters(messages, message):
                     placeholder="Buttons!",
                     custom_id=f"moderation_dropdown_{notify_msg['uid']}_{notify_msg["oserverid"]}_{message.id}",
                     options=[
+                        discord.SelectOption(label="1 hour mute", value="mute_h_1", emoji="🔇"),
+                        discord.SelectOption(label="1 day mute", value="mute_1", emoji="🔇"),         
                         discord.SelectOption(label="30 day mute", value="mute_30", emoji="🔇"),
                         discord.SelectOption(label="60 day mute", value="mute_60", emoji="🔇"),
+                        discord.SelectOption(label="1 hour ban", value="ban_h_1", emoji="🔨"),
+                        discord.SelectOption(label="1 day ban", value="ban_1", emoji="🔨"),
                         discord.SelectOption(label="30 day ban", value="ban_30", emoji="🔨"),
                         discord.SelectOption(label="60 day ban", value="ban_60", emoji="🔨"),
-                        *((discord.SelectOption(label = "remove sanction (to add new one)",value = "unsanction",emoji = "⛓️‍💥"),) if sanction else ())
+                        *((discord.SelectOption(label = "remove sanction (to add new one)",value = "unsanction",emoji = "⛓️‍💥")) if sanction else ())
                     ]
                 )
 

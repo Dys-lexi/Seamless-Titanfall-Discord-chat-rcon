@@ -205,6 +205,7 @@ NPC_NAMES = {
 
 
 WEAPON_NAMES = {
+    "mp_weapon_arena3":"H.E.L.L",
     "mp_weapon_peacekraber": "PeaceKraber",
     "mp_titanweapon_triplethreat":"Triple Threat",
     "damagedef_titan_step":"Stepped on",
