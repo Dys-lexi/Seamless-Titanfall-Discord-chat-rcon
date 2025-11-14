@@ -1145,12 +1145,9 @@ discordlogcommand function nessifyplayercommand(discordlogcommand commandin) {
         commandin.returncode = 400
         return commandin;
     }
-	string username = ""
-	for(int  i = 0; i < commandin.commandargs.len(); i++) {
-		username = username + commandin.commandargs[i] + " "
-	}
+
 	// discordlogsendmessage(username)
-    array<entity> players = discordlogmatchplayers(username)
+    array<entity> players = discordlogmatchplayers(commandin.commandargs[0])
     // if (commandin.commandargs[0] == "all"){
     //     players = GetPlayerArray()
     // }
