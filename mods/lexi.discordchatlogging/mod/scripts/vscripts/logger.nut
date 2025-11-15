@@ -839,6 +839,9 @@ void function Fish(entity player)
       foreach(entity weapon in player.GetMainWeapons()){
           player.TakeWeaponNow( weapon.GetWeaponClassName() )
       }
+	  	if ( player.GetOffhandWeapon(OFFHAND_LEFT).GetWeaponClassName() == "mp_ability_holopilot"){
+		player.TakeWeaponNow("mp_ability_holopilot")
+	}
 	  if (player.IsTitan()){
 		TitanEjectPlayer(player,true)
 		wait 2
