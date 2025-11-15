@@ -248,6 +248,9 @@ void function LogConnect( entity player )
 {
 
 	thread Onmapchange()
+	table init
+	init["shouldblockmessages"] <- false
+	blockedplayers.players[player.GetUID()] <- init
 	checkshouldblockmessages(player)
 	if(!IsValid(player))
 	{
