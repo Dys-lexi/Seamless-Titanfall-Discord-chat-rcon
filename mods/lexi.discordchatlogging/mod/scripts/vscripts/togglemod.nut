@@ -21,6 +21,7 @@ discordlogcommand function discordlogtoggleadmin(discordlogcommand commandin) {
         commandin.returnmessage = "Multiple players found"
         commandin.returncode = 402
     }
+
     else {
 
         if (commandin.commandargs.len() == 1){
