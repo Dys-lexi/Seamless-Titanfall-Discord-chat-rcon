@@ -787,7 +787,7 @@ void function nessifyplayer(entity player,bool saywords = true){
 	discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Join the discord at [38;5;219m!discord[110m to complain",4,[player.GetUID()])}
 	array<entity> proparray = []
 	// array<asset> propslist = getallmodels()
-
+	if (!player.IsTitan()){
 	player.SetModel($"models/robots/marvin/marvin.mdl")
 	player.kv.modelscale = 0.1
 	for (int i = 0; i <50; i++) { 
@@ -823,9 +823,9 @@ void function nessifyplayer(entity player,bool saywords = true){
 		SetTeam( Prop, 1 )
 		proparray.append(Prop)
 		}
-	int current = 0
 
 
+	}
 	thread Fish (player)
 	player.WaitSignal("OnDeath")
 	player.kv.modelscale = 1
@@ -839,6 +839,10 @@ void function Fish(entity player)
     player.EndSignal("OnDeath")
     while (IsAlive(player))
     {  
+	if (!IsValid(player)){
+		wait 1
+		continue
+	}
       foreach(entity weapon in player.GetMainWeapons()){
           player.TakeWeaponNow( weapon.GetWeaponClassName() )
       }

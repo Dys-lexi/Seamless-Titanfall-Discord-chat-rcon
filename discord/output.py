@@ -1410,10 +1410,12 @@ async def moderation(interaction, parts):
     action_map = {
         "mute_h_1": {"duration": 1/24, "action_text": "1 hour mute", "type": "mute"},
         "mute_1": {"duration": 1, "action_text": "1 day mute", "type": "mute"},
+        "mute_7": {"duration": 7, "action_text": "7 day mute", "type": "mute"},
         "mute_30": {"duration": 30, "action_text": "30 day mute", "type": "mute"},
         "mute_60": {"duration": 60, "action_text": "60 day mute", "type": "mute"}, 
         "ban_h_1": {"duration": 1/24, "action_text": "1 hour ban", "type": "ban"},
         "ban_1": {"duration": 1, "action_text": "1 day ban", "type": "ban"},
+        "ban_7": {"duration": 7, "action_text": "7 day ban", "type": "ban"},
         "ban_30": {"duration": 30, "action_text": "30 day ban", "type": "ban"},
         "ban_60": {"duration": 60, "action_text": "60 day ban", "type": "ban"},
         "unsanction":"unsanction"
@@ -8160,12 +8162,23 @@ def tf1relay():
             # print("meow",server)
             if (
                 discordtotitanfall[server].get("serveronline", True) == True
-                or i % 10 == 0
+                or i % 20 == 0
             ):
+                # print(discordtotitanfall[server].get("serveronline", True))
                 # try:print((discordtotitanfall[server]["serveronline"]))
                 # except:print(list(discordtotitanfall[server].keys()))
                 try:
-                    tf1readsend(server, i % 10 == 0)
+                    threading.Thread(
+                            target=threadwrap,
+                            daemon=True,
+                            args=(
+                                tf1readsend,
+                                server,
+                                i % 20 == 0,
+
+                            ),
+                        ).start()
+        
                 except:
                     traceback.print_exc()
                     return
@@ -11020,10 +11033,12 @@ async def checkfilters(messages, message):
                     options=[
                         discord.SelectOption(label="1 hour mute", value="mute_h_1", emoji="🔇"),
                         discord.SelectOption(label="1 day mute", value="mute_1", emoji="🔇"),         
+                        discord.SelectOption(label="7 day mute", value="mute_7", emoji="🔇"),         
                         discord.SelectOption(label="30 day mute", value="mute_30", emoji="🔇"),
                         discord.SelectOption(label="60 day mute", value="mute_60", emoji="🔇"),
                         discord.SelectOption(label="1 hour ban", value="ban_h_1", emoji="🔨"),
                         discord.SelectOption(label="1 day ban", value="ban_1", emoji="🔨"),
+                        discord.SelectOption(label="7 day ban", value="ban_7", emoji="🔨"),      
                         discord.SelectOption(label="30 day ban", value="ban_30", emoji="🔨"),
                         discord.SelectOption(label="60 day ban", value="ban_60", emoji="🔨"),
                         *((discord.SelectOption(label = "remove sanction (to add new one)",value = "unsanction",emoji = "⛓️‍💥")) if sanction else ())
@@ -11073,10 +11088,12 @@ async def checkfilters(messages, message):
                     options=[
                         discord.SelectOption(label="1 hour mute", value="mute_h_1", emoji="🔇"),
                         discord.SelectOption(label="1 day mute", value="mute_1", emoji="🔇"),         
+                        discord.SelectOption(label="7 day mute", value="mute_7", emoji="🔇"),         
                         discord.SelectOption(label="30 day mute", value="mute_30", emoji="🔇"),
                         discord.SelectOption(label="60 day mute", value="mute_60", emoji="🔇"),
                         discord.SelectOption(label="1 hour ban", value="ban_h_1", emoji="🔨"),
                         discord.SelectOption(label="1 day ban", value="ban_1", emoji="🔨"),
+                        discord.SelectOption(label="7 day ban", value="ban_7", emoji="🔨"),      
                         discord.SelectOption(label="30 day ban", value="ban_30", emoji="🔨"),
                         discord.SelectOption(label="60 day ban", value="ban_60", emoji="🔨"),
                         *((discord.SelectOption(label = "remove sanction (to add new one)",value = "unsanction",emoji = "⛓️‍💥")) if sanction else ())
