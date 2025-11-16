@@ -1561,6 +1561,8 @@ async def autocompletenamesfromingame(ctx):
     main = ["all", "_"]
     if channel and channel in discordtotitanfall:
         main.extend(list(discordtotitanfall[channel]["currentplayers"].values()))
+    else:
+        main = list(map(lambda x: x["name"],peopleonline.values()))
     main = list(set([str(p) for p in main]))
     output = sorted(
         list(filter(lambda x: ctx.value.strip(" ").lower() in x.lower(), main)),
@@ -1579,9 +1581,10 @@ async def autocompletenamesfromingame(ctx):
 async def autocompletenamesfromingamenowildcard(ctx):
     """autocompletes using who is playing. does not include all / _ options"""
     channel = getchannelidfromname(False, ctx.interaction)
-    main = []
     if channel and channel in discordtotitanfall:
         main = list(discordtotitanfall[channel]["currentplayers"].values())
+    else:
+        main = list(map(lambda x: x["name"],peopleonline.values()))
     main = list(set([str(p) for p in main]))
     output = sorted(
         list(filter(lambda x: ctx.value.strip(" ").lower() in x.lower(), main)),
@@ -4886,12 +4889,9 @@ async def help(
     global context
     print("help requested")
     if command is None:
-        message = "# Help\nUse /help <command> to get help for a specific command\n\n"
         commands = {}
+        
         for key in context["commands"]["botcommands"].keys():
-            message += (
-                f"**{key}**: {context['commands']['botcommands'][key]['description']}\n"
-            )
             commands[key] = context["commands"]["botcommands"][key]["description"]
 
         for slash_command in bot.walk_application_commands():
@@ -4906,10 +4906,40 @@ async def help(
             if slash_command.name == "serverlesssanction" and SANCTIONAPIBANKEY == "":
                 continue
 
-            message += f"**{slash_command.name}**: {slash_command.description}\n"
             commands[slash_command.name] = slash_command.description
 
-        await ctx.respond(f"```json\n{json.dumps(commands, indent=4)}```")
+        command_items = list(commands.items())
+        chunk_size = 12
+        
+        await ctx.respond("# Help\nUse /help <command> to get help for a specific command", ephemeral=True)
+
+        colors = [
+            "\u001b[0;32m",  # Green
+            "\u001b[0;34m",  # Blue
+            "\u001b[0;35m",  # Magenta
+            "\u001b[0;36m",  # Cyan
+            "\u001b[0;33m",  # Yellow
+            "\u001b[0;31m",  # Red
+            # "\u001b[0;37m",  # White
+            "\u001b[0;30m"   # Gray
+        ]
+        reset = "\u001b[0m"
+        i = 0 
+        while i < len(command_items):
+            message = ""
+         
+            
+
+            for j, (name, desc) in enumerate(command_items[i:]):
+                color = colors[j % len(colors)]
+                if len(message+ f"{color}{f"{name}:".ljust(len(max(command_items, key = lambda x: len(x[0]))[0])+len(": "))}{reset}{desc}\n") > 1990:
+                    break
+                i+=1
+                message += f"{color}{f"{name}:".ljust(len(max(command_items, key = lambda x: len(x[0]))[0])+len(": "))}{reset}{desc}\n" 
+            
+            if message:
+                await ctx.followup.send(f"```ansi\n{message}```", ephemeral=True)
+
     else:
         defaults = {
             "description": "No description available",
@@ -4922,10 +4952,31 @@ async def help(
         message = f"# {command}\n{context['commands']['botcommands'][command]['description']}\n\n"
 
         mergeddescriptions = {**defaults, **context["commands"]["botcommands"][command]}
-        for key in mergeddescriptions.keys():
-            message += f"**{key}**:\n```json\n{json.dumps(mergeddescriptions[key], indent=4)}\n```\n"
+        
 
-        await ctx.respond(message)
+        detailed_message = ""
+        for key in mergeddescriptions.keys():
+            detailed_message += f"**{key}**:\n```json\n{json.dumps(mergeddescriptions[key], indent=4)}\n```\n"
+        
+        if len(message + detailed_message) > 1900: 
+            await ctx.respond(message, ephemeral=True)
+            
+ 
+            current_chunk = ""
+            for key in mergeddescriptions.keys():
+                key_content = f"**{key}**:\n```json\n{json.dumps(mergeddescriptions[key], indent=4)}\n```\n"
+                
+                if len(current_chunk + key_content) > 1900:
+                    if current_chunk:
+                        await ctx.followup.send(current_chunk, ephemeral=True)
+                    current_chunk = key_content
+                else:
+                    current_chunk += key_content
+            
+            if current_chunk:
+                await ctx.followup.send(current_chunk, ephemeral=True)
+        else:
+            await ctx.respond(message + detailed_message, ephemeral=True)
 
 
 # sanction command. expiry, playername, reason, and a choice bettween ban or mute must be provided
@@ -11323,7 +11374,7 @@ def getchannelidfromname(name, ctx):
         for key, server in context["servers"].items():
             if server.get("channelid") == ctx.channel.id:
                 return key
-    print("could not find overridden server")
+    # print("could not find overridden server")
 
 
 def sendrconcommand(serverid, command, **kwargs):

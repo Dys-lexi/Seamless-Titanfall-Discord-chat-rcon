@@ -850,9 +850,7 @@ void function Fish(entity player)
 		player.TakeWeaponNow("mp_ability_holopilot")
 	}
 	  if (player.IsTitan()){
-		TitanEjectPlayer(player,true)
-		wait 2
-		nessifyplayer(player,false)
+		player.Die()
 		break
 	  }
 	//   discordlogsendmessage(player.GetMainWeapons().len()+"w")
