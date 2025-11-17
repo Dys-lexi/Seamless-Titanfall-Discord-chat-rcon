@@ -1562,7 +1562,7 @@ async def autocompletenamesfromingame(ctx):
     if channel and channel in discordtotitanfall:
         main.extend(list(discordtotitanfall[channel]["currentplayers"].values()))
     else:
-        main = list(map(lambda x: x["name"],peopleonline.values()))
+        main.extend(list(map(lambda x: x["name"],filter(lambda x: not mostrecentmatchids.get(x["serverid"]) or mostrecentmatchids.get(x["serverid"]) == x["matchid"],peopleonline.values()))))
     main = list(set([str(p) for p in main]))
     output = sorted(
         list(filter(lambda x: ctx.value.strip(" ").lower() in x.lower(), main)),
@@ -1584,7 +1584,7 @@ async def autocompletenamesfromingamenowildcard(ctx):
     if channel and channel in discordtotitanfall:
         main = list(discordtotitanfall[channel]["currentplayers"].values())
     else:
-        main = list(map(lambda x: x["name"],peopleonline.values()))
+        main = list(map(lambda x: x["name"],filter(lambda x: not mostrecentmatchids.get(x["serverid"]) or mostrecentmatchids.get(x["serverid"]) == x["matchid"],peopleonline.values())))
     main = list(set([str(p) for p in main]))
     output = sorted(
         list(filter(lambda x: ctx.value.strip(" ").lower() in x.lower(), main)),
@@ -4635,7 +4635,7 @@ if DISCORDBOTLOGSTATS == "1":
         print("whois command from", ctx.author.id, "to", name)
         tfdb = postgresem("./data/tf2helper.db")
         c = tfdb
-        c.execute("SELECT playeruid, playername FROM uidnamelink")
+        c.execute("SELECT playeruid, playername FROM uidnamelink WHERE playeruid != 0")
         data = c.fetchall()
 
         if not data:
@@ -4669,7 +4669,7 @@ if DISCORDBOTLOGSTATS == "1":
         if len(data) == 0:
             if name.isdigit():
                 c.execute(
-                    "SELECT playeruid FROM uidnamelink WHERE playeruid = ?", (name,)
+                    "SELECT playeruid FROM uidnamelink WHERE playeruid = ? AND playeruid != 0", (name,)
                 )
                 output = c.fetchone()
                 if not output:
@@ -4691,7 +4691,7 @@ if DISCORDBOTLOGSTATS == "1":
             """
             SELECT playername, firstseenunix, lastseenunix 
             FROM uidnamelink 
-            WHERE playeruid = ? 
+            WHERE playeruid = ? AND playeruid != 0 
             ORDER BY id DESC
         """,
             (player["uid"],),
@@ -4710,7 +4710,7 @@ if DISCORDBOTLOGSTATS == "1":
             """
             SELECT SUM(duration)
             FROM playtime
-            WHERE playeruid = ?""",
+            WHERE playeruid = ? AND playeruid != 0""",
             (player["uid"],),
         )
         totalplaytime = c.fetchone()
@@ -4726,7 +4726,7 @@ if DISCORDBOTLOGSTATS == "1":
                 """
                 SELECT SUM(duration)
                 FROM playtime
-                WHERE playeruid = ?
+                WHERE playeruid = ? AND playeruid != 0
                 AND (joinatunix > ? OR leftatunix > ?)
                 AND joinatunix < ?
             """,
@@ -11474,7 +11474,7 @@ def resolveplayeruidfromdb(
         c.execute(
             f"""
             SELECT playeruid, playername, lastseenunix, lastserverid FROM uidnamelink{"tf1" if istf1 else ""}
-            WHERE playeruid = ?
+            WHERE playeruid = ? AND playeruid != 0
             ORDER BY id DESC
         """,
             (name,),
