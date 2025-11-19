@@ -4630,6 +4630,10 @@ if DISCORDBOTLOGSTATS == "1":
         ),
     ):
         """command to see history of a player"""
+        if searchalts and not checkrconallowed(ctx.author):
+            await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+            await ctx.respond("You are not allowed to use searchalts field")
+            return
         MAXALIASESSHOWN = 22
         originalname = name
         print("whois command from", ctx.author.id, "to", name)
@@ -4781,7 +4785,7 @@ if DISCORDBOTLOGSTATS == "1":
             if entry["uid"] == player["uid"]:
                 continue
             alsomatching[entry["uid"]] = entry["name"]
-
+       
         embed = discord.Embed(
             title=f"*Aliases* for uid {player['uid']} ({len(alsomatching.keys()) + 1} match{'es' if len(alsomatching.keys()) > 0 else ''} for '{originalname}')",
             color=0xFF70CB,
@@ -4817,7 +4821,66 @@ if DISCORDBOTLOGSTATS == "1":
         await ctx.respond(embed=embed, ephemeral=False)
 
         # await ctx.respond(data, ephemeral=False)
+    @bot.slash_command(
+        name="getalts",
+        description="finds the alts for a player",
+    )
+    async def altcommand(
+        ctx,
+        name: Option(
+            str, "The playername / uid", autocomplete=autocompletenamesfromdb
+        )):
+        
+        if not checkrconallowed(ctx.author):
+            await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+            await ctx.respond("You are not allowed to use this command.")
+            return
+        player = resolveplayeruidfromdb(name,None,True)
+        if not player:
+            await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+            await ctx.respond(f"Could not find {name}.")
+            return   
+        player = player[0]
+        # print(json.dumps(searchforalts(player["uid"]),indent=4))
+        alts = list(filter(lambda x: x != player["uid"] ,searchforalts(player["uid"])["all"]))
+        embed = discord.Embed(
+            title=f"*Alts* for uid {player['uid']} ({len(alts)} alt{'s' if len(alts) != 1 else ''} for '{player["name"]}')",
+            color=0xFF70CB,
+            # description=f"maynotprovidecomprehensivelistidk",
+        )
+        for alt in alts:
+            alt = resolveplayeruidfromdb(alt,"uid",False)
+            embed.add_field(name=f"{alt[0]["name"]} ({alt[0]["uid"]}):", value=f"\u200b {len(alt)} Aliases", inline=False)
+        if not alts:
+            embed.add_field(name=f"No alts found", value=f"sorry", inline=False)
+        await ctx.respond(embed=embed, ephemeral=False)
 
+
+    def searchforalts(uid,uidinfo = False):
+        if not uidinfo: uidinfo = {"searched":[],"all":[],"searchedips":[]}
+        tfdb = postgresem("./data/tf2helper.db")
+        c = tfdb
+        c.execute("SELECT ipinfo FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC",(uid,))
+        data = c.fetchone()
+        uidinfo["searched"].append(uid)
+        if not data or not data[0]:
+            return uidinfo
+        knownips = list(json.loads(data[0]).keys())
+        
+        for ip in knownips:
+            if ip in uidinfo["searchedips"]:
+                continue
+            uidinfo["searchedips"].append(ip)
+            print(ip)
+            c.execute("SELECT playeruid FROM uidnamelink WHERE ipinfo LIKE ?",(f"%{ip}%",))
+            uidinfo["all"] = list(set([*uidinfo["all"],*(list(map(lambda x: x[0],c.fetchall())))]))
+            
+        tfdb.close()
+        for uid in filter(lambda x:x not in uidinfo["searched"],uidinfo["all"]):
+            uidinfo = searchforalts(uid,uidinfo)
+        return uidinfo
+        
+    
     @bot.slash_command(
         name="togglejoinnotify",
         description="Toggle if you are notified when a player joins",
@@ -6044,6 +6107,7 @@ def colourmessage(message, serverid):
     ):
         # print("oxoxo",message["metadata"])
         return False
+    # print(json.dumps(message,indent=4))
     discorduid = discorduidnamelink.get(message["metadata"]["uid"], False)
     if not discorduid and getpriority(message, ["metadata", "donotcolour"]):
         tfdb = postgresem("./data/tf2helper.db")
@@ -6234,7 +6298,7 @@ def colourmessage(message, serverid):
         )
         return False
     if MORECOLOURS == "1":
-        print(f"OUTPUT[0m {'[0m, '.join([f'{x[0]}: {len(x[1])} {x[1]}' for x in output.items() if not isinstance(x,bool)])}")
+        print(f"OUTPUT[0m {'[0m, '.join([f'{x[0]}: {len(x[1])} {x[1]}' for x in output.items() if not isinstance(x[1],bool)])}")
 
     return {**output, "messageteam": message["metadata"]["teamint"]}
 
@@ -6361,7 +6425,7 @@ def recieveflaskprintrequests():
         if data["password"] != SERVERPASS and SERVERPASS != "*":
             print("not accepted")
             return {"message": "sorry, wrong pass"},400
-        print("not accepted")
+        print("accepted")
         return {"message","right pass"},200
     @app.route("/playerdetails", methods=["POST"])
     def getplayerdetails():

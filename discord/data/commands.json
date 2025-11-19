@@ -193,6 +193,20 @@
             "description": "Internal function for pulling shouldblock values",
             "shouldblock": true
         },
+        "impersonate": {
+        "aliases": [
+                "i",
+                "imp",
+                "impdc"
+            ],
+            "games": [
+                "tf2"
+            ],
+            "run": "functionless",
+            "description": "Impersonate somone, you meanie",
+            "shouldblock": true,
+            "permsneeded": "rconrole"
+        },
         "throw": {
             "games": [
                 "tf2"
