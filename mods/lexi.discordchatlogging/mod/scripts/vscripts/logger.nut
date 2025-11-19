@@ -168,8 +168,33 @@ table<string, string> MAP_NAME_TABLE = {
 
 
 void function discordloggerinit() {
+
+	if(!GetConVarBool("discordloggingenabled"))
+	{
+		print("[DiscordLogger]discord logging disabled")
+		return
+	}
+	serverdetails.Requestpath = GetConVarString("discordlogginghttpServer")
+	serverdetails.password = GetConVarString("discordloggingserverpassword")
+	table params = {}
+	params["password"] <- serverdetails.password
+
+	HttpRequest request
+	request.method = HttpRequestMethod.POST
+	
+	request.url = serverdetails.Requestpath + "/checkpasswordisright"
+	request.body = EncodeJSON(params)
+	void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse messages )
+		{printt("discordlogger working I think")}
+    void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
+		{
+			printt("Incorrect password for discord bot, exiting")
+			return}
+	NSHttpRequest( request, onSuccess, onFailure )
+
 	PrecacheModel( $"models/domestic/nessy_doll.mdl" )
 	PrecacheModel( $"models/domestic/nessy_blue_doll.mdl" )
+
 	AddCallback_OnPlayerRespawned( OnPlayerRespawned )
 
 	serverdetails.matchid = GetUnixTimestamp()+"_" + GetConVarString("discordloggingserverid")
@@ -182,11 +207,6 @@ void function discordloggerinit() {
 	// 	registeredfunctions.funcs.append(discordlogsanctionremove)
 	// #endif
 
-	if(!GetConVarBool("discordloggingenabled"))
-	{
-		print("[DiscordLogger]discord logging disabled")
-		return
-	}
 
 	//AddNewFunctForEnd(SaveLog)
 	// get epoch time
@@ -194,9 +214,9 @@ void function discordloggerinit() {
 	// table currentTime = GetUnixTimeParts()
 	// print(currentTime)
 	// serverdetails.currentlyplaying = GetConVarString("discordlogpreviousroundplayers")
-	serverdetails.Requestpath = GetConVarString("discordlogginghttpServer")
+	
 	serverdetails.showchatprefix = true
-	serverdetails.password = GetConVarString("discordloggingserverpassword")
+	
 	print("[DiscordLogger]Servername: "+GetConVarString("discordloggingservername"))
 	print("[DiscordLogger]Requestpath: "+serverdetails.Requestpath)
 	if (GetConVarString("discordloggingservername") == "useactualservername"){

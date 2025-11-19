@@ -6354,6 +6354,15 @@ def recieveflaskprintrequests():
     # @app.route("/crash")
     # def crash():
     #     raise RuntimeError("bleh")
+    @app.route("/checkpasswordisright", methods=["POST"])
+    def checkpassword():
+        print("password query recieverd")
+        data = request.get_json()
+        if data["password"] != SERVERPASS and SERVERPASS != "*":
+            print("not accepted")
+            return {"message": "sorry, wrong pass"},400
+        print("not accepted")
+        return {"message","right pass"},200
     @app.route("/playerdetails", methods=["POST"])
     def getplayerdetails():
         """returns a players settings, eg should the server block messages as being modified, do they have any persistentsettings"""
