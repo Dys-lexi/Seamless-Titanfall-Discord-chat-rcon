@@ -4630,10 +4630,6 @@ if DISCORDBOTLOGSTATS == "1":
         ),
     ):
         """command to see history of a player"""
-        if searchalts and not checkrconallowed(ctx.author):
-            await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-            await ctx.respond("You are not allowed to use searchalts field")
-            return
         MAXALIASESSHOWN = 22
         originalname = name
         print("whois command from", ctx.author.id, "to", name)
