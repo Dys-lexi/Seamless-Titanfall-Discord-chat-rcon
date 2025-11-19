@@ -442,6 +442,26 @@ PREFIXES = {
         "green":"[38;5;10m",
         "nocaro":"[38;2;51;114;110m[Nocaro][110m "
         }
+ANSI_COLOURS = {
+    "green":   "\u001b[0;32m",
+    "blue":    "\u001b[0;34m",
+    "magenta": "\u001b[0;35m",
+    "cyan":    "\u001b[0;36m",
+    "yellow":  "\u001b[0;33m",
+    "red":     "\u001b[0;31m",
+    "white":   "\u001b[0;37m",
+    "grey":    "\u001b[0;30m",
+    "reset":   "\u001b[0m",
+    "bg_firefly_dark_blue":  "\u001b[40m",  
+    "bg_orange":             "\u001b[41m",  
+    "bg_marble_blue":        "\u001b[42m",  
+    "bg_greyish_turquoise":  "\u001b[43m",  
+    "bg_gray":               "\u001b[44m",  
+    "bg_indigo":             "\u001b[45m", 
+    "bg_light_gray":         "\u001b[46m",  
+    "bg_white":              "\u001b[47m",  
+}
+
 CSS_COLOURS = {
     "black": (0, 0, 0),
     "silver": (192, 192, 192),

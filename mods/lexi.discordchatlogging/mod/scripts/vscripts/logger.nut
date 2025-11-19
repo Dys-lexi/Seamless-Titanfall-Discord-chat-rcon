@@ -318,7 +318,8 @@ void function playerstabbedmodelsaver( entity player, entity attacker, var damag
 
 void function adddelayedrespawn(entity player, float respawntime) {
 	wait 1
-	playerrespawn[player.GetUID()+""] <- respawntime
+	if(IsValid(player)){
+	playerrespawn[player.GetUID()+""] <- respawntime}
 }
 
 ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){

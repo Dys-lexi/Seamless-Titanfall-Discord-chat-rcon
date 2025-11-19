@@ -7622,7 +7622,7 @@ def getmessagewidget(metadata, serverid, messagecontent, message):
 
         if data:
             data = data[0]
-            output += f"\n({data}{get_ordinal(data)} time joining"
+            output += f"\n({data}{ANSI_COLOURS["cyan"]}{get_ordinal(data)}{ANSI_COLOURS["reset"]} time joining"
             if data2:
                 data2 = sum(list(map(lambda x: x[0] - x[1], data2)))
                 output += f" - {data2 // 3600}h {data2 // 60 % 60}m time playing"
@@ -8205,37 +8205,60 @@ def tf1relay():
             discordtotitanfall[server]["ip"] = value
             # print(context["istf1server"],value,discordtotitanfall[server]["ip"].split(":")[0], discordtotitanfall[server]["ip"].split(":")[1])
             # discordtotitanfall[server]["client"] = Client(discordtotitanfall[server]["ip"].split(":")[0], discordtotitanfall[server]["ip"].split(":")[1], passwd=TF1RCONKEY,timeout=1.5)
+    # i = 0
+    # while True:
+    #     time.sleep(1)
+    #     for server in servers:
+    #         # print("boop")
+    #         # print("meow",server)
+    #         if (
+    #             discordtotitanfall[server].get("serveronline", True) == True
+    #             or i % 20 == 0
+    #         ):
+    #             # print(discordtotitanfall[server].get("serveronline", True))
+    #             # try:print((discordtotitanfall[server]["serveronline"]))
+    #             # except:print(list(discordtotitanfall[server].keys()))
+    #             try:
+    #                 threading.Thread(
+    #                         target=threadwrap,
+    #                         daemon=True,
+    #                         args=(
+    #                             tf1readsend,
+    #                             server,
+    #                             i % 20 == 0,
+
+    #                         ),
+    #                     ).start()
+        
+    #             except:
+    #                 traceback.print_exc()
+    #                 return
+    #     i += 1
+
+        # response = discordtotitanfall[server]["client"].run('sv_cheats1;script Lrconcommand("sendmessage","OWOWOOWOWOOW")')
+    for server in servers:
+
+            threading.Thread(
+                    target=threadwrap,
+                    daemon=True,
+                    args=(
+                        runtf1server,
+                        server
+
+                    ),
+                ).start()
+
+def runtf1server(server):
     i = 0
     while True:
         time.sleep(1)
-        for server in servers:
-            # print("boop")
-            # print("meow",server)
-            if (
-                discordtotitanfall[server].get("serveronline", True) == True
-                or i % 20 == 0
-            ):
-                # print(discordtotitanfall[server].get("serveronline", True))
-                # try:print((discordtotitanfall[server]["serveronline"]))
-                # except:print(list(discordtotitanfall[server].keys()))
-                try:
-                    threading.Thread(
-                            target=threadwrap,
-                            daemon=True,
-                            args=(
-                                tf1readsend,
-                                server,
-                                i % 20 == 0,
-
-                            ),
-                        ).start()
-        
-                except:
-                    traceback.print_exc()
-                    return
+        if (
+            discordtotitanfall[server].get("serveronline", True) == True
+            or i % 20 == 0
+        ):
+            
+            tf1readsend(server,i % 20 == 0)
         i += 1
-
-        # response = discordtotitanfall[server]["client"].run('sv_cheats1;script Lrconcommand("sendmessage","OWOWOOWOWOOW")')
 
 
 def messageloop():
@@ -8399,7 +8422,7 @@ def messageloop():
                             else message["overridechannel"]
                         ].append(
                             {
-                                "message": f"""```{playername} {messagewidget}```""",
+                                "message": f"""```ansi\n{ANSI_COLOURS["cyan"]}{playername}{ANSI_COLOURS["reset"]} {messagewidget}```""",
                                 **messageadders,
                                 "messagecontent": messagewidget,
                                 "oserverid": message["serverid"],
