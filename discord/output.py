@@ -4838,7 +4838,7 @@ if DISCORDBOTLOGSTATS == "1":
             return   
         player = player[0]
         # print(json.dumps(searchforalts(player["uid"]),indent=4))
-        alts = list(filter(lambda x: x != player["uid"] ,searchforalts(player["uid"])["all"]))
+        alts = list(filter(lambda x: True or x != player["uid"] ,searchforalts(player["uid"])["all"]))
         embed = discord.Embed(
             title=f"*Alts* for uid {player['uid']} ({len(alts)} alt{'s' if len(alts) != 1 else ''} for '{player["name"]}')",
             color=0xFF70CB,
