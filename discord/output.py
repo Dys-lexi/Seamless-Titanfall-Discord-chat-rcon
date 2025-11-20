@@ -12407,12 +12407,13 @@ def checkandaddtouidnamelink(uid, playername, serverid, istf1=False,playerinfo={
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
     c.execute(
-        f"SELECT id, playername, ipinfo FROM uidnamelink{'tf1' if istf1 else ''} WHERE playeruid = ? ORDER BY id DESC LIMIT 1",
+        f"SELECT id, playername, ipinfo, lastserverid FROM uidnamelink{'tf1' if istf1 else ''} WHERE playeruid = ? ORDER BY id DESC LIMIT 1",
         (uid,),
     )
     row = c.fetchone()
+    
     if row:
-        last_id, last_name, ipinfo = row
+        last_id, last_name, ipinfo, lastserverid = row
         if ipinfo:
             ipinfo = json.loads(ipinfo)
 
@@ -12425,7 +12426,8 @@ def checkandaddtouidnamelink(uid, playername, serverid, istf1=False,playerinfo={
             else:
                 ipinfo = {playerinfo["ipaddr"]:{"first":now,"last":now}}
 
-
+        if int(serverid) != lastserverid:
+            resolveplayeruidfromdb.cache_clear()
         if str(playername) == str(last_name):
             c.execute(
                 f"UPDATE uidnamelink{'tf1' if istf1 else ''} SET lastseenunix = ?, lastserverid = ?, ipinfo = ?  WHERE id = ?",
