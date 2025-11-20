@@ -2,19 +2,22 @@
     "Name": "lexi.discordchatlogging",
     "Description": "Logs chat messages to a discord channel.",
     "Version": "1.0.0",
-	"Authors": ["Lexiglasss"],
-	"Contacts": ["dyslexi (Discord)"],
+    "Authors": [
+        "Lexiglasss"
+    ],
+    "Contacts": [
+        "dyslexi (Discord)"
+    ],
     "LoadPriority": 1,
     "RequiredOnClient": false,
     "ConVars": [
         {
             "Name": "discordlogginghttpServer",
-            "DefaultValue": "http://host.docker.internal:3451" 
+            "DefaultValue": "http://host.docker.internal:3451"
         }, //     http://discordlog:3451     http://host.docker.internal:3451 (1st is a docker container second is localhost of main pc)
         {
             "Name": "discordloggingserverpassword", //set here, and in the discord bot's compose. means that if you have the bot port forwaded for whatever reason, people still need a password to use api
             "DefaultValue": "scarypassword"
-
         },
         {
             "Name": "discordloggingserverid", //IMPORTANT to set in server convars  DO NOT TOUCH IT HERE
@@ -25,15 +28,15 @@
             "DefaultValue": "useactualservername"
         },
         {
-            "Name":"disablestoprequests",
+            "Name": "disablestoprequests",
             "DefaultValue": "0" // only use if you have a fix to ns http bug
         },
         {
-            "Name":"enforcediscordsanctions",
+            "Name": "enforcediscordsanctions",
             "DefaultValue": "1" // set to one so /sanctiontf2 works
         },
         {
-            "Name":"discordloguselocaltags",
+            "Name": "discordloguselocaltags",
             "DefaultValue": "1" // tags are calculated by titanfall server, not the bot
         },
         {
@@ -41,12 +44,18 @@
             "DefaultValue": "1"
         },
         {
-            "Name":"discordloggingmatchid",
+            "Name": "discordloggingmatchid",
             "DefaultValue": "0" // match id, don't touch!
         }
     ],
     "Scripts": [
-       
+        {
+            "Path": "leximoddedtone.nut",
+            "RunOn": "SERVER",
+            "ServerCallback": {
+                "After": "killstat_Init"
+            }
+        },
         {
             "Path": "logger.nut",
             "RunOn": "SERVER",
@@ -101,6 +110,5 @@
             "Path": "getconvar.nut",
             "RunOn": "SERVER"
         }
-
     ]
 }

@@ -154,6 +154,16 @@
             "description": "display your stats. do !stats lexi for a specific player",
             "shouldblock": false
         },
+        "debugchat": {
+            "games": [
+                "tf1",
+                "tf2"
+            ],
+            "run": "togglestat",
+            "description": "True = disable debugchat",
+            "shouldblock": false,
+            "permsneeded": "debugchat"
+        },
         "autostats": {
             "games": [
                 "tf1",
@@ -174,6 +184,7 @@
             "description": "Get help on commands that exec on the discord bot",
             "shouldblock": false
         },
+        
         "bettertb": {
             "aliases": [
                 "tbbbbbbb"

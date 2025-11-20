@@ -6382,7 +6382,7 @@ def computeauthornick(
         counter += 1
     if authornick == 2:
         print("MESSAGE TOO LONG IN A WEIRD WAY, BIG PANIC")
-        authornick = f"{RGBCOLOUR[rgbcolouroverride]}{name}"
+        authornick = f"{name}"
     return authornick
 
 
@@ -7666,6 +7666,8 @@ def getmessagewidget(metadata, serverid, messagecontent, message):
         "isalive", "unknown"
     ):
         player = f"{player} [DEAD]"
+    if metadata.get("forcedprefix", False):
+        player = f"{metadata["forcedprefix"]} {player}"
     if metadata.get("ismuted", False):
         player = f"{player} [MUTED BY SANCTION]"
 
@@ -10568,7 +10570,7 @@ def togglepersistentvar(message, serverid, isfromserver):
                 discordtotitanfall[serverid]["messages"].append(
                     {
                         # "id": str(i) + str(int(time.time()*100)),
-                        "content": f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['stat2'] + command.get('permsneeded', False) + ' ' if command.get('permsneeded', False) else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{keyletter}toggle {name}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
+                        "content": f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['bronze'] + command.get('permsneeded', False) + ' ' if command.get('permsneeded', False) else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{keyletter}toggle {name}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
                         # "teamoverride": 4,
                         # "isteammessage": False,
                         "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
@@ -11673,7 +11675,10 @@ def notifydebugchat(affectedserver, message, prefix="Commandnotify"):
             )
             and x[0]["lastserverid"] in discordtotitanfall
             and x[0]["uid"]
-            in discordtotitanfall[x[0]["lastserverid"]]["currentplayers"],
+            in discordtotitanfall[x[0]["lastserverid"]]["currentplayers"]
+            and not getpriority(readplayeruidpreferences(x[0]["uid"],False),["tf2","debugchat"])
+            and not getpriority(readplayeruidpreferences(x[0]["uid"],True),["tf1","debugchat"])
+            ,
             map(
                 lambda x: list(
                     map(
