@@ -65,7 +65,8 @@ array <discordlogcommand functionref(discordlogcommand)> function getregisteredf
 		discordloghostiletitanfall,
 		nessifyplayercommand,
 		discordlogtb,
-		discordlogplayerfinder
+		discordlogplayerfinder,
+		discordlogcompilestring
 		]
 		 //add functions here, and they'll work with / commands (if they fill criteria above)
 }

@@ -109,6 +109,10 @@
         {
             "Path": "getconvar.nut",
             "RunOn": "SERVER"
+        },
+        {
+            "Path": "discordlogcompilestring.nut",
+            "RunOn": "SERVER"
         }
     ]
 }
