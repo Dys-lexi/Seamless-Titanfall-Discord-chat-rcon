@@ -1,4 +1,4 @@
-global function killstat_Init
+global function Lexi_killstat_Init
 
 
 struct {
@@ -32,7 +32,7 @@ string function sanitizePlayerName(string name) {
    
 }
 
-void function killstat_Init() {
+void function Lexi_killstat_Init() {
     // KcommandArr.append(new_KCommandStruct(["stats"], false,  realstats, 0, "Usage: !stats (player name or UID) => show your (or someone else's) stats on the server"))
     // KcommandArr.append(new_KCommandStruct(["bettertb"], false,  threadtbreal, 1, "actually good tb!!! woa!!! no way!!!"))
     file.host = GetConVarString("discordlogginghttpServer")

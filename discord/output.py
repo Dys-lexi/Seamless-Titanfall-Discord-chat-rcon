@@ -857,6 +857,9 @@ OVVERRIDEROLEREQUIRMENT = os.getenv("OVERRIDE_ROLE_REQUIREMENT", "1")
 COOLPERKSROLEREQUIRMENTS = os.getenv(
     "COOL_PERKS_REQUIREMENT", "You need something or other to get this"
 )
+COOLPERKSNATTER = os.getenv(
+    "COOL_PERKS_NATTER", "To support x do y"
+)
 SHOWIMPERSONATEDMESSAGESINDISCORD = os.getenv(
     "SHOW_IMPERSONATED_MESSAGES_IN_DISCORD", "1"
 )
@@ -7721,6 +7724,13 @@ def getmessagewidget(metadata, serverid, messagecontent, message):
                         ),
                         bot.loop,
                     )
+            if str(message.get("player", "Unknown player")).lower() in context["wordfilter"]["namestokick"]:
+                    asyncio.run_coroutine_threadsafe(
+                        channel.send(
+                            (f"Name rule enforced for {player} (change your name)")
+                        ),
+                        bot.loop,
+                    )
         except Exception as e:
             traceback.print_exc()
             print(e)
@@ -10929,6 +10939,33 @@ def senddiscordcommands(message, serverid, isfromserver):
     )
 
 
+def natterforcoolperks(message, serverid, isfromserver):
+    """natters somone for the coolperks role"""
+    print("meow")
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
+    # checks
+    print(json.dumps(message,indent=4))
+    # player does not have coolperksrole
+    # player has more than like 5 mins playtim
+    # somone with a good kd is not on the server
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
+    c.execute(f"SELECT COALESCE(SUM(duration), 0) FROM playtime{"tf1" if istf1 else "tf2"} WHERE playeruid = ?",(getpriority(message, "uid", ["meta", "uid"], "name"),))
+    timeplayed = c.fetchone()
+    if checkrconallowedtfuid(getpriority(message, "uid", ["meta", "uid"]),  "coolperksrole", serverid=serverid) or somoneisreallygoodontheserver or playtimeissmol or ((not timeplayed or not timeplayed[0] or timeplayed[0] < 1800 ) and not istf1  ):
+        return
+    # print(f"you have {doeshavecoolperks=}")
+    discordtotitanfall[serverid]["messages"].append(
+    {
+        # "id": str(int(time.time()*100)),
+        "content": f"{PREFIXES['discord']}{"[38;2;253;50;150m"}{COOLPERKSNATTER}",
+        # "teamoverride": 4,
+        # "isteammessage": False,
+        "uidoverride": [getpriority(message, "uid", ["meta", "uid"], "name")],
+        # "dotreacted": dotreacted
+    })
+
+# Go to https://ko-fi.com/dyslexi or boost the server (preferably the former) 115
 def calcstats(message, serverid, isfromserver):
     """Processes in-game stats requests and formats statistical data for display"""
     # print("e",message)

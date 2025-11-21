@@ -277,7 +277,9 @@ void function LogConnect( entity player )
 	{
 		return
 	}
-	
+	if (GetConVarInt("natterforcoolperksrole")){
+		runcommandondiscord("natterforcoolperks",{ name = player.GetUID()})
+	}
 	else if (Time() < 30){ // && serverdetails.currentlyplaying.find(player.GetUID().tostring()) != null){
 		print("[DiscordLogger] Player "+player.GetPlayerName()+" is already in the server, not logging")
 		return
@@ -512,6 +514,9 @@ void function checkshouldblockmessages(entity player){
 			return
 			
 		}
+				if (!IsValid(player)){
+			return
+		}
 
 
 		// print(response.body)
@@ -534,10 +539,11 @@ void function checkshouldblockmessages(entity player){
 		// string textvalidation = expect string(messagess["textvalid
 		// discordlogsendmessage(discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype"))
 		// print("MEOWMDQOQ"+discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype"))
+
 			if (discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "ban" && serverdetails.enforcesanctions){
 				NSDisconnectPlayer(player,"You are banned, JOIN THE DISCORD IN SERVER DESC TO COMPLAIN. Expires: "+discordlogpullplayerstat(expect string(responses["uid"]),"expiry")+" Reason: "+ discordlogpullplayerstat(expect string(responses["uid"]),"reason"))
 			}
-				if (discordlogpullplayerstat(player.GetUID(),"sanctiontype") == "nessify" && (!GetConVarBool("fatal_script_errors") || !GetConVarBool("fatal_script_errors_server "))){
+				if (discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "nessify" && (!GetConVarBool("fatal_script_errors") || !GetConVarBool("fatal_script_errors_server "))){
 
 		thread nessifyplayer(player)
 	}
@@ -1136,11 +1142,11 @@ void function runcommandondiscordreal(string commandname, table paramaters){
     request.method = HttpRequestMethod.POST
     request.url = serverdetails.Requestpath + "/runcommand"
 	request.body = EncodeJSON(params)
-	    void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse messages )
-{}
-    void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
-	{}
-	NSHttpRequest( request, onSuccess, onFailure )
+// 	    void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse messages )
+// {}
+//     void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
+// 	{}
+	NSHttpRequest( request)
 }
 void function runcommand(string command,string validation) {
 	check.commandcheck[validation] <- EncodeJSON({statuscode=-3,output=command+": Special command not found"})

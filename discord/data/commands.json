@@ -154,6 +154,15 @@
             "description": "display your stats. do !stats lexi for a specific player",
             "shouldblock": false
         },
+        "natterforcoolperks": {
+            "games": [
+
+            ],
+            "function": "natterforcoolperks",
+            "run": "thread",
+            "description": "natter a person to do cool perks",
+            "shouldblock": false
+        },
         "debugchat": {
             "games": [
                 "tf1",
@@ -360,6 +369,18 @@
                     "name": "convarname",
                     "type": "str",
                     "description": "The convar name",
+                    "required": true
+                }
+            ],
+            "rcon": true
+        },
+        "compilestring": {
+            "description": "Run a squirrel function",
+            "parameters": [
+                {
+                    "name": "function",
+                    "type": "str",
+                    "description": "Function to execute",
                     "required": true
                 }
             ],

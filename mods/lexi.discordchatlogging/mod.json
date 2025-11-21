@@ -28,6 +28,10 @@
             "DefaultValue": "useactualservername"
         },
         {
+            "Name": "natterforcoolperksrole", // natter for coolperksrole requirements
+            "DefaultValue": "0"
+        },
+        {
             "Name": "disablestoprequests",
             "DefaultValue": "0" // only use if you have a fix to ns http bug
         },
@@ -47,13 +51,14 @@
             "Name": "discordloggingmatchid",
             "DefaultValue": "0" // match id, don't touch!
         }
+
     ],
     "Scripts": [
         {
             "Path": "leximoddedtone.nut",
             "RunOn": "SERVER",
             "ServerCallback": {
-                "After": "killstat_Init"
+                "After": "Lexi_killstat_Init"
             }
         },
         {
