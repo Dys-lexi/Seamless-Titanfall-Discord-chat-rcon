@@ -404,6 +404,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 			discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Join the discord at [38;5;219m!discord[110m to complain",4,[message.player.GetUID()])
 		}
 	}
+	meta[ "forcedprefix" ] <- message.player.GetCommunityClanTag().len() ? "[" + message.player.GetCommunityClanTag() + "]" : ""
 	meta["teamtype"] <- teammessage
 	meta["teamint"] <- message.player.GetTeam()
 	meta["type"] <- "usermessagepfp"
