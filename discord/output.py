@@ -8681,7 +8681,7 @@ def acceptsomething(message,serverid,isfromserver):
 def duelcallback(kill):
     global currentduels
 
-    print(json.dumps(kill,indent=4))
+    # print(json.dumps(kill,indent=4))
     # print(json.dumps(potentialduels,indent=4))
     if not potentialduels.get(kill["match_id"]) or not kill.get("victim_id") or not kill.get("attacker_id") or kill.get("victim_type") != "player" or str(kill["attacker_id"]) not in  getpriority(potentialduels,[kill["match_id"],str(kill["victim_id"])],nofind = []) :
         # print("here1")
@@ -11094,16 +11094,16 @@ def calcstats(message, serverid, isfromserver):
         #  readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]),istf1)
 
     # print("OPOWOWOOWOWOOWOWOOWOWOWO")
-    if istf1:
+    if istf1 and False:
         tf1pullstats(message, serverid)
     else:
         if len(message.get("originalmessage", "w").split(" ")) > 1:
-            output = getstats(" ".join(message["originalmessage"].split(" ")[1:]),isfromserver)
+            output = getstats(" ".join(message["originalmessage"].split(" ")[1:]),isfromserver,istf1)
         else:
             # print(getpriority(message,"originalname","name"))
-            output = getstats(str(getpriority(message, "originalname", "name")),isfromserver)
+            output = getstats(str(getpriority(message, "originalname", "name")),isfromserver,istf1)
         name = resolveplayeruidfromdb(
-            getpriority(message, "originalname", "name"), None, True
+            getpriority(message, "originalname", "name"), None, True, istf1
         )
         if name:
             name = name[0]["uid"]
@@ -13550,7 +13550,7 @@ def getstats(playeruid,isfromserver = False,istf1 = False):
     now = int(time.time())
     timeoffset = 86400
     try:
-        output = resolveplayeruidfromdb(playeruid, None, True)
+        output = resolveplayeruidfromdb(playeruid, None, True, istf1)
         if not output:
             return {"sob": "unknown player"}
         output = output[0]
@@ -13564,31 +13564,31 @@ def getstats(playeruid,isfromserver = False,istf1 = False):
     messages = {}
     output = {"name": name, "uid": str(playeruid), "total": {}}
     c.execute(
-        "SELECT * FROM specifickilltracker WHERE victim_id = ? AND (victim_type = 'player' OR victim_type IS NULL)",
+        f"SELECT * FROM specifickilltracker{'tf1' if istf1 else ''} WHERE victim_id = ? AND (victim_type = 'player' OR victim_type IS NULL)",
         (playeruid,),
     )
     output["total"]["deaths"] = len(c.fetchall())
     c.execute(
-        "SELECT * FROM specifickilltracker WHERE playeruid = ? AND (victim_type = 'player' OR victim_type IS NULL)",
+        f"SELECT * FROM specifickilltracker{'tf1' if istf1 else ''} WHERE playeruid = ? AND (victim_type = 'player' OR victim_type IS NULL)",
         (playeruid,),
     )
     output["total"]["kills"] = len(c.fetchall())
     c.execute(
-        "SELECT * FROM specifickilltracker WHERE playeruid = ? AND timeofkill > ? AND (victim_type = 'player' OR victim_type IS NULL)",
+        f"SELECT * FROM specifickilltracker{'tf1' if istf1 else ''} WHERE playeruid = ? AND timeofkill > ? AND (victim_type = 'player' OR victim_type IS NULL)",
         (playeruid, now - timeoffset),
     )
     output["total"]["killstoday"] = len(c.fetchall())
     c.execute(
-        "SELECT * FROM specifickilltracker WHERE victim_id = ? AND timeofkill > ? AND (victim_type = 'player' OR victim_type IS NULL)",
+        f"SELECT * FROM specifickilltracker{'tf1' if istf1 else ''} WHERE victim_id = ? AND timeofkill > ? AND (victim_type = 'player' OR victim_type IS NULL)",
         (playeruid, now - timeoffset),
     )
     output["total"]["deathstoday"] = len(c.fetchall())
     c.execute(
-        """
+        f"""
         WITH player_kills AS (
             SELECT playeruid, COUNT(*) AS kill_count,
                    RANK() OVER (ORDER BY COUNT(*) DESC) AS position
-            FROM specifickilltracker
+            FROM specifickilltracker{'tf1' if istf1 else ''}
             WHERE timeofkill > ?
             AND (victim_type = 'player' OR victim_type IS NULL)
             GROUP BY playeruid
@@ -13603,11 +13603,11 @@ def getstats(playeruid,isfromserver = False,istf1 = False):
     output["total"]["killslasthourpos"] = killspos[0] if killspos else None
 
     c.execute(
-        """
+        f"""
         WITH player_deaths AS (
             SELECT victim_id, COUNT(*) AS death_count,
                    RANK() OVER (ORDER BY COUNT(*) DESC) AS position
-            FROM specifickilltracker
+            FROM specifickilltracker{'tf1' if istf1 else ''}
             WHERE timeofkill > ?
             AND (victim_type = 'player' OR victim_type IS NULL)
             GROUP BY victim_id
@@ -13622,11 +13622,11 @@ def getstats(playeruid,isfromserver = False,istf1 = False):
     output["total"]["deathslasthourpos"] = killspos[0] if killspos else None
 
     c.execute(
-        """
+        f"""
         WITH player_kills AS (
             SELECT playeruid, COUNT(*) AS kill_count,
                    RANK() OVER (ORDER BY COUNT(*) DESC) AS position
-            FROM specifickilltracker
+            FROM specifickilltracker{'tf1' if istf1 else ''}
             WHERE (victim_type = 'player' OR victim_type IS NULL)
             GROUP BY playeruid
         )
@@ -13640,10 +13640,10 @@ def getstats(playeruid,isfromserver = False,istf1 = False):
     output["total"]["killspos"] = killspos[0] if killspos else None
 
     c.execute(
-        """
+        f"""
         WITH recent_weapon AS (
             SELECT cause_of_death
-            FROM specifickilltracker
+            FROM specifickilltracker{'tf1' if istf1 else ''}
             WHERE playeruid = ?
             AND (victim_type = 'player' OR victim_type IS NULL)
             ORDER BY timeofkill DESC
@@ -13652,7 +13652,7 @@ def getstats(playeruid,isfromserver = False,istf1 = False):
         weapon_kills AS (
             SELECT playeruid, COUNT(*) AS kill_count,
                    RANK() OVER (ORDER BY COUNT(*) DESC) AS position
-            FROM specifickilltracker
+            FROM specifickilltracker{'tf1' if istf1 else ''}
             WHERE cause_of_death = (SELECT cause_of_death FROM recent_weapon)
             AND (victim_type = 'player' OR victim_type IS NULL)
             GROUP BY playeruid
@@ -13667,11 +13667,11 @@ def getstats(playeruid,isfromserver = False,istf1 = False):
     output["total"]["recentweaponkillspos"] = killspos[0] if killspos else None
 
     c.execute(
-        """
+        f"""
         WITH player_deaths AS (
             SELECT victim_id, COUNT(*) AS death_count,
                    RANK() OVER (ORDER BY COUNT(*) DESC) AS position
-            FROM specifickilltracker
+            FROM specifickilltracker{'tf1' if istf1 else ''}
             WHERE (victim_type = 'player' OR victim_type IS NULL)
             GROUP BY victim_id
         )
@@ -13685,9 +13685,9 @@ def getstats(playeruid,isfromserver = False,istf1 = False):
     output["total"]["deathspos"] = killspos[0] if killspos else None
 
     c.execute(
-        """
+        f"""
         SELECT cause_of_death, COUNT(*) as kill_count
-        FROM specifickilltracker
+        FROM specifickilltracker{'tf1' if istf1 else ''}
         WHERE playeruid = ?
         AND (victim_type = 'player' OR victim_type IS NULL)
         GROUP BY cause_of_death
@@ -13698,9 +13698,9 @@ def getstats(playeruid,isfromserver = False,istf1 = False):
     )
     top_weapons = c.fetchall()
     c.execute(
-        """
+        f"""
         SELECT matchid, SUM(pilotkills) AS total_pilotkills
-        FROM playtime
+        FROM playtime{'tf1' if istf1 else ''}
         WHERE playeruid = ?
         GROUP BY matchid
         ORDER BY total_pilotkills DESC
@@ -13710,9 +13710,9 @@ def getstats(playeruid,isfromserver = False,istf1 = False):
     )
 
     c.execute(
-        """
+        f"""
         SELECT matchid, map, MIN(joinatunix) as start_time, SUM(pilotkills) as total_pilotkills
-        FROM playtime
+        FROM playtime{'tf1' if istf1 else ''}
         WHERE playeruid = ?
         GROUP BY matchid, map
         ORDER BY total_pilotkills DESC
@@ -13722,11 +13722,11 @@ def getstats(playeruid,isfromserver = False,istf1 = False):
     )
     bestgame = c.fetchone()
     c.execute(
-        """
+        f"""
         SELECT 
             COALESCE(SUM(duration), 0) AS total_time_playing,
             COALESCE(SUM(pilotkills), 0) AS total_pilot_kills
-        FROM playtime
+        FROM playtime{'tf1' if istf1 else ''}
         WHERE playeruid = ?
     """,
         (playeruid,),
@@ -13781,14 +13781,14 @@ def getstats(playeruid,isfromserver = False,istf1 = False):
     duelstats = {"win":duelstats[0],"defeat":duelstats[1],"draw":duelstats[2],"total duel":duelstats[3]}
     output["duelstats"] = duelstats
     c.execute(
-        """
+        f"""
         SELECT cause_of_death, COUNT(*) as kill_count
-        FROM specifickilltracker
+        FROM specifickilltracker{'tf1' if istf1 else ''}
         WHERE playeruid = ?
         AND (victim_type = 'player' OR victim_type IS NULL)
         AND cause_of_death = (
             SELECT cause_of_death
-            FROM specifickilltracker
+            FROM specifickilltracker{'tf1' if istf1 else ''}
             WHERE playeruid = ?
             AND (victim_type = 'player' OR victim_type IS NULL)
             ORDER BY timeofkill DESC
