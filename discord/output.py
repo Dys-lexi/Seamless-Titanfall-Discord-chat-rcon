@@ -10620,6 +10620,8 @@ def natterforcoolperks(message, serverid, isfromserver):
     """Natters someone for the coolperks role"""
 
     print("meow")
+    if COOLPERKSNATTER.isdigit() and not int(COOLPERKSNATTER):
+        return
 
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
 
@@ -13838,7 +13840,7 @@ def getstats(playeruid,isfromserver = False,istf1 = False):
             f"{colourcodes[enum]}{WEAPON_NAMES.get(weapon[0], weapon[0])}: {PREFIXES['stat']}{weapon[1]}{PREFIXES['chatcolour']} kills"
         )
 
-    if topguns != "":
+    if topguns:
         messages[str(offset)] = f"[38;5;{colour}mTop 3 guns: " + ", ".join(topguns)
         offset += 1
     # [38;5;244m
