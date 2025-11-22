@@ -515,36 +515,36 @@ string function GetTitan(entity player, bool getboss = false) {
     return GetTitanCharacterName(player)
 }
 
-string function Anonymize(entity player) {
-    return "null" // unused
-}
+// string function Anonymize(entity player) {
+//     return "null" // unused
+// }
 
 void function Log(string s) {
     print("[NUTONEAPI] " + s)
 }
 
-void function nutone_verify(){
-    HttpRequest request
-    request.method = HttpRequestMethod.POST
-    request.url = file.host + "/auth"
-    request.headers = {Token = [file.token]}
-    void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse response )
-    {
-        if(response.statusCode == 200){
-            print("[NUTONEAPI] NUTONEAPI Online !")
-            file.connected = true
-        }else{
-            print("[NUTONEAPI] NUTONEAPI login failed")
-            print("[NUTONEAPI] " + response.body )
+// void function nutone_verify(){
+//     HttpRequest request
+//     request.method = HttpRequestMethod.POST
+//     request.url = file.host + "/auth"
+//     request.headers = {Token = [file.token]}
+//     void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse response )
+//     {
+//         if(response.statusCode == 200){
+//             print("[NUTONEAPI] NUTONEAPI Online !")
+//             file.connected = true
+//         }else{
+//             print("[NUTONEAPI] NUTONEAPI login failed")
+//             print("[NUTONEAPI] " + response.body )
 
-        }
-    }
+//         }
+//     }
 
-    void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
-    {
-        print("[NUTONEAPI] NUTONEAPI login failed")
-        print("[NUTONEAPI] " + failure.errorMessage )
-    }
+//     void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
+//     {
+//         print("[NUTONEAPI] NUTONEAPI login failed")
+//         print("[NUTONEAPI] " + failure.errorMessage )
+//     }
 
-    NSHttpRequest(request, onSuccess, onFailure)
-}
+//     NSHttpRequest(request, onSuccess, onFailure)
+// }

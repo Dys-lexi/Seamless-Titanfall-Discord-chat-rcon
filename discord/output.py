@@ -857,9 +857,6 @@ OVVERRIDEROLEREQUIRMENT = os.getenv("OVERRIDE_ROLE_REQUIREMENT", "1")
 COOLPERKSROLEREQUIRMENTS = os.getenv(
     "COOL_PERKS_REQUIREMENT", "You need something or other to get this"
 )
-COOLPERKSNATTER = os.getenv(
-    "COOL_PERKS_NATTER", "To support x do y"
-)
 SHOWIMPERSONATEDMESSAGESINDISCORD = os.getenv(
     "SHOW_IMPERSONATED_MESSAGES_IN_DISCORD", "1"
 )
@@ -9027,7 +9024,7 @@ def duelcallback(kill):
         return # duel no exist
     currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["attacker_id"]] +=1
     equalkills = not currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["attacker_id"]] - currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["victim_id"]]
-    discordtotitanfall[kill["server_id"]]["messages"].append({"content": f"{PREFIXES['duel']}{f" {PREFIXES["commandname"]}vs ".join(list(functools.reduce(lambda a,x:[a[0]+1,[*a[1],f"{PREFIXES[("green" if not a[0]  else "warning") if not equalkills else "silver"]}{resolveplayeruidfromdb(x[0],None,False)[0]["name"]}: {PREFIXES["stat"]}{x[1]} {PREFIXES['chatcolour']}kill{x[1]-1 and "s" or ""}"]],sorted(list(currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]].items()),key =lambda x: x[1],reverse = True),[0,[]])[1]))}","uidoverride": [kill["attacker_id"],kill["victim_id"]],})
+    discordtotitanfall[kill["server_id"]]["messages"].append({"content": f"{PREFIXES['duel']}{f" {PREFIXES["commandname"]}vs ".join(list(functools.reduce(lambda a,x:[a[0]+1,[*a[1],f"{PREFIXES[("green" if not a[0]  else "warning") if not equalkills else "silver"]}{resolveplayeruidfromdb(x[0],"uid",False)[0]["name"]}: {PREFIXES["stat"]}{x[1]} {PREFIXES['chatcolour']}kill{x[1]-1 and "s" or ""}"]],sorted(list(currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]].items()),key =lambda x: x[1],reverse = True),[0,[]])[1]))}","uidoverride": [kill["attacker_id"],kill["victim_id"]],})
     # print(f"{PREFIXES['duel']}{" vs ".join(list(map(lambda x:f"{PREFIXES["green" if x[0] == kill["attacker_id"] else "warning"]}{resolveplayeruidfromdb(x[0],None,False)[0]["name"]}: {x[1]} kill{x[1]-1 and "s" or ""}",sorted(list(currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]].items()),key =lambda x: x[1],reverse = True))))}")
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
@@ -9049,21 +9046,21 @@ def printduelwinnings(serverid):
             if currentduels[serverid][matchid][attacker][otherperson][attacker] > currentduels[serverid][matchid][attacker][otherperson][otherperson]:
                 discordtotitanfall[serverid]["messages"].append(
                     {
-                        "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{resolveplayeruidfromdb(attacker,None,True)[0]["name"]}{PREFIXES["chatcolour"]} won the duel against {PREFIXES["stat"]}{resolveplayeruidfromdb(otherperson,None,True)[0]["name"]}{PREFIXES["chatcolour"]}! ({currentduels[serverid][matchid][attacker][otherperson][attacker]}:{currentduels[serverid][matchid][attacker][otherperson][otherperson]})",
+                        "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{resolveplayeruidfromdb(attacker,"uid",True)[0]["name"]}{PREFIXES["chatcolour"]} won the duel against {PREFIXES["stat"]}{resolveplayeruidfromdb(otherperson,"uid",True)[0]["name"]}{PREFIXES["chatcolour"]}! ({currentduels[serverid][matchid][attacker][otherperson][attacker]}:{currentduels[serverid][matchid][attacker][otherperson][otherperson]})",
                         # "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
                     }
                 )   
             elif currentduels[serverid][matchid][attacker][otherperson][attacker] == currentduels[serverid][matchid][attacker][otherperson][otherperson]:
                 discordtotitanfall[serverid]["messages"].append(
                     {
-                        "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{resolveplayeruidfromdb(attacker,None,True)[0]["name"]}{PREFIXES["chatcolour"]} tied in the duel against {PREFIXES["stat"]}{resolveplayeruidfromdb(otherperson,None,True)[0]["name"]}{PREFIXES["chatcolour"]}! ({currentduels[serverid][matchid][attacker][otherperson][attacker]}:{currentduels[serverid][matchid][attacker][otherperson][otherperson]})",
+                        "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{resolveplayeruidfromdb(attacker,"uid",True)[0]["name"]}{PREFIXES["chatcolour"]} tied in the duel against {PREFIXES["stat"]}{resolveplayeruidfromdb(otherperson,"uid",True)[0]["name"]}{PREFIXES["chatcolour"]}! ({currentduels[serverid][matchid][attacker][otherperson][attacker]}:{currentduels[serverid][matchid][attacker][otherperson][otherperson]})",
                         # "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
                     }
                 )   
             elif currentduels[serverid][matchid][attacker][otherperson][attacker] < currentduels[serverid][matchid][attacker][otherperson][otherperson]:
                 discordtotitanfall[serverid]["messages"].append(
                     {
-                        "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{resolveplayeruidfromdb(attacker,None,True)[0]["name"]}{PREFIXES["chatcolour"]} lost the duel against {PREFIXES["stat"]}{resolveplayeruidfromdb(otherperson,None,True)[0]["name"]}{PREFIXES["chatcolour"]}! ({currentduels[serverid][matchid][attacker][otherperson][attacker]}:{currentduels[serverid][matchid][attacker][otherperson][otherperson]})",
+                        "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{resolveplayeruidfromdb(attacker,"uid",True)[0]["name"]}{PREFIXES["chatcolour"]} lost the duel against {PREFIXES["stat"]}{resolveplayeruidfromdb(otherperson,"uid",True)[0]["name"]}{PREFIXES["chatcolour"]}! ({currentduels[serverid][matchid][attacker][otherperson][attacker]}:{currentduels[serverid][matchid][attacker][otherperson][otherperson]})",
                         # "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
                     }
                 )   
@@ -9079,8 +9076,8 @@ def startaduel(who):
             if mostrecentmatchids.get(serverid) and mostrecentmatchids.get(serverid) != matchid:
                 # print(mostrecentmatchids.get(serverid),matchid)
                 currentduels[serverid][matchid] = None
-    person1 = resolveplayeruidfromdb(who["inituid"],None,True)[0]
-    person2 = resolveplayeruidfromdb(who["otheruid"],None,True)[0]
+    person1 = resolveplayeruidfromdb(who["inituid"],"uid",True)[0]
+    person2 = resolveplayeruidfromdb(who["otheruid"],"uid",True)[0]
     # print(person1,person2)
     # print(who["inituid"],who["otheruid"])
     tfdb = postgresem("./data/tf2helper.db")
@@ -9172,13 +9169,11 @@ def duelsomone(message,serverid,isfromserver):
         })
 def duelstats(message, serverid, isfromserver):
     command = message["originalmessage"].split(" ", 1)
-    player = [{"uid":None}]
+    player = [{"uid":getpriority(message, "uid", ["meta", "uid"]),"name":getpriority(message,"originalname","name")}]
     if len(command) == 2:
         if command[1].lower() != "global":
 
             player = resolveplayeruidfromdb(command[1],None,True)
-    if not player[0]["uid"]:
-        player = [{"uid":getpriority(message, "uid", ["meta", "uid"]),"name":getpriority(message,"originalname","name")}]
     if not player:
         discordtotitanfall[serverid]["messages"].append(
             {
@@ -9202,7 +9197,7 @@ def duelstats(message, serverid, isfromserver):
         losercolour = (duel["draw"] and PREFIXES["silver"]) or PREFIXES["warning"]
         discordtotitanfall[serverid]["messages"].append(
             {
-                "content": f"{winnercolour}{resolveplayeruidfromdb(duel["winner"]["uid"],None,False)[0]["name"]} {PREFIXES["commandname"]}vs {losercolour}{resolveplayeruidfromdb(duel["loser"]["uid"],None,False)[0]["name"]} {PREFIXES["stat"]}{duel["winner"]["score"]} : {duel["loser"]["score"]} {f"{PREFIXES["stat2"]}({duel["humantimestamp"]}) and before" if lastdate != duel["humantimestamp"] else ""}",
+                "content": f"{winnercolour}{resolveplayeruidfromdb(duel["winner"]["uid"],"uid",False)[0]["name"]} {PREFIXES["commandname"]}vs {losercolour}{resolveplayeruidfromdb(duel["loser"]["uid"],"uid",False)[0]["name"]} {PREFIXES["stat"]}{duel["winner"]["score"]} : {duel["loser"]["score"]} {f"{PREFIXES["stat2"]}({duel["humantimestamp"]}) and before" if lastdate != duel["humantimestamp"] else ""}",
                 "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
             }
         )
@@ -10939,33 +10934,6 @@ def senddiscordcommands(message, serverid, isfromserver):
     )
 
 
-def natterforcoolperks(message, serverid, isfromserver):
-    """natters somone for the coolperks role"""
-    print("meow")
-    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
-    # checks
-    print(json.dumps(message,indent=4))
-    # player does not have coolperksrole
-    # player has more than like 5 mins playtim
-    # somone with a good kd is not on the server
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-    c.execute(f"SELECT COALESCE(SUM(duration), 0) FROM playtime{"tf1" if istf1 else "tf2"} WHERE playeruid = ?",(getpriority(message, "uid", ["meta", "uid"], "name"),))
-    timeplayed = c.fetchone()
-    if checkrconallowedtfuid(getpriority(message, "uid", ["meta", "uid"]),  "coolperksrole", serverid=serverid) or somoneisreallygoodontheserver or playtimeissmol or ((not timeplayed or not timeplayed[0] or timeplayed[0] < 1800 ) and not istf1  ):
-        return
-    # print(f"you have {doeshavecoolperks=}")
-    discordtotitanfall[serverid]["messages"].append(
-    {
-        # "id": str(int(time.time()*100)),
-        "content": f"{PREFIXES['discord']}{"[38;2;253;50;150m"}{COOLPERKSNATTER}",
-        # "teamoverride": 4,
-        # "isteammessage": False,
-        "uidoverride": [getpriority(message, "uid", ["meta", "uid"], "name")],
-        # "dotreacted": dotreacted
-    })
-
-# Go to https://ko-fi.com/dyslexi or boost the server (preferably the former) 115
 def calcstats(message, serverid, isfromserver):
     """Processes in-game stats requests and formats statistical data for display"""
     # print("e",message)
