@@ -424,6 +424,68 @@ def specifickilltrackerdb():
     c.close()
     tfdb.close()
 
+def specifickilltrackerdbtf1():
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
+
+    # Create the table if it doesn't exist
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS specifickilltrackertf1 (
+            id SERIAL PRIMARY KEY,
+            serverid               TEXT,
+            attacker_z              REAL,
+            attacker_x              REAL,
+            attacker_y              REAL,
+            victim_id               INTEGER,
+            victim_name             TEXT,
+            victim_offhand_weapon_2 TEXT,
+            attacker_titan          TEXT,
+            map                     TEXT,
+            attacker_offhand_weapon_1 TEXT,
+            attacker_offhand_weapon_2 TEXT,
+            victim_offhand_weapon_1 TEXT,
+            attacker_weapon_3       TEXT,
+            attacker_name           TEXT,
+            match_id                TEXT,
+            victim_titan            TEXT,
+            distance                REAL,
+            victim_current_weapon   TEXT,
+            victim_z                REAL,
+            attacker_weapon_2       TEXT,
+            game_time               REAL,
+            attacker_current_weapon TEXT,
+            victim_weapon_3         TEXT,
+            playeruid               INTEGER,
+            game_mode               TEXT,
+            victim_x                REAL,
+            attacker_weapon_1       TEXT,
+            victim_weapon_1         TEXT,
+            victim_weapon_2         TEXT,
+            timeofkill              INTEGER,
+            cause_of_death          TEXT,
+            victim_y                REAL,
+            weapon_mods             TEXT,
+            victim_type             TEXT,
+            attacker_type           TEXT
+        )"""
+    )
+    if POSTGRESQLDBURL != "0":
+        c.execute("""
+        ALTER TABLE specifickilltrackertf1
+        ALTER COLUMN playeruid TYPE BIGINT  USING playeruid::BIGINT ,
+        ALTER COLUMN victim_id TYPE BIGINT  USING victim_id::BIGINT ;
+        """)
+        c.commit()
+
+    # c.execute("PRAGMA table_info(specifickilltracker)")
+    # columns = [row[1] for row in c.fetchall()]
+
+    # if "victim_type" not in columns:
+    #     c.execute("ALTER TABLE specifickilltracker ADD COLUMN victim_type TEXT")
+
+    tfdb.commit()
+    c.close()
+    tfdb.close()
 
 def playeruidpreferences():
     tfdb = postgresem("./data/tf2helper.db")
@@ -857,6 +919,9 @@ OVVERRIDEROLEREQUIRMENT = os.getenv("OVERRIDE_ROLE_REQUIREMENT", "1")
 COOLPERKSROLEREQUIRMENTS = os.getenv(
     "COOL_PERKS_REQUIREMENT", "You need something or other to get this"
 )
+COOLPERKSNATTER = os.getenv (
+    "COOL_PERKS_NATTER","You should do this! for that!"
+)
 SHOWIMPERSONATEDMESSAGESINDISCORD = os.getenv(
     "SHOW_IMPERSONATED_MESSAGES_IN_DISCORD", "1"
 )
@@ -1249,6 +1314,7 @@ messagelogger()
 playeruidpreferences()
 creatediscordlinkdb()
 specifickilltrackerdb()
+specifickilltrackerdbtf1()
 playeruidnamelinktf1()
 # tf1matchplayers()
 matchidtf1()
@@ -6422,7 +6488,7 @@ def recieveflaskprintrequests():
             print("not accepted")
             return {"message": "sorry, wrong pass"},400
         print("accepted")
-        return {"message","right pass"},200
+        return {"message":"right pass"},200
     @app.route("/playerdetails", methods=["POST"])
     def getplayerdetails():
         """returns a players settings, eg should the server block messages as being modified, do they have any persistentsettings"""
@@ -7042,414 +7108,20 @@ def recieveflaskprintrequests():
 
     #     tfdb.close()
     #     return {**output, **messages}
-
+    
     @app.route("/data", methods=["POST"])
-    def onkilldata():
+    def onkilldata(data = None):
         # takes input directly from (slightly modified) nutone (https://github.com/nutone-tf) code for this to work is not on the github repo, so probably don't try using it.
         global context, messageflush, consecutivekills, lexitoneapicache, maxkills
-        data = request.get_json()
-        if data["password"] != SERVERPASS and SERVERPASS != "*":
-            print("invalid password used on data")
-            return {"message": "invalid password"}
-        if SENDKILLFEED == "1" and (data.get("victim_type", False) == "player"):
-            print(
-                f"{data.get('attacker_name', data['attacker_type'])} killed {data.get('victim_name', data['victim_type'])} with {data['cause_of_death']} using mods {' '.join(data.get('modsused', []))}"
-            )
-            messageflush.append(
-                {
-                    "timestamp": int(time.time()),
-                    "serverid": data["server_id"],
-                    "type": 3,
-                    "globalmessage": False,
-                    "overridechannel": None,
-                    "messagecontent": f"{data.get('attacker_name', data['attacker_type'])} killed {data.get('victim_name', data['victim_type'])} with {WEAPON_NAMES.get(data['cause_of_death'], data['cause_of_death'])}",
-                    "metadata": {"type": "killfeed"},
-                    "servername": context["servers"][data["server_id"]]["name"],
-                }
-            )
+        if not data:
+            data = request.get_json()
+        
+            if data["password"] != SERVERPASS and SERVERPASS != "*"  :
+                print("invalid password used on data")
+                return {"message": "invalid password"}
+        realonkilldata(data)
+        return {"message":"ok"}
 
-        if (
-            KILLSTREAKNOTIFYTHRESHOLD
-            and data.get("attacker_type", False)
-            not in ["npc_soldier", "npc_stalker", "npc_spectre", "npc_super_spectre"]
-            and (
-                (data.get("victim_type", False) == "player")
-                or (data.get("victim_type", False) == "npc_titan")
-            )
-            and data.get("match_id", False)
-            and getpriority(data, "attacker_name", "attacker_type")
-        ):
-            # print("CORE KILLSTREAKS COUNTED")
-            if len(consecutivekills.keys()) > 50:
-                del consecutivekills[list(consecutivekills.keys())[0]]
-            if len(maxkills.keys()) > 50:
-                del maxkills[list(maxkills.keys())[0]]
-            consecutivekills.setdefault(data["match_id"], {})
-            consecutivekills[data["match_id"]].setdefault(
-                getpriority(data, "attacker_name", "attacker_type"), {}
-            )
-            consecutivekills[data["match_id"]][
-                getpriority(data, "attacker_name", "attacker_type")
-            ].setdefault(data.get("attacker_id", 1), 0)
-            # print(data.get("attacker_titan",False),data.get("victim_titan",False))
-            # print(bool(data.get("victim_titan",False)if data.get("victim_titan",False) != "null" else False))
-            if (
-                bool(
-                    data.get("attacker_titan", False)
-                    if data.get("attacker_titan", False) != "null"
-                    else False
-                )
-                == bool(
-                    data.get("victim_titan", False)
-                    if data.get("victim_titan", False) != "null"
-                    else False
-                )
-                or bool(
-                    data.get("victim_titan", False)
-                    if data.get("victim_titan", False) != "null"
-                    else False
-                )
-                or (data.get("victim_type", False) == "npc_titan")
-
-                # or True
-            ):
-                # print("this crill counted")
-                consecutivekills[data["match_id"]][
-                    getpriority(data, "attacker_name", "attacker_type")
-                ][data.get("attacker_id", 1)] += 1
-                # maxkills = setlotsofdefault(maxkills,max(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)],int(getpriority(maxkills,[data["match_id"],getpriority(data,"attacker_name","attacker_type"),data.get("attacker_id",1)]))),data["match_id"],getpriority(data,"attacker_name","attacker_type"),data.get("attacker_id",1))
-                maxkills.setdefault(data["match_id"], {}).setdefault(
-                    getpriority(data, "attacker_name", "attacker_type"), {}
-                )[data.get("attacker_id", 1)] = max(
-                    consecutivekills[data["match_id"]][
-                        getpriority(data, "attacker_name", "attacker_type")
-                    ][data.get("attacker_id", 1)],
-                    maxkills.get(data["match_id"], {})
-                    .get(getpriority(data, "attacker_name", "attacker_type"), {})
-                    .get(data.get("attacker_id", 1), 0),
-                )
-                if (
-                    consecutivekills[data["match_id"]][
-                        getpriority(data, "attacker_name", "attacker_type")
-                    ][data.get("attacker_id", 1)]
-                    >= KILLSTREAKNOTIFYTHRESHOLD
-                    and not (
-                        consecutivekills[data["match_id"]][
-                            getpriority(data, "attacker_name", "attacker_type")
-                        ][data.get("attacker_id", 1)]
-                        - KILLSTREAKNOTIFYTHRESHOLD
-                    )
-                    % KILLSTREAKNOTIFYSTEP
-                ):
-                    # print("adding")
-                    messageflush.append(
-                        {
-                            "timestamp": int(time.time()),
-                            "serverid": data["server_id"],
-                            "type": 3,
-                            "globalmessage": False,
-                            "overridechannel": None,
-                            "messagecontent": (
-                                KILL_STREAK_MESSAGES["killstreakbegin"][
-                                    (
-                                        consecutivekills[data["match_id"]][
-                                            getpriority(
-                                                data, "attacker_name", "attacker_type"
-                                            )
-                                        ][data.get("attacker_id", 1)]
-                                        - KILLSTREAKNOTIFYTHRESHOLD
-                                    )
-                                    // KILLSTREAKNOTIFYSTEP
-                                ]
-                                if len(KILL_STREAK_MESSAGES["killstreakbegin"])
-                                > (
-                                    consecutivekills[data["match_id"]][
-                                        getpriority(
-                                            data, "attacker_name", "attacker_type"
-                                        )
-                                    ][data.get("attacker_id", 1)]
-                                    - KILLSTREAKNOTIFYTHRESHOLD
-                                )
-                                // KILLSTREAKNOTIFYSTEP
-                                else KILL_STREAK_MESSAGES["killstreakbegin"][-1]
-                            )
-                            .replace(
-                                "/attacker/",
-                                getpriority(data, "attacker_name", "attacker_type"),
-                            )
-                            .replace(
-                                "/victim/",
-                                data.get(
-                                    "victim_name", "UNKNOWN VICTIM SOMETHING IS BROKEY"
-                                ),
-                            )
-                            .replace(
-                                "/ks/",
-                                str(
-                                    consecutivekills[data["match_id"]][
-                                        getpriority(
-                                            data, "attacker_name", "attacker_type"
-                                        )
-                                    ][data.get("attacker_id", 1)]
-                                ),
-                            )
-                            .replace(
-                                "/gun/",
-                                WEAPON_NAMES.get(
-                                    getpriority(data, "cause_of_death"),
-                                    getpriority(data, "cause_of_death"),
-                                ),
-                            ),
-                            "metadata": {"type": "killfeed"},
-                            "servername": context["servers"][data["server_id"]]["name"],
-                        }
-                    )
-
-            # print("THIS HERE", getpriority(consecutivekills,[data["match_id"],data.get("victim_id",1),data.get("victim_name",False)]))
-            if (
-                getpriority(
-                    consecutivekills,
-                    [
-                        data["match_id"],
-                        data.get("victim_name", 1),
-                        data.get("victim_id", False),
-                    ],
-                )
-                and getpriority(
-                    consecutivekills,
-                    [
-                        data["match_id"],
-                        data.get("victim_name", 1),
-                        data.get("victim_id", False),
-                    ],
-                )
-                >= KILLSTREAKNOTIFYTHRESHOLD
-                and data.get("victim_type", False) == "player"
-            ):
-                pass
-                if data.get("attacker_id", False) == data.get("victim_id", False):
-                    messageflush.append(
-                        {
-                            "timestamp": int(time.time()),
-                            "serverid": data["server_id"],
-                            "type": 3,
-                            "globalmessage": False,
-                            "overridechannel": None,
-                            "messagecontent": random.choice(
-                                [
-                                    *KILL_STREAK_MESSAGES["killstreakended"],
-                                    *KILL_STREAK_MESSAGES["killstreakselfended"],
-                                ]
-                            )
-                            .replace(
-                                "/attacker/",
-                                getpriority(data, "attacker_name", "attacker_type"),
-                            )
-                            .replace(
-                                "/victim/",
-                                data.get(
-                                    "victim_name", "UNKNOWN VICTIM SOMETHING IS BROKEY"
-                                ),
-                            )
-                            .replace(
-                                "/ks/",
-                                str(
-                                    getpriority(
-                                        consecutivekills,
-                                        [
-                                            data["match_id"],
-                                            data.get("victim_name", 1),
-                                            data.get("victim_id", False),
-                                        ],
-                                    )
-                                    - 1
-                                ),
-                            )
-                            .replace(
-                                "/gun/",
-                                WEAPON_NAMES.get(
-                                    getpriority(data, "cause_of_death"),
-                                    getpriority(data, "cause_of_death"),
-                                ),
-                            ),
-                            "metadata": {"type": "killfeed"},
-                            "servername": context["servers"][data["server_id"]]["name"],
-                        }
-                    )
-                else:
-                    messageflush.append(
-                        {
-                            "timestamp": int(time.time()),
-                            "serverid": data["server_id"],
-                            "type": 3,
-                            "globalmessage": False,
-                            "overridechannel": None,
-                            "messagecontent": random.choice(
-                                [*KILL_STREAK_MESSAGES["killstreakended"]]
-                            )
-                            .replace(
-                                "/attacker/",
-                                getpriority(data, "attacker_name", "attacker_type"),
-                            )
-                            .replace(
-                                "/victim/",
-                                data.get(
-                                    "victim_name", "UNKNOWN VICTIM SOMETHING IS BROKEY"
-                                ),
-                            )
-                            .replace(
-                                "/ks/",
-                                str(
-                                    getpriority(
-                                        consecutivekills,
-                                        [
-                                            data["match_id"],
-                                            data.get("victim_name", 1),
-                                            data.get("victim_id", False),
-                                        ],
-                                    )
-                                ),
-                            )
-                            .replace(
-                                "/gun/",
-                                WEAPON_NAMES.get(
-                                    getpriority(data, "cause_of_death"),
-                                    getpriority(data, "cause_of_death"),
-                                ),
-                            ),
-                            "metadata": {"type": "killfeed"},
-                            "servername": context["servers"][data["server_id"]]["name"],
-                        }
-                    )
-                # their killstreak ended!
-                consecutivekills[data["match_id"]][data.get("victim_name", 1)][
-                    data.get("victim_id", False)
-                ] = 0
-            elif data.get("victim_type", False) == "player" and getpriority(
-                consecutivekills,
-                [
-                    data["match_id"],
-                    data.get("victim_name", 1),
-                    data.get("victim_id", False),
-                ],
-            ):
-                consecutivekills[data["match_id"]][data.get("victim_name", 1)][
-                    data.get("victim_id", False)
-                ] = 0
-            # print("dataaaaa",consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)],(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP,consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] > KILLSTREAKNOTIFYTHRESHOLD , not (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP )
-            # kill streak notify!
-            # print("I got here")
-        if len(lexitoneapicache.keys()) > 30:  # probably a safe amount
-            del lexitoneapicache[list(lexitoneapicache.keys())[0]]
-        if data.get("match_id", False):
-            lexitoneapicache.setdefault(data.get("match_id", None), []).append(
-                {
-                    "victimtype": data.get("victim_type", None),
-                    "attackertype": data.get("attacker_type", None),
-                    "weapon": data.get("cause_of_death", None),
-                    "victimtitan": data.get("victim_titan", None),
-                    "attackertitan": data.get("attacker_titan", None),
-                    "victimname": data.get("victim_name", None)
-                    if data.get("victim_name", None)
-                    else data.get("victim_type", None),
-                    "attackername": data.get("attacker_name", None)
-                    if data.get("attacker_name", None)
-                    else data.get("attacker_type", None),
-                    # "victimweapon":data.get("victim_current_weapon", None),
-                }
-            )
-        try:
-            duelcallback(data)
-        except:
-            traceback.print_exc()
-        tfdb = postgresem("./data/tf2helper.db")
-        c = tfdb
-        c.execute(
-            """
-            INSERT INTO specifickilltracker (
-                serverid,
-                attacker_z,
-                attacker_x,
-                attacker_y,
-                victim_id,
-                victim_name,
-                victim_offhand_weapon_2,
-                attacker_titan,
-                map,
-                attacker_offhand_weapon_1,
-                attacker_offhand_weapon_2,
-                victim_offhand_weapon_1,
-                attacker_weapon_3,
-                attacker_name,
-                match_id,
-                victim_titan,
-                distance,
-                victim_current_weapon,
-                victim_z,
-                attacker_weapon_2,
-                game_time,
-                attacker_current_weapon,
-                victim_weapon_3,
-                playeruid,
-                game_mode,
-                victim_x,
-                attacker_weapon_1,
-                victim_weapon_1,
-                victim_weapon_2,
-                timeofkill,
-                cause_of_death,
-                victim_y,
-                weapon_mods,
-                victim_type,
-                attacker_type
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                data.get("server_id", None),
-                data.get("attacker_z", None),
-                data.get("attacker_x", None),
-                data.get("attacker_y", None),
-                data.get("victim_id", None),
-                data.get("victim_name", None)
-                if data.get("victim_name", None)
-                else data.get("victim_type", None),
-                data.get("victim_offhand_weapon_2", None),
-                data.get("attacker_titan", None),
-                data.get("map", None),
-                data.get("attacker_offhand_weapon_1", None),
-                data.get("attacker_offhand_weapon_2", None),
-                data.get("victim_offhand_weapon_1", None),
-                data.get("attacker_weapon_3", None),
-                data.get("attacker_name", None)
-                if data.get("attacker_name", None)
-                else data.get("attacker_type", None),
-                data.get("match_id", None),
-                data.get("victim_titan", None),
-                data.get("distance", None),
-                data.get("victim_current_weapon", None),
-                data.get("victim_z", None),
-                data.get("attacker_weapon_2", None),
-                data.get("game_time", None),
-                data.get("attacker_current_weapon", None),
-                data.get("victim_weapon_3", None),
-                data.get("attacker_id", None),
-                data.get("game_mode", None),
-                data.get("victim_x", None),
-                data.get("attacker_weapon_1", None),
-                data.get("victim_weapon_1", None),
-                data.get("victim_weapon_2", None),
-                data.get("timeofkill", None),
-                data.get("cause_of_death", None),
-                data.get("victim_y", None),
-                " ".join(data.get("modsused", [])),
-                data.get("victim_type", None),
-                data.get("attacker_type", None),
-            ),
-        )
-        tfdb.commit()
-        c.close()
-        tfdb.close()
-        return {"message": "ok"}
 
     @app.route("/servermessagein", methods=["POST"])
     def printmessage():
@@ -8045,7 +7717,6 @@ def tf1readsend(serverid, checkstatus):
             outputstring = client.run("script Lpulldata()")
             if checkstatus or len(commands) > 0 or True:
                 client.run("sv_cheats", "0")
-
     except ConnectionRefusedError as e:
         # print(serverid,"CORE BROKEY SOB",e)
         outputstring = ""
@@ -9009,12 +8680,14 @@ def acceptsomething(message,serverid,isfromserver):
 
 def duelcallback(kill):
     global currentduels
-    # print(json.dumps(kill,indent=4))
+
+    print(json.dumps(kill,indent=4))
     # print(json.dumps(potentialduels,indent=4))
     if not potentialduels.get(kill["match_id"]) or not kill.get("victim_id") or not kill.get("attacker_id") or kill.get("victim_type") != "player" or str(kill["attacker_id"]) not in  getpriority(potentialduels,[kill["match_id"],str(kill["victim_id"])],nofind = []) :
         # print("here1")
         return # a duel has been requested, and may or may not exist
         # print("this one counts!")
+    istf1 = context["servers"].get(kill["server_id"], {}).get("istf1server", False)
     if getpriority(currentduels,[kill["server_id"],kill["match_id"],kill["victim_id"],kill["attacker_id"]]):
         whogoesfirst = ("victim_id","attacker_id")
     elif getpriority(currentduels,[kill["server_id"],kill["match_id"],kill["attacker_id"],kill["victim_id"]]):
@@ -9023,8 +8696,14 @@ def duelcallback(kill):
         # print("here2")
         return # duel no exist
     currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["attacker_id"]] +=1
+    # print("I got here")
     equalkills = not currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["attacker_id"]] - currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]][kill["victim_id"]]
-    discordtotitanfall[kill["server_id"]]["messages"].append({"content": f"{PREFIXES['duel']}{f" {PREFIXES["commandname"]}vs ".join(list(functools.reduce(lambda a,x:[a[0]+1,[*a[1],f"{PREFIXES[("green" if not a[0]  else "warning") if not equalkills else "silver"]}{resolveplayeruidfromdb(x[0],"uid",False)[0]["name"]}: {PREFIXES["stat"]}{x[1]} {PREFIXES['chatcolour']}kill{x[1]-1 and "s" or ""}"]],sorted(list(currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]].items()),key =lambda x: x[1],reverse = True),[0,[]])[1]))}","uidoverride": [kill["attacker_id"],kill["victim_id"]],})
+    if not istf1:
+        discordtotitanfall[kill["server_id"]]["messages"].append({"content": f"{PREFIXES['duel']}{f" {PREFIXES["commandname"]}vs ".join(list(functools.reduce(lambda a,x:[a[0]+1,[*a[1],f"{PREFIXES[("green" if not a[0]  else "warning") if not equalkills else "silver"]}{resolveplayeruidfromdb(x[0],"uid",False,istf1)[0]["name"]}: {PREFIXES["stat"]}{x[1]} {PREFIXES['chatcolour']}kill{x[1]-1 and "s" or ""}"]],sorted(list(currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]].items()),key =lambda x: x[1],reverse = True),[0,[]])[1]))}","uidoverride": [getpriority(kill,"attacker_entid","attacker_id"),getpriority(kill,"victim_entid","victim_id")],})
+    else:
+        print([getpriority(kill,"victim_id")],[getpriority(kill,"attacker_id")])
+        discordtotitanfall[kill["server_id"]]["messages"].append({"content": f"{PREFIXES['duel']}{f" {PREFIXES["commandname"]}vs ".join(list(functools.reduce(lambda a,x:[a[0]+1,[*a[1],f"{PREFIXES[("green" if not a[0]  else "warning") if not equalkills else "silver"]}{resolveplayeruidfromdb(x[0],"uid",False,istf1)[0]["name"]}: {PREFIXES["stat"]}{x[1]} {PREFIXES['chatcolour']}kill{x[1]-1 and "s" or ""}"]],sorted(list(currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]].items()),key =lambda x: x[1],reverse = True),[0,[]])[1]))}","uidoverride": [getpriority(kill,"victim_id")],})
+        discordtotitanfall[kill["server_id"]]["messages"].append({"content": f"{PREFIXES['duel']}{f" {PREFIXES["commandname"]}vs ".join(list(functools.reduce(lambda a,x:[a[0]+1,[*a[1],f"{PREFIXES[("green" if not a[0]  else "warning") if not equalkills else "silver"]}{resolveplayeruidfromdb(x[0],"uid",False,istf1)[0]["name"]}: {PREFIXES["stat"]}{x[1]} {PREFIXES['chatcolour']}kill{x[1]-1 and "s" or ""}"]],sorted(list(currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]].items()),key =lambda x: x[1],reverse = True),[0,[]])[1]))}","uidoverride": [getpriority(kill,"attacker_id")],})
     # print(f"{PREFIXES['duel']}{" vs ".join(list(map(lambda x:f"{PREFIXES["green" if x[0] == kill["attacker_id"] else "warning"]}{resolveplayeruidfromdb(x[0],None,False)[0]["name"]}: {x[1]} kill{x[1]-1 and "s" or ""}",sorted(list(currentduels[kill["server_id"]][kill["match_id"]][kill[whogoesfirst[0]]][kill[whogoesfirst[1]]].items()),key =lambda x: x[1],reverse = True))))}")
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
@@ -9035,6 +8714,7 @@ def duelcallback(kill):
 
 def printduelwinnings(serverid):
     print("calculating duel stats")
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     # print(mostrecentmatchids.get(serverid))
     # print( getpriority(currentduels,[serverid,mostrecentmatchids.get(serverid)]))
     # print(currentduels)
@@ -9046,21 +8726,21 @@ def printduelwinnings(serverid):
             if currentduels[serverid][matchid][attacker][otherperson][attacker] > currentduels[serverid][matchid][attacker][otherperson][otherperson]:
                 discordtotitanfall[serverid]["messages"].append(
                     {
-                        "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{resolveplayeruidfromdb(attacker,"uid",True)[0]["name"]}{PREFIXES["chatcolour"]} won the duel against {PREFIXES["stat"]}{resolveplayeruidfromdb(otherperson,"uid",True)[0]["name"]}{PREFIXES["chatcolour"]}! ({currentduels[serverid][matchid][attacker][otherperson][attacker]}:{currentduels[serverid][matchid][attacker][otherperson][otherperson]})",
+                        "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{resolveplayeruidfromdb(attacker,"uid",True,istf1)[0]["name"]}{PREFIXES["chatcolour"]} won the duel against {PREFIXES["stat"]}{resolveplayeruidfromdb(otherperson,"uid",True,istf1)[0]["name"]}{PREFIXES["chatcolour"]}! ({currentduels[serverid][matchid][attacker][otherperson][attacker]}:{currentduels[serverid][matchid][attacker][otherperson][otherperson]})",
                         # "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
                     }
                 )   
             elif currentduels[serverid][matchid][attacker][otherperson][attacker] == currentduels[serverid][matchid][attacker][otherperson][otherperson]:
                 discordtotitanfall[serverid]["messages"].append(
                     {
-                        "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{resolveplayeruidfromdb(attacker,"uid",True)[0]["name"]}{PREFIXES["chatcolour"]} tied in the duel against {PREFIXES["stat"]}{resolveplayeruidfromdb(otherperson,"uid",True)[0]["name"]}{PREFIXES["chatcolour"]}! ({currentduels[serverid][matchid][attacker][otherperson][attacker]}:{currentduels[serverid][matchid][attacker][otherperson][otherperson]})",
+                        "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{resolveplayeruidfromdb(attacker,"uid",True,istf1)[0]["name"]}{PREFIXES["chatcolour"]} tied in the duel against {PREFIXES["stat"]}{resolveplayeruidfromdb(otherperson,"uid",True,istf1)[0]["name"]}{PREFIXES["chatcolour"]}! ({currentduels[serverid][matchid][attacker][otherperson][attacker]}:{currentduels[serverid][matchid][attacker][otherperson][otherperson]})",
                         # "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
                     }
                 )   
             elif currentduels[serverid][matchid][attacker][otherperson][attacker] < currentduels[serverid][matchid][attacker][otherperson][otherperson]:
                 discordtotitanfall[serverid]["messages"].append(
                     {
-                        "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{resolveplayeruidfromdb(attacker,"uid",True)[0]["name"]}{PREFIXES["chatcolour"]} lost the duel against {PREFIXES["stat"]}{resolveplayeruidfromdb(otherperson,"uid",True)[0]["name"]}{PREFIXES["chatcolour"]}! ({currentduels[serverid][matchid][attacker][otherperson][attacker]}:{currentduels[serverid][matchid][attacker][otherperson][otherperson]})",
+                        "content": f"{PREFIXES['discord']}{PREFIXES["stat"]}{resolveplayeruidfromdb(attacker,"uid",True,istf1)[0]["name"]}{PREFIXES["chatcolour"]} lost the duel against {PREFIXES["stat"]}{resolveplayeruidfromdb(otherperson,"uid",True,istf1)[0]["name"]}{PREFIXES["chatcolour"]}! ({currentduels[serverid][matchid][attacker][otherperson][attacker]}:{currentduels[serverid][matchid][attacker][otherperson][otherperson]})",
                         # "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
                     }
                 )   
@@ -9076,8 +8756,10 @@ def startaduel(who):
             if mostrecentmatchids.get(serverid) and mostrecentmatchids.get(serverid) != matchid:
                 # print(mostrecentmatchids.get(serverid),matchid)
                 currentduels[serverid][matchid] = None
-    person1 = resolveplayeruidfromdb(who["inituid"],"uid",True)[0]
-    person2 = resolveplayeruidfromdb(who["otheruid"],"uid",True)[0]
+
+    istf1 = context["servers"].get(who["serverid"], {}).get("istf1server", False)
+    person1 = resolveplayeruidfromdb(who["inituid"],"uid",True,istf1)[0]
+    person2 = resolveplayeruidfromdb(who["otheruid"],"uid",True,istf1)[0]
     # print(person1,person2)
     # print(who["inituid"],who["otheruid"])
     tfdb = postgresem("./data/tf2helper.db")
@@ -9168,12 +8850,13 @@ def duelsomone(message,serverid,isfromserver):
             "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
         })
 def duelstats(message, serverid, isfromserver):
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     command = message["originalmessage"].split(" ", 1)
     player = [{"uid":getpriority(message, "uid", ["meta", "uid"]),"name":getpriority(message,"originalname","name")}]
     if len(command) == 2:
         if command[1].lower() != "global":
 
-            player = resolveplayeruidfromdb(command[1],None,True)
+            player = resolveplayeruidfromdb(command[1],None,True,istf1)
     if not player:
         discordtotitanfall[serverid]["messages"].append(
             {
@@ -9183,7 +8866,7 @@ def duelstats(message, serverid, isfromserver):
         )
         return
     
-    duelinfo = reversed(pullduelstats(player[0]["uid"],limit = 9 if command[0] != keyletter+"bigduels" else 99))
+    duelinfo = reversed(pullduelstats(player[0]["uid"],limit = 9 if command[0] != keyletter+"bigduels" else 99,istf1=istf1))
     lastdate = None
     if duelinfo:
         discordtotitanfall[serverid]["messages"].append(
@@ -9197,7 +8880,7 @@ def duelstats(message, serverid, isfromserver):
         losercolour = (duel["draw"] and PREFIXES["silver"]) or PREFIXES["warning"]
         discordtotitanfall[serverid]["messages"].append(
             {
-                "content": f"{winnercolour}{resolveplayeruidfromdb(duel["winner"]["uid"],"uid",False)[0]["name"]} {PREFIXES["commandname"]}vs {losercolour}{resolveplayeruidfromdb(duel["loser"]["uid"],"uid",False)[0]["name"]} {PREFIXES["stat"]}{duel["winner"]["score"]} : {duel["loser"]["score"]} {f"{PREFIXES["stat2"]}({duel["humantimestamp"]}) and before" if lastdate != duel["humantimestamp"] else ""}",
+                "content": f"{winnercolour}{resolveplayeruidfromdb(duel["winner"]["uid"],"uid",False,istf1)[0]["name"]} {PREFIXES["commandname"]}vs {losercolour}{resolveplayeruidfromdb(duel["loser"]["uid"],"uid",False,istf1)[0]["name"]} {PREFIXES["stat"]}{duel["winner"]["score"]} : {duel["loser"]["score"]} {f"{PREFIXES["stat2"]}({duel["humantimestamp"]}) and before" if lastdate != duel["humantimestamp"] else ""}",
                 "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
             }
         )
@@ -9209,16 +8892,17 @@ def pullduelstats(who = None, **kwargs):
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
     limit = kwargs.get("limit",99999)
+    istf1 = kwargs.get("istf1",False)
     if not who:
-        c.execute("""SELECT d.initiator, d.receiver, d.matchid, d.initiatorscore, d.receiverscore, m.map, m.time 
+        c.execute(f"""SELECT d.initiator, d.receiver, d.matchid, d.initiatorscore, d.receiverscore, m.map, m.time 
                       FROM duels d 
-                      JOIN matchid m ON d.matchid = m.matchid ORDER BY m.time DESC
+                      JOIN matchid{"tf1" if istf1 else ""} m ON d.matchid = m.matchid ORDER BY m.time DESC
                       """)
 
     else:
-        c.execute("""SELECT d.initiator, d.receiver, d.matchid, d.initiatorscore, d.receiverscore, m.map, m.time 
+        c.execute(f"""SELECT d.initiator, d.receiver, d.matchid, d.initiatorscore, d.receiverscore, m.map, m.time 
                      FROM duels d 
-                     JOIN matchid m ON d.matchid = m.matchid 
+                     JOIN matchid{"tf1" if istf1 else ""} m ON d.matchid = m.matchid 
                      WHERE d.initiator = ? OR d.receiver = ? ORDER BY m.time DESC""", (who, who))
 
     # modifyvalue value "date"
@@ -10932,8 +10616,453 @@ def senddiscordcommands(message, serverid, isfromserver):
         f"!senddiscordcommands {' '.join(functools.reduce(lambda a, b: [*a, b[0], str(int(b[1]['shouldblock']))], context['commands']['ingamecommands'].items(), []))}",
         sender=None,
     )
+def natterforcoolperks(message, serverid, isfromserver):
+    """Natters someone for the coolperks role"""
 
+    print("meow")
 
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
+
+    # checks
+    print(json.dumps(message, indent=4))
+
+    # player does not have coolperksrole
+    # player has more than like 5 mins playtime
+    # someone with a good kd is not on the server
+
+    # tfdb = postgresem("./data/tf2helper.db")
+    # c = tfdb
+
+    # c.execute(
+    #     f"SELECT COALESCE(SUM(duration), 0) FROM playtime{'tf1' if istf1 else ''} WHERE playeruid = ?",
+    #     (getpriority(message, 'uid', ['meta', 'uid'], 'name'),)
+    # )
+
+    # timeplayed = c.fetchone()
+
+    # if (
+    #     checkrconallowedtfuid(getpriority(message, 'uid', ['meta', 'uid']), 'coolperksrole', serverid=serverid)
+    #     # or somoneisreallygoodontheserver
+    #     or playtimeissmol
+    #     or ((not timeplayed or not timeplayed[0] or timeplayed[0] < 1800) and not istf1)
+    # ):
+    #     return
+    print(getpriority(message, 'uid', ['meta', 'uid'], 'name'),"natter")
+    discordtotitanfall[serverid]["messages"].append({
+        "content": f"{PREFIXES['discord']}\x1b[38;2;253;50;150m{COOLPERKSNATTER}",
+        "uidoverride": [getpriority(message, 'uid', ['meta', 'uid'], 'name')],
+    })
+
+# Go to https://ko-fi.com/dyslexi or boost the server (preferably the former)
+def killstatfortf1(message, serverid, isfromserver):
+    # print(json.dumps(message,indent=4))
+    if len(message.get("attacker_id","")) < 15:
+        return
+    message["server_id"] = serverid
+    message["istf1"] = context["servers"].get(serverid, {}).get("istf1server", False)
+    realonkilldata(message)
+
+def realonkilldata(data):
+    istf1 = context["servers"].get(data["server_id"], {}).get("istf1server", False)
+    if SENDKILLFEED == "1" and (data.get("victim_type", False) == "player"):
+        print(
+            f"{data.get('attacker_name', data['attacker_type'])} killed {data.get('victim_name', data['victim_type'])} with {data['cause_of_death']} using mods {' '.join(data.get('modsused', []))}"
+        )
+        messageflush.append(
+            {
+                "timestamp": int(time.time()),
+                "serverid": data["server_id"],
+                "type": 3,
+                "globalmessage": False,
+                "overridechannel": None,
+                "messagecontent": f"{data.get('attacker_name', data['attacker_type'])} killed {data.get('victim_name', data['victim_type'])} with {WEAPON_NAMES.get(data['cause_of_death'], data['cause_of_death'])}",
+                "metadata": {"type": "killfeed"},
+                "servername": context["servers"][data["server_id"]]["name"],
+            }
+        )
+
+    if (
+        KILLSTREAKNOTIFYTHRESHOLD
+        and data.get("attacker_type", False)
+        not in ["npc_soldier", "npc_stalker", "npc_spectre", "npc_super_spectre"]
+        and (
+            (data.get("victim_type", False) == "player")
+            or (data.get("victim_type", False) == "npc_titan")
+        )
+        and data.get("match_id", False)
+        and getpriority(data, "attacker_name", "attacker_type")
+    ):
+        # print("CORE KILLSTREAKS COUNTED")
+        if len(consecutivekills.keys()) > 50:
+            del consecutivekills[list(consecutivekills.keys())[0]]
+        if len(maxkills.keys()) > 50:
+            del maxkills[list(maxkills.keys())[0]]
+        consecutivekills.setdefault(data["match_id"], {})
+        consecutivekills[data["match_id"]].setdefault(
+            getpriority(data, "attacker_name", "attacker_type"), {}
+        )
+        consecutivekills[data["match_id"]][
+            getpriority(data, "attacker_name", "attacker_type")
+        ].setdefault(data.get("attacker_id", 1), 0)
+        # print(data.get("attacker_titan",False),data.get("victim_titan",False))
+        # print(bool(data.get("victim_titan",False)if data.get("victim_titan",False) != "null" else False))
+        if (
+            bool(
+                data.get("attacker_titan", False)
+                if data.get("attacker_titan", False) != "null"
+                else False
+            )
+            == bool(
+                data.get("victim_titan", False)
+                if data.get("victim_titan", False) != "null"
+                else False
+            )
+            or bool(
+                data.get("victim_titan", False)
+                if data.get("victim_titan", False) != "null"
+                else False
+            )
+            or (data.get("victim_type", False) == "npc_titan")
+
+            # or True
+        ):
+            # print("this crill counted")
+            consecutivekills[data["match_id"]][
+                getpriority(data, "attacker_name", "attacker_type")
+            ][data.get("attacker_id", 1)] += 1
+            # maxkills = setlotsofdefault(maxkills,max(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)],int(getpriority(maxkills,[data["match_id"],getpriority(data,"attacker_name","attacker_type"),data.get("attacker_id",1)]))),data["match_id"],getpriority(data,"attacker_name","attacker_type"),data.get("attacker_id",1))
+            maxkills.setdefault(data["match_id"], {}).setdefault(
+                getpriority(data, "attacker_name", "attacker_type"), {}
+            )[data.get("attacker_id", 1)] = max(
+                consecutivekills[data["match_id"]][
+                    getpriority(data, "attacker_name", "attacker_type")
+                ][data.get("attacker_id", 1)],
+                maxkills.get(data["match_id"], {})
+                .get(getpriority(data, "attacker_name", "attacker_type"), {})
+                .get(data.get("attacker_id", 1), 0),
+            )
+            if (
+                consecutivekills[data["match_id"]][
+                    getpriority(data, "attacker_name", "attacker_type")
+                ][data.get("attacker_id", 1)]
+                >= KILLSTREAKNOTIFYTHRESHOLD
+                and not (
+                    consecutivekills[data["match_id"]][
+                        getpriority(data, "attacker_name", "attacker_type")
+                    ][data.get("attacker_id", 1)]
+                    - KILLSTREAKNOTIFYTHRESHOLD
+                )
+                % KILLSTREAKNOTIFYSTEP
+            ):
+                # print("adding")
+                messageflush.append(
+                    {
+                        "timestamp": int(time.time()),
+                        "serverid": data["server_id"],
+                        "type": 3,
+                        "globalmessage": False,
+                        "overridechannel": None,
+                        "messagecontent": (
+                            KILL_STREAK_MESSAGES["killstreakbegin"][
+                                (
+                                    consecutivekills[data["match_id"]][
+                                        getpriority(
+                                            data, "attacker_name", "attacker_type"
+                                        )
+                                    ][data.get("attacker_id", 1)]
+                                    - KILLSTREAKNOTIFYTHRESHOLD
+                                )
+                                // KILLSTREAKNOTIFYSTEP
+                            ]
+                            if len(KILL_STREAK_MESSAGES["killstreakbegin"])
+                            > (
+                                consecutivekills[data["match_id"]][
+                                    getpriority(
+                                        data, "attacker_name", "attacker_type"
+                                    )
+                                ][data.get("attacker_id", 1)]
+                                - KILLSTREAKNOTIFYTHRESHOLD
+                            )
+                            // KILLSTREAKNOTIFYSTEP
+                            else KILL_STREAK_MESSAGES["killstreakbegin"][-1]
+                        )
+                        .replace(
+                            "/attacker/",
+                            getpriority(data, "attacker_name", "attacker_type"),
+                        )
+                        .replace(
+                            "/victim/",
+                            data.get(
+                                "victim_name", "UNKNOWN VICTIM SOMETHING IS BROKEY"
+                            ),
+                        )
+                        .replace(
+                            "/ks/",
+                            str(
+                                consecutivekills[data["match_id"]][
+                                    getpriority(
+                                        data, "attacker_name", "attacker_type"
+                                    )
+                                ][data.get("attacker_id", 1)]
+                            ),
+                        )
+                        .replace(
+                            "/gun/",
+                            WEAPON_NAMES.get(
+                                getpriority(data, "cause_of_death"),
+                                getpriority(data, "cause_of_death"),
+                            ),
+                        ),
+                        "metadata": {"type": "killfeed"},
+                        "servername": context["servers"][data["server_id"]]["name"],
+                    }
+                )
+
+        # print("THIS HERE", getpriority(consecutivekills,[data["match_id"],data.get("victim_id",1),data.get("victim_name",False)]))
+        if (
+            getpriority(
+                consecutivekills,
+                [
+                    data["match_id"],
+                    data.get("victim_name", 1),
+                    data.get("victim_id", False),
+                ],
+            )
+            and getpriority(
+                consecutivekills,
+                [
+                    data["match_id"],
+                    data.get("victim_name", 1),
+                    data.get("victim_id", False),
+                ],
+            )
+            >= KILLSTREAKNOTIFYTHRESHOLD
+            and data.get("victim_type", False) == "player"
+        ):
+            pass
+            if data.get("attacker_id", False) == data.get("victim_id", False):
+                messageflush.append(
+                    {
+                        "timestamp": int(time.time()),
+                        "serverid": data["server_id"],
+                        "type": 3,
+                        "globalmessage": False,
+                        "overridechannel": None,
+                        "messagecontent": random.choice(
+                            [
+                                *KILL_STREAK_MESSAGES["killstreakended"],
+                                *KILL_STREAK_MESSAGES["killstreakselfended"],
+                            ]
+                        )
+                        .replace(
+                            "/attacker/",
+                            getpriority(data, "attacker_name", "attacker_type"),
+                        )
+                        .replace(
+                            "/victim/",
+                            data.get(
+                                "victim_name", "UNKNOWN VICTIM SOMETHING IS BROKEY"
+                            ),
+                        )
+                        .replace(
+                            "/ks/",
+                            str(
+                                getpriority(
+                                    consecutivekills,
+                                    [
+                                        data["match_id"],
+                                        data.get("victim_name", 1),
+                                        data.get("victim_id", False),
+                                    ],
+                                )
+                                - 1
+                            ),
+                        )
+                        .replace(
+                            "/gun/",
+                            WEAPON_NAMES.get(
+                                getpriority(data, "cause_of_death"),
+                                getpriority(data, "cause_of_death"),
+                            ),
+                        ),
+                        "metadata": {"type": "killfeed"},
+                        "servername": context["servers"][data["server_id"]]["name"],
+                    }
+                )
+            else:
+                messageflush.append(
+                    {
+                        "timestamp": int(time.time()),
+                        "serverid": data["server_id"],
+                        "type": 3,
+                        "globalmessage": False,
+                        "overridechannel": None,
+                        "messagecontent": random.choice(
+                            [*KILL_STREAK_MESSAGES["killstreakended"]]
+                        )
+                        .replace(
+                            "/attacker/",
+                            getpriority(data, "attacker_name", "attacker_type"),
+                        )
+                        .replace(
+                            "/victim/",
+                            data.get(
+                                "victim_name", "UNKNOWN VICTIM SOMETHING IS BROKEY"
+                            ),
+                        )
+                        .replace(
+                            "/ks/",
+                            str(
+                                getpriority(
+                                    consecutivekills,
+                                    [
+                                        data["match_id"],
+                                        data.get("victim_name", 1),
+                                        data.get("victim_id", False),
+                                    ],
+                                )
+                            ),
+                        )
+                        .replace(
+                            "/gun/",
+                            WEAPON_NAMES.get(
+                                getpriority(data, "cause_of_death"),
+                                getpriority(data, "cause_of_death"),
+                            ),
+                        ),
+                        "metadata": {"type": "killfeed"},
+                        "servername": context["servers"][data["server_id"]]["name"],
+                    }
+                )
+            # their killstreak ended!
+            consecutivekills[data["match_id"]][data.get("victim_name", 1)][
+                data.get("victim_id", False)
+            ] = 0
+        elif data.get("victim_type", False) == "player" and getpriority(
+            consecutivekills,
+            [
+                data["match_id"],
+                data.get("victim_name", 1),
+                data.get("victim_id", False),
+            ],
+        ):
+            consecutivekills[data["match_id"]][data.get("victim_name", 1)][
+                data.get("victim_id", False)
+            ] = 0
+        # print("dataaaaa",consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)],(consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP,consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] > KILLSTREAKNOTIFYTHRESHOLD , not (consecutivekills[data["match_id"]][getpriority(data,"attacker_name","attacker_type")][data.get("attacker_id",1)] - KILLSTREAKNOTIFYTHRESHOLD)%KILLSTREAKNOTIFYSTEP )
+        # kill streak notify!
+        # print("I got here")
+    if len(lexitoneapicache.keys()) > 30:  # probably a safe amount
+        del lexitoneapicache[list(lexitoneapicache.keys())[0]]
+    if data.get("match_id", False):
+        lexitoneapicache.setdefault(data.get("match_id", None), []).append(
+            {
+                "victimtype": data.get("victim_type", None),
+                "attackertype": data.get("attacker_type", None),
+                "weapon": data.get("cause_of_death", None),
+                "victimtitan": data.get("victim_titan", None),
+                "attackertitan": data.get("attacker_titan", None),
+                "victimname": data.get("victim_name", None)
+                if data.get("victim_name", None)
+                else data.get("victim_type", None),
+                "attackername": data.get("attacker_name", None)
+                if data.get("attacker_name", None)
+                else data.get("attacker_type", None),
+                # "victimweapon":data.get("victim_current_weapon", None),
+            }
+        )
+    try:
+        duelcallback(data)
+    except:
+        traceback.print_exc()
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
+    c.execute(
+        f"""
+        INSERT INTO specifickilltracker{"tf1" if istf1 else ""} (
+            serverid,
+            attacker_z,
+            attacker_x,
+            attacker_y,
+            victim_id,
+            victim_name,
+            victim_offhand_weapon_2,
+            attacker_titan,
+            map,
+            attacker_offhand_weapon_1,
+            attacker_offhand_weapon_2,
+            victim_offhand_weapon_1,
+            attacker_weapon_3,
+            attacker_name,
+            match_id,
+            victim_titan,
+            distance,
+            victim_current_weapon,
+            victim_z,
+            attacker_weapon_2,
+            game_time,
+            attacker_current_weapon,
+            victim_weapon_3,
+            playeruid,
+            game_mode,
+            victim_x,
+            attacker_weapon_1,
+            victim_weapon_1,
+            victim_weapon_2,
+            timeofkill,
+            cause_of_death,
+            victim_y,
+            weapon_mods,
+            victim_type,
+            attacker_type
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            data.get("server_id", None),
+            data.get("attacker_z", None),
+            data.get("attacker_x", None),
+            data.get("attacker_y", None),
+            data.get("victim_id", None),
+            data.get("victim_name", None)
+            if data.get("victim_name", None)
+            else data.get("victim_type", None),
+            data.get("victim_offhand_weapon_2", None),
+            data.get("attacker_titan", None),
+            data.get("map", None),
+            data.get("attacker_offhand_weapon_1", None),
+            data.get("attacker_offhand_weapon_2", None),
+            data.get("victim_offhand_weapon_1", None),
+            data.get("attacker_weapon_3", None),
+            data.get("attacker_name", None)
+            if data.get("attacker_name", None)
+            else data.get("attacker_type", None),
+            data.get("match_id", None),
+            data.get("victim_titan", None),
+            data.get("distance", None),
+            data.get("victim_current_weapon", None),
+            data.get("victim_z", None),
+            data.get("attacker_weapon_2", None),
+            data.get("game_time", None),
+            data.get("attacker_current_weapon", None),
+            data.get("victim_weapon_3", None),
+            data.get("attacker_id", None),
+            data.get("game_mode", None),
+            data.get("victim_x", None),
+            data.get("attacker_weapon_1", None),
+            data.get("victim_weapon_1", None),
+            data.get("victim_weapon_2", None),
+            data.get("timeofkill", None),
+            data.get("cause_of_death", None),
+            data.get("victim_y", None),
+            " ".join(data.get("modsused", [])),
+            data.get("victim_type", None),
+            data.get("attacker_type", None),
+        ),
+    )
+    tfdb.commit()
+    c.close()
+    tfdb.close()
+    return {"message": "ok"}
 def calcstats(message, serverid, isfromserver):
     """Processes in-game stats requests and formats statistical data for display"""
     # print("e",message)
@@ -11563,7 +11692,7 @@ def resolveplayeruidfromdb(
         name_like = f"%{name}%"
         query = f"""
             SELECT playeruid, playername, lastseenunix, lastserverid FROM uidnamelink{"tf1" if istf1 else ""}
-            WHERE LOWER(playername) LIKE LOWER(?)
+            WHERE LOWER(playername) LIKE LOWER(?) AND playeruid != 0
             ORDER BY id DESC, playername COLLATE NOCASE
         """
         c.execute(query, (name_like,))
@@ -11647,6 +11776,7 @@ def resolveplayeruidfromdb(
                 seen_uids.add(uid)
 
         # results.sort(key=lambda x: len(x["name"]) - x["name"].lower().startswith(name.lower()) * 50)
+        # print(json.dumps(results,indent=4))
         results.sort(
             key=lambda x: len(x["name"])
             if int(time.time()) - x["lastseen"] < 86400 * 3
@@ -13411,7 +13541,7 @@ def convansi(rgb):
     return ansi_code
 
 
-def getstats(playeruid,isfromserver = False):
+def getstats(playeruid,isfromserver = False,istf1 = False):
     """Comprehensive player statistics calculator with kill/death ratios, rankings, and weapon usage data"""
     # print(int(time.time()))
     tfdb = postgresem("./data/tf2helper.db")

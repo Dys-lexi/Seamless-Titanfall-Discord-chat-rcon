@@ -33,7 +33,8 @@
         },
         "duel": {
             "games": [
-                "tf2"
+                "tf2",
+                "tf1"
             ],
             "function": "duelsomone",
             "run": "thread",
@@ -45,7 +46,8 @@
                 "bigduels"
             ],
             "games": [
-                "tf2"
+                "tf2",
+                "tf1"
             ],
             "function": "duelstats",
             "run": "thread",
@@ -235,6 +237,13 @@
             "description": "Throw somone, you meanie",
             "shouldblock": true,
             "permsneeded": "rconrole"
+        },
+        "killstat": {
+            "games": [],
+            "run": "thread",
+            "function": "killstatfortf1",
+            "description": "internal command to track titanfall 1 kills",
+            "shouldblock": true
         },
         "checkbantf1": {
             "games": [],
