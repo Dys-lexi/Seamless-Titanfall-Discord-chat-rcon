@@ -10689,7 +10689,7 @@ def realonkilldata(data):
         not in ["npc_soldier", "npc_stalker", "npc_spectre", "npc_super_spectre"]
         and (
             (data.get("victim_type", False) == "player")
-            or (data.get("victim_type", False) == "npc_titan")
+            # or (data.get("victim_type", False) == "npc_titan")   CHanged while faketone is a bit funky with auto titans yaya ejects no longer coutn sob sob
         )
         and data.get("match_id", False)
         and getpriority(data, "attacker_name", "attacker_type")
