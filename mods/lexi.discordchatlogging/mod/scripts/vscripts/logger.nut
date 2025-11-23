@@ -278,7 +278,7 @@ void function LogConnect( entity player )
 		return
 	}
 	if (GetConVarInt("natterforcoolperksrole")){
-		runcommandondiscord("natterforcoolperks",{ name = player.GetUID()})
+		runcommandondiscord("natterforcoolperks",{ uid = player.GetUID()})
 	}
 	else if (Time() < 30){ // && serverdetails.currentlyplaying.find(player.GetUID().tostring()) != null){
 		print("[DiscordLogger] Player "+player.GetPlayerName()+" is already in the server, not logging")

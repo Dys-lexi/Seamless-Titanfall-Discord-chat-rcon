@@ -919,9 +919,6 @@ OVVERRIDEROLEREQUIRMENT = os.getenv("OVERRIDE_ROLE_REQUIREMENT", "1")
 COOLPERKSROLEREQUIRMENTS = os.getenv(
     "COOL_PERKS_REQUIREMENT", "You need something or other to get this"
 )
-COOLPERKSNATTER = os.getenv (
-    "COOL_PERKS_NATTER","You should do this! for that!"
-)
 SHOWIMPERSONATEDMESSAGESINDISCORD = os.getenv(
     "SHOW_IMPERSONATED_MESSAGES_IN_DISCORD", "1"
 )
@@ -1242,8 +1239,26 @@ else:
         def __del__(self):
             self._cleanup()
 
+callbacks = {}
+def on(thing,sync="thread"):
+    def fancything(function):
+        global callbacks
+        callbacks.setdefault(thing, []).append({"func":function,"sync":sync})
+        return function
+    return fancything
+def callback(name,*stuff,**morestuff):
+    global callbacks
+    for callback in callbacks.get(name,[]):
+        if callback["sync"] == "thread":
+            threading.Thread(target=threadwrap,daemon=True,args=(callback["func"], *stuff),kwargs=morestuff).start()
+        elif callback["sync"] == "async":
+            asyncio.run_coroutine_threadsafe(threadwrap(callback["func"], *stuff, **morestuff),bot.loop)
 
+# @on("bleh")
+# def whatever():
+#     print("meow")
 
+# callback("bleh")
 
 
 # tf1matchplayers()
@@ -1302,6 +1317,7 @@ context = {
     },
     "leaderboardchannelmessages": [],
     "commands": {},
+    "coolperksnatter":"You should do this! for that!"
 }
 notifydb()
 playtimedb()
@@ -8384,12 +8400,12 @@ def tftodiscordcommand(specificommand, command, serverid):
     """Handles all commands from TF2 to Discord, processing in-game commands and routing to Discord functions"""  # handles all commands in !helpdc, and generally most recent tf2 commands that execute stuff on discord
     global context
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
-    if specificommand:
-        print(
-            "server command requested for",
-            getpriority(context, ["servers", serverid, "name"]),
-            specificommand,
-        )
+    # if specificommand:
+    #     print(
+    #         "server command requested for",
+    #         getpriority(context, ["servers", serverid, "name"]),
+    #         specificommand,
+    #     )
     # return
 
     servercommand = specificommand != False
@@ -8677,10 +8693,9 @@ def acceptsomething(message,serverid,isfromserver):
         return
     getpriority(registeredaccepts,[peopleonline.get(str(getpriority(message, "uid", ["meta", "uid"])),{}).get("matchid"),str(getpriority(message, "uid", ["meta", "uid"]))],nofind = [])[acceptednumber]["func"](getpriority(registeredaccepts,[peopleonline.get(str(getpriority(message, "uid", ["meta", "uid"])),{}).get("matchid"),str(getpriority(message, "uid", ["meta", "uid"]))],nofind = [])[acceptednumber]["additional"])
     registeredaccepts[peopleonline.get(str(getpriority(message, "uid", ["meta", "uid"])),{}).get("matchid")][str(getpriority(message, "uid", ["meta", "uid"]))][acceptednumber] = False
-
+@on("nutone")
 def duelcallback(kill):
     global currentduels
-
     # print(json.dumps(kill,indent=4))
     # print(json.dumps(potentialduels,indent=4))
     if not potentialduels.get(kill["match_id"]) or not kill.get("victim_id") or not kill.get("attacker_id") or kill.get("victim_type") != "player" or str(kill["attacker_id"]) not in  getpriority(potentialduels,[kill["match_id"],str(kill["victim_id"])],nofind = []) :
@@ -10619,39 +10634,50 @@ def senddiscordcommands(message, serverid, isfromserver):
 def natterforcoolperks(message, serverid, isfromserver):
     """Natters someone for the coolperks role"""
 
-    print("meow")
-    if COOLPERKSNATTER.isdigit() and not int(COOLPERKSNATTER):
+    # print("meow")
+    if context.get("coolperksnatter").isdigit() and not int(context.get("coolperksnatter")):
         return
 
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
 
     # checks
-    print(json.dumps(message, indent=4))
+    # print(json.dumps(message, indent=4))
 
     # player does not have coolperksrole
     # player has more than like 5 mins playtime
     # someone with a good kd is not on the server
 
-    # tfdb = postgresem("./data/tf2helper.db")
-    # c = tfdb
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
 
-    # c.execute(
-    #     f"SELECT COALESCE(SUM(duration), 0) FROM playtime{'tf1' if istf1 else ''} WHERE playeruid = ?",
-    #     (getpriority(message, 'uid', ['meta', 'uid'], 'name'),)
-    # )
+    c.execute(
+        f"SELECT COALESCE(SUM(duration), 0) FROM playtime{'tf1' if istf1 else ''} WHERE playeruid = ?",
+        (getpriority(message, 'uid', ['meta', 'uid'], 'name'),)
+    )
 
-    # timeplayed = c.fetchone()
-
-    # if (
-    #     checkrconallowedtfuid(getpriority(message, 'uid', ['meta', 'uid']), 'coolperksrole', serverid=serverid)
-    #     # or somoneisreallygoodontheserver
-    #     or playtimeissmol
-    #     or ((not timeplayed or not timeplayed[0] or timeplayed[0] < 1800) and not istf1)
-    # ):
-    #     return
-    print(getpriority(message, 'uid', ['meta', 'uid'], 'name'),"natter")
+    timeplayed = c.fetchone()
+    # print( checkrconallowedtfuid(getpriority(message, 'uid', ['meta', 'uid']), 'coolperksrole', serverid=serverid))
+    # print(((not timeplayed or not timeplayed[0] or timeplayed[0] < 1800) and not istf1))
+    if (
+        checkrconallowedtfuid(getpriority(message, 'uid', ['meta', 'uid']), 'coolperksrole', serverid=serverid)
+        # or somoneisreallygoodontheserver
+        # or playtimeissmol
+        or ((not timeplayed or not timeplayed[0] or timeplayed[0] < 1800) and not istf1)
+    ):
+        pass
+        return
+    if  getpriority(
+            readplayeruidpreferences(
+                getpriority(message, "uid", ["meta", "uid"], "name"), istf1
+            ),
+            ["tf1" if istf1 else "tf2", "adblock"],
+        ):
+        return
+        # print("adblock enabled")
+    # print(getpriority(message, 'uid', ['meta', 'uid'], 'name'),"natter")
+    # time.sleep(10)
     discordtotitanfall[serverid]["messages"].append({
-        "content": f"{PREFIXES['discord']}\x1b[38;2;253;50;150m{COOLPERKSNATTER}",
+        "content": f"{context["coolperksnatter"]}",
         "uidoverride": [getpriority(message, 'uid', ['meta', 'uid'], 'name')],
     })
 
@@ -10974,7 +11000,7 @@ def realonkilldata(data):
             }
         )
     try:
-        duelcallback(data)
+        callback("nutone",data)
     except:
         traceback.print_exc()
     tfdb = postgresem("./data/tf2helper.db")
@@ -11157,7 +11183,6 @@ def savemessages(message, serverid):
 
     tfdb.commit()
     tfdb.close()
-
 
 async def checkverify(message, serverid):
     global accountlinker

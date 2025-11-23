@@ -185,6 +185,15 @@
             "shouldblock": false,
             "internaltoggle": "togglestats"
         },
+        "adblock": {
+            "games": [
+                "tf1",
+                "tf2"
+            ],
+            "run": "togglestat",
+            "description": "True = disable showing of donation message",
+            "shouldblock": true
+        },
         "helpdc": {
             "games": [
                 "tf1",
