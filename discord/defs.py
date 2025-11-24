@@ -205,9 +205,7 @@ NPC_NAMES = {
 
 
 WEAPON_NAMES = {
-    "mp_titanweapon_shotgun": "WYS-0404 Shotgun"
-    "mp_weapon_chargerifle": "Charge Rifle"
-    "mp_weapon_p2011": "P2011",
+    "mp_titanweapon_shotgun": "WYS-0404 Shotgun",
     "mp_weapon_proximity_mine":"Proximity Mine",
     "mp_weapon_mega2": "Twin-B",
     "mp_weapon_mega1": "Valkrie",
@@ -217,7 +215,7 @@ WEAPON_NAMES = {
     "damagedef_titan_step":"Stepped on",
     "mp_titanweapon_xo16_shorty":"Expi's gun",
     "outOfBounds":"Tried to flee battle",
-    "titan_execution":"Titan executio,
+    "titan_execution":"Titan execution",
     "human_execution":"Pilot execution",
     "melee_pilot_emptyhanded": "Melee",
     "mp_weapon_shotgun_doublebarrel":"Twin-B",
@@ -1018,20 +1016,6 @@ GUNS_PILOT = [
     {
         "weapon_name": "mp_weapon_wingman_n",
         "png_name": "mp_weapon_wingman_n",
-        "mods": [],
-        "modsfiltertype": "include",
-        "killedby" : ["player"]
-    },
-    {
-        "weapon_name": "mp_weapon_p2011",
-        "png_name": "mp_weapon_p2011",
-        "mods": [],
-        "modsfiltertype": "include",
-        "killedby" : ["player"]
-    },
-    {
-        "weapon_name": "mp_weapon_chargerifle",
-        "png_name": "mp_weapon_chargerifle",
         "mods": [],
         "modsfiltertype": "include",
         "killedby" : ["player"]

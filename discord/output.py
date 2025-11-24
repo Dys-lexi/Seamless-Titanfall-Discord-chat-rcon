@@ -2774,8 +2774,10 @@ if DISCORDBOTLOGSTATS == "1":
             "What weapon (please select one or pay my power bills)",
             autocomplete=weaponnamesautocomplete,
         ) = None,
+        titanfall1: Option(str, "Use titanfall 1 database", choices=["Yes", "No"]) = "No",
         fliptovictims: Option(str, "Flip to victims?", choices=["Yes", "No"]) = "No",
         onlynpcscount: Option(str, "Only show leaderboards for npcs?", choices=["Yes", "No"]) = "No",
+
     ):
         """return a specific pngleaderboard to a person"""
         await ctx.defer()
@@ -2830,7 +2832,8 @@ if DISCORDBOTLOGSTATS == "1":
             False,
             350,
             player[0]["uid"],
-            onlynpcscount == "Yes"
+            onlynpcscount == "Yes",
+            titanfall1 == "Yes"
         )
         cdn_url = f"{GLOBALIP}/cdn/{timestamp}"
         if not timestamp:
@@ -3997,7 +4000,8 @@ if DISCORDBOTLOGSTATS == "1":
         COLUMNS=False,
         widthoverride=300,
         playeroverride=False,
-        canonlybenpcs=False
+        canonlybenpcs=False,
+        istf1 = False
     ):
         """calculates all the pngleaderboards"""
         global imagescdn
@@ -4015,6 +4019,7 @@ if DISCORDBOTLOGSTATS == "1":
         CURRENT = (255, 0, 255)
         DEFAULT_COLOR = (255, 255, 255)
         IMAGE_DIR = "./gunimages"
+        IMAGE_DIR_TF1 = "./gunimagestf1"
         CDN_DIR = "./data/cdn"
         if specificweapon:
             specificweapon = specificweapon.copy()
@@ -4067,7 +4072,7 @@ if DISCORDBOTLOGSTATS == "1":
             tfdb = postgresem("./data/tf2helper.db")
             c = tfdb
             c.execute(
-                "SELECT DISTINCT cause_of_death FROM specifickilltracker ORDER BY cause_of_death"
+                f"SELECT DISTINCT cause_of_death FROM specifickilltracker{'tf1' if istf1 else ''} ORDER BY cause_of_death"
             )
             output = c.fetchall()
             # print(json.dumps({x["weapon_name"]:x["png_name"] for x in [*ABILITYS_PILOT, *GRENADES, *DEATH_BY_MAP, *MISC_MISC, *MISC_TITAN, *MISC_PILOT, *CORES, *GUNS_TITAN, *GUNS_PILOT, *ABILITYS_TITAN]},indent=4))
@@ -4133,7 +4138,7 @@ if DISCORDBOTLOGSTATS == "1":
             tfdb = postgresem("./data/tf2helper.db")
             c = tfdb
             c.execute(
-                "SELECT cause_of_death ,playeruid,weapon_mods FROM specifickilltracker WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL)",
+                f"SELECT cause_of_death ,playeruid,weapon_mods FROM specifickilltracker{'tf1' if istf1 else ''} WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL)",
                 (timecutoff,),
             )
             rows = c.fetchall()
@@ -4146,12 +4151,12 @@ if DISCORDBOTLOGSTATS == "1":
             c = tfdb
             if not swoptovictims:
                 c.execute(
-                    "SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, playeruid, weapon_mods, attacker_type",
+                    f"SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker{'tf1' if istf1 else ''} WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, playeruid, weapon_mods, attacker_type",
                     (timecutoff,),
                 )
             else:
                 c.execute(
-                    "SELECT cause_of_death, victim_id, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, victim_id, weapon_mods, attacker_type",
+                    f"SELECT cause_of_death, victim_id, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker{'tf1' if istf1 else ''} WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, victim_id, weapon_mods, attacker_type",
                     (timecutoff,),
                 )
 
@@ -4380,8 +4385,19 @@ if DISCORDBOTLOGSTATS == "1":
             COLUMNS = sqrt_ceil(len(weapon_names))
         for weapon in weapon_names:
             try:
-                img_path = os.path.join(IMAGE_DIR, weapon + ".png")
+                if istf1:
+                    tf1_path = os.path.join(IMAGE_DIR_TF1, weapon + ".png")
+                    if os.path.exists(tf1_path):
+                        img_path = tf1_path
+                    else:
+                        img_path = os.path.join(IMAGE_DIR, weapon + ".png")
+                else:
+                    img_path = os.path.join(IMAGE_DIR, weapon + ".png")
                 gun_img = Image.open(img_path)
+                if gun_img.width > maxwidth:
+                    aspect_ratio = gun_img.height / gun_img.width
+                    new_height = int(maxwidth * aspect_ratio)
+                    gun_img = gun_img.resize((maxwidth, new_height), Image.Resampling.LANCZOS)
             except FileNotFoundError:
                 gun_img = Image.new("RGBA", (maxwidth, 128), color=(0, 0, 0, 200))
                 draw = ImageDraw.Draw(gun_img)
@@ -4401,8 +4417,6 @@ if DISCORDBOTLOGSTATS == "1":
                 draw.text((x, y), text, fill=(255, 100, 100, 255), font=font)
 
             images[weapon] = gun_img
-            if gun_img.width > maxwidth:
-                maxwidth = gun_img.width
             if gun_img.height > maxheight:
                 maxheight = gun_img.height
         for weapon in weapon_names:
@@ -4517,7 +4531,7 @@ if DISCORDBOTLOGSTATS == "1":
                 for i, (attacker, data) in enumerate(sorted_players):
                     count = data["kills"]
                     oldkills = data["killscutoff"]
-                    resolved = resolveplayeruidfromdb(attacker, "uid", True)
+                    resolved = resolveplayeruidfromdb(attacker, "uid", True, istf1)
                     if not playeroverride:
                         name = (
                             resolved[0]["name"] if attacker and resolved else NPC_NAMES.get(attacker,attacker)
@@ -4564,7 +4578,7 @@ if DISCORDBOTLOGSTATS == "1":
                 y = maxheight + 5
                 draw.text(
                     (x, y),
-                    f"No playerdata found for {resolveplayeruidfromdb(playeroverride, 'uid', True, False)[0]['name']}",
+                    f"No playerdata found for {resolveplayeruidfromdb(playeroverride, 'uid', True, istf1)[0]['name']}",
                     font=font,
                     fill=(255, 100, 100),
                 )
