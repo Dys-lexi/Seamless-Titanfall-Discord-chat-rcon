@@ -205,13 +205,19 @@ NPC_NAMES = {
 
 
 WEAPON_NAMES = {
+    "mp_titanweapon_shotgun": "WYS-0404 Shotgun"
+    "mp_weapon_chargerifle": "Charge Rifle"
+    "mp_weapon_p2011": "P2011",
+    "mp_weapon_proximity_mine":"Proximity Mine",
+    "mp_weapon_mega2": "Twin-B",
+    "mp_weapon_mega1": "Valkrie",
     "mp_weapon_arena3":"H.E.L.L",
     "mp_weapon_peacekraber": "PeaceKraber",
     "mp_titanweapon_triplethreat":"Triple Threat",
     "damagedef_titan_step":"Stepped on",
     "mp_titanweapon_xo16_shorty":"Expi's gun",
     "outOfBounds":"Tried to flee battle",
-    "titan_execution":"Titan execution",
+    "titan_execution":"Titan executio,
     "human_execution":"Pilot execution",
     "melee_pilot_emptyhanded": "Melee",
     "mp_weapon_shotgun_doublebarrel":"Twin-B",
@@ -618,7 +624,8 @@ CSS_COLOURS = {
     "lvio" : (238, 130, 238),
     "llblue": (135, 206, 235)
     }
-GUNS_TITAN = [ {
+GUNS_TITAN = [    
+     {
         "weapon_name": "mp_titanweapon_leadwall",
         "png_name": "mp_titanweapon_leadwall",
         "mods": [],
@@ -670,6 +677,69 @@ GUNS_TITAN = [ {
     {
         "weapon_name": "mp_titanweapon_xo16_vanguard",
         "png_name": "mp_titanweapon_xo16_vanguard",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_titanweapon_40mm",
+        "png_name": "mp_titanweapon_40mm",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_titanweapon_arccannon",
+        "png_name": "mp_titanweapon_arccannon",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_titanweapon_minigun",
+        "png_name": "mp_titanweapon_minigun",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_titanweapon_auto_targeting_missles",
+        "png_name": "mp_titanweapon_auto_targeting_missles",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_titanweapon_cluster_rocket",
+        "png_name": "mp_titanweapon_cluster_rocket",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_titanweapon_rocketlauncher",
+        "png_name": "mp_titanweapon_rocketlauncher",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_titanweapon_shotgun",
+        "png_name": "mp_titanweapon_shotgun",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_titanweapon_triplethreat",
+        "png_name": "mp_titanweapon_triplethreat",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_titanweapon_xo16",
+        "png_name": "mp_titanweapon_xo16",
         "mods": [],
         "modsfiltertype": "include",
         "killedby" : ["player"]
@@ -948,6 +1018,34 @@ GUNS_PILOT = [
     {
         "weapon_name": "mp_weapon_wingman_n",
         "png_name": "mp_weapon_wingman_n",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_weapon_p2011",
+        "png_name": "mp_weapon_p2011",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_weapon_chargerifle",
+        "png_name": "mp_weapon_chargerifle",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_weapon_mega1",
+        "png_name": "mp_weapon_mega1",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_weapon_mega2",
+        "png_name": "mp_weapon_mega2",
         "mods": [],
         "modsfiltertype": "include",
         "killedby" : ["player"]
@@ -1308,6 +1406,20 @@ GRENADES = [
     {
         "weapon_name": "mp_weapon_grenade_gravity",
         "png_name": "mp_weapon_grenade_gravity",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_weapon_proximity_mine",
+        "png_name": "mp_weapon_proximity_mine",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_weapon_arc_grenade",
+        "png_name": "mp_weapon_arc_grenade",
         "mods": [],
         "modsfiltertype": "include",
         "killedby" : ["player"]
