@@ -173,7 +173,7 @@
             "run": "togglestat",
             "sendvaluetoserver":false,
             "description": "True = disable debugchat",
-            "shouldblock": true,
+            "shouldblock": false,
             "permsneeded": "debugchat"
         },
         "autostats": {
