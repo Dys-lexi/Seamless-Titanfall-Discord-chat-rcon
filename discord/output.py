@@ -2884,7 +2884,7 @@ if DISCORDBOTLOGSTATS == "1":
         """uses the existing leaderboards in channels.json and finds where the player is, and shows them in it"""
         player = resolveplayeruidfromdb(playername, None, True)
         if not player:
-            await ctx.respond(f"{playername}player not found", ephemeral=False)
+            await ctx.respond(f"{playername} player not found", ephemeral=False)
         if leaderboard is None:
             await ctx.defer()
             output = {}
@@ -6573,6 +6573,8 @@ def recieveflaskprintrequests():
                 "sanctiontype": "ban",
             }
         # print(json.dumps({"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{**({"nameprefix": colourslink[discorduid]["nameprefix"]} if getpriority(colourslink,[discorduid,"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())) else {}),**{x: str(y) for x,y in list(filter(lambda x: not internaltoggles.get(x[0],False) or (not getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]))  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))},**sanction}},indent=4))
+
+        # print(json.dumps(,indent=4))
         return {
             "output": {
                 "shouldblockmessages": any(
@@ -6610,7 +6612,7 @@ def recieveflaskprintrequests():
                     x: str(y)
                     for x, y in list(
                         filter(
-                            lambda x: not internaltoggles.get(x[0], False)
+                            lambda x: not internaltoggles.get(x[0], False) #HEH?????
                             or (
                                 not getpriority(
                                     context,
@@ -6631,7 +6633,15 @@ def recieveflaskprintrequests():
                                         "serversenabled",
                                     ],
                                 )
-                            ),
+                            ) and getpriority(
+                                    context,
+                                    [
+                                        "commands",
+                                        "ingamecommands",
+                                        internaltoggles[x[0]],
+                                        "sendvaluetoserver",
+                                    ],
+                                nofind = True),
                             readplayeruidpreferences(data["uid"], False)
                             .get("tf2", {})
                             .items(),
@@ -8036,7 +8046,10 @@ def runtf1server(server):
             or i % 20 == 0
         ):
             
-            tf1readsend(server,i % 20 == 0)
+            try:
+                tf1readsend(server,i % 20 == 0)
+            except Exception as e:
+                traceback.print_exc()
         i += 1
 
 
@@ -8513,7 +8526,7 @@ def tftodiscordcommand(specificommand, command, serverid):
             not istf1
             and bool(getpriority(command, ["meta", "blockedcommand"]))
             != bool(
-                context["commands"]["ingamecommands"][specificommand]["shouldblock"]
+                context["commands"]["ingamecommands"][specificommand].get("shouldblock")  and int(serverid) in context["commands"]["ingamecommands"][specificommand].get("serversenabled",[int(serverid)])
             )
             and specificommand != "toggle"
         ) or (
@@ -8525,9 +8538,12 @@ def tftodiscordcommand(specificommand, command, serverid):
             != bool(
                 context["commands"]["ingamecommands"][
                     command["originalmessage"].split(" ")[1:][0]
-                ]["shouldblock"]
+                ].get("shouldblock")and int(serverid) in context["commands"]["ingamecommands"][
+                    command["originalmessage"].split(" ")[1:][0]
+                ].get("serversenabled",[int(serverid)])
             )
         ):
+            print("the server messed up with blocking commands",serverid)
             # HARDCODING !toggle to check next command - I don't like it but is alright
             # huh? this if statment confuses me.. oh actually no, it's telling the server off if it gets blocking wrong but why does it only run here? surely it should always run? put it here as that seems better
             # tf1 does not support blocking commands yet, from discord. nor does it have any, due to it using a better command system, so a lot of the commands can run directly on tf1
@@ -10492,7 +10508,7 @@ def togglestats(message, togglething, serverid):
         discordtotitanfall[serverid]["messages"].append(
             {
                 # "id": str(int(time.time()*100)),
-                "content": f"{PREFIXES['discord']}No discord account linked, cannot toggle {togglething}",
+                "content": f"{PREFIXES['discord']}No discord account linked, cannot toggle {togglething} (the server has no way of knowing who you are)",
                 # "teamoverride": 4,
                 # "isteammessage": False,
                 "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
@@ -10638,11 +10654,11 @@ def senddiscordcommands(message, serverid, isfromserver):
     """Sends Discord-specific commands from in-game chat"""
     print(
         "COMMANDS REQUESTED",
-        f"!senddiscordcommands {' '.join(functools.reduce(lambda a, b: [*a, b[0], str(int(b[1]['shouldblock']))], context['commands']['ingamecommands'].items(), []))}",
+        f"!senddiscordcommands {' '.join(functools.reduce(lambda a, b: [*a, b[0], str(int(b[1].get("shouldblock")))],filter(lambda x: int (serverid) in x[1].get("serversenabled",[int(serverid)]) ,context['commands']['ingamecommands'].items()), []))}",
     )
     sendrconcommand(
         serverid,
-        f"!senddiscordcommands {' '.join(functools.reduce(lambda a, b: [*a, b[0], str(int(b[1]['shouldblock']))], context['commands']['ingamecommands'].items(), []))}",
+        f"!senddiscordcommands {' '.join(functools.reduce(lambda a, b: [*a, b[0], str(int(b[1].get("shouldblock")))],filter(lambda x: int (serverid) in x[1].get("serversenabled",[int(serverid)]) ,context['commands']['ingamecommands'].items()), []))}",
         sender=None,
     )
 def natterforcoolperks(message, serverid, isfromserver):
@@ -11155,7 +11171,7 @@ def calcstats(message, serverid, isfromserver):
             discordtotitanfall[serverid]["messages"].append(
                 {
                     # "id": str(int(time.time()*100)),
-                    "content": f"{PREFIXES['discord']}player not found :(",
+                    "content": f"{PREFIXES['discord']} player not found :(",
                     # "teamoverride": 4,
                     # "isteammessage": False,
                     "uidoverride": [name],

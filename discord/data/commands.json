@@ -171,8 +171,9 @@
                 "tf2"
             ],
             "run": "togglestat",
+            "sendvaluetoserver":false,
             "description": "True = disable debugchat",
-            "shouldblock": false,
+            "shouldblock": true,
             "permsneeded": "debugchat"
         },
         "autostats": {
@@ -181,6 +182,7 @@
                 "tf2"
             ],
             "run": "togglestat",
+            "sendvaluetoserver":false,
             "description": "True = disable auto showing of stats",
             "shouldblock": false,
             "internaltoggle": "togglestats"
@@ -191,6 +193,7 @@
                 "tf2"
             ],
             "run": "togglestat",
+            "sendvaluetoserver":false,
             "description": "True = disable showing of donation message",
             "shouldblock": true
         },
