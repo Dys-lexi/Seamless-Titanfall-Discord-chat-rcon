@@ -4963,7 +4963,7 @@ if DISCORDBOTLOGSTATS == "1":
             if ip in uidinfo["searchedips"]:
                 continue
             uidinfo["searchedips"].append(ip)
-            print(ip)
+            # print(ip)
             c.execute("SELECT playeruid FROM uidnamelink WHERE ipinfo LIKE ?",(f"%{ip}%",))
             uidinfo["all"] = list(set([*uidinfo["all"],*(list(map(lambda x: x[0],c.fetchall())))]))
             
@@ -7630,7 +7630,7 @@ def tf1readsend(serverid, checkstatus):
                 "command": "sendmessage",
                 "id": message["id"],
                 "args": (
-                    f"placeholder{','.join(list(map(lambda x: str(x), message.get('uidoverride', [])))) if not isinstance(message.get('uidoverride', []), (str, int)) else f'{message.get("uidoverride", [])}'}"
+                    f"{"placeholder" if not message.get('uidoverride', []) else ""}{','.join(list(map(lambda x: str(x), message.get('uidoverride', [])))) if not isinstance(message.get('uidoverride', []), (str, int)) else f'{message.get("uidoverride", [])}'}"
                 )
                 + " "
                 + (message["content"][0:tf1messagesizeadd]),
@@ -10653,7 +10653,7 @@ def ingamehelp(message, serverid, isfromserver):
 def senddiscordcommands(message, serverid, isfromserver):
     """Sends Discord-specific commands from in-game chat"""
     print(
-        "COMMANDS REQUESTED",
+        "COMMANDS REQUESTED FROM",serverid,
         f"!senddiscordcommands {' '.join(functools.reduce(lambda a, b: [*a, b[0], str(int(b[1].get("shouldblock")))],filter(lambda x: int (serverid) in x[1].get("serversenabled",[int(serverid)]) ,context['commands']['ingamecommands'].items()), []))}",
     )
     sendrconcommand(
@@ -11126,7 +11126,7 @@ def calcstats(message, serverid, isfromserver):
     # print("e",message)
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     # print(isfromserver,readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]),istf1) )
-    # print("BLEHHHH",getpriority(message,"uid",["meta","uid"]))
+    # print("BLEHHHH",getpriority(message,"uid",["meta","uid"],"name"))
     if (
         isfromserver
         and getpriority(
@@ -11160,13 +11160,15 @@ def calcstats(message, serverid, isfromserver):
         else:
             # print(getpriority(message,"originalname","name"))
             output = getstats(str(getpriority(message, "originalname", "name")),isfromserver,istf1)
-        name = resolveplayeruidfromdb(
-            getpriority(message, "originalname", "name"), None, True, istf1
-        )
-        if name:
-            name = name[0]["uid"]
-        else:
-            return
+        # if not isfromserver:
+        #     name = resolveplayeruidfromdb(
+        #         getpriority(message, "originalname", "name"), None, True, istf1
+        #     )
+        #     if name:
+        #         name = name[0]["uid"]
+        #     else:
+        #         return
+        
         if "sob" in output.keys():
             discordtotitanfall[serverid]["messages"].append(
                 {
@@ -11174,7 +11176,7 @@ def calcstats(message, serverid, isfromserver):
                     "content": f"{PREFIXES['discord']} player not found :(",
                     # "teamoverride": 4,
                     # "isteammessage": False,
-                    "uidoverride": [name],
+                    "uidoverride": [getpriority(message, "uid", ["meta", "uid"],"name")],
                     # "dotreacted": dotreacted
                 }
             )
@@ -11191,7 +11193,7 @@ def calcstats(message, serverid, isfromserver):
                     "content": stat,
                     # "teamoverride": 4,
                     # "isteammessage": False,
-                    "uidoverride": [name]
+                    "uidoverride": [getpriority(message, "uid", ["meta", "uid"],"name")]
                     if not len(message.get("originalmessage", "w").split(" ")) > 1
                     else [],
                     # "dotreacted": dotreacted

@@ -273,15 +273,14 @@ void function LogConnect( entity player )
 	init["shouldblockmessages"] <- false
 	blockedplayers.players[player.GetUID()] <- init
 	checkshouldblockmessages(player)
-	if (GetConVarInt("natterforcoolperksrole")){
-		runcommandondiscord("natterforcoolperks",{ uid = player.GetUID()})
-	}
 	if(!IsValid(player))
 	{
 		return
 	}
-	
-	else if (Time() < 30){ // && serverdetails.currentlyplaying.find(player.GetUID().tostring()) != null){
+	if (GetConVarInt("natterforcoolperksrole")){
+		runcommandondiscord("natterforcoolperks",{ uid = player.GetUID()})
+	}
+	if (Time() < 30){ // && serverdetails.currentlyplaying.find(player.GetUID().tostring()) != null){
 		print("[DiscordLogger] Player "+player.GetPlayerName()+" is already in the server, not logging")
 		return
 	}
