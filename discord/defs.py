@@ -205,6 +205,7 @@ NPC_NAMES = {
 
 
 WEAPON_NAMES = {
+    "fall":"the architects",
     "mp_titanweapon_shotgun": "WYS-0404 Shotgun",
     "mp_weapon_proximity_mine":"Proximity Mine",
     "mp_weapon_mega2": "Twin-B",

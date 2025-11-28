@@ -8921,6 +8921,7 @@ def duelstats(message, serverid, isfromserver):
             }
         )
     for duel in duelinfo:
+        # print(json.dumps(duel,indent=4))
         winnercolour = (duel["draw"] and PREFIXES["silver"]) or PREFIXES["green"]
         losercolour = (duel["draw"] and PREFIXES["silver"]) or PREFIXES["warning"]
         discordtotitanfall[serverid]["messages"].append(
@@ -10154,11 +10155,11 @@ def displayendofroundstats(message, serverid, isfromserver):
                 sorted(matchdata["deaths"].items(), key=lambda x: x[1], reverse=True)
             )
 
-        if matchdata["tkills"]:
+        if matchdata.get("tkills"):
             stringslist["general"].append(
                 f"{colour}Total kills: {PREFIXES['stat']}{matchdata['tkills']}"
             )
-        if matchdata["tdeaths"]:
+        if matchdata.get("tdeaths"):
             stringslist["general"].append(
                 f"{colour}Total deaths: {PREFIXES['stat']}{matchdata['tdeaths']}"
             )
