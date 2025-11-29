@@ -7732,6 +7732,7 @@ def tf1readsend(serverid, checkstatus):
                 # print("sending messages and commands to tf1",commands)
 
                 for w, command in commands.items():
+                    # print(json.dumps(command,indent=4))
                     otherquotemark = "'"
                     quotationmark = '"'
                     if command["type"] == "rcon":
@@ -7775,7 +7776,7 @@ def tf1readsend(serverid, checkstatus):
         if not offlinethisloop:
             discordtotitanfall[serverid]["lastheardfrom"] = int(time.time())
     # print("I got here!")
-    # print("outputstring",outputstring)
+    # print("outputstring",inputstring)
 
     try:
         if "|" in outputstring:
@@ -8040,7 +8041,7 @@ def tf1relay():
 def runtf1server(server):
     i = 0
     while True:
-        time.sleep(1)
+        time.sleep(0.5)
         if (
             discordtotitanfall[server].get("serveronline", True) == True
             or i % 20 == 0
@@ -8522,8 +8523,7 @@ def tftodiscordcommand(specificommand, command, serverid):
             )
             return
         if (
-            specificommand in context["commands"]["ingamecommands"] and
-            not istf1
+            specificommand in context["commands"]["ingamecommands"] 
             and bool(getpriority(command, ["meta", "blockedcommand"]))
             != bool(
                 context["commands"]["ingamecommands"][specificommand].get("shouldblock")  and int(serverid) in context["commands"]["ingamecommands"][specificommand].get("serversenabled",[int(serverid)])
@@ -10653,13 +10653,14 @@ def ingamehelp(message, serverid, isfromserver):
 
 def senddiscordcommands(message, serverid, isfromserver):
     """Sends Discord-specific commands from in-game chat"""
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     print(
         "COMMANDS REQUESTED FROM",serverid,
-        f"!senddiscordcommands {' '.join(functools.reduce(lambda a, b: [*a, b[0], str(int(b[1].get("shouldblock")))],filter(lambda x: int (serverid) in x[1].get("serversenabled",[int(serverid)]) ,context['commands']['ingamecommands'].items()), []))}",
+        f"!senddiscordcommands {' '.join(functools.reduce(lambda a, b: [*a, b[0], str(int(b[1].get("shouldblock")))],filter(lambda x: int (serverid) in x[1].get("serversenabled",[int(serverid)]) and (not x[1].get("games") or ("tf1" if istf1 else "tf2") in x[1]["games"] ) ,context['commands']['ingamecommands'].items()), []))}",
     )
     sendrconcommand(
         serverid,
-        f"!senddiscordcommands {' '.join(functools.reduce(lambda a, b: [*a, b[0], str(int(b[1].get("shouldblock")))],filter(lambda x: int (serverid) in x[1].get("serversenabled",[int(serverid)]) ,context['commands']['ingamecommands'].items()), []))}",
+        f"!senddiscordcommands {' '.join(functools.reduce(lambda a, b: [*a, b[0], str(int(b[1].get("shouldblock")))],filter(lambda x: int (serverid) in x[1].get("serversenabled",[int(serverid)]) and (not x[1].get("games") or ("tf1" if istf1 else "tf2") in x[1]["games"] ) ,context['commands']['ingamecommands'].items()), []))}",
         sender=None,
     )
 def natterforcoolperks(message, serverid, isfromserver):
