@@ -316,6 +316,20 @@
             "rcon": true,
             "outputfunc": false
         },
+        "nessify": {
+            "description": "Nessify a player",
+            "parameters": [
+                {
+                    "name": "playername",
+                    "type": "str",
+                    "description": "The player name",
+                    "required": true,
+                    "autocompletefunc": "autocompletenamesfromingame"
+                }
+            ],
+            "rcon": true,
+            "outputfunc": false
+        },
         "hostiletf": {
             "description": "Play hostile titanfall warning for a player",
             "parameters": [

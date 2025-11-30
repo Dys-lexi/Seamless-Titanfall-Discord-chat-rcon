@@ -1863,26 +1863,26 @@ async def on_member_joinadd(member):
     name="messagelogs",
     description="Pull all non command message logs with a given filter",
 )
-async def pullmessagelogs(ctx, filterword: str = ""):
+async def pullmessagelogs(ctx, filterword1: str = "", filterword2: str = "", filterword3: str = ""):
     """returns all messages with that matching string"""
 
     await ctx.defer()
     threading.Thread(
-        target=threadwrap, daemon=True, args=(threadedfinder, ctx, filterword)
+        target=threadwrap, daemon=True, args=(threadedfinder, ctx, filterword1,filterword2,filterword3)
     ).start()
 
 
-def threadedfinder(ctx, filterword):
+def threadedfinder(ctx, filterword1,filterword2,filterword3):
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
     c.execute(
         """
         SELECT message, type, serverid
         FROM messagelogger
-        WHERE message LIKE ? COLLATE NOCASE
+        WHERE message LIKE ? AND message LIKE ? AND message LIKE ? COLLATE NOCASE
         AND type NOT IN ('command', 'tf1command', 'botcommand')
     """,
-        ("%" + filterword + "%",),
+        ("%" + filterword1 + "%","%" + filterword2 + "%","%" + filterword3 + "%"),
     )
     matches = [{**(getjson(row[0])), "serverid": row[2]} for row in c.fetchall()][::-1]
     truncationmessage = ""
@@ -2882,43 +2882,55 @@ if DISCORDBOTLOGSTATS == "1":
         ) = None,
     ):
         """uses the existing leaderboards in channels.json and finds where the player is, and shows them in it"""
+        await ctx.defer()
+        threading.Thread(
+            target=threadwrap, daemon=True, args=(threadedleaderboard, ctx, playername, leaderboard)
+        ).start()
+    
+    def threadedleaderboard(ctx, playername, leaderboard):
+        """Threaded version of leaderboard retrieval"""
         player = resolveplayeruidfromdb(playername, None, True)
         if not player:
-            await ctx.respond(f"{playername} player not found", ephemeral=False)
+            asyncio.run_coroutine_threadsafe(
+                ctx.respond(f"{playername} player not found", ephemeral=False),
+                bot.loop
+            )
+            return
+            
         if leaderboard is None:
-            await ctx.defer()
             output = {}
             colour = 0
             for logid in range(len(context["leaderboardchannelmessages"])):
-                # print(logid)
-                if "name" in context["leaderboardchannelmessages"][logid].get(
-                    "merge", ""
-                ):
-                    output[logid] = await updateleaderboard(
-                        logid, specificuidsearch=str(player[0]["uid"]), compact=True
-                    )
-                    # print("here")
+                if "name" in context["leaderboardchannelmessages"][logid].get("merge", ""):
+                    result = asyncio.run_coroutine_threadsafe(
+                        updateleaderboard(logid, specificuidsearch=str(player[0]["uid"]), compact=True),
+                        bot.loop
+                    ).result()
+                    output[logid] = result
                     if output[logid]:
                         colour = output[logid]["title"]["color"]
         else:
-            await ctx.defer()
+            output = None
             for logid in range(len(context["leaderboardchannelmessages"])):
                 if (
-                    "name"
-                    in context["leaderboardchannelmessages"][logid].get("merge", "")
-                    and context["leaderboardchannelmessages"][logid].get("name", "")
-                    == leaderboard
+                    "name" in context["leaderboardchannelmessages"][logid].get("merge", "")
+                    and context["leaderboardchannelmessages"][logid].get("name", "") == leaderboard
                 ):
-                    output = await updateleaderboard(
-                        logid, str(player[0]["uid"]), False, 11
-                    )
-            # print("OUTPUT",output)
+                    output = asyncio.run_coroutine_threadsafe(
+                        updateleaderboard(logid, str(player[0]["uid"]), False, 11),
+                        bot.loop
+                    ).result()
+                    
             if not output:
-                await ctx.respond(
-                    f"Leaderboard data not found, or {player[0]['name']} is not in the chosen leaderboard",
-                    ephemeral=False,
+                asyncio.run_coroutine_threadsafe(
+                    ctx.respond(
+                        f"Leaderboard data not found, or {player[0]['name']} is not in the chosen leaderboard",
+                        ephemeral=False
+                    ),
+                    bot.loop
                 )
                 return
+                
             embed = discord.Embed(
                 title=output["title"]["title"],
                 color=output["title"]["color"],
@@ -2928,10 +2940,12 @@ if DISCORDBOTLOGSTATS == "1":
                 embed.add_field(
                     name=field["name"], value=field["value"], inline=field["inline"]
                 )
-            message = await ctx.respond(
-                f"leaderboard for **{player[0]['name']}**", embed=embed, ephemeral=False
+            asyncio.run_coroutine_threadsafe(
+                ctx.respond(f"leaderboard for **{player[0]['name']}**", embed=embed, ephemeral=False),
+                bot.loop
             )
             return
+            
         embed = discord.Embed(
             title=f"leaderboards for **{player[0]['name']}**",
             color=colour,
@@ -2940,14 +2954,15 @@ if DISCORDBOTLOGSTATS == "1":
         for entry in output.values():
             if not entry:
                 continue
-            # print(json.dumps(entry))
             embed.add_field(
                 name=entry["title"]["title"],
                 value=entry["rows"][0]["value"],
                 inline=False,
             )
-        # print(output)
-        message = await ctx.respond(embed=embed, ephemeral=False)
+        asyncio.run_coroutine_threadsafe(
+            ctx.respond(embed=embed, ephemeral=False),
+            bot.loop
+        )
 
     # @bot.slash_command(
     #     name="getplayerhours",
@@ -6927,6 +6942,18 @@ def recieveflaskprintrequests():
     # len(x[0]) > 15
 
     # step one, check the len of the discorduid
+    @app.route("/duels/<playername>", methods=["GET"])
+    def getduelsinaprettyapi(playername):
+        istf1 = bool(request.args.get("istf1",False) )
+        
+        person = resolveplayeruidfromdb(playername,None,True,istf1)
+        if not person:
+            return {"message":"no one found"} , 404
+        person = person[0]
+        things = pullduelstats(person["uid"],istf1=istf1)
+        return things
+
+
     @app.route("/playtime/<playername>", methods=["GET"])
     def getplayerplaytimeinaprettyapi(playername):
         serverid = int(request.args.get("serverid", 0))
@@ -8821,7 +8848,7 @@ def startaduel(who):
         else:
             currentstabs = [0,0]
 
-    c.execute("INSERT INTO duels (initiator,receiver,matchid,initiatorscore,receiverscore,serverid,isfinished) VALUES (?,?,?,?,?,?,?) ON CONFLICT DO NOTHING",(who["inituid"],who["otheruid"],who["matchid"],0,0,who["serverid"],0))
+    c.execute("INSERT INTO duels (initiator,receiver,matchid,initiatorscore,receiverscore,serverid,isfinished) VALUES (?,?,?,?,?,?,?) ON CONFLICT DO NOTHING",(who["inituid"],who["otheruid"],who["matchid"],0,0,who["serverid"],(0 if not istf1 else 1)))
     c.execute("SELECT initiatorscore, receiverscore FROM duels WHERE initiator = ? AND receiver = ? AND matchid = ?",
     (who["inituid"],who["otheruid"],who["matchid"]))
     
