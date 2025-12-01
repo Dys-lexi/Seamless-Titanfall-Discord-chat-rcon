@@ -1,5 +1,6 @@
 
 MODEL_DICT = {
+    '$"models/robots/marvin/marvin.mdl"': "misc/MRVN.webp",
     '$"models/humans/pilots/pilot_medium_geist_m.mdl"': "pilots/grapple_cropped.png",
     '$"models/humans/pilots/pilot_medium_geist_f.mdl"': "pilots/grapple_cropped.png",
     '$"models/titans/medium/titan_medium_ajax.mdl"': "kevstitans/Ionkev.png",
@@ -52,7 +53,7 @@ MODEL_DICT = {
     "true models/robots/spectre/imc_spectre.mdl":"titanfall1/pilots/tf1spectre.png",
     "false models/Robots/spectre/spectre_corporate_pilot.mdl":"titanfall1/pilots/tf1spectre.png",
     "true models/Robots/spectre/spectre_corporate_pilot.mdl":"titanfall1/pilots/tf1spectre.png",
-    "expedition":"kevstitans/Expeditionkev.png"
+    "expedition":"kevstitans/Expeditionkev.png",
 }
 
 UNKNOWNPFPS = {

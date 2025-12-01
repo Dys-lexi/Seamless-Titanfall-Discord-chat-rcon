@@ -8886,7 +8886,7 @@ def duelsomone(message,serverid,isfromserver):
         return
     person = command[1]
     
-    duelymatches = dict(filter(lambda x: person.lower() in x[1]["name"].lower() and x[1]["serverid"] == serverid, peopleonline.items()))
+    duelymatches = dict(filter(lambda x: person.lower() in x[1]["name"].lower() and x[1]["serverid"] == serverid and x[1]["matchid"] == mostrecentmatchids[serverid], peopleonline.items()))
     
     # print(duelymatches)
     if  (cannotduelyourself := str(getpriority(message, "uid", ["meta", "uid"])) in duelymatches and False) or (toomany := (len(duelymatches) > 1)) or not len(duelymatches) :
@@ -9230,7 +9230,6 @@ def autobalanceoverride(data, serverid, statuscode):
 
     results = c.fetchall()
     tfdb.close()
-
     stats_list = sorted(
         [
             {
@@ -9291,13 +9290,13 @@ def autobalanceoverride(data, serverid, statuscode):
             #     continue
             discordtotitanfall[serverid]["messages"].append(
                 {
-                    "content": f"{PREFIXES['stat']}Your team: {', '.join(functools.reduce(lambda a, b: {'lastcolour': PREFIXES['warning'] if int(b) in data[player['uid']]['scary'] else PREFIXES['friendly'], 'output': [*a['output'], f'{(PREFIXES["warning"] if int(b) in data[player["uid"]]["scary"] else PREFIXES["friendly"]) if (PREFIXES["warning"] if int(b) in data[player["uid"]]["scary"] else PREFIXES["friendly"]) != a["lastcolour"] else ""}{playernamecache[b]}:{searchablestats[b]["kph"]:.2f}']}, list(map(lambda x: x['uid'], outputtedteams[teamint])), {'lastcolour': False, 'output': []})['output'])}",
+                    "content": f"{PREFIXES['stat']}Your team: {', '.join(functools.reduce(lambda a, b: {'lastcolour': PREFIXES['warning'] if b in data[player['uid']]['scary'] else PREFIXES['friendly'], 'output': [*a['output'], f'{(PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["friendly"]) if (PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["friendly"]) != a["lastcolour"] else ""}{playernamecache[b]}:{searchablestats[b]["kph"]:.2f}']}, list(map(lambda x: x['uid'], outputtedteams[teamint])), {'lastcolour': False, 'output': []})['output'])}",
                     "uidoverride": [player["uid"]],
                 }
             )
             discordtotitanfall[serverid]["messages"].append(
                 {
-                    "content": f"{PREFIXES['stat']}Enemy team: {', '.join(functools.reduce(lambda a, b: {'lastcolour': PREFIXES['warning'] if int(b) in data[player['uid']]['scary'] else PREFIXES['enemy'], 'output': [*a['output'], f'{(PREFIXES["warning"] if int(b) in data[player["uid"]]["scary"] else PREFIXES["enemy"]) if (PREFIXES["warning"] if int(b) in data[player["uid"]]["scary"] else PREFIXES["enemy"]) != a["lastcolour"] else ""}{playernamecache[b]}:{searchablestats[b]["kph"]:.2f}']}, list(map(lambda x: x['uid'], outputtedteams[abs(teamint - 1)])), {'lastcolour': False, 'output': []})['output'])}",
+                    "content": f"{PREFIXES['stat']}Enemy team: {', '.join(functools.reduce(lambda a, b: {'lastcolour': PREFIXES['warning'] if b in data[player['uid']]['scary'] else PREFIXES['enemy'], 'output': [*a['output'], f'{(PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["enemy"]) if (PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["enemy"]) != a["lastcolour"] else ""}{playernamecache[b]}:{searchablestats[b]["kph"]:.2f}']}, list(map(lambda x: x['uid'], outputtedteams[abs(teamint - 1)])), {'lastcolour': False, 'output': []})['output'])}",
                     "uidoverride": [player["uid"]],
                 }
             )
