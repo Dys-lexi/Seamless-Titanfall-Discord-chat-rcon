@@ -79,7 +79,7 @@
 			"Path": "discordlogthrow.nut",
 			"RunOn": "SERVER",
 			"ServerCallback": {
-				"Before": "discordlogthrowinit"
+				"Before": "discordlogthrowplayer_init"
 			}
 		},
 		{
