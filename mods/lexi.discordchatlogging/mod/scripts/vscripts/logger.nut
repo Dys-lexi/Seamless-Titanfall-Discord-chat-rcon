@@ -72,15 +72,17 @@ array <entity> function discordlogmatchplayers(string playername){ //returns all
 
 bool function discordlogcheck( string command, bool adminabusecommand, discordlogcommand inputcommand )
 {
-	if ( adminabusecommand && !serverdetails.rconadminabuseenabled )
+	bool shouldreturnfalse = ( ( inputcommand.command[0] != 47 && inputcommand.command[0] != 33 ) || split( split( inputcommand.command," " )[0],"!/" )[0] != command )
+	if ( !shouldreturnfalse && adminabusecommand && !serverdetails.rconadminabuseenabled )
 	{
-		inputcommand.returnmessage = "Admin abuse commands are disabled on this server."
+		inputcommand.returnmessage = "Rcon admin abuse commands are disabled on this server"
 		inputcommand.returncode = -3
-		return false
+		inputcommand.commandmatch = true
+		return true
 	}
 
 	// print(split(inputcommand.command," ")[0].find(command) == null)
-	return ( ( inputcommand.command[0] != 47 && inputcommand.command[0] != 33 ) || split( split( inputcommand.command," " )[0],"!/" )[0] != command )
+	return shouldreturnfalse
 }
 
 struct {
