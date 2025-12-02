@@ -1008,7 +1008,7 @@ void function DiscordClientMessageinloop()
 			}
 			else
 			{
-				check.commandcheck[validation] <- EncodeJSON( { statuscode = -3, output= command + ": RCON is not enabled" } )
+				check.commandcheck[validation] <- EncodeJSON( { statuscode = -3, output= command + ": Rcon is disabled on this server" } )
 			}
 		}
 
