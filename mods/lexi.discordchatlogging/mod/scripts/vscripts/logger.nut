@@ -690,12 +690,7 @@ void function stoprequests(){
 	params["command"] <- "endofroundstats"
 	params["password"] <- serverdetails.password
 	params["serverid"] <- serverdetails.serverid
-	if (GetConVarInt("disablestoprequests") == 1){
-		params["dontdisablethings"] <- true
-	}
-	else{
-		check.denylogging = 1
-	}
+	params["dontdisablethings"] <- true
 	HttpRequest request
 	request.method = HttpRequestMethod.POST
 	request.url = serverdetails.Requestpath + "/stoprequests"

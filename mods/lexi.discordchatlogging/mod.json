@@ -36,10 +36,6 @@
 			"DefaultValue": "1" // set this to 0 if you don't want rcon users to be able to admin abuse via discord
 		},
 		{
-			"Name": "disablestoprequests",
-			"DefaultValue": "0" // only use if you have a fix to ns http bug
-		},
-		{
 			"Name": "enforcediscordsanctions",
 			"DefaultValue": "1" // set to one so /sanctiontf2 works
 		},
