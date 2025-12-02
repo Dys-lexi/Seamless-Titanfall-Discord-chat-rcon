@@ -1,8 +1,15 @@
+global function getconvar_init
 global function getconvar
 global function extmessagesendtester
 
+void function getconvar_init()
+{
+	AddDiscordRconCommand( getconvar )
+	AddDiscordRconCommand( extmessagesendtester )
+}
+
 discordlogcommand function getconvar(discordlogcommand commandin) {
-    if (discordlogcheck("getconvar", commandin)){
+    if (discordlogcheck("getconvar", true, commandin)){
             return commandin;
     }
     commandin.commandmatch = true
@@ -26,7 +33,7 @@ discordlogcommand function getconvar(discordlogcommand commandin) {
 }
 
 discordlogcommand function extmessagesendtester(discordlogcommand commandin) {
-    if (discordlogcheck("extmessagesendtester", commandin)){
+    if (discordlogcheck("extmessagesendtester", true, commandin)){
             return commandin;
     }
     commandin.commandmatch = true

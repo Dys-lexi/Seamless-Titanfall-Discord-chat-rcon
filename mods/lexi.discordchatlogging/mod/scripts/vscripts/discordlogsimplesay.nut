@@ -1,7 +1,13 @@
+global function discordlogsimplesay_init
 global function discordlogsimplesay
 
+void function discordlogsimplesay_init()
+{
+	AddDiscordRconCommand( discordlogsimplesay )
+}
+
 discordlogcommand function discordlogsimplesay(discordlogcommand commandin) {
-    if (discordlogcheck("simplesay", commandin)){
+    if (discordlogcheck("simplesay", true, commandin)){
             return commandin;
     }
     commandin.commandmatch = true

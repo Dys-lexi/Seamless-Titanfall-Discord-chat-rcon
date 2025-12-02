@@ -1,7 +1,13 @@
+global function discordloggetuid_init
 global function discordloggetuid
 
+void function discordloggetuid_init()
+{
+	AddDiscordRconCommand( discordloggetuid )
+}
+
 discordlogcommand function discordloggetuid(discordlogcommand commandin) {
-    if (discordlogcheck("getuid", commandin)){
+    if (discordlogcheck("getuid", false, commandin)){
             return commandin;
     }
     commandin.commandmatch = true

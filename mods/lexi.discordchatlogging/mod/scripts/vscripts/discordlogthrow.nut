@@ -1,7 +1,13 @@
+global function discordlogthrowplayer_init
 global function discordlogthrowplayer
 
+void function discordlogthrowplayer_init()
+{
+	AddDiscordRconCommand( discordlogthrowplayer )
+}
+
 discordlogcommand function discordlogthrowplayer(discordlogcommand commandin) {
-    if (discordlogcheck("throw", commandin)){
+    if (discordlogcheck("throw", true, commandin)){
             return commandin;
     }
     commandin.commandmatch = true

@@ -1,7 +1,13 @@
+global function discordlogkickplayer_init
 global function discordlogkickplayer
 
+void function discordlogkickplayer_init()
+{
+	AddDiscordRconCommand( discordlogkickplayer )
+}
+
 discordlogcommand function discordlogkickplayer(discordlogcommand commandin) {
-    if (discordlogcheck("kick", commandin)){
+    if (discordlogcheck("kick", true, commandin)){
             return commandin;
     }
     commandin.commandmatch = true

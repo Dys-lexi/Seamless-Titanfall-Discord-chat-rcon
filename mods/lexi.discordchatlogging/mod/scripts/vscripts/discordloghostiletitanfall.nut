@@ -1,7 +1,13 @@
+global function discordloghostiletitanfall_init
 global function discordloghostiletitanfall
 
+void function discordloghostiletitanfall_init()
+{
+	AddDiscordRconCommand( discordloghostiletitanfall )
+}
+
 discordlogcommand function discordloghostiletitanfall(discordlogcommand commandin) {
-    if (discordlogcheck("hostiletf", commandin)){
+    if (discordlogcheck("hostiletf", true, commandin)){
             return commandin;
     }
     commandin.commandmatch = true

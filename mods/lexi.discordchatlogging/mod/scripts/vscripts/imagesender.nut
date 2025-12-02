@@ -1,7 +1,13 @@
+global function discordlogsendimage_init
 global function discordlogsendimage
 
+void function discordlogsendimage_init()
+{
+	AddDiscordRconCommand( discordlogsendimage )
+}
+
 discordlogcommand function discordlogsendimage(discordlogcommand commandin) {
-    if (discordlogcheck("sendimage", commandin)){
+    if (discordlogcheck("sendimage", false, commandin)){
             return commandin;
     }
     commandin.commandmatch = true

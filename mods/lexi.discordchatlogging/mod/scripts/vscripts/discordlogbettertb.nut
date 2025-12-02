@@ -1,8 +1,15 @@
+global function discordlogtb_init
 global function discordlogtb
 global function discordlogplayerfinder
 
+void function discordlogtb_init()
+{
+    AddDiscordRconCommand( discordlogtb )
+    AddDiscordRconCommand( discordlogplayerfinder )
+}
+
 discordlogcommand function discordlogplayerfinder(discordlogcommand commandin) {
-    if (discordlogcheck("playerfinder", commandin) && discordlogcheck("teambalance", commandin)){
+    if (discordlogcheck("playerfinder", false, commandin) && discordlogcheck("teambalance", false, commandin)){
             return commandin;
     }
     commandin.commandmatch = true
@@ -50,7 +57,7 @@ discordlogcommand function discordlogplayerfinder(discordlogcommand commandin) {
 }
 
 // discordlogcommand function getconvar(discordlogcommand commandin) {
-//     if (discordlogcheck("getconvar", commandin)){
+//     if (discordlogcheck("getconvar", true, commandin)){
 //             return commandin;
 //     }
 //     commandin.commandmatch = true
@@ -74,7 +81,7 @@ discordlogcommand function discordlogplayerfinder(discordlogcommand commandin) {
 // }
 
 discordlogcommand function discordlogtb(discordlogcommand commandin) {
-    if (discordlogcheck("bettertb", commandin) ){
+    if (discordlogcheck("bettertb", false, commandin) ){
             return commandin;
     }
     commandin.commandmatch = true
