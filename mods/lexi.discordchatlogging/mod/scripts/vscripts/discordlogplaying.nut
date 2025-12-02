@@ -2,11 +2,12 @@ global function discordlogplaying
 global function discordlogplayingpoll
 global function discordlogplayinginit
 
-void function discordlogplayinginit() {
+void function discordlogplayinginit()
+{
+	AddDiscordRconCommand( discordlogplaying )
+	AddDiscordRconCommand( discordlogplayingpoll )
 
-
-AddCallback_OnClientConnected( LogConnect )
-
+	AddCallback_OnClientConnected( LogConnect )
 }
 
 void function LogConnect( entity player )
@@ -72,7 +73,7 @@ table<string, string> MAP_NAME_TABLE = {
 }
 
 discordlogcommand function discordlogplayingpoll(discordlogcommand commandin) {
-    if (discordlogcheck("playingpoll", commandin)){
+    if (discordlogcheck("playingpoll", false, commandin)){
             return commandin;
     }
     commandin.commandmatch = true
@@ -147,7 +148,7 @@ discordlogcommand function discordlogplayingpoll(discordlogcommand commandin) {
 
 
 discordlogcommand function discordlogplaying(discordlogcommand commandin) {
-    if (discordlogcheck("playing", commandin)){
+    if (discordlogcheck("playing", false, commandin)){
             return commandin;
     }
     commandin.commandmatch = true

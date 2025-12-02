@@ -8,6 +8,7 @@ global function discordlogpostmessages // external call to main message sending 
 global function discordloggetlastmodels // used for /impersonate to pull peoples player models when they are dead
 global function runcommandondiscord // run a command on the discord bot like stats - runs as server, so is not validated like user commands are (rcon,asactuallyavailableintf2)
 global function discordlogpullplayerstat // returns a persistentvar for a player, for commands that have persistent effects.
+global function AddDiscordRconCommand // adds a command to the list of registered commands
 
 // to add your own function create a file called xyz.nut in the same place as this one
 // then make it's file load in the mod.json AFTER logger.nut
@@ -15,7 +16,7 @@ global function discordlogpullplayerstat // returns a persistentvar for a player
 // then create the function, in the same format as the one in discordlogkick.nut -> it must immedtiatly call discordlogcheck, and return the commandin struct if it doesn't match. if it does,
 // set commandin.commandmatch to true, and set commandin.returnmessage to the message you want to return, and commandin.returncode to the code you want to return
 // (codes do not mean too much, they work in a similar way to http codes)
-// Then add the function's name to the array in getregisteredfunctions (the first function defined below)
+// Then call adddiscordlogrconcommand(YOURFUNCTION) in your init function
 
 // you'll be able to call the function with /rcon cmd:!YOURCOMMAND param1 param2 param3 on discord, or you can make a custom command in discord/data/commands.json
 
@@ -46,29 +47,9 @@ struct {
 } registeredfunctions
 
 
-array <discordlogcommand functionref(discordlogcommand)> function getregisteredfunctions(){
-	return [
-		discordlogplayingpoll,
-		discordloghostiletitanfall,
-		discordloggetdiscordcommands
-		discordlogplaying,
-		discordlogthrowplayer,
-		discordlogsimplesay,
-		discordloggetuid,
-		discordlogkickplayer,
-		discordlogsendimage,
-		discordlogtoggleadmin,
-		getconvar,
-		extmessagesendtester,
-		discordlogimpersonate,
-		reloadpersistentsettings,
-		discordloghostiletitanfall,
-		nessifyplayercommand,
-		discordlogtb,
-		discordlogplayerfinder,
-		discordlogcompilestring
-		]
-		 //add functions here, and they'll work with / commands (if they fill criteria above)
+void function AddDiscordRconCommand( discordlogcommand functionref( discordlogcommand ) func )
+{
+	registeredfunctions.funcs.append( func )
 }
 
 array <entity> function discordlogmatchplayers(string playername){ //returns all players that have a partial playername match
@@ -89,16 +70,24 @@ array <entity> function discordlogmatchplayers(string playername){ //returns all
 	return matchedplayers
 }
 
-bool function discordlogcheck(string command, discordlogcommand inputcommand){
+bool function discordlogcheck( string command, bool adminabusecommand, discordlogcommand inputcommand )
+{
+	if ( adminabusecommand && !serverdetails.rconadminabuseenabled )
+	{
+		inputcommand.returnmessage = "Admin abuse commands are disabled on this server."
+		inputcommand.returncode = -3
+		return false
+	}
+
 	// print(split(inputcommand.command," ")[0].find(command) == null)
-	return ( (inputcommand.command[0] != 47 && inputcommand.command[0] != 33) || split(split(inputcommand.command," ")[0],"!/")[0] != command)
+	return ( ( inputcommand.command[0] != 47 && inputcommand.command[0] != 33 ) || split( split( inputcommand.command," " )[0],"!/" )[0] != command )
 }
 
 struct {
 	string Requestpath
 	string Servername
 	string serverid
-	int rconenabled
+	bool rconadminabuseenabled
 	string password
 	string currentlyplaying = ""
 	string matchid
@@ -200,7 +189,7 @@ void function discordloggerinit() {
 
 	serverdetails.matchid = GetUnixTimestamp()+"_" + GetConVarString("discordloggingserverid")
 	SetConVarString("discordloggingmatchid",serverdetails.matchid)
-	registeredfunctions.funcs = getregisteredfunctions()
+	// registeredfunctions.funcs = getregisteredfunctions()
 
 	// #if SANCTIONAPI_ENABLED
 	// 	print("[DiscordLogger]Sanction API enabled")
@@ -216,7 +205,7 @@ void function discordloggerinit() {
 	// print(currentTime)
 	// serverdetails.currentlyplaying = GetConVarString("discordlogpreviousroundplayers")
 	
-	serverdetails.showchatprefix = true
+	serverdetails.showchatprefix = !IsFFAGame() && GetCurrentPlaylistVarInt( "max_teams", 2 ) == 2
 	
 	print("[DiscordLogger]Servername: "+GetConVarString("discordloggingservername"))
 	print("[DiscordLogger]Requestpath: "+serverdetails.Requestpath)
@@ -235,11 +224,16 @@ void function discordloggerinit() {
 	if (GetConVarInt("discordloggingserverid") == 0){
 		print("[DiscordLogger]Server ID not set, please set it in the console PLEASE FIX THIS")
 		return
-	} 
+	}
+	serverdetails.rconadminabuseenabled = GetConVarBool( "allowdiscordrconadminabusecommands" )
 		print("[DiscordLogger]Discord logging enabled")
 		AddCallback_OnReceivedSayTextMessage( LogMSG )
 	AddCallback_OnClientConnected( LogConnect )
 	AddCallback_OnClientDisconnected( LogDC)
+
+	AddDiscordRconCommand( nessifyplayercommand )
+	AddDiscordRconCommand( reloadpersistentsettings )
+	AddDiscordRconCommand( discordloggetdiscordcommands )
 	thread begintodiscord()
 	// AddCallback_GameStateEnter(eGameState.PickLoadout, Onmapchange);
     // AddCallback_GameStateEnter(eGameState.Prematch, Onmapchange);
@@ -354,18 +348,13 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	string teammessage = "not team"
     if( message.isTeam && serverdetails.showchatprefix )
     {
-	int playerteam = message.player.GetTeam()
-	if( playerteam <= 0 )
-	teammessage = "Spec"
-    if( playerteam == 1 )
-    teammessage = "None"
-    if( playerteam == 2 )
-    teammessage = "IMC"
-    if( playerteam == 3 )
-    teammessage = "Militia"
-    if( playerteam >= 4 )
-    teammessage = "Both"
-	teammessage = "[Team-" + teammessage + "]"
+		int playerteam = message.player.GetTeam()
+		if ( playerteam == TEAM_IMC )
+			teammessage = "IMC"
+		else if ( playerteam == TEAM_MILITIA )
+			teammessage = "Militia"
+
+		teammessage = "[Team-" + teammessage + "]"
 	}
 	// print(teammessage)
 	outgoingmessage newmessage
@@ -701,12 +690,7 @@ void function stoprequests(){
 	params["command"] <- "endofroundstats"
 	params["password"] <- serverdetails.password
 	params["serverid"] <- serverdetails.serverid
-	if (GetConVarInt("disablestoprequests") == 1){
-		params["dontdisablethings"] <- true
-	}
-	else{
-		check.denylogging = 1
-	}
+	params["dontdisablethings"] <- true
 	HttpRequest request
 	request.method = HttpRequestMethod.POST
 	request.url = serverdetails.Requestpath + "/stoprequests"
@@ -1007,23 +991,27 @@ void function DiscordClientMessageinloop()
 		// array<string> splittexts = split(texts,"%&%&")
 		// array<string> splitcommands = split(commands,"⌨")
 		// print(texts.len())
-		foreach (value,key in commands){
+		foreach ( value, key in commands )
+		{
+			string command = expect string( key )
+			string validation = expect string( value )
 
-			string command = expect string(key)
-			string validation = expect string(value)
-
-			print("[DiscordLogger] COMMAND "+command)
-			if (command[0] == 47 || command[0] == 33){
-						runcommand(command, validation)
+			print( "[DiscordLogger] COMMAND "+ command )
+			if ( command[0] == 47 || command[0] == 33 )
+			{
+				runcommand( command, validation )
 			}
-			else{
+			else if ( serverdetails.rconadminabuseenabled )
+			{
+				ServerCommand( command )
+				check.commandcheck[validation] <- EncodeJSON( { statuscode = -2, output= command + ": successfully ran console command" } )
+			}
+			else
+			{
+				check.commandcheck[validation] <- EncodeJSON( { statuscode = -3, output= command + ": Rcon is disabled on this server" } )
+			}
+		}
 
-			ServerCommand(command)
-			// table output = {commandid="validation",returntext=command+": command not found"}
-			check.commandcheck[validation] <- EncodeJSON({statuscode=-2,output=command+": successfully ran console command"})
-
-
-		}}
 		// else if (commands.len() > 0){
 		// 	print("[DiscordLogger] RCON is not enabled, but commands were sent")
 		// }
@@ -1171,7 +1159,7 @@ void function runcommand(string command,string validation) {
 }
 
 discordlogcommand function nessifyplayercommand(discordlogcommand commandin) {
-    if (discordlogcheck("nessify", commandin)){
+    if (discordlogcheck("nessify", true, commandin)){
             return commandin;
     }
     commandin.commandmatch = true
@@ -1208,7 +1196,7 @@ discordlogcommand function nessifyplayercommand(discordlogcommand commandin) {
 	}
 
 discordlogcommand function reloadpersistentsettings(discordlogcommand commandin) {
-    if (discordlogcheck("reloadpersistentvars", commandin)){
+    if (discordlogcheck("reloadpersistentvars", false, commandin)){
             return commandin;
     }
     commandin.commandmatch = true
@@ -1251,7 +1239,7 @@ discordlogcommand function reloadpersistentsettings(discordlogcommand commandin)
 	}
 
 discordlogcommand function discordloggetdiscordcommands(discordlogcommand commandin) {
-    if (discordlogcheck("senddiscordcommands", commandin)){
+    if (discordlogcheck("senddiscordcommands", false, commandin)){
             return commandin;
     }
     commandin.commandmatch = true

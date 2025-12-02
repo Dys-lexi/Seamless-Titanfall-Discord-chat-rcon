@@ -1,7 +1,13 @@
+global function discordlogtoggleadmin_init
 global function discordlogtoggleadmin
 
+void function discordlogtoggleadmin_init()
+{
+	AddDiscordRconCommand( discordlogtoggleadmin )
+}
+
 discordlogcommand function discordlogtoggleadmin(discordlogcommand commandin) {
-    if (discordlogcheck("toggleadmin", commandin)){
+    if (discordlogcheck("toggleadmin", true, commandin)){
             return commandin;
     }
     commandin.commandmatch = true

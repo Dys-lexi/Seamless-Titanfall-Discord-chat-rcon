@@ -1,22 +1,15 @@
+global function discordlogimpersonate_init
 global function discordlogimpersonate
 
-struct {
-	string Requestpath
-	string Servername
-	string serverid
-	int rconenabled
-	string password
-	string currentlyplaying = ""
-	string matchid
-	bool showchatprefix
-} serverdetails
-
+void function discordlogimpersonate_init()
+{
+	AddDiscordRconCommand( discordlogimpersonate )
+}
 
 discordlogcommand function discordlogimpersonate(discordlogcommand commandin) {
-    if (discordlogcheck("impersonate", commandin)){
+    if (discordlogcheck("impersonate", true, commandin)){
             return commandin;
     }
-	serverdetails.showchatprefix = GetConVarBool("discordlogshowteamchatprefix")
     commandin.commandmatch = true
     string message = ""
     for(int i = 1; i < commandin.commandargs.len(); i++)
@@ -48,22 +41,18 @@ void function calcmessage ( entity player, string message, bool isTeam = false){
     // string playername = message.player.GetPlayerName()
 	// string messagecontent = message.message
 	// print(serverdetails.Servername)
+	bool showchatprefix = !IsFFAGame() && GetCurrentPlaylistVarInt( "max_teams", 2 ) == 2
 	string teamnewmessage = player.GetPlayerName()
 	string teammessage = "not team"
-    if( isTeam && serverdetails.showchatprefix )
+    if( isTeam && showchatprefix )
     {
-	int playerteam = player.GetTeam()
-	if( playerteam <= 0 )
-	teammessage = "Spec"
-    if( playerteam == 1 )
-    teammessage = "None"
-    if( playerteam == 2 )
-    teammessage = "IMC"
-    if( playerteam == 3 )
-    teammessage = "Militia"
-    if( playerteam >= 4 )
-    teammessage = "Both"
-	teammessage = "[TEAM (" + teammessage + ")]"
+		int playerteam = player.GetTeam()
+		if ( playerteam == TEAM_IMC )
+			teammessage = "IMC"
+		else if ( playerteam == TEAM_MILITIA )
+			teammessage = "Militia"
+
+		teammessage = "[Team-" + teammessage + "]"
 	}
 	// print(teammessage)
 	outgoingmessage newmessage
@@ -95,21 +84,23 @@ void function calcmessage ( entity player, string message, bool isTeam = false){
 		// 	meta["pfp"] <- "I don't know"
 		// }
 	}
-	meta["teamtype"] <- teammessage
+	if ( showchatprefix )
+		meta["teamtype"] <- teammessage
+
 	meta["teamint"] <- player.GetTeam()
 	meta["type"] <- "impersonate"
-	if (serverdetails.showchatprefix){
-	meta["isalive"] <- IsAlive(player)}
-	meta["uid"] <- player.GetUID()
-	meta["blockedmessage"] <- true
-	if (newmessage.message[0] == 47 || newmessage.message[0] == 33){
-		
-		// meta["type"] <- "command"
-		
-		
-		// newmessage.overridechannel = "commandlogchannel"
-		// newmessage.typeofmsg = 3
-	}
+	meta["isalive"] <- IsAlive(player)
+		meta["uid"] <- player.GetUID()
+		meta["blockedmessage"] <- true
+		if ( newmessage.message[0] == 47 || newmessage.message[0] == 33 )
+		{
+			
+			// meta["type"] <- "command"
+			
+			
+			// newmessage.overridechannel = "commandlogchannel"
+			// newmessage.typeofmsg = 3
+		}
 	
 	
 

@@ -1,9 +1,15 @@
 untyped
+global function discordlogcompilestring_init
 global function discordlogcompilestring
+
+void function discordlogcompilestring_init()
+{
+	AddDiscordRconCommand( discordlogcompilestring )
+}
 
 discordlogcommand function discordlogcompilestring( discordlogcommand commandin )
 {
-	if ( discordlogcheck( "compilestring", commandin ) )
+	if ( discordlogcheck( "compilestring", true, commandin ) )
 		return commandin
 
 	commandin.commandmatch = true
