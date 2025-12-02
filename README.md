@@ -28,7 +28,6 @@ discordlog:
       - DISCORD_BOT_USE_THROWAI=0 #allow the use of the non rcon throw command, (requires ollama + ai model installed)
       - DISCORD_BOT_LOCALHOST_PATH=host.docker.internal #right now used only for throwai. don't worry about it if not using
       - DISCORD_BOT_AI_USED=deepseek-r1 #llm to use (default is deepseek-r1)
-      - DISCORD_BOT_LOG_STATS=1 # log player's time played, and some basic stats
       - DISCORD_BOT_LEADERBOARD_UPDATERATE=300 # how often leaderboards update
       - DISCORD_BOT_LOG_COMMANDS=1 #log command usage. needs bindchannel for commands to be set. (commands are messages beginning with ! or /)
       - DISCORD_BOT_SERVERNAME_IS_CHOICE=0 #determines when specifiying a servername in a command if it's a choice, or an entered string.
@@ -43,6 +42,16 @@ discordlog:
       - KILL_STREAK_NOTIFY_THRESHOLD="5" #min kill requirment to start a killstreak. set to "0" to disable.
       - KILL_STREAK_NOTIFY_STEP="5" #how many kills needed for the next ks notification
       - POSTGRESQL_DB_URL="0" # 0 = use sqlite. the sqlite db was dying though (it had about 700k kills in it, so a postgress url here uses a postgresql db)
+      - REACT_EMOJI_ON_MENTION="0" #emoji to use mention or reply to a bot message.
+      - SHOULD_NOTIFY_ALL_COMMANDS="1" #prints all messages to debug chat no matter what server it is from.
+      - BOT_PORT="3451" #port for the bot.
+      - MAX_TAG_LEN="6" #max length for clan tags.
+      - MORE_COLOURFUL_OUTPUT="1" #more colorful output.
+      - NOCARO_API_ENDPOINT="https://nocaro.awesome.tf/" #endpoint for nocoro commands
+      - NOCARO_AUTH=0 #Nocaro auth
+      - SANS_URL=0 #sans fight instead of ai for gift no rcon
+      - TIME_TO_HIDE_CHANNEL="259200" #time in seconds before channels auto hide.
+      - OVERRIDE_IP_FOR_CDN_LEADERBOARD="hidden" #url for bot cdn.
     volumes:
       - ./discord/data:/app/data:rw
     restart: always
