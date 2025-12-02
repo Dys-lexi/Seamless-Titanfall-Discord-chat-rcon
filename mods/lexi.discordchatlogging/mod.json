@@ -1,123 +1,160 @@
 {
-    "Name": "lexi.discordchatlogging",
-    "Description": "Logs chat messages to a discord channel.",
-    "Version": "1.0.0",
-    "Authors": [
-        "Lexiglasss"
-    ],
-    "Contacts": [
-        "dyslexi (Discord)"
-    ],
-    "LoadPriority": 1,
-    "RequiredOnClient": false,
-    "ConVars": [
-        {
-            "Name": "discordlogginghttpServer",
-            "DefaultValue": "http://host.docker.internal:3451"
-        }, //     http://discordlog:3451     http://host.docker.internal:3451 (1st is a docker container second is localhost of main pc)
-        {
-            "Name": "discordloggingserverpassword", //set here, and in the discord bot's compose. means that if you have the bot port forwaded for whatever reason, people still need a password to use api
-            "DefaultValue": "scarypassword"
-        },
-        {
-            "Name": "discordloggingserverid", //IMPORTANT to set in server convars  DO NOT TOUCH IT HERE
-            "DefaultValue": "0"
-        },
-        {
-            "Name": "discordloggingservername", //ALSO IMPORTANT to set in server convars  DO NOT TOUCH IT HERE
-            "DefaultValue": "useactualservername"
-        },
-        {
-            "Name": "natterforcoolperksrole", // natter for coolperksrole requirements
-            "DefaultValue": "0"
-        },
-        {
-            "Name": "disablestoprequests",
-            "DefaultValue": "0" // only use if you have a fix to ns http bug
-        },
-        {
-            "Name": "enforcediscordsanctions",
-            "DefaultValue": "1" // set to one so /sanctiontf2 works
-        },
-        {
-            "Name": "discordloguselocaltags",
-            "DefaultValue": "1" // tags are calculated by titanfall server, not the bot
-        },
-        {
-            "Name": "discordloggingenabled", //0 completly disables the mod
-            "DefaultValue": "1"
-        },
-        {
-            "Name": "discordloggingmatchid",
-            "DefaultValue": "0" // match id, don't touch!
-        }
+	"Name": "lexi.discordchatlogging",
+	"Description": "Logs chat messages to a discord channel.",
+	"Version": "1.0.0",
+	"Authors": [
+		"Lexiglasss"
+	],
+	"Contacts": [
+		"dyslexi (Discord)"
+	],
+	"LoadPriority": 1,
+	"RequiredOnClient": false,
+	"ConVars": [
+		{
+			"Name": "discordlogginghttpServer",
+			"DefaultValue": "http://host.docker.internal:3451"
+		}, //     http://discordlog:3451     http://host.docker.internal:3451 (1st is a docker container second is localhost of main pc)
+		{
+			"Name": "discordloggingserverpassword", //set here, and in the discord bot's compose. means that if you have the bot port forwaded for whatever reason, people still need a password to use api
+			"DefaultValue": "scarypassword"
+		},
+		{
+			"Name": "discordloggingserverid", //IMPORTANT to set in server convars  DO NOT TOUCH IT HERE
+			"DefaultValue": "0"
+		},
+		{
+			"Name": "discordloggingservername", //ALSO IMPORTANT to set in server convars  DO NOT TOUCH IT HERE
+			"DefaultValue": "useactualservername" // useactualservername uses ns_server_name convar
+		},
+		{
+			"Name": "natterforcoolperksrole", // natter for coolperksrole requirements
+			"DefaultValue": "0"
+		},
+		{
+			"Name": "allowdiscordrconadminabusecommands",
+			"DefaultValue": "1" // set this to 0 if you don't want rcon users to be able to admin abuse via discord
+		},
+		{
+			"Name": "disablestoprequests",
+			"DefaultValue": "0" // only use if you have a fix to ns http bug
+		},
+		{
+			"Name": "enforcediscordsanctions",
+			"DefaultValue": "1" // set to one so /sanctiontf2 works
+		},
+		{
+			"Name": "discordloguselocaltags",
+			"DefaultValue": "1" // tags are calculated by titanfall server, not the bot
+		},
+		{
+			"Name": "discordloggingenabled", //0 completly disables the mod
+			"DefaultValue": "1"
+		},
+		{
+			"Name": "discordloggingmatchid",
+			"DefaultValue": "0" // match id, don't touch!
+		}
 
-    ],
-    "Scripts": [
-        {
-            "Path": "leximoddedtone.nut",
-            "RunOn": "SERVER",
-            "ServerCallback": {
-                "After": "Lexi_killstat_Init"
-            }
-        },
-        {
-            "Path": "logger.nut",
-            "RunOn": "SERVER",
-            "ServerCallback": {
-                "After": "discordloggerinit"
-            }
-        },
-        {
-            "Path": "discordlogplaying.nut",
-            "RunOn": "SERVER",
-            "ServerCallback": {
-                "After": "discordlogplayinginit"
-            }
-        },
-        {
-            "Path": "discordlogthrow.nut",
-            "RunOn": "SERVER"
-        },
-        {
-            "Path": "discordlogsimplesay.nut",
-            "RunOn": "SERVER"
-        },
-        {
-            "Path": "discordlogkick.nut",
-            "RunOn": "SERVER"
-        },
-        {
-            "Path": "discordloggetuid.nut",
-            "RunOn": "SERVER"
-        },
-        {
-            "Path": "imagesender.nut",
-            "RunOn": "SERVER"
-        },
-        {
-            "Path": "togglemod.nut",
-            "RunOn": "SERVER"
-        },
-        {
-            "Path": "discordlogimpersonate.nut",
-            "RunOn": "SERVER"
-        },
-        {
-            "Path": "discordloghostiletitanfall.nut",
-            "RunOn": "SERVER"
-        },
-        {
-            "Path": "discordlogbettertb.nut",
-            "RunOn": "SERVER"
-        },
-        {
-            "Path": "getconvar.nut",
-            "RunOn": "SERVER"
-        },
-        {
-            "Path": "discordlogcompilestring.nut",
-            "RunOn": "SERVER"
-        }
-    ]
+	],
+	"Scripts": [
+		{
+			"Path": "leximoddedtone.nut",
+			"RunOn": "SERVER",
+			"ServerCallback": {
+				"After": "Lexi_killstat_Init"
+			}
+		},
+		{
+			"Path": "logger.nut",
+			"RunOn": "SERVER",
+			"ServerCallback": {
+				"After": "discordloggerinit"
+			}
+		},
+		{
+			"Path": "discordlogplaying.nut",
+			"RunOn": "SERVER",
+			"ServerCallback": {
+				"Before": "discordlogplayinginit"
+			}
+		},
+		{
+			"Path": "discordlogthrow.nut",
+			"RunOn": "SERVER",
+			"ServerCallback": {
+				"Before": "discordlogthrowinit"
+			}
+		},
+		{
+			"Path": "discordlogsimplesay.nut",
+			"RunOn": "SERVER",
+			"ServerCallback": {
+				"After": "discordlogsimplesay_init"
+			}
+		},
+		{
+			"Path": "discordlogkick.nut",
+			"RunOn": "SERVER",
+			"ServerCallback": {
+				"After": "discordlogkickplayer_init"
+			}
+		},
+		{
+			"Path": "discordloggetuid.nut",
+			"RunOn": "SERVER",
+			"ServerCallback": {
+				"After": "discordloggetuid_init"
+			}
+		},
+		{
+			"Path": "imagesender.nut",
+			"RunOn": "SERVER",
+			"ServerCallback": {
+				"After": "discordlogsendimage_init"
+			}
+		},
+		{
+			"Path": "togglemod.nut",
+			"RunOn": "SERVER",
+			"ServerCallback": {
+				"After": "discordlogtoggleadmin_init"
+			}
+		},
+		{
+			"Path": "discordlogimpersonate.nut",
+			"RunOn": "SERVER",
+			"ServerCallback": {
+				"After": "discordlogimpersonate_init"
+			}
+		},
+		{
+			"Path": "discordloghostiletitanfall.nut",
+			"RunOn": "SERVER",
+			"ServerCallback": {
+				"After": "discordloghostiletitanfall_init"
+			}
+		},
+		{
+			"Path": "discordlogbettertb.nut",
+			"RunOn": "SERVER",
+			"ServerCallback": {
+				"After": "discordlogtb_init"
+			}
+		},
+		{
+			"Path": "getconvar.nut",
+			"RunOn": "SERVER",
+			"ServerCallback": {
+				"After": "getconvar_init"
+			}
+		},
+		{
+			"Path": "discordlogcompilestring.nut",
+			"RunOn": "SERVER",
+			"ServerCallback": {
+				"After": "discordlogcompilestring_init"
+			}
+		}
+	]
 }
