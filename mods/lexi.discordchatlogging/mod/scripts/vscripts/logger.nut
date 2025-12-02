@@ -225,7 +225,7 @@ void function discordloggerinit() {
 		print("[DiscordLogger]Server ID not set, please set it in the console PLEASE FIX THIS")
 		return
 	}
-	serverdetails.rconadminabuseenabled = GetConVarBool("allowdiscordrconadminabusecommands")
+	serverdetails.rconadminabuseenabled = GetConVarBool( "allowdiscordrconadminabusecommands" )
 		print("[DiscordLogger]Discord logging enabled")
 		AddCallback_OnReceivedSayTextMessage( LogMSG )
 	AddCallback_OnClientConnected( LogConnect )
@@ -996,23 +996,27 @@ void function DiscordClientMessageinloop()
 		// array<string> splittexts = split(texts,"%&%&")
 		// array<string> splitcommands = split(commands,"⌨")
 		// print(texts.len())
-		foreach (value,key in commands){
+		foreach ( value, key in commands )
+		{
+			string command = expect string( key )
+			string validation = expect string( value )
 
-			string command = expect string(key)
-			string validation = expect string(value)
-
-			print("[DiscordLogger] COMMAND "+command)
-			if (command[0] == 47 || command[0] == 33){
-						runcommand(command, validation)
+			print( "[DiscordLogger] COMMAND "+ command )
+			if ( command[0] == 47 || command[0] == 33 )
+			{
+				runcommand( command, validation )
 			}
-			else{
+			else if ( serverdetails.rconadminabuseenabled )
+			{
+				ServerCommand( command )
+				check.commandcheck[validation] <- EncodeJSON( { statuscode = -2, output= command + ": successfully ran console command" } )
+			}
+			else
+			{
+				check.commandcheck[validation] <- EncodeJSON( { statuscode = -3, output= command + ": RCON is not enabled" } )
+			}
+		}
 
-			ServerCommand(command)
-			// table output = {commandid="validation",returntext=command+": command not found"}
-			check.commandcheck[validation] <- EncodeJSON({statuscode=-2,output=command+": successfully ran console command"})
-
-
-		}}
 		// else if (commands.len() > 0){
 		// 	print("[DiscordLogger] RCON is not enabled, but commands were sent")
 		// }
