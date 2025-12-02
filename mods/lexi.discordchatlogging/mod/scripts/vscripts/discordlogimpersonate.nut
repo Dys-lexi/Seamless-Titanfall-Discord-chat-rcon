@@ -48,17 +48,12 @@ void function calcmessage ( entity player, string message, bool isTeam = false){
     if( isTeam && showchatprefix )
     {
 		int playerteam = player.GetTeam()
-		if( playerteam <= 0 )
-			teammessage = "Spec"
-		if( playerteam == 1 )
-			teammessage = "None"
-		if( playerteam == 2 )
+		if ( playerteam == TEAM_IMC )
 			teammessage = "IMC"
-		if( playerteam == 3 )
+		else if ( playerteam == TEAM_MILITIA )
 			teammessage = "Militia"
-		if( playerteam >= 4 )
-			teammessage = "Both"
-		teammessage = "[TEAM (" + teammessage + ")]"
+
+		teammessage = "[Team-" + teammessage + "]"
 	}
 	// print(teammessage)
 	outgoingmessage newmessage

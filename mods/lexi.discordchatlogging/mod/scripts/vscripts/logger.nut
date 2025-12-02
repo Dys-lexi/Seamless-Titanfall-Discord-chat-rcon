@@ -17,7 +17,6 @@ global function AddDiscordRconCommand // adds a command to the list of registere
 // set commandin.commandmatch to true, and set commandin.returnmessage to the message you want to return, and commandin.returncode to the code you want to return
 // (codes do not mean too much, they work in a similar way to http codes)
 // Then call adddiscordlogrconcommand(YOURFUNCTION) in your init function
-// Then add the function's name to the array in getregisteredfunctions (the first function defined below)
 
 // you'll be able to call the function with /rcon cmd:!YOURCOMMAND param1 param2 param3 on discord, or you can make a custom command in discord/data/commands.json
 
@@ -206,7 +205,7 @@ void function discordloggerinit() {
 	// print(currentTime)
 	// serverdetails.currentlyplaying = GetConVarString("discordlogpreviousroundplayers")
 	
-	serverdetails.showchatprefix = true
+	serverdetails.showchatprefix = GetConVarBool( "discordlogshowteamchatprefix" ) && !IsFFAGame() && GetCurrentPlaylistVarInt( "max_teams", 2 ) == 2
 	
 	print("[DiscordLogger]Servername: "+GetConVarString("discordloggingservername"))
 	print("[DiscordLogger]Requestpath: "+serverdetails.Requestpath)
@@ -349,18 +348,13 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	string teammessage = "not team"
     if( message.isTeam && serverdetails.showchatprefix )
     {
-	int playerteam = message.player.GetTeam()
-	if( playerteam <= 0 )
-	teammessage = "Spec"
-    if( playerteam == 1 )
-    teammessage = "None"
-    if( playerteam == 2 )
-    teammessage = "IMC"
-    if( playerteam == 3 )
-    teammessage = "Militia"
-    if( playerteam >= 4 )
-    teammessage = "Both"
-	teammessage = "[Team-" + teammessage + "]"
+		int playerteam = message.player.GetTeam()
+		if ( playerteam == TEAM_IMC )
+			teammessage = "IMC"
+		else if ( playerteam == TEAM_MILITIA )
+			teammessage = "Militia"
+
+		teammessage = "[Team-" + teammessage + "]"
 	}
 	// print(teammessage)
 	outgoingmessage newmessage
