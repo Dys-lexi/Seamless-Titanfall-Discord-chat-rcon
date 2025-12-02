@@ -25,13 +25,8 @@ discordlogcommand function discordlogplayerfinder(discordlogcommand commandin) {
                 otherPlayers.remove(remove)
                 recenthurts.append(GetClosest(otherPlayers,player.GetOrigin()).GetUID())
             float recent = Time() - 20
-            // discordlogsendmessage(player.GetPlayerName()+" e")
-            // foreach ( history in player.e.recentDamageHistory ) {
-            //     discordlogsendmessage(player.GetPlayerName()+" w")
-            // }
             foreach ( history in player.e.recentDamageHistory )
             {
-                discordlogsendmessage(history.attacker.GetUID()+"e")
                 if ( history.time < recent )
                     break
 
