@@ -10,7 +10,6 @@ discordlogcommand function discordlogimpersonate(discordlogcommand commandin) {
     if (discordlogcheck("impersonate", true, commandin)){
             return commandin;
     }
-	serverdetails.showchatprefix = GetConVarBool("discordlogshowteamchatprefix")
     commandin.commandmatch = true
     string message = ""
     for(int i = 1; i < commandin.commandargs.len(); i++)
@@ -42,7 +41,7 @@ void function calcmessage ( entity player, string message, bool isTeam = false){
     // string playername = message.player.GetPlayerName()
 	// string messagecontent = message.message
 	// print(serverdetails.Servername)
-	bool showchatprefix = GetConVarBool( "discordlogshowteamchatprefix" ) && !IsFFAGame() && GetCurrentPlaylistVarInt( "max_teams", 2 ) == 2
+	bool showchatprefix = !IsFFAGame() && GetCurrentPlaylistVarInt( "max_teams", 2 ) == 2
 	string teamnewmessage = player.GetPlayerName()
 	string teammessage = "not team"
     if( isTeam && showchatprefix )
