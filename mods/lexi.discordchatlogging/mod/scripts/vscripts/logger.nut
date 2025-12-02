@@ -47,9 +47,9 @@ struct {
 } registeredfunctions
 
 
-void function AddDiscordRconCommand( discordlogcommand functionref(discordlogcommand) function )
+void function AddDiscordRconCommand( discordlogcommand functionref( discordlogcommand ) func )
 {
-	registeredfunctions.funcs.append( function )
+	registeredfunctions.funcs.append( func )
 }
 
 array <entity> function discordlogmatchplayers(string playername){ //returns all players that have a partial playername match
@@ -205,7 +205,7 @@ void function discordloggerinit() {
 	// print(currentTime)
 	// serverdetails.currentlyplaying = GetConVarString("discordlogpreviousroundplayers")
 	
-	serverdetails.showchatprefix = GetConVarBool( "discordlogshowteamchatprefix" ) && !IsFFAGame() && GetCurrentPlaylistVarInt( "max_teams", 2 ) == 2
+	serverdetails.showchatprefix = !IsFFAGame() && GetCurrentPlaylistVarInt( "max_teams", 2 ) == 2
 	
 	print("[DiscordLogger]Servername: "+GetConVarString("discordloggingservername"))
 	print("[DiscordLogger]Requestpath: "+serverdetails.Requestpath)
