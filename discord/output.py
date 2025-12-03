@@ -8574,7 +8574,7 @@ def tftodiscordcommand(specificommand, command, serverid):
                 return
             discordtotitanfall[serverid]["messages"].append(
                 {
-                    "content": f"{PREFIXES['discord']}You don't have permission to run {specificommand}, you need {resolvecommandperms(serverid,specificommand)}",
+                    "content": f"{PREFIXES['discord']}You don't have permission to run {specificommand}, you need {PREFIXES["commandname"]}{resolvecommandperms(serverid,specificommand)}",
                     "uidoverride": [getpriority(command, "uid", ["meta", "uid"])],
                 }
             )
@@ -10713,7 +10713,7 @@ def recievetitanfallcommands(message, serverid, isfromserver):
     global tfcommandspermissions
     # print(json.dumps(message,indent=4))
     tfcommandspermissions[serverid] = message# dict(map(lambda x: [x[0],list(x[1].keys())], message.items()))
-    print(json.dumps(tfcommandspermissions,indent=4))
+    # print(json.dumps(tfcommandspermissions,indent=4))
 
 def senddiscordcommands(message, serverid, isfromserver):
     """Sends Discord-specific commands from in-game chat"""
