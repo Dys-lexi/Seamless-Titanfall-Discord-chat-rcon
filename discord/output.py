@@ -1311,6 +1311,7 @@ context = {
         "leaderboardchannel": 0,
         "wordfilternotifychannel": 0,
     },
+    "slashcommandoverrides":{},
     "overrideroles": {"rconrole": 0, "coolperksrole": 0, "debugchat": 0},
     "overriderolesuids": {
         "rconrole": [],
@@ -1559,11 +1560,10 @@ async def autocompletenamesanduidsfromdb(ctx):
         return ["No one matches"]
     return output
 
-
 async def autocompletefilterwordcomplete(ctx):
     """toggles wordfilter"""
     serverid = getchannelidfromname(False, ctx.interaction)
-    if not checkrconallowed(ctx.interaction.user, serverid=serverid):
+    if not checkrconallowed(ctx.interaction.user,getslashcommandoverridesperms("wordfiltermodify"), serverid=serverid):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["You don't have permission to use this command"]
     potential = list(
@@ -1583,7 +1583,7 @@ async def autocompletefilterwordcomplete(ctx):
 async def autocompletenamesfromtf1bans(ctx):
     """autocompletes tf1 bans"""
     serverid = getchannelidfromname(False, ctx.interaction)
-    if not checkrconallowed(ctx.interaction.user, serverid=serverid):
+    if not checkrconallowed(ctx.interaction.user,getslashcommandoverridesperms("autocompleteip"), serverid=serverid):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["You don't have permission to use this command"]
     # print("meow")
@@ -2118,7 +2118,7 @@ async def keywordtoggle(
         str, "The keyword to remove / add", autocomplete=autocompletefilterwordcomplete
     ),
 ):
-    if not checkrconallowed(ctx.author):
+    if not checkrconallowed(ctx.author,getslashcommandoverridesperms("wordfiltermodify")):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("You are not allowed to use this command.")
         return
@@ -2167,7 +2167,7 @@ async def sanctiontf2(
     #     })
     # ) = None,
 ):
-    if not checkrconallowed(ctx.author):
+    if not checkrconallowed(ctx.author,getslashcommandoverridesperms("sanctionsomonetf2")):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("You are not allowed to use this command.")
         return
@@ -2262,7 +2262,7 @@ def pullsanction(uid):
 
 async def quickaddsanction(target,action,interaction,link):
     # print(interaction.user.id)
-    if not checkrconallowed(interaction.user):
+    if not checkrconallowed(interaction.user,getslashcommandoverridesperms("sanctionsomonetf2")):
         await interaction.respond("You are not allowed to use this interaction.",ephemeral = True)
         return
     # link = f"https://discord.com/channels/{context["categoryinfo"]["activeguild"]}/{context["servers"][link[0]]["channelid"]}/{link[1]}"
@@ -2461,7 +2461,7 @@ async def sanctionremovetf2(
     #     })
     # ) = None,
 ):
-    if not checkrconallowed(ctx.author):
+    if not checkrconallowed(ctx.author,getslashcommandoverridesperms("sanctionsomonetf2")):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
         return
@@ -2496,7 +2496,7 @@ async def sanctiontf1(
     ) 
 ):
     """ban somone in tf1 (or mute)"""
-    if not checkrconallowed(ctx.author):
+    if not checkrconallowed(ctx.author,getslashcommandoverridesperms("sanctionsomonetf1")):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
         return
@@ -4942,7 +4942,7 @@ if DISCORDBOTLOGSTATS == "1":
             str, "The playername / uid", autocomplete=autocompletenamesfromdb
         )):
         
-        if not checkrconallowed(ctx.author):
+        if not checkrconallowed(ctx.author,getslashcommandoverridesperms("getalts")):
             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
             await ctx.respond("You are not allowed to use this command.")
             return
@@ -5402,7 +5402,7 @@ async def addserverwidget(
     """add a widget to a server name"""
     global context
     serverid = getchannelidfromname(servername, ctx)
-    if not checkrconallowed(ctx.author, serverid=serverid):
+    if not checkrconallowed(ctx.author, getslashcommandoverridesperms("changeserverwidget"),serverid=serverid,):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
         return
@@ -5437,7 +5437,7 @@ async def bind_global_role(
     if guild and guild.id != context["categoryinfo"]["activeguild"]:
         await ctx.respond("This guild is not the active guild.", ephemeral=False)
         return
-    if not checkrconallowed(ctx.author):
+    if not checkrconallowed(ctx.author,getslashcommandoverridesperms("bindrole")):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
         return
@@ -5464,7 +5464,7 @@ async def bind_global_channel(
     if guild and guild.id != context["categoryinfo"]["activeguild"]:
         await ctx.respond("This guild is not the active guild.", ephemeral=False)
         return
-    if not checkrconallowed(ctx.author):
+    if not checkrconallowed(ctx.author,getslashcommandoverridesperms("bindchannel")):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("You are not allowed to use this command.", ephemeral=False)
         return
@@ -5744,7 +5744,7 @@ async def show_color_what(
 ):
     """sets in game chat colour"""
 
-    if not checkrconallowed(ctx.author, "coolperksrole"):
+    if not checkrconallowed(ctx.author, getslashcommandoverridesperms("tf2ingamechatcolour","coolperksrole")):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond(
             f"You do not have the coolperksrole, so cannot use this command :) to get it: {COOLPERKSROLEREQUIRMENTS}",
@@ -5840,7 +5840,7 @@ async def show_color_why(
     colours = colour
 
     if len(colours.split(" ")) > 1:
-        if not checkrconallowed(ctx.author, "coolperksrole"):
+        if not checkrconallowed(ctx.author,  getslashcommandoverridesperms("discordtotf2chatcolour","coolperksrole")):
             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
             await ctx.respond(
                 f"You do not have the coolperksrole, so cannot do multiple colours. to get it: {COOLPERKSROLEREQUIRMENTS}",
@@ -8458,7 +8458,7 @@ def sendthingstoplayer(outputstring, serverid, statuscode, uidoverride):
 def resolvecommandpermsformainbot(serverid,command):
 
     # print(command,getpriority(tfcommandspermissions,[serverid,internaltoggles.get(command)]))
-    if not (getpriority(tfcommandspermissions,[serverid,"commands"])) and time.time() > getpriority(tfcommandspermissions,[serverid,"laststatspull"],nofind = 0) + 10:
+    if not (getpriority(tfcommandspermissions,[serverid,"commands"])) and time.time() > getpriority(tfcommandspermissions,[serverid,"laststatspull"],nofind = 0) + 3:
         tfcommandspermissions.setdefault(serverid,{})["laststatspull"] = int(time.time())
         print("reloading commands for",serverid)
         sendrconcommand(
@@ -8475,7 +8475,7 @@ def resolvecommandpermsformainbot(serverid,command):
 def resolvecommandperms(serverid,command):
     # print(command,getpriority(tfcommandspermissions,[serverid,internaltoggles.get(command)]))
     # print([serverid,matchid])
-    if not getpriority(tfcommandspermissions,[serverid,"commands"]) and time.time() > getpriority(tfcommandspermissions,[serverid,"laststatspull"],nofind = 0) + 10:
+    if not getpriority(tfcommandspermissions,[serverid,"commands"]) and time.time() > getpriority(tfcommandspermissions,[serverid,"laststatspull"],nofind = 0) + 3:
         tfcommandspermissions.setdefault(serverid,{})["laststatspull"] = int(time.time())
         print("reloading commands for",serverid)
         sendrconcommand(
@@ -10721,7 +10721,8 @@ def recievetitanfallcommands(message, serverid, isfromserver):
     global tfcommandspermissions
     # print(json.dumps(message,indent=4))
     tfcommandspermissions[serverid] = {**tfcommandspermissions.get(serverid,{}),**message}# dict(map(lambda x: [x[0],list(x[1].keys())], message.items()))
-    # print(json.dumps(tfcommandspermissions,indent=4))
+    # print(json.dumps(tfcommandspermissions[serverid],indent=4))
+    print("Loaded commands for",serverid)
 
 def senddiscordcommands(message, serverid, isfromserver):
     """Sends Discord-specific commands from in-game chat"""
@@ -12101,14 +12102,18 @@ async def returncommandfeedback(
                 await reactomessages([ctx.id], serverid, "🔴")
 
 
-
+def getslashcommandoverridesperms(commandname,default = "rconrole"):
+    if not context.setdefault("slashcommandoverrides").get(commandname):
+        context["slashcommandoverrides"][commandname] = default
+        savecontext()
+    return context["slashcommandoverrides"][commandname]
 
 def checkrconallowed(author, typeof="rconrole", **kwargs):
     """Checks if Discord user has RCON permissions based on roles"""
     serverid = kwargs.get("serverid", False)
 
     global context
-    # if typeof == "everyone": return True
+    if typeof == "everyone": return True
     translated = translaterole(serverid, typeof)
     # if author.id not in context["RCONallowedusers"]:
     #     return False
@@ -12139,7 +12144,7 @@ def translaterole(serverid, role):
 
 @functools.lru_cache(maxsize=None)
 def checkrconallowedtfuid(uid, typeof="rconrole", **kwargs):
-    # if typeof == "everyone": return True
+    if typeof == "everyone": return True
     serverid = kwargs.get("serverid", False)
     """Checks if TF UID has RCON permissions for server administration"""
     global context
@@ -14263,6 +14268,7 @@ threading.Thread(
 threading.Thread(target=threadwrap, daemon=True, args=(tf1relay,)).start()
 # threading.Thread(target=threadwrap(tf1inputemulator).start()
 for serverid in context["servers"]:
+    tfcommandspermissions.setdefault(serverid,{})["laststatspull"] = int(time.time())
     sendrconcommand(
         serverid,
         f"!reloadtfcommandlist",
