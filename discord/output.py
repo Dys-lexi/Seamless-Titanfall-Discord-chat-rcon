@@ -1918,7 +1918,10 @@ def threadedfinder(ctx, filterword1,filterword2,filterword3):
 async def bind_logging_to_category(ctx, category_name: str):
     """only used once. tells the bot to use a specific category on discord to add new servers"""
     global context
-
+    if not checkrconallowed(ctx.author,getslashcommandoverridesperms("bindcategory")):
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        await ctx.respond("You are not allowed to use this command.")
+        return
     guild = ctx.guild
     if guild.id == context["categoryinfo"]["activeguild"] and context["categoryinfo"]["logging_cat_id"] != 0:
         await ctx.respond("Logging is already bound to a category.", ephemeral=False)
@@ -1951,8 +1954,12 @@ async def bind_logging_to_category(ctx, category_name: str):
 async def bind_hidden_to_category(ctx, category_name: str):
     """only used once. tells the bot to use a specific category on discord to add new servers"""
     global context
-
+    if not checkrconallowed(ctx.author,getslashcommandoverridesperms("bindcategory")):
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        await ctx.respond("You are not allowed to use this command.")
+        return
     guild = ctx.guild
+
     if guild.id != context["categoryinfo"]["activeguild"]:
         await ctx.respond("This category is not in the same guild", ephemeral=False)
         return
