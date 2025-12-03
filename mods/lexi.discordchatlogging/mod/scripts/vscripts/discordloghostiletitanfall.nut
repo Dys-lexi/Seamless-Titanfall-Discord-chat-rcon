@@ -1,10 +1,6 @@
 global function discordloghostiletitanfall
 
 discordlogcommand function discordloghostiletitanfall(discordlogcommand commandin) {
-    if (discordlogcheck("hostiletf", commandin)){
-            return commandin;
-    }
-    commandin.commandmatch = true
     if (commandin.commandargs.len() != 1)
     {
         commandin.returnmessage = "Wrong number of args";

@@ -2,10 +2,6 @@ global function discordlogtb
 global function discordlogplayerfinder
 
 discordlogcommand function discordlogplayerfinder(discordlogcommand commandin) {
-    if (discordlogcheck("playerfinder", commandin) && discordlogcheck("teambalance", commandin)){
-            return commandin;
-    }
-    commandin.commandmatch = true
 	array<entity> players = GetPlayerArray()
 	table playerlist
 	foreach (entity player in players){
@@ -69,10 +65,6 @@ discordlogcommand function discordlogplayerfinder(discordlogcommand commandin) {
 // }
 
 discordlogcommand function discordlogtb(discordlogcommand commandin) {
-    if (discordlogcheck("bettertb", commandin) ){
-            return commandin;
-    }
-    commandin.commandmatch = true
 
     table<string,entity> uidentmap
     foreach(entity player in GetPlayerArray()){

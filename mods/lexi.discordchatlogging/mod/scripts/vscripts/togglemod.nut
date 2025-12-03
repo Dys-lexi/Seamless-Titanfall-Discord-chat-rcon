@@ -1,10 +1,6 @@
 global function discordlogtoggleadmin
 
 discordlogcommand function discordlogtoggleadmin(discordlogcommand commandin) {
-    if (discordlogcheck("toggleadmin", commandin)){
-            return commandin;
-    }
-    commandin.commandmatch = true
     if (commandin.commandargs.len() != 1 && commandin.commandargs.len() != 2)
     {
         commandin.returnmessage = "Wrong number of args";

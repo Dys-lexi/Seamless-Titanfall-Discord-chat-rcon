@@ -1,10 +1,6 @@
 global function discordlogthrowplayer
 
 discordlogcommand function discordlogthrowplayer(discordlogcommand commandin) {
-    if (discordlogcheck("throw", commandin)){
-            return commandin;
-    }
-    commandin.commandmatch = true
 	if (commandin.commandargs.len() != 1)
 	{
 		commandin.returnmessage = "Wrong number of args";

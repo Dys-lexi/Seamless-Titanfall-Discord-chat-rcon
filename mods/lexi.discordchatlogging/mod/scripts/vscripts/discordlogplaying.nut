@@ -72,10 +72,6 @@ table<string, string> MAP_NAME_TABLE = {
 }
 
 discordlogcommand function discordlogplayingpoll(discordlogcommand commandin) {
-    if (discordlogcheck("playingpoll", commandin)){
-            return commandin;
-    }
-    commandin.commandmatch = true
 	array<entity> players = GetPlayerArray()
 	table playerlist
 	foreach (entity player in players){
@@ -147,10 +143,6 @@ discordlogcommand function discordlogplayingpoll(discordlogcommand commandin) {
 
 
 discordlogcommand function discordlogplaying(discordlogcommand commandin) {
-    if (discordlogcheck("playing", commandin)){
-            return commandin;
-    }
-    commandin.commandmatch = true
 	array<entity> players = GetPlayerArray()
 	table playerlist
 	foreach (entity player in players){

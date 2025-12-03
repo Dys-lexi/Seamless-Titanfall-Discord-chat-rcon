@@ -2,10 +2,6 @@ global function getconvar
 global function extmessagesendtester
 
 discordlogcommand function getconvar(discordlogcommand commandin) {
-    if (discordlogcheck("getconvar", commandin)){
-            return commandin;
-    }
-    commandin.commandmatch = true
     if (commandin.commandargs.len() != 1)
     {
         commandin.returnmessage = "Wrong number of args";
@@ -26,10 +22,6 @@ discordlogcommand function getconvar(discordlogcommand commandin) {
 }
 
 discordlogcommand function extmessagesendtester(discordlogcommand commandin) {
-    if (discordlogcheck("extmessagesendtester", commandin)){
-            return commandin;
-    }
-    commandin.commandmatch = true
     if (commandin.commandargs.len() < 2)
     {
         commandin.returnmessage = "Wrong number of args";

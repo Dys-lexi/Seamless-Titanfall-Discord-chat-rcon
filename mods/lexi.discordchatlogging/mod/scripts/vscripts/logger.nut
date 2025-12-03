@@ -12,17 +12,21 @@ global function discordlogpullplayerstat // returns a persistentvar for a player
 // to add your own function create a file called xyz.nut in the same place as this one
 // then make it's file load in the mod.json AFTER logger.nut
 // after that, make the line "global function discordlogYOURFUNCTIONNAME"
-// then create the function, in the same format as the one in discordlogkick.nut -> it must immedtiatly call discordlogcheck, and return the commandin struct if it doesn't match. if it does,
-// set commandin.commandmatch to true, and set commandin.returnmessage to the message you want to return, and commandin.returncode to the code you want to return
+// then create the function, in the same format as the one in discordlogkick.nut -> it must return the commandin struct 
+// set commandin.returnmessage to the message you want to return, and commandin.returncode to the code you want to return
 // (codes do not mean too much, they work in a similar way to http codes)
 // Then add the function's name to the array in getregisteredfunctions (the first function defined below)
 
 // you'll be able to call the function with /rcon cmd:!YOURCOMMAND param1 param2 param3 on discord, or you can make a custom command in discord/data/commands.json
 
 
+// function perms are: (PEOPLE NEED DISCORD ACCOUNT LINKED TO USE IN GAME, in discord is auto ofc)
+// rconrole, coolperks role, self explain
+// everyone, self explain
+// None, the discord bot governs who can run it, using it's perms, the default
+// you can add new ones by putting them in overrideroles in channels.json and using /bindrole to bind them to a role
 
 global struct discordlogcommand {
-	bool commandmatch = false
 	int returncode = -1
 	string returnmessage
 	string command
@@ -40,33 +44,62 @@ global struct outgoingmessage{
 	string metadata = "None"
 }
 
+struct actualrealcoolcommand{
+	 discordlogcommand functionref(discordlogcommand) func
+	 string requiredperms
+	 string keyname
+}
 
 struct {
-	array<discordlogcommand functionref(discordlogcommand)> funcs
+	array<actualrealcoolcommand> funcs
+	array<actualrealcoolcommand> discordbotcommandfuncs
 } registeredfunctions
 
+actualrealcoolcommand function addcommand(discordlogcommand functionref(discordlogcommand) func,string keyname,string requiredperms = "None"){
+	actualrealcoolcommand thing
+	thing.func = func
+	thing.requiredperms = requiredperms
+	thing.keyname = keyname
+	return thing
+}
 
-array <discordlogcommand functionref(discordlogcommand)> function getregisteredfunctions(){
+actualrealcoolcommand function addcommanddiscord(string keyname,string requiredperms = "None"){
+	actualrealcoolcommand thing
+	thing.func = discordlogplaying
+	thing.requiredperms = requiredperms
+	thing.keyname = keyname
+	return thing
+}
+
+
+array <actualrealcoolcommand> function getregisteredfunctions(){
 	return [
-		discordlogplayingpoll,
-		discordloghostiletitanfall,
-		discordloggetdiscordcommands
-		discordlogplaying,
-		discordlogthrowplayer,
-		discordlogsimplesay,
-		discordloggetuid,
-		discordlogkickplayer,
-		discordlogsendimage,
-		discordlogtoggleadmin,
-		getconvar,
-		extmessagesendtester,
-		discordlogimpersonate,
-		reloadpersistentsettings,
-		discordloghostiletitanfall,
-		nessifyplayercommand,
-		discordlogtb,
-		discordlogplayerfinder,
-		discordlogcompilestring
+		addcommand(discordlogplayingpoll,"playingpoll"),
+		addcommand(discordloghostiletitanfall,"hostiletf"),
+		addcommand(discordloggetdiscordcommands,"senddiscordcommands"),
+		addcommand(discordlogplaying,"playing"),
+		addcommand(discordlogthrowplayer,"throw"),
+		addcommand(discordlogsimplesay,"simplesay"),
+		addcommand(discordloggetuid,"getuid"),
+		addcommand(discordlogkickplayer,"kick"),
+		addcommand(discordlogsendimage,"sendimage"),
+		addcommand(discordlogtoggleadmin,"toggleadmin"),
+		addcommand(getconvar,"getconvar"),
+		addcommand(extmessagesendtester,"extmessagesendtester"),
+		addcommand(discordlogimpersonate,"impersonate"),
+		addcommand(reloadpersistentsettings,"reloadpersistentvars"),
+		addcommand(nessifyplayercommand,"nessify"),
+		addcommand(discordlogtb,"bettertb"),
+		addcommand(discordlogplayerfinder,"playerfinder"),
+		addcommand(discordlogcompilestring,"compilestring")
+		addcommand(discordbotwantingcommandlist,"reloadtfcommandlist")
+		]
+		 //add functions here, and they'll work with / commands (if they fill criteria above)
+}
+
+array <actualrealcoolcommand> function getregisteredfunctionsdiscord(){
+	return [
+		addcommanddiscord("helpdc","everyone") //set !helpdc to "everyone" (or any other command) to need no perms
 		]
 		 //add functions here, and they'll work with / commands (if they fill criteria above)
 }
@@ -107,6 +140,7 @@ struct {
 	bool hasmapchanged = false
 	bool uselocaltags = false
 	bool enforcesanctions = false
+	bool exit = false
 } serverdetails
 
 
@@ -190,9 +224,11 @@ void function discordloggerinit() {
     void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
 		{
 			printt("Incorrect password for discord bot, exiting")
-			return}
+			serverdetails.exit = true}
 	NSHttpRequest( request, onSuccess, onFailure )
-
+	if (serverdetails.exit){
+		return
+	}
 	PrecacheModel( $"models/domestic/nessy_doll.mdl" )
 	PrecacheModel( $"models/domestic/nessy_blue_doll.mdl" )
 
@@ -201,7 +237,7 @@ void function discordloggerinit() {
 	serverdetails.matchid = GetUnixTimestamp()+"_" + GetConVarString("discordloggingserverid")
 	SetConVarString("discordloggingmatchid",serverdetails.matchid)
 	registeredfunctions.funcs = getregisteredfunctions()
-
+	registeredfunctions.discordbotcommandfuncs = getregisteredfunctionsdiscord()
 	// #if SANCTIONAPI_ENABLED
 	// 	print("[DiscordLogger]Sanction API enabled")
 	// 	registeredfunctions.funcs.append(discordlogsanction)
@@ -252,7 +288,25 @@ void function discordloggerinit() {
 	
 
 		runcommandondiscord("getdiscordcommands")
-	
+		table commands = {}
+		foreach (actualrealcoolcommand command in registeredfunctions.funcs){
+			// commands[command.keyname] <- {}
+			// table perms = {}
+			// foreach (string perm in command.requiredperms){
+			// 	perms[perm] <- "0"
+			// }
+			commands[command.keyname] <- command.requiredperms
+		}
+		table discordcommandssent = {}
+		foreach (actualrealcoolcommand command in registeredfunctions.discordbotcommandfuncs){
+			// commands[command.keyname] <- {}
+			// table perms = {}
+			// foreach (string perm in command.requiredperms){
+			// 	perms[perm] <- "0"
+			// }
+			discordcommandssent[command.keyname] <- command.requiredperms
+		}
+		runcommandondiscord("sendtitanfallcommands",{commands=commands,matchid=serverdetails.matchid,discordcommands=discordcommandssent})
 	
 	// print(serverdetails.Servername)
 }
@@ -1008,9 +1062,9 @@ void function DiscordClientMessageinloop()
 		// array<string> splitcommands = split(commands,"⌨")
 		// print(texts.len())
 		foreach (value,key in commands){
-
 			string command = expect string(key)
 			string validation = expect string(value)
+		
 
 			print("[DiscordLogger] COMMAND "+command)
 			if (command[0] == 47 || command[0] == 33){
@@ -1019,8 +1073,11 @@ void function DiscordClientMessageinloop()
 			else{
 
 			ServerCommand(command)
-			// table output = {commandid="validation",returntext=command+": command not found"}
 			check.commandcheck[validation] <- EncodeJSON({statuscode=-2,output=command+": successfully ran console command"})
+
+	
+			
+			// table output = {commandid="validation",returntext=command+": command not found"}
 
 
 		}}
@@ -1159,11 +1216,14 @@ void function runcommand(string command,string validation) {
 	commandargs.remove(0)
 	commandstruct.commandargs = commandargs
 	for (int i = 0; i < registeredfunctions.funcs.len(); i++) {
-		commandstruct = registeredfunctions.funcs[i](commandstruct)
-		if (commandstruct.commandmatch) {
+		if (registeredfunctions.funcs[i].keyname == commandstruct.command.slice(1)){
+
+				check.commandcheck[validation] <- EncodeJSON({statuscode=-3,output=command+": No permission for Special command"})
+			
+		commandstruct = registeredfunctions.funcs[i].func(commandstruct)
 			check.commandcheck[validation] <- EncodeJSON({statuscode=commandstruct.returncode,output=commandstruct.returnmessage})
-			return
-		}
+			return}
+		
 	}
 
 	// throwplayer(command,validation)
@@ -1171,11 +1231,6 @@ void function runcommand(string command,string validation) {
 }
 
 discordlogcommand function nessifyplayercommand(discordlogcommand commandin) {
-    if (discordlogcheck("nessify", commandin)){
-            return commandin;
-    }
-    commandin.commandmatch = true
-    commandin.commandmatch = true
     if (commandin.commandargs.len() != 1)
     {
         commandin.returnmessage = "Wrong number of args";
@@ -1208,10 +1263,6 @@ discordlogcommand function nessifyplayercommand(discordlogcommand commandin) {
 	}
 
 discordlogcommand function reloadpersistentsettings(discordlogcommand commandin) {
-    if (discordlogcheck("reloadpersistentvars", commandin)){
-            return commandin;
-    }
-    commandin.commandmatch = true
 	int i = 0
 	if (commandin.commandargs.len() < 1){
 		commandin.returncode = 404
@@ -1251,10 +1302,6 @@ discordlogcommand function reloadpersistentsettings(discordlogcommand commandin)
 	}
 
 discordlogcommand function discordloggetdiscordcommands(discordlogcommand commandin) {
-    if (discordlogcheck("senddiscordcommands", commandin)){
-            return commandin;
-    }
-    commandin.commandmatch = true
 	int i = 0
 	string prevarg = ""
 	for( i = 0; i < commandin.commandargs.len(); i++) {
@@ -1272,6 +1319,28 @@ discordlogcommand function discordloggetdiscordcommands(discordlogcommand comman
 	}
 	commandin.returnmessage = "Set commands - " + i / 2 + " commands found";
 	commandin.returncode = 200
+	return commandin
+	
+	
+	}
+
+discordlogcommand function discordbotwantingcommandlist(discordlogcommand commandin) {
+	
+	commandin.returnmessage = "Running";
+	commandin.returncode = 200
+
+		table commands = {}
+		foreach (actualrealcoolcommand command in registeredfunctions.funcs){
+			// commands[command.keyname] <- {}
+			// table perms = {}
+			// foreach (string perm in command.requiredperms){
+			// 	perms[perm] <- "0"
+			// }
+			commands[command.keyname] <- command.requiredperms
+		}
+		runcommandondiscord("sendtitanfallcommands",{commands=commands,matchid=serverdetails.matchid})
+	
+
 	return commandin
 	
 	

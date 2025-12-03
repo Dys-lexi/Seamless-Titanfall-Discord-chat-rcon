@@ -8458,19 +8458,21 @@ def resolvecommandpermsformainbot(serverid,command):
     matchid = None
     # print(command,getpriority(tfcommandspermissions,[serverid,internaltoggles.get(command)]))
     if not (getpriority(tfcommandspermissions,[serverid,"commands"])) or (matchid and not getpriority(tfcommandspermissions,[serverid,matchid])):
+        print("reloading commands for",serverid)
         sendrconcommand(
             serverid,
             f"!reloadtfcommandlist",
             sender=None,
         )
         return None # Panic here
-    print(command)
-    print(tfcommandspermissions[serverid].get(command) != "None" and tfcommandspermissions[serverid]["commands"].get(command,False))
+    # print(command)
+    # print(tfcommandspermissions[serverid].get(command) != "None" and tfcommandspermissions[serverid]["commands"].get(command,False))
     return tfcommandspermissions[serverid].get(command) != "None" and tfcommandspermissions[serverid]["commands"].get(command,False)
 def resolvecommandperms(serverid,command,matchid = None):
     # print(command,getpriority(tfcommandspermissions,[serverid,internaltoggles.get(command)]))
     # print([serverid,matchid])
     if not (getpriority(tfcommandspermissions,[serverid,"commands"])) or (matchid and not getpriority(tfcommandspermissions,[serverid,matchid])):
+        print("reloading commands for",serverid)
         sendrconcommand(
             serverid,
             f"!reloadtfcommandlist",

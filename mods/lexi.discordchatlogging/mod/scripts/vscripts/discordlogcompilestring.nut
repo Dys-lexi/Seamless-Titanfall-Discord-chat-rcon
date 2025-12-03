@@ -3,10 +3,6 @@ global function discordlogcompilestring
 
 discordlogcommand function discordlogcompilestring( discordlogcommand commandin )
 {
-	if ( discordlogcheck( "compilestring", commandin ) )
-		return commandin
-
-	commandin.commandmatch = true
 
 	string commandtostring
 	foreach ( string command in commandin.commandargs )

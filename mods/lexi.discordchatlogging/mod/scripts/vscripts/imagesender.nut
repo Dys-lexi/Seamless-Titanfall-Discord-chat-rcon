@@ -1,10 +1,6 @@
 global function discordlogsendimage
 
 discordlogcommand function discordlogsendimage(discordlogcommand commandin) {
-    if (discordlogcheck("sendimage", commandin)){
-            return commandin;
-    }
-    commandin.commandmatch = true
     if (commandin.commandargs.len() < 1)
     {
         commandin.returnmessage = "Wrong number of args";

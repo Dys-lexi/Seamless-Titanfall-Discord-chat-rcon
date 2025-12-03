@@ -13,11 +13,7 @@ struct {
 
 
 discordlogcommand function discordlogimpersonate(discordlogcommand commandin) {
-    if (discordlogcheck("impersonate", commandin)){
-            return commandin;
-    }
-	serverdetails.showchatprefix = GetConVarBool("discordlogshowteamchatprefix")
-    commandin.commandmatch = true
+	serverdetails.showchatprefix = true//GetConVarBool("discordlogshowteamchatprefix")
     string message = ""
     for(int i = 1; i < commandin.commandargs.len(); i++)
     {

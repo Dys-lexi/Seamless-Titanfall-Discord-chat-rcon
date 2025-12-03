@@ -1,10 +1,6 @@
 global function discordlogkickplayer
 
 discordlogcommand function discordlogkickplayer(discordlogcommand commandin) {
-    if (discordlogcheck("kick", commandin)){
-            return commandin;
-    }
-    commandin.commandmatch = true
     if (commandin.commandargs.len() < 1)
     {
         commandin.returnmessage = "Wrong number of args";

@@ -1,10 +1,6 @@
 global function discordloggetuid
 
 discordlogcommand function discordloggetuid(discordlogcommand commandin) {
-    if (discordlogcheck("getuid", commandin)){
-            return commandin;
-    }
-    commandin.commandmatch = true
     if (commandin.commandargs.len() != 1)
     {
         commandin.returnmessage = "Wrong number of args";
