@@ -76,6 +76,13 @@
             }
         },
         {
+            "Path": "discordloghighlightplayerforplayer.nut",
+            "RunOn": "SERVER",
+            "ServerCallback": {
+                "After": "discordloghighlightplayerforplayerinit"
+            }
+        },
+        {
             "Path": "discordlogthrow.nut",
             "RunOn": "SERVER"
         },

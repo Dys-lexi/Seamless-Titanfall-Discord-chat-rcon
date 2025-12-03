@@ -8182,6 +8182,7 @@ def messageloop():
                 messageflush = sorted(messageflush, key=lambda x: x["timestamp"])
                 # print(messageflush)
                 for message in messageflush:
+                    # print(json.dumps(messageflush,indent=4))
                     message.setdefault("globalmessage", False)
                     message.setdefault("type", 3)
                     message.setdefault("overridechannel", None)
@@ -8227,6 +8228,7 @@ def messageloop():
                         "originalname": str(message.get("player", False)),
                         "meta": message.get("metadata", {}),
                         "originalmessage": message.get("messagecontent", False),
+                        "timestamp": message.get("timestamp",None)
                     }
                     if (
                         message["metadata"]["type"] in ["usermessagepfp", "impersonate"]
@@ -8302,6 +8304,7 @@ def messageloop():
                 #     print("sending output",json.dumps(output, indent=4))
                 for serverid in output.keys():
                     for key, message in enumerate(output[serverid]):
+                        # print(json.dumps(message,indent=4))
                         # extra functions hooked onto messages
                         # asyncio.run_coroutine_threadsafe(colourmessage(message,serverid),bot.loop)
                         asyncio.run_coroutine_threadsafe(
@@ -8902,6 +8905,16 @@ def startaduel(who):
     tfdb.close()
     deep_set(currentduels,[who["serverid"],who["matchid"],str(person1["uid"]),str(person2["uid"])],{str(person1["uid"]):currentstabs[0],str(person2["uid"]):currentstabs[1]})
     # print(json.dumps(currentduels,indent=4))
+    sendrconcommand(
+        who["serverid"],
+        f"!highlightplayertoplayer {who["otheruid"]} {who["inituid"]}",
+        sender=None,
+    )
+    sendrconcommand(
+        who["serverid"],
+        f"!highlightplayertoplayer {who["inituid"]} {who["otheruid"]}",
+        sender=None,
+    )
     if currentstabs != [0,0]:
         discordtotitanfall[who["serverid"]]["messages"].append(
             {
