@@ -227,6 +227,13 @@
             "description": "Internal function for pulling shouldblock values",
             "shouldblock": true
         },
+        "sendtitanfallcommands": {
+            "games": [],
+            "function": "recievetitanfallcommands",
+            "run": "thread",
+            "description": "Internal function for loading titanfall commands",
+            "shouldblock": true
+        },
         "impersonate": {
         "aliases": [
                 "i",
