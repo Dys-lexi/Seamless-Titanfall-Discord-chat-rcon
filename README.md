@@ -47,7 +47,7 @@ discordlog:
       - BOT_PORT="3451" #port for the bot.
       - MAX_TAG_LEN="6" #max length for clan tags.
       - MORE_COLOURFUL_OUTPUT="1" #more colorful output.
-      - NOCARO_API_ENDPOINT="https://nocaro.awesome.tf/" #endpoint for nocoro commands
+      - NOCARO_API_ENDPOINT="https://nocaro.awesome.tf/" #endpoint for nocaro commands
       - NOCARO_AUTH=0 #Nocaro auth
       - SANS_URL=0 #sans fight instead of ai for gift no rcon
       - TIME_TO_HIDE_CHANNEL="259200" #time in seconds before channels auto hide.
