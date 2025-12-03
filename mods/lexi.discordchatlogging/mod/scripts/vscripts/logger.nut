@@ -1066,7 +1066,7 @@ void function DiscordClientMessageinloop()
 			string validation = expect string(value)
 		
 
-			print("[DiscordLogger] COMMAND "+command)
+			// print("[DiscordLogger] COMMAND "+command)
 			if (command[0] == 47 || command[0] == 33){
 						runcommand(command, validation)
 			}
