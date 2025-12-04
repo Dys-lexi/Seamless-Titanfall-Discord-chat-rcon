@@ -1836,7 +1836,7 @@ async def hideandshowchannels(serveridforce = None, force = False):
         if server not in context["categoryinfo"]["idealorder"]: context["categoryinfo"]["idealorder"].insert(index,server)
         placement = functools.reduce(lambda a,b: {**a,"hasfound":True} if b == server else (a if (a["hasfound"] or context["servers"][b].get("ishidden",bot.get_channel(context["servers"][b]["channelid"]).id != context["categoryinfo"]["logging_cat_id"]) == True) else {**a,"server":b}),  context["categoryinfo"]["idealorder"],{"server":None,"hasfound":False})["server"]
         if not placement:
-            actualplacement = functools.reduce(lambda a,b: {**a,"hasfound":True} if b == server else ({**a,"server":b} if (not a["server"] and (a["hasfound"] or context["servers"][b].get("ishidden",bot.get_channel(context["servers"][b]["channelid"]).id == context["categoryinfo"]["logging_cat_id"]) == True)) else a),  context["categoryinfo"]["idealorder"],{"server":None,"hasfound":False})["server"]
+            actualplacement = functools.reduce(lambda a,b: {**a,"hasfound":True} if b == server else ({**a,"server":b} if (not a["server"] and (a["hasfound"] and not context["servers"][b].get("ishidden",bot.get_channel(context["servers"][b]["channelid"]).id != context["categoryinfo"]["logging_cat_id"]) == True)) else a),  context["categoryinfo"]["idealorder"],{"server":None,"hasfound":False})["server"]
             # print("placing before",actualplacement)
         istf1 = bool(details.get("istf1server",False) )
         c.execute(f"SELECT time FROM matchid{"tf1" if istf1 else ""} WHERE serverid = ? ORDER BY time DESC LIMIT 1",(server,))

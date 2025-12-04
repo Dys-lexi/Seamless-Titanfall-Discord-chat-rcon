@@ -15,11 +15,12 @@ void function addnewuidpairtotablething(string uid1,string uid2){
 }
 
 void function discordloghighlightplayerforplayerinit(){
+    RegisterSignal( "discordlogsignalstop" )
     AddCallback_OnClientConnected( readdhighlightjustincase )
     AddCallback_OnPlayerRespawned( readdhighlightjustincase )
     AddCallback_OnPilotBecomesTitan(readdhighlightjustincasetitan)
     AddCallback_OnTitanBecomesPilot( readdhighlightjustincasetitan )
-    // addnewuidpairtotablething("1012640166434" , "2509670718")
+    addnewuidpairtotablething("1012640166434" , "2509670718")
     // addnewuidpairtotablething("2509670718" , "1012640166434")
 
     // thread highlightplayertoplayer("1012640166434","2509670718")
@@ -28,7 +29,7 @@ void function discordloghighlightplayerforplayerinit(){
 void function readdhighlightjustincasetitan(entity player,entity titan){
     foreach(key,value in highlights.uidshighlights){
         foreach (  realvalue in value){
-        if (player.GetUID() == key || player.GetUID() ==( realvalue)){
+        if ( player.GetUID() ==( realvalue)){
         thread highlightplayertoplayer(key,( realvalue),false)}
         
         }
@@ -60,18 +61,25 @@ void function highlightplayertoplayer(string uid, string uid2,bool shouldhighlig
         if (player.GetUID() == uid2){
             player2 = player
         }}
+    
     WaitFrame()
-    thread actuallyhighlight(player1,player2,shouldhighlight)
+    if (IsValid(player1) && IsValid(player2)){
+        player1.Signal("discordlogsignalstop")
+            thread actuallyhighlight(player1,player2,shouldhighlight)}
+
+    
+    // foreach (npc in GetNPCArray()){
+    // thread actuallyhighlight(player1,npc,shouldhighlight)}
 
 
     
 }
-
+    
     void function actuallyhighlight(entity player1,entity player2, bool shouldhighlight){
     
 	player1.EndSignal(  "OnDestroy" )
 	player1.EndSignal(  "OnDeath" )
-    
+    player1.EndSignal( "discordlogsignalstop" )
     HighlightContext highlight = GetHighlight( "enemy_boss_bounty" )
     // highlight.drawFuncId  = 3
     if (shouldhighlight){
@@ -117,6 +125,7 @@ void function highlightplayertoplayer(string uid, string uid2,bool shouldhighlig
 	player2.Highlight_SetParam( 3, 1, highlight.paramVecs[1] )
     WaitFrame()
     player2.ClearBossPlayer()
+    // discordlogsendmessage("eeestopped")
     }
 
 
