@@ -16,16 +16,37 @@ void function addnewuidpairtotablething(string uid1,string uid2){
 
 void function discordloghighlightplayerforplayerinit(){
     AddCallback_OnPlayerRespawned( readdhighlightjustincase )
+    AddCallback_OnPilotBecomesTitan(readdhighlightjustincasetitan)
+    AddCallback_OnTitanBecomesPilot( readdhighlightjustincasetitan )
     // addnewuidpairtotablething("1012640166434" , "2509670718")
     // addnewuidpairtotablething("2509670718" , "1012640166434")
 
     // thread highlightplayertoplayer("1012640166434","2509670718")
     // thread highlightplayertoplayer("2509670718","1012640166434")
 }
+void function readdhighlightjustincasetitan(entity player,entity titan){
+    foreach(key,value in highlights.uidshighlights){
+        foreach (  realvalue in value){
+        if (player.GetUID() == key || player.GetUID() ==( realvalue)){
+        thread highlightplayertoplayer(key,( realvalue),false)}
+        
+        }
 
+    }
+}
 
+void function readdhighlightjustincase(entity player){
+    foreach(key,value in highlights.uidshighlights){
+        foreach (  realvalue in value){
+        if (player.GetUID() == key || player.GetUID() ==( realvalue)){
+        thread highlightplayertoplayer(key,( realvalue),true)}
+        
+        }
 
-void function highlightplayertoplayer(string uid, string uid2){
+    }
+}
+
+void function highlightplayertoplayer(string uid, string uid2,bool shouldhighlight = true){
     // wait 10
     // discordlogsendmessage("eee "+ uid + "wqdq "+ uid2)
     entity player1
@@ -38,20 +59,22 @@ void function highlightplayertoplayer(string uid, string uid2){
         if (player.GetUID() == uid2){
             player2 = player
         }}
-
-    thread actuallyhighlight(player1,player2)
+    WaitFrame()
+    thread actuallyhighlight(player1,player2,shouldhighlight)
 
 
     
 }
 
-    void function actuallyhighlight(entity player1,entity player2){
+    void function actuallyhighlight(entity player1,entity player2, bool shouldhighlight){
     
 	player1.EndSignal(  "OnDestroy" )
 	player1.EndSignal(  "OnDeath" )
-    player2.SetBossPlayer(player1)
+    
     HighlightContext highlight = GetHighlight( "enemy_boss_bounty" )
     // highlight.drawFuncId  = 3
+    if (shouldhighlight){
+    player2.SetBossPlayer(player1)
     highlight.insideSlot = 106
     // __SetEntityContextHighlight( ent, HIGHLIGHT_CONTEXT_OWNED, highlight )
     // Highlight_SetOwnedHighlight(player2,"interact_object_los") //interact_object_always
@@ -75,8 +98,8 @@ void function highlightplayertoplayer(string uid, string uid2){
     //     player2.Highlight_SetParam( 3, 0, highlight.paramVecs[0] )
     //     player2.Highlight_SetParam( 3, 1, highlight.paramVecs[1] )
     // }
-    wait 7
-    Highlight_ClearOwnedHighlight(player2)
+    wait 5
+    Highlight_ClearOwnedHighlight(player2)}
     player2.SetBossPlayer(player1)
 
     // highlight.drawFuncId  = 3
@@ -95,16 +118,7 @@ void function highlightplayertoplayer(string uid, string uid2){
     player2.ClearBossPlayer()
     }
 
-void function readdhighlightjustincase(entity player){
-    foreach(key,value in highlights.uidshighlights){
-        foreach (  realvalue in value){
-        if (player.GetUID() == key || player.GetUID() ==( realvalue)){
-        thread highlightplayertoplayer(key,( realvalue))}
-        
-        }
 
-    }
-}
 
 discordlogcommand function discordlogaddnewhighlight(discordlogcommand commandin) {
 	if (commandin.commandargs.len() != 2){
@@ -113,7 +127,7 @@ discordlogcommand function discordlogaddnewhighlight(discordlogcommand commandin
 		return commandin
 	}
     addnewuidpairtotablething(commandin.commandargs[0],commandin.commandargs[1])
-    thread highlightplayertoplayer(commandin.commandargs[0],commandin.commandargs[1])
+    thread highlightplayertoplayer(commandin.commandargs[0],commandin.commandargs[1],true)
 		commandin.returncode = 200
 		commandin.returnmessage = "Highlighted " + commandin.commandargs[1]+ " to " + commandin.commandargs[0]
     return commandin
