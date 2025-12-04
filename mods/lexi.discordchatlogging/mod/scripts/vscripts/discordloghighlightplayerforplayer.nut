@@ -2,13 +2,22 @@ global function discordloghighlightplayerforplayerinit
 global function discordlogaddnewhighlight
 
 struct {
-    table <string,string> uidshighlights
+    table <string,array<string> > uidshighlights //this is the oopsie, what if one player is dueling more than one?
 } highlights
+
+void function addnewuidpairtotablething(string uid1,string uid2){
+    array<string> adder = []
+    if ((uid1 in highlights.uidshighlights)){
+        adder = highlights.uidshighlights[uid1]
+    }
+    adder.append(uid2)
+    highlights.uidshighlights[uid1] <- adder
+}
 
 void function discordloghighlightplayerforplayerinit(){
     AddCallback_OnPlayerRespawned( readdhighlightjustincase )
-    // highlights.uidshighlights["1012640166434"] <- "2509670718"
-    // highlights.uidshighlights["2509670718"] <- "1012640166434"
+    // addnewuidpairtotablething("1012640166434" , "2509670718")
+    // addnewuidpairtotablething("2509670718" , "1012640166434")
 
     // thread highlightplayertoplayer("1012640166434","2509670718")
     // thread highlightplayertoplayer("2509670718","1012640166434")
@@ -88,8 +97,9 @@ void function highlightplayertoplayer(string uid, string uid2){
 
 void function readdhighlightjustincase(entity player){
     foreach(key,value in highlights.uidshighlights){
-        if (player.GetUID() == key || player.GetUID() == value){
-        thread highlightplayertoplayer(key,value)
+        foreach (  realvalue in value){
+        if (player.GetUID() == key || player.GetUID() ==( realvalue)){
+        thread highlightplayertoplayer(key,( realvalue))}
         
         }
 
@@ -102,7 +112,7 @@ discordlogcommand function discordlogaddnewhighlight(discordlogcommand commandin
 		commandin.returnmessage = "Wrong number of args"
 		return commandin
 	}
-    highlights.uidshighlights[commandin.commandargs[0]] <- commandin.commandargs[1]
+    addnewuidpairtotablething(commandin.commandargs[0],commandin.commandargs[1])
     thread highlightplayertoplayer(commandin.commandargs[0],commandin.commandargs[1])
 		commandin.returncode = 200
 		commandin.returnmessage = "Highlighted " + commandin.commandargs[1]+ " to " + commandin.commandargs[0]
