@@ -13147,6 +13147,16 @@ def playerpolllog(data, serverid, statuscode):
     # use the fact that theoretically one player can be on just one server at a time
     # playerid+playername = primary key. this is because of the edge case where people join one server on one account twice because.. well they do that sometimes
     # print(data,serverid,statuscode)
+    # sendrconcommand(
+    #     "23",
+    #     f"!highlightplayertoplayer 1012640166434 2509670718",
+    #     sender=None,
+    # )
+    # sendrconcommand(
+    #     "23",
+    #     f"!highlightplayertoplayer 2509670718 1012640166434",
+    #     sender=None,
+    # )
     istf1 = (
         context["servers"].get(serverid, {}).get("istf1server", False)
     )  # {"tf2" if istf1 else ""}
