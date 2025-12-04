@@ -1759,11 +1759,13 @@ async def on_ready():
         if DISCORDBOTLOGSTATS == "1":
             updateleaderboards.start()
         updateroles.start()
-        hideandshowchannels.start()
-        # await hideandshowchannels(None,True)
+        
+        # 
         load_extensions()
+        await hideandshowchannels(None,True)
         await asyncio.sleep(30)
         updatechannels.start()
+        hideandshowchannels.start()
 
 
     botisalreadyready = True
@@ -1822,9 +1824,20 @@ async def hideandshowchannels(serveridforce = None, force = False):
     guild = bot.get_guild(context["categoryinfo"]["activeguild"])
     hidden = discord.utils.get(guild.categories, id=context["categoryinfo"]["hidden_cat_id"])
     found = discord.utils.get(guild.categories, id=context["categoryinfo"]["logging_cat_id"])
-    for index,(server,details) in enumerate(sorted(sorted(filter(lambda x: not serveridforce or serveridforce == x[0], context["servers"].items()),key = lambda x: x[0]),key = lambda x: x[1].get("widget","zzzz"))):
+    if force:
+        for server,details in context["servers"].items():
+            channel = bot.get_channel(details["channelid"])
+            category = channel.category
+            if category.id != context["categoryinfo"]["logging_cat_id"]:
+                context["servers"][server]["ishidden"] = True
+            else:
+                context["servers"][server]["ishidden"] = False
+    for index,(server,details) in enumerate(sorted(sorted(filter(lambda x: not serveridforce or serveridforce == x[0], context["servers"].items()),key = lambda x: x[0]),key = lambda x: x[1].get("widget","zzzz") or "zzzz")):
         if server not in context["categoryinfo"]["idealorder"]: context["categoryinfo"]["idealorder"].insert(index,server)
-        placement = functools.reduce(lambda a,b: {**a,"hasfound":True} if b == server else (a if a["hasfound"] or context["servers"][b].get("ishidden",bot.get_channel(context["servers"][b]["channelid"]).id != context["categoryinfo"]["logging_cat_id"]) == True else {**a,"server":b}),  context["categoryinfo"]["idealorder"],{"server":None,"hasfound":False})["server"]
+        placement = functools.reduce(lambda a,b: {**a,"hasfound":True} if b == server else (a if (a["hasfound"] or context["servers"][b].get("ishidden",bot.get_channel(context["servers"][b]["channelid"]).id != context["categoryinfo"]["logging_cat_id"]) == True) else {**a,"server":b}),  context["categoryinfo"]["idealorder"],{"server":None,"hasfound":False})["server"]
+        if not placement:
+            actualplacement = functools.reduce(lambda a,b: {**a,"hasfound":True} if b == server else ({**a,"server":b} if (not a["server"] and (a["hasfound"] or context["servers"][b].get("ishidden",bot.get_channel(context["servers"][b]["channelid"]).id == context["categoryinfo"]["logging_cat_id"]) == True)) else a),  context["categoryinfo"]["idealorder"],{"server":None,"hasfound":False})["server"]
+            # print("placing before",actualplacement)
         istf1 = bool(details.get("istf1server",False) )
         c.execute(f"SELECT time FROM matchid{"tf1" if istf1 else ""} WHERE serverid = ? ORDER BY time DESC LIMIT 1",(server,))
         mostrecentmatchid = c.fetchone()
@@ -1834,9 +1847,12 @@ async def hideandshowchannels(serveridforce = None, force = False):
         category = channel.category
         # set to not equal for now, instead of == hidden_cat_id so that the ones in the weird old limbo cat slowly get moved
         if (force or category.id != context["categoryinfo"]["logging_cat_id"]) and now - TIMETILLCHANNELSGETHIDDEN < mostrecentmatchid:
-            print("showing",context["servers"][server]["name"],placement)
+            if not force:
+                print("showing",context["servers"][server]["name"],("after" if placement else "before"),placement or actualplacement)
 
-            if not placement:
+            if not placement and actualplacement:
+                await channel.move(sync_permissions=True,category=found,before=bot.get_channel(context["servers"][actualplacement]["channelid"]))
+            elif not placement and not actualplacement:
                 await channel.move(sync_permissions=True,category=found,beginning=True)
             else:
                 await channel.move(sync_permissions=True,category=found,after=bot.get_channel(context["servers"][placement]["channelid"]))
@@ -1844,7 +1860,8 @@ async def hideandshowchannels(serveridforce = None, force = False):
             pass
             # show the channel
         elif (force or category.id == context["categoryinfo"]["logging_cat_id"]) and now - TIMETILLCHANNELSGETHIDDEN > mostrecentmatchid:
-            print("hiding",context["servers"][server]["name"])
+            if not force:
+                print("hiding",context["servers"][server]["name"])
 
             await channel.edit(sync_permissions=True,category=hidden)
             context["servers"][server]["ishidden"] = True

@@ -15,6 +15,7 @@ void function addnewuidpairtotablething(string uid1,string uid2){
 }
 
 void function discordloghighlightplayerforplayerinit(){
+    AddCallback_OnClientConnected( readdhighlightjustincase )
     AddCallback_OnPlayerRespawned( readdhighlightjustincase )
     AddCallback_OnPilotBecomesTitan(readdhighlightjustincasetitan)
     AddCallback_OnTitanBecomesPilot( readdhighlightjustincasetitan )
