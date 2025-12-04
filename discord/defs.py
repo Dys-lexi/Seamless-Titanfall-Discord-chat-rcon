@@ -114,7 +114,7 @@ NPC_NAMES = {
     "npc_pilot_elite_assassin_cqb": "Elite Assassin Pilot (CQB)",
     "npc_pilot_elite_assassin_sniper": "Elite Assassin Pilot (Sniper)",
     "npc_prowler": "Prowler",
-    "npc_soldier": "Soldier",
+    "npc_soldier": "Grunt",
     "npc_soldier_bish": "Bish",
     "npc_soldier_blisk": "Blisk",
     "npc_soldier_drone_summoner": "Drone Summoner Soldier",
