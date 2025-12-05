@@ -28,33 +28,19 @@ void function discordloghighlightplayerforplayerinit(){
 }
 void function readdhighlightjustincasetitan(entity player,entity titan){
     foreach(key,value in highlights.uidshighlights){
-        array<string> player1highlights = []
-        foreach (  realvalue in value){
-        if (player.GetUID() == key) {
-        thread highlightplayertoplayer([key],value,false)}
-
-        if (player.GetUID() ==( realvalue)){
-            player1highlights.append(key)
-        }
-        
-        }
-        thread highlightplayertoplayer(player1highlights,[player.GetUID()],false)
+        if ( key == player.GetUID()){
+            value.append(key)
+            
+        thread highlightplayertoplayer(value,value,false)}
     }
 }
 
 void function readdhighlightjustincase(entity player){
     foreach(key,value in highlights.uidshighlights){
-        array<string> player1highlights = []
-        foreach (  realvalue in value){
-        if (player.GetUID() == key) {
-        thread highlightplayertoplayer([key],value,true)}
-
-        if (player.GetUID() ==( realvalue)){
-            player1highlights.append(key)
-        }
-        
-        }
-        thread highlightplayertoplayer(player1highlights,[player.GetUID()],true)
+        if ( key == player.GetUID()){
+            value.append(key)
+            
+        thread highlightplayertoplayer(value,value,true)}
     }
 }
 
@@ -88,7 +74,7 @@ void function highlightplayertoplayer(array<string> uid, array<string> uid2,bool
         player2.remove(i-offset)
         offset +=1}
     }
-    // discordlogsendmessage("highlighting "+ player1.GetPlayerName() + " and "+ player2.GetPlayerName())
+    
     // player1.Signal("discordlogsignalstop")
     thread actuallyhighlight(player1,player2,shouldhighlight)
 
@@ -107,8 +93,17 @@ void function highlightplayertoplayer(array<string> uid, array<string> uid2,bool
     // player1.EndSignal( "discordlogsignalstop" )
     HighlightContext highlight = GetHighlight( "enemy_boss_bounty" )
     foreach (entity player2real in player2){
+        // discordlogsendmessage("eeestopped")
+    if (!IsValid(player2real)){continue}
     Highlight_ClearOwnedHighlight(player2real)
     foreach (entity player1real in player1){
+    if (!IsValid(player2real)){continue}
+    
+    if (!IsValid(player1real)){continue}
+    if (player1real == player2real){
+        continue
+    }
+    // discordlogsendmessage("highlighting "+ player1real.GetPlayerName() + " and "+ player2real.GetPlayerName())
     // highlight.drawFuncId  = 3
     if (shouldhighlight){
     player2real.SetBossPlayer(player1real)
@@ -125,7 +120,10 @@ void function highlightplayertoplayer(array<string> uid, array<string> uid2,bool
 	player2real.Highlight_SetParam( 3, 0, highlight.paramVecs[0] )
 	player2real.Highlight_SetParam( 3, 1, highlight.paramVecs[1] )
     WaitFrame()
-    player2real.ClearBossPlayer()}}
+     if (!IsValid(player2real)){continue}
+    player2real.ClearBossPlayer()
+
+    }}}
     // for (int int i = 0; i < 10; i++){   
     //     wait 1
     //     Highlight_ClearOwnedHighlight(player2)
@@ -136,21 +134,27 @@ void function highlightplayertoplayer(array<string> uid, array<string> uid2,bool
     //     player2.Highlight_SetParam( 3, 1, highlight.paramVecs[1] )
     // }
     wait 5
-    int offset = 0
-    for (int i = 0; i < player1.len()-1; i++){
-        if (!IsValid(player1)){
-        player1.remove(i-offset)
-        offset +=1}
-    }
-    offset = 0
-    for (int i = 0; i < player2.len()-1; i++){
-        if (!IsValid(player2)){
-        player2.remove(i-offset)
-        offset +=1}
-    }
+    // int offset = 0
+    // for (int i = 0; i < player1.len()-1; i++){
+    //     if (!IsValid(player1)){
+    //     player1.remove(i-offset)
+    //     offset +=1}
+    // }
+    // offset = 0
+    // for (int i = 0; i < player2.len()-1; i++){
+    //     if (!IsValid(player2)){
+    //     player2.remove(i-offset)
+    //     offset +=1}
+    // }
     foreach (entity player2real in player2){
-    Highlight_ClearOwnedHighlight(player2real)}
+    if (!IsValid(player2real)){continue}
+    Highlight_ClearOwnedHighlight(player2real)
     foreach (entity player1real in player1){
+    if (!IsValid(player2real)){continue}
+    if (!IsValid(player1real)){continue}
+    if (player1real == player2real){
+        continue
+    }
     player2real.SetBossPlayer(player1real)
 
     // highlight.drawFuncId  = 3
@@ -166,6 +170,7 @@ void function highlightplayertoplayer(array<string> uid, array<string> uid2,bool
 	player2real.Highlight_SetParam( 3, 0, highlight.paramVecs[0] )
 	player2real.Highlight_SetParam( 3, 1, highlight.paramVecs[1] )
     WaitFrame()
+     if (!IsValid(player2real)){continue}
     player2real.ClearBossPlayer()}}
     // discordlogsendmessage("eeestopped")
     }
