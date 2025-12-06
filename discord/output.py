@@ -8483,9 +8483,9 @@ def sendthingstoplayer(outputstring, serverid, statuscode, uidoverride):
     )
 
 def resolvecommandpermsformainbot(serverid,command):
-
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     # print(command,getpriority(tfcommandspermissions,[serverid,internaltoggles.get(command)]))
-    if not (getpriority(tfcommandspermissions,[serverid,"commands"])) and time.time() > getpriority(tfcommandspermissions,[serverid,"laststatspull"],nofind = 0) + 3:
+    if not istf1 and not (getpriority(tfcommandspermissions,[serverid,"commands"])) and time.time() > getpriority(tfcommandspermissions,[serverid,"laststatspull"],nofind = 0) + 3:
         tfcommandspermissions.setdefault(serverid,{})["laststatspull"] = int(time.time())
         print("reloading commands for",serverid)
         sendrconcommand(
@@ -8502,7 +8502,8 @@ def resolvecommandpermsformainbot(serverid,command):
 def resolvecommandperms(serverid,command):
     # print(command,getpriority(tfcommandspermissions,[serverid,internaltoggles.get(command)]))
     # print([serverid,matchid])
-    if not getpriority(tfcommandspermissions,[serverid,"commands"]) and time.time() > getpriority(tfcommandspermissions,[serverid,"laststatspull"],nofind = 0) + 3:
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
+    if not istf1 and not getpriority(tfcommandspermissions,[serverid,"commands"]) and time.time() > getpriority(tfcommandspermissions,[serverid,"laststatspull"],nofind = 0) + 3:
         tfcommandspermissions.setdefault(serverid,{})["laststatspull"] = int(time.time())
         print("reloading commands for",serverid)
         sendrconcommand(
@@ -10786,10 +10787,10 @@ def recievetitanfallcommands(message, serverid, isfromserver):
     global tfcommandspermissions
     # print(json.dumps(message,indent=4))
     tfcommandspermissions[serverid] = {**tfcommandspermissions.get(serverid,{}),**message}# dict(map(lambda x: [x[0],list(x[1].keys())], message.items()))
-    print(json.dumps(tfcommandspermissions[serverid],indent=4))
+    # print(json.dumps(tfcommandspermissions[serverid],indent=4))
     hasoverriden = False
     for command,perms in tfcommandspermissions[serverid].get("discordcommands",{}).items():
-        print(command,perms)
+        # print(command,perms)
         # override serversenabled
         if int(serverid) in getpriority(context,["commands","ingamecommands",command,"serversenabled"],nofind = [int(serverid)]):
             continue
