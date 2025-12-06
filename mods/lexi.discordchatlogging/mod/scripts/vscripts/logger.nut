@@ -58,7 +58,7 @@ struct {
 actualrealcoolcommand function addcommand(discordlogcommand functionref(discordlogcommand) func,string keyname,string requiredperms = "None"){
 	actualrealcoolcommand thing
 	thing.func = func
-	thing.requiredperms = requiredperms
+	thing.requiredperms = modjsonoverridefunctionperms(keyname)
 	thing.keyname = keyname
 	return thing
 }
@@ -66,7 +66,7 @@ actualrealcoolcommand function addcommand(discordlogcommand functionref(discordl
 actualrealcoolcommand function addcommanddiscord(string keyname,string requiredperms = "None"){
 	actualrealcoolcommand thing
 	thing.func = discordlogplaying
-	thing.requiredperms = requiredperms
+	thing.requiredperms = modjsonoverridefunctionperms(keyname)
 	thing.keyname = keyname
 	return thing
 }
@@ -93,17 +93,37 @@ array <actualrealcoolcommand> function getregisteredfunctions(){
 		addcommand(discordlogplayerfinder,"playerfinder"),
 		addcommand(discordlogcompilestring,"compilestring"),
 		addcommand(discordbotwantingcommandlist,"reloadtfcommandlist"),
-		addcommand(discordlogaddnewhighlight,"highlightplayertoplayer")
+		addcommand(discordlogaddnewhighlight,"highlightplayerforduels")
 		]
 		 //add functions here, and they'll work with / commands (if they fill criteria above)
 }
 
 array <actualrealcoolcommand> function getregisteredfunctionsdiscord(){
 	return [
-		addcommanddiscord("helpdc","everyone") //set !helpdc to "everyone" (or any other command) to need no perms
+		// addcommanddiscord("helpdc","everyone") //set !helpdc to "everyone" (or any other command) to need no perms
+		// addcommanddiscord("nessify","rconrole")
+		// addcommanddiscord("debugchat","rconrole")
 		]
 		 //add functions here, and they'll work with / commands (if they fill criteria above)
 }
+
+struct {
+	array<string> foundstuff = []
+} modjsoncommandsfound
+
+string function modjsonoverridefunctionperms(string name){
+	array<string> overrides = split(GetConVarString("discordlogfunctionpermoverrides"),",")
+	string prevarg = ""
+	for(int i = 0; i < overrides.len(); i++) {
+		if (overrides[i] == name){
+			return overrides[i+1]
+			modjsoncommandsfound.foundstuff.append(name)
+		}
+		
+	}
+	return name
+}
+
 
 array <entity> function discordlogmatchplayers(string playername){ //returns all players that have a partial playername match
 	array<entity> matchedplayers = [];
@@ -239,6 +259,18 @@ void function discordloggerinit() {
 	SetConVarString("discordloggingmatchid",serverdetails.matchid)
 	registeredfunctions.funcs = getregisteredfunctions()
 	registeredfunctions.discordbotcommandfuncs = getregisteredfunctionsdiscord()
+	array<string> overrides = split(GetConVarString("discordlogfunctionpermoverrides"),",")
+	string prevarg = ""
+	for(int i = 0; i < overrides.len(); i++) {
+		if ((i+1) % 2) {
+			prevarg = overrides[i]
+		}
+		else if (!(modjsoncommandsfound.foundstuff.contains(prevarg))){
+			printt("dwqdiqwdq"+prevarg+overrides[i])
+			registeredfunctions.discordbotcommandfuncs.append(addcommanddiscord(prevarg,overrides[i]))
+		}
+		
+	}
 	// #if SANCTIONAPI_ENABLED
 	// 	print("[DiscordLogger]Sanction API enabled")
 	// 	registeredfunctions.funcs.append(discordlogsanction)
@@ -1339,8 +1371,16 @@ discordlogcommand function discordbotwantingcommandlist(discordlogcommand comman
 			// }
 			commands[command.keyname] <- command.requiredperms
 		}
-		runcommandondiscord("sendtitanfallcommands",{commands=commands,matchid=serverdetails.matchid})
-	
+		table discordcommandssent = {}
+		foreach (actualrealcoolcommand command in registeredfunctions.discordbotcommandfuncs){
+			// commands[command.keyname] <- {}
+			// table perms = {}
+			// foreach (string perm in command.requiredperms){
+			// 	perms[perm] <- "0"
+			// }
+			discordcommandssent[command.keyname] <- command.requiredperms
+		}
+		runcommandondiscord("sendtitanfallcommands",{commands=commands,matchid=serverdetails.matchid,discordcommands=discordcommandssent})
 
 	return commandin
 	

@@ -50,6 +50,10 @@
         {
             "Name": "discordloggingmatchid",
             "DefaultValue": "0" // match id, don't touch!
+        },
+        {
+            "Name": "discordlogfunctionpermoverrides",
+            "DefaultValue": "" // use in the format commandname,perm,commandname,perm eg: helpdc,rconrole,nessify,everyone (this overrides the permissions on commands)
         }
 
     ],

@@ -8517,7 +8517,7 @@ def resolvecommandperms(serverid,command):
     # command.get("alias",command)
     if (context["commands"]["ingamecommands"][command].get("run") == "functionless" and  getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command)]) == "everyone" or  context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) == "everyone"):
         return False
-    # print(context["commands"]["ingamecommands"][command].get("alias",command),( context["commands"]["ingamecommands"][command].get("run") == "functionless" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command)]) != "None" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command)]) ) or (context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) != "None" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) ) or context["commands"]["ingamecommands"][command].get("permsneeded", False))
+    # print( ( context["commands"]["ingamecommands"][command].get("run") == "functionless" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command)]) != "None" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command)]) ) or (context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) != "None" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) ) or context["commands"]["ingamecommands"][command].get("permsneeded", False))
     return ( context["commands"]["ingamecommands"][command].get("run") == "functionless" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command)]) != "None" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command)]) ) or (context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) != "None" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) ) or context["commands"]["ingamecommands"][command].get("permsneeded", False)
     # only checks functionless commands against the thing tf sent, because uh uh uh they are the only ones that should corrolate to a tf command directly
 keyletter = "!"
@@ -8535,20 +8535,20 @@ def tftodiscordcommand(specificommand, command, serverid):
     # return
 
     servercommand = specificommand != False
-    if not specificommand and command["originalmessage"][1:].split(" ")[0] in (
-        "togglebrute",
-        "togglestats",
-        "toggleexpi",
-        "togglephase",
-        "togglearcher",
-        "togglefpanims",
-    ):
-        discordtotitanfall[serverid]["messages"].append(
-            {
-                "content": f"{PREFIXES['discord']}{PREFIXES['warning']}{command['originalmessage'][1:].split(' ')[0]} no longer exists - type {PREFIXES['commandname']}'!toggle' {PREFIXES['warning']}for more info",
-                "uidoverride": [getpriority(command, "uid", ["meta", "uid"])],
-            }
-        )
+    # if not specificommand and command["originalmessage"][1:].split(" ")[0] in (
+    #     "togglebrute",
+    #     "togglestats",
+    #     "toggleexpi",
+    #     "togglephase",
+    #     "togglearcher",
+    #     "togglefpanims",
+    # ):
+    #     discordtotitanfall[serverid]["messages"].append(
+    #         {
+    #             "content": f"{PREFIXES['discord']}{PREFIXES['warning']}{command['originalmessage'][1:].split(' ')[0]} no longer exists - type {PREFIXES['commandname']}'!toggle' {PREFIXES['warning']}for more info",
+    #             "uidoverride": [getpriority(command, "uid", ["meta", "uid"])],
+    #         }
+    #     )
 
     # print("HERE")
     # print("HERE", not specificommand,command.get("originalmessage",False) ,command["originalmessage"][0] == keyletter,command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() ,("tf1" if context["servers"].get(serverid, {}).get("istf1server", False) else "tf2") in  REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
@@ -8590,6 +8590,7 @@ def tftodiscordcommand(specificommand, command, serverid):
             specificommand,
         )
         commandargs = command["originalmessage"][1:].split(" ")[1:]
+        # print("what",resolvecommandperms(serverid,specificommand))
         # print( "e",context["commands"]["ingamecommands"][specificommand].get("permsneeded",False) and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"]),context["commands"]["ingamecommands"][specificommand].get("permsneeded",False)))
         if resolvecommandperms(serverid,specificommand) and not checkrconallowedtfuid(
             getpriority(command, "uid", ["meta", "uid"]),
@@ -8609,7 +8610,7 @@ def tftodiscordcommand(specificommand, command, serverid):
                 return
             discordtotitanfall[serverid]["messages"].append(
                 {
-                    "content": f"{PREFIXES['discord']}You don't have permission to run {specificommand}, you need {PREFIXES["commandname"]}{translaterole(serverid,resolvecommandperms(serverid,specificommand))}",
+                    "content": f"{PREFIXES['discord']}You don't have permission to run {PREFIXES["commandname"]}{specificommand}{PREFIXES["chatcolour"]}, you need {PREFIXES["commandname"]}{translaterole(serverid,resolvecommandperms(serverid,specificommand))}",
                     "uidoverride": [getpriority(command, "uid", ["meta", "uid"])],
                 }
             )
@@ -8622,7 +8623,7 @@ def tftodiscordcommand(specificommand, command, serverid):
             )
             and specificommand != "toggle"
         ) or (
-            specificommand == "toggle"
+            specificommand == "toggle" #I noticed that this messes up if you do !toggle <NONTOGGLECOMMAND EG "nessify">, but the titanfall servers mess up too, and that is hard to fix, so if they both mess up, is fine
 
             and command["originalmessage"].split(" ")[1:]
             and command["originalmessage"].split(" ")[1:][0] in context["commands"]["ingamecommands"]
@@ -8649,6 +8650,7 @@ def tftodiscordcommand(specificommand, command, serverid):
     initdiscordtotitanfall(serverid)
 
     if context["commands"]["ingamecommands"][specificommand]["run"] == "togglestat":
+        # print(specificommand)
         # print("HERE HERE HERE HERE HERE HERE")
         togglestats(
             command, specificommand, serverid
@@ -8924,12 +8926,12 @@ def startaduel(who):
     # print(json.dumps(currentduels,indent=4))
     sendrconcommand(
         who["serverid"],
-        f"!highlightplayertoplayer {who["otheruid"]} {who["inituid"]}",
+        f"!highlightplayerforduels {who["otheruid"]} {who["inituid"]}",
         sender=None,
     )
     sendrconcommand(
         who["serverid"],
-        f"!highlightplayertoplayer {who["inituid"]} {who["otheruid"]}",
+        f"!highlightplayerforduels {who["inituid"]} {who["otheruid"]}",
         sender=None,
     )
     if currentstabs != [0,0]:
@@ -10344,31 +10346,11 @@ def togglepersistentvar(message, serverid, isfromserver):
     """Toggles persistent server variables like stats tracking and notifications"""
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     args = message["originalmessage"].split(" ")[1:]
-    if args and args[0] not in [
-        *list(
-            map(
-                lambda x: x[0],
-                filter(
-                    lambda x: x[1].get("run") == "togglestat",
-                    context["commands"]["ingamecommands"].items(),
-                ),
-            )
-        ),
-        "help",
-        "h",
-    ]:
-        discordtotitanfall[serverid]["messages"].append(
-            {
-                # "id": str(int(time.time()*100)),
-                "content": f"{PREFIXES['discord']}{PREFIXES['commandname']}{PREFIXES['warning']} Could not find the toggle for {args[0]}",
-                # "teamoverride": 4,
-                # "isteammessage": False,
-                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
-                # "dotreacted": dotreacted
-            }
-        )
 
-    
+
+
+            
+   
     
     if (commandnotenabledonthisserver := (
             len(args) and
@@ -10380,7 +10362,7 @@ def togglepersistentvar(message, serverid, isfromserver):
             args[0],
             "serversenabled",
         ],nofind=[int(serverid)])
-        )) or (not len(args) or args[0] not in [
+        )) or (len(args) and  resolvecommandperms(serverid,args[0]) and not checkrconallowedtfuid( getpriority(message, "uid", ["meta", "uid"]), resolvecommandperms(serverid,args[0]),serverid=serverid,))or (not len(args) or args[0] not in [
         *list(
             map(
                 lambda x: x[0],
@@ -10395,31 +10377,77 @@ def togglepersistentvar(message, serverid, isfromserver):
         if not commandnotenabledonthisserver or not len(args):
             for name, command in context["commands"]["ingamecommands"].items():
                 if (
-                    command.get("run") != "togglestat"
-                    or ("tf1" if istf1 else "tf2") not in command.get("games")
-                    or (
-                        command.get("serversenabled")
-                        and int(serverid) not in command.get("serversenabled")
+                    command.get("run") == "togglestat"
+                    and ("tf1" if istf1 else "tf2") in command["games"]
+                    and (
+                        not resolvecommandperms(serverid,name)
+                        or checkrconallowedtfuid(
+                            getpriority(message, "uid", ["meta", "uid"]),
+                            resolvecommandperms(serverid,name),
+                            serverid=serverid,
+                        )
                     )
+                    and (
+                        not command.get("serversenabled", False)
+                        or int(serverid) in command["serversenabled"]
+                    )
+
+                    and not command.get("alias")
                 ):
-                    continue
-                cmdcounter += 1
-                discordtotitanfall[serverid]["messages"].append(
-                    {
-                        # "id": str(i) + str(int(time.time()*100)),
-                        "content": f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['bronze'] + resolvecommandperms(serverid,name) + ' ' if resolvecommandperms(serverid,name) else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{keyletter}toggle {name}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
-                        # "teamoverride": 4,
-                        # "isteammessage": False,
-                        "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
-                        # "dotreacted": dotreacted
-                    }
-                )
+
+                    cmdcounter += 1
+                    discordtotitanfall[serverid]["messages"].append(
+                        {
+                            # "id": str(i) + str(int(time.time()*100)),
+                            "content": f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['bronze'] + resolvecommandperms(serverid,name) + ' ' if resolvecommandperms(serverid,name) else ''}{PREFIXES['commandname'] if not istf1 else PREFIXES['commandname']}{keyletter}toggle {name}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
+                            # "teamoverride": 4,
+                            # "isteammessage": False,
+                            "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+                            # "dotreacted": dotreacted
+                        }
+                    )
         else:
             cmdcounter+=1
             discordtotitanfall[serverid]["messages"].append(
                 {
                     # "id": str(i) + str(int(time.time()*100)),
                     "content": f"{PREFIXES['discord']}{PREFIXES['warning']}Could not toggle {args[0]}{PREFIXES['chatcolour']} - it is not enabled on this server",
+                    # "teamoverride": 4,
+                    # "isteammessage": False,
+                    "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+                    # "dotreacted": dotreacted
+                }
+            )
+        if len(args) and  resolvecommandperms(serverid,args[0]) and not checkrconallowedtfuid( getpriority(message, "uid", ["meta", "uid"]), resolvecommandperms(serverid,args[0]),serverid=serverid,) and not commandnotenabledonthisserver:
+            cmdcounter+=1
+            discordtotitanfall[serverid]["messages"].append(
+                {
+                    # "id": str(i) + str(int(time.time()*100)),
+                    "content": f"{PREFIXES['discord']}{PREFIXES['warning']}Could not toggle {args[0]}{PREFIXES['chatcolour']} - you need {PREFIXES['commandname']}{translaterole(serverid,resolvecommandperms(serverid,args[0]))}",
+                    # "teamoverride": 4,
+                    # "isteammessage": False,
+                    "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+                    # "dotreacted": dotreacted
+                }
+            )
+        if args and args[0] not in [
+            *list(
+                map(
+                    lambda x: x[0],
+                    filter(
+                        lambda x: x[1].get("run") == "togglestat",
+                        context["commands"]["ingamecommands"].items(),
+                    ),
+                )
+            ),
+            "help",
+            "h",
+        ]:
+            cmdcounter += 1
+            discordtotitanfall[serverid]["messages"].append(
+                {
+                    # "id": str(int(time.time()*100)),
+                    "content": f"{PREFIXES['discord']}{PREFIXES['commandname']}{PREFIXES['warning']} Could not find the toggle for {args[0]}",
                     # "teamoverride": 4,
                     # "isteammessage": False,
                     "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
@@ -10758,7 +10786,19 @@ def recievetitanfallcommands(message, serverid, isfromserver):
     global tfcommandspermissions
     # print(json.dumps(message,indent=4))
     tfcommandspermissions[serverid] = {**tfcommandspermissions.get(serverid,{}),**message}# dict(map(lambda x: [x[0],list(x[1].keys())], message.items()))
-    # print(json.dumps(tfcommandspermissions[serverid],indent=4))
+    print(json.dumps(tfcommandspermissions[serverid],indent=4))
+    hasoverriden = False
+    for command,perms in tfcommandspermissions[serverid].get("discordcommands",{}).items():
+        print(command,perms)
+        # override serversenabled
+        if int(serverid) in getpriority(context,["commands","ingamecommands",command,"serversenabled"],nofind = [int(serverid)]):
+            continue
+        # at this point, we must override serversenabled (HORRIBLE SOLOUTION THIS IS GLOBAL WHAT WAS I THINKING WAIT WTF BIGGEST BRAIN FART IT'S NOT YOU DINGUS)
+        hasoverriden = True
+        context["commands"]["ingamecommands"][command]["serversenabled"].append(int(serverid))
+    if hasoverriden:
+        print("I overrided something!")
+
     print("Loaded commands for",serverid)
 
 def senddiscordcommands(message, serverid, isfromserver):
@@ -12151,6 +12191,7 @@ def checkrconallowed(author, typeof="rconrole", **kwargs):
 
     global context
     if typeof == "everyone": return True
+    if typeof == "noone": return False
     translated = translaterole(serverid, typeof)
     # if author.id not in context["RCONallowedusers"]:
     #     return False
@@ -12182,6 +12223,7 @@ def translaterole(serverid, role):
 @functools.lru_cache(maxsize=None)
 def checkrconallowedtfuid(uid, typeof="rconrole", **kwargs):
     if typeof == "everyone": return True
+    if typeof == "noone": return False
     serverid = kwargs.get("serverid", False)
     """Checks if TF UID has RCON permissions for server administration"""
     global context
@@ -12201,6 +12243,10 @@ def checkrconallowedtfuid(uid, typeof="rconrole", **kwargs):
             return False
 
     discordid = result[0]
+    # print( discordid in context["overriderolesuids"].get(
+    #     translaterole(serverid, typeof), []
+    # ))
+    # print("meow")
     return discordid in context["overriderolesuids"].get(
         translaterole(serverid, typeof), []
     )
