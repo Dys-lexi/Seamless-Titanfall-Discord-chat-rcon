@@ -36,7 +36,7 @@ discordlog:
       - PFP_ROUTE="https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/" #Url used for pfps
       - FILTER_NAMES_IN_MESSAGES="usermessagepfp,chat_message,command,tf1command,botcommand" #What types of messages should the bot run the nonoword filter on
       - SEND_KILL_FEED="1" #should the bot send the kill feed in the relay?
-      - OVERRIDE_IP_FOR_CDN_LEADERBOARD="use_actual_ip" #options = useactualip,if you have no domain, a domain name eg https://xyz.com or hidden to disable this. you'll need to port forward.
+      - OVERRIDE_IP_FOR_CDN_LEADERBOARD="hidden" #options = useactualip,if you have no domain, a domain name eg https://xyz.com or hidden to disable this. you'll need to port forward.
       - COOL_PERKS_REQUIREMENT="You need something or other to get this"#message displayed when user does not have the role required for cool perks.
       - SHOW_IMPERSONATED_MESSAGES_IN_DISCORD="1" # display an IMPERSONATED tag after an impersonated message, only in discord
       - KILL_STREAK_NOTIFY_THRESHOLD="5" #min kill requirment to start a killstreak. set to "0" to disable.
@@ -51,7 +51,6 @@ discordlog:
       - NOCARO_AUTH=0 #Nocaro auth
       - SANS_URL=0 #sans fight instead of ai for gift no rcon
       - TIME_TO_HIDE_CHANNEL="259200" #time in seconds before channels auto hide.
-      - OVERRIDE_IP_FOR_CDN_LEADERBOARD="hidden" #url for bot cdn.
     volumes:
       - ./discord/data:/app/data:rw
     restart: always
