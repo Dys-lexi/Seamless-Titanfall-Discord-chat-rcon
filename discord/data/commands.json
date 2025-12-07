@@ -23,7 +23,6 @@
             "permsneeded": "rconrole"
         },
         "leaderboard": {
-            "aliases": ["leaderboards"],
             "games": [
                 "tf2"
             ],

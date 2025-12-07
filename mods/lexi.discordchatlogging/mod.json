@@ -53,7 +53,7 @@
         },
         {
             "Name": "discordlogfunctionpermoverrides",
-            "DefaultValue": "" // use in the format commandname,perm,commandname,perm eg: helpdc,rconrole,nessify,everyone (this overrides the permissions on commands)
+            "DefaultValue": "" // use in the format commandname,perm,deniedperm,commandname,perm,deniedperm eg: helpdc,rconrole,None,nessify,rconrole,debugchat (this overrides the permissions on commands)
         }
 
     ],

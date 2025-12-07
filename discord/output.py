@@ -1787,7 +1787,7 @@ async def on_interaction(interaction):
 
 @tasks.loop(seconds=1800)
 async def updateroles():
-    """If a user messages the bot in dms, they have no roles. this serves to check their roles, so if they run a admin command, the bot knows they are admin in a dm"""
+    """If a user messages the bot in dms, they have no roles. this serves to check their roles, so if they run a admin command, the bot knows they are admin in a dm (and also in game)"""
     global knownpeople, context
     if not context["categoryinfo"]["activeguild"]:
         return
@@ -6184,7 +6184,7 @@ async def on_message(message,isresponse=False): #↖
             print("creating image")
             if resolvecommandpermsformainbot(serverid,"sendimage") == None:
                 return
-            elif not resolvecommandpermsformainbot(serverid,"sendimage") or checkrconallowed(author,resolvecommandpermsformainbot(serverid,"sendimage"),serverid=serverid):
+            elif not resolvecommandpermsformainbot(serverid,"sendimage") or checkrconallowed(author,resolvecommandpermsformainbot(serverid,"sendimage",True),serverid=serverid):
                 image = await createimage(message)
                 await returncommandfeedback(
                     *sendrconcommand(serverid, f"!sendimage {' '.join(image)}"),
@@ -8482,7 +8482,7 @@ def sendthingstoplayer(outputstring, serverid, statuscode, uidoverride):
         }
     )
 
-def resolvecommandpermsformainbot(serverid,command):
+def resolvecommandpermsformainbot(serverid,command,returndenys = False):
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     # print(command,getpriority(tfcommandspermissions,[serverid,internaltoggles.get(command)]))
     if not istf1 and not (getpriority(tfcommandspermissions,[serverid,"commands"])) and time.time() > getpriority(tfcommandspermissions,[serverid,"laststatspull"],nofind = 0) + 3:
@@ -8494,14 +8494,18 @@ def resolvecommandpermsformainbot(serverid,command):
             sender=None,
         )
         return None # Panic here
+    elif not istf1 and not (getpriority(tfcommandspermissions,[serverid,"commands"])) :
+        return None
     # print(command)
     # print(tfcommandspermissions[serverid].get(command) != "None" and tfcommandspermissions[serverid]["commands"].get(command,False))
-    if tfcommandspermissions[serverid]["commands"].get(command) == "everyone":
-        return False
-    return tfcommandspermissions[serverid]["commands"].get(command) != "None" and tfcommandspermissions[serverid]["commands"].get(command,False)
-def resolvecommandperms(serverid,command):
+    allow = tfcommandspermissions[serverid]["commands"].get(command)["permsneeded"] == "everyone" or tfcommandspermissions[serverid]["commands"].get(command)["permsneeded"] != "None" and getpriority(tfcommandspermissions[serverid]["commands"],[command,"permsneeded"],nofind = False)
+    deny = tfcommandspermissions[serverid]["commands"].get(command)["deniedperms"] != "None" and getpriority(tfcommandspermissions[serverid]["commands"],[command,"deniedperms"],nofind = False)
+    # print({"allow":allow,"deny":deny})
+    return (allow or "disallowed") if not returndenys else json.dumps({"allow":allow,"deny":deny})
+def resolvecommandperms(serverid,command,returndenys = False):
     # print(command,getpriority(tfcommandspermissions,[serverid,internaltoggles.get(command)]))
     # print([serverid,matchid])
+    # deniedperms permsneeded
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     if not istf1 and not getpriority(tfcommandspermissions,[serverid,"commands"]) and time.time() > getpriority(tfcommandspermissions,[serverid,"laststatspull"],nofind = 0) + 3:
         tfcommandspermissions.setdefault(serverid,{})["laststatspull"] = int(time.time())
@@ -8512,15 +8516,22 @@ def resolvecommandperms(serverid,command):
             sender=None,
         )
         return True # should not resolve
+    elif not istf1 and not getpriority(tfcommandspermissions,[serverid,"commands"]):
+        return None
     # print([command,getpriority(tfcommandspermissions,[serverid,"discordcommands",internaltoggles.get(command)])])
     # print([command,( context["commands"]["ingamecommands"][command].get("run") == "functionless" and getpriority(tfcommandspermissions,[serverid,"commands",internaltoggles.get(command)]) ) or (context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",internaltoggles.get(command)]) ) or context["commands"]["ingamecommands"][command].get("permsneeded", False),context["commands"]["ingamecommands"][command].get("permsneeded", False)])
     # print(internaltoggles)
     # command.get("alias",command)
-    if (context["commands"]["ingamecommands"][command].get("run") == "functionless" and  getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command)]) == "everyone" or  context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) == "everyone"):
-        return False
-    # print( ( context["commands"]["ingamecommands"][command].get("run") == "functionless" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command)]) != "None" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command)]) ) or (context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) != "None" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) ) or context["commands"]["ingamecommands"][command].get("permsneeded", False))
-    return ( context["commands"]["ingamecommands"][command].get("run") == "functionless" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command)]) != "None" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command)]) ) or (context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) != "None" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) ) or context["commands"]["ingamecommands"][command].get("permsneeded", False)
+    allow = ((context["commands"]["ingamecommands"][command].get("run") == "functionless" and  getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) == "everyone" or  context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) == "everyone")) or (( context["commands"]["ingamecommands"][command].get("run") == "functionless" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) != "None" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) ) or (context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) != "None" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) ) or context["commands"]["ingamecommands"][command].get("permsneeded", False))
+    deny =  (( context["commands"]["ingamecommands"][command].get("run") == "functionless" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command),"deniedperms"]) != "None" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command),"deniedperms"]) ) or (context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command),"deniedperms"]) != "None" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command),"deniedperms"]) ) or context["commands"]["ingamecommands"][command].get("deniedperms", False))
+
+    # if (context["commands"]["ingamecommands"][command].get("run") == "functionless" and  getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) == "everyone" or  context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) == "everyone"):
+    #     return {"allow":False
+    # # print( ( context["commands"]["ingamecommands"][command].get("run") == "functionless" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command)]) != "None" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command)]) ) or (context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) != "None" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) ) or context["commands"]["ingamecommands"][command].get("permsneeded", False))
+    # return (( context["commands"]["ingamecommands"][command].get("run") == "functionless" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command)]) != "None" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command)]) ) or (context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) != "None" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) ) or context["commands"]["ingamecommands"][command].get("permsneeded", False))
     # only checks functionless commands against the thing tf sent, because uh uh uh they are the only ones that should corrolate to a tf command directly
+    # print({"allow":allow,"deny":deny})
+    return (allow or "disallowed") if not returndenys else json.dumps({"allow":allow,"deny":deny})
 keyletter = "!"
 
 def tftodiscordcommand(specificommand, command, serverid):
@@ -8595,7 +8606,7 @@ def tftodiscordcommand(specificommand, command, serverid):
         # print( "e",context["commands"]["ingamecommands"][specificommand].get("permsneeded",False) and not checkrconallowedtfuid(getpriority(command,"uid",["meta","uid"]),context["commands"]["ingamecommands"][specificommand].get("permsneeded",False)))
         if resolvecommandperms(serverid,specificommand) and not checkrconallowedtfuid(
             getpriority(command, "uid", ["meta", "uid"]),
-            resolvecommandperms(serverid,specificommand),
+            resolvecommandperms(serverid,specificommand,True),
             serverid=serverid,
         ):
             if (
@@ -8925,16 +8936,17 @@ def startaduel(who):
     tfdb.close()
     deep_set(currentduels,[who["serverid"],who["matchid"],str(person1["uid"]),str(person2["uid"])],{str(person1["uid"]):currentstabs[0],str(person2["uid"]):currentstabs[1]})
     # print(json.dumps(currentduels,indent=4))
-    sendrconcommand(
-        who["serverid"],
-        f"!highlightplayerforduels {who["otheruid"]} {who["inituid"]}",
-        sender=None,
-    )
-    sendrconcommand(
-        who["serverid"],
-        f"!highlightplayerforduels {who["inituid"]} {who["otheruid"]}",
-        sender=None,
-    )
+    if not istf1:
+        sendrconcommand(
+            who["serverid"],
+            f"!highlightplayerforduels {who["otheruid"]} {who["inituid"]}",
+            sender=None,
+        )
+        sendrconcommand(
+            who["serverid"],
+            f"!highlightplayerforduels {who["inituid"]} {who["otheruid"]}",
+            sender=None,
+        )
     if currentstabs != [0,0]:
         discordtotitanfall[who["serverid"]]["messages"].append(
             {
@@ -8963,7 +8975,8 @@ def duelsomone(message,serverid,isfromserver):
         )
         return
     person = command[1]
-    
+    print(f"duelsearch {json.dumps(peopleonline,indent=4)}")
+    print("morestuff",[serverid],mostrecentmatchids,person.lower())
     duelymatches = dict(filter(lambda x: person.lower() in x[1]["name"].lower() and x[1]["serverid"] == serverid and mostrecentmatchids.get(serverid,x[1]["matchid"]) == mostrecentmatchids.get(serverid,x[1]["matchid"]), peopleonline.items()))
     
     # print(duelymatches)
@@ -10363,7 +10376,7 @@ def togglepersistentvar(message, serverid, isfromserver):
             args[0],
             "serversenabled",
         ],nofind=[int(serverid)])
-        )) or (len(args) and  resolvecommandperms(serverid,args[0]) and not checkrconallowedtfuid( getpriority(message, "uid", ["meta", "uid"]), resolvecommandperms(serverid,args[0]),serverid=serverid,))or (not len(args) or args[0] not in [
+        )) or (len(args) and  resolvecommandperms(serverid,args[0]) and not checkrconallowedtfuid( getpriority(message, "uid", ["meta", "uid"]), resolvecommandperms(serverid,args[0],True),serverid=serverid,))or (not len(args) or args[0] not in [
         *list(
             map(
                 lambda x: x[0],
@@ -10384,7 +10397,7 @@ def togglepersistentvar(message, serverid, isfromserver):
                         not resolvecommandperms(serverid,name)
                         or checkrconallowedtfuid(
                             getpriority(message, "uid", ["meta", "uid"]),
-                            resolvecommandperms(serverid,name),
+                            resolvecommandperms(serverid,name,True),
                             serverid=serverid,
                         )
                     )
@@ -10419,7 +10432,7 @@ def togglepersistentvar(message, serverid, isfromserver):
                     # "dotreacted": dotreacted
                 }
             )
-        if len(args) and  resolvecommandperms(serverid,args[0]) and not checkrconallowedtfuid( getpriority(message, "uid", ["meta", "uid"]), resolvecommandperms(serverid,args[0]),serverid=serverid,) and not commandnotenabledonthisserver:
+        if len(args) and  resolvecommandperms(serverid,args[0]) and not checkrconallowedtfuid( getpriority(message, "uid", ["meta", "uid"]), resolvecommandperms(serverid,args[0],True),serverid=serverid,) and not commandnotenabledonthisserver:
             cmdcounter+=1
             discordtotitanfall[serverid]["messages"].append(
                 {
@@ -10744,7 +10757,7 @@ def ingamehelp(message, serverid, isfromserver):
                 not resolvecommandperms(serverid,name)
                 or checkrconallowedtfuid(
                     getpriority(message, "uid", ["meta", "uid"]),
-                    resolvecommandperms(serverid,name),
+                    resolvecommandperms(serverid,name,True),
                     serverid=serverid,
                 )
             )
@@ -10787,7 +10800,7 @@ def recievetitanfallcommands(message, serverid, isfromserver):
     global tfcommandspermissions
     # print(json.dumps(message,indent=4))
     tfcommandspermissions[serverid] = {**tfcommandspermissions.get(serverid,{}),**message}# dict(map(lambda x: [x[0],list(x[1].keys())], message.items()))
-    # print(json.dumps(tfcommandspermissions[serverid],indent=4))
+    print(json.dumps(tfcommandspermissions[serverid],indent=4))
     hasoverriden = False
     for command,perms in tfcommandspermissions[serverid].get("discordcommands",{}).items():
         # print(command,perms)
@@ -12189,29 +12202,46 @@ def getslashcommandoverridesperms(commandname,default = "rconrole"):
 def checkrconallowed(author, typeof="rconrole", **kwargs):
     """Checks if Discord user has RCON permissions based on roles"""
     serverid = kwargs.get("serverid", False)
-
+    typeof = getjson(typeof)
+    if not isinstance(typeof, dict):
+        typeof = {"allow":typeof,"deny":False}
+    # print(typeof)
     global context
-    if typeof == "everyone": return True
-    if typeof == "noone": return False
-    translated = translaterole(serverid, typeof)
+    # if typeof == "everyone": return True
+    # if typeof == "noone": return False
+
     # if author.id not in context["RCONallowedusers"]:
     #     return False
     # author.guild_permissions.administrator (THERE IS A "and False" here, it used to be "and author.guild_permissions.administrator")
     # first TRUE used to be (not hasattr(author, "roles") or not author.roles). but this fails in alternate guilds
-    return context["overriderolesuids"].get(translated) and ((True and author.id in context["overriderolesuids"][translated]) or (
+    # print((hasattr(author, "roles") and functools.reduce(
+    #             lambda a, x: a or x in list(map(lambda w: w.id, author.roles or [])),
+    #             [context["overrideroles"][translaterole(serverid, typeof["deny"])]]
+    #             if isinstance(context["overrideroles"][translaterole(serverid, typeof["deny"])], int)
+    #             else context["overrideroles"][translaterole(serverid, typeof["deny"])],
+    #             False,
+    #         )))
+    # print( not typeof["deny"] or typeof["deny"] != "everyone" or not context["overriderolesuids"].get(translaterole(serverid, typeof["deny"]) or author.id not in context["overriderolesuids"][translaterole(serverid, typeof["deny"])]))
+    return not typeof["allow"] or (context["overriderolesuids"].get(translaterole(serverid, typeof["allow"])) and ((True and author.id in context["overriderolesuids"][translaterole(serverid, typeof["allow"])]) or (
         hasattr(author, "roles")
         and (
-            (typeof == "rconrole" and False)
-            or (typeof == "coolperksrole" and OVVERRIDEROLEREQUIRMENT == "1")
+            (typeof["allow"] == "rconrole" and False)
+            or (typeof["allow"] == "coolperksrole" and OVVERRIDEROLEREQUIRMENT == "1")
             or functools.reduce(
                 lambda a, x: a or x in list(map(lambda w: w.id, author.roles or [])),
-                [context["overrideroles"][translated]]
-                if isinstance(context["overrideroles"][translated], int)
-                else context["overrideroles"][translated],
+                [context["overrideroles"][translaterole(serverid, typeof["allow"])]]
+                if isinstance(context["overrideroles"][translaterole(serverid, typeof["allow"])], int)
+                else context["overrideroles"][translaterole(serverid, typeof["allow"])],
                 False,
             )
         )
-    ))
+    ))) and ( ( not typeof["deny"] or typeof["deny"] == "everyone" or not context["overriderolesuids"].get(translaterole(serverid, typeof["deny"]) or author.id not in context["overriderolesuids"][translaterole(serverid, typeof["deny"])]))or (hasattr(author, "roles") and not functools.reduce(
+                lambda a, x: a or x in list(map(lambda w: w.id, author.roles or [])),
+                [context["overrideroles"][translaterole(serverid, typeof["deny"])]]
+                if isinstance(context["overrideroles"][translaterole(serverid, typeof["deny"])], int)
+                else context["overrideroles"][translaterole(serverid, typeof["deny"])],
+                False,
+            )) )
 
 
 # command slop
@@ -12223,13 +12253,16 @@ def translaterole(serverid, role):
 
 @functools.lru_cache(maxsize=None)
 def checkrconallowedtfuid(uid, typeof="rconrole", **kwargs):
-    if typeof == "everyone": return True
-    if typeof == "noone": return False
+    typeof = getjson(typeof)
+    if not isinstance(typeof, dict):
+        typeof = {"allow":typeof,"deny":False}
+    # if typeof == "everyone": return True
+    # if typeof == "noone": return False
     serverid = kwargs.get("serverid", False)
     """Checks if TF UID has RCON permissions for server administration"""
     global context
     # return False
-    if OVVERRIDEROLEREQUIRMENT == "1" and typeof == "coolperksrole":
+    if OVVERRIDEROLEREQUIRMENT == "1" and typeof["allow"] == "coolperksrole":
         return True
     # print("CHECKING UID",uid)
     tfdb = postgresem("./data/tf2helper.db")
@@ -12240,17 +12273,22 @@ def checkrconallowedtfuid(uid, typeof="rconrole", **kwargs):
     if result is None:
         c.execute("SELECT discordid FROM discordlinkdata WHERE discordid = ?", (uid,))
         result = c.fetchone()
-        if result is None:
-            return False
+        # if result is None:
+        #     return False
 
-    discordid = result[0]
+    discordid = result[0] if result else None
     # print( discordid in context["overriderolesuids"].get(
     #     translaterole(serverid, typeof), []
     # ))
     # print("meow")
-    return discordid in context["overriderolesuids"].get(
-        translaterole(serverid, typeof), []
-    )
+    print(result,typeof["deny"],discordid not in context["overriderolesuids"].get(
+        translaterole(serverid, typeof["deny"]), []
+    ))
+    return (not typeof["allow"] or typeof["allow"] == "everyone" or  result and discordid in context["overriderolesuids"].get(
+        translaterole(serverid, typeof["allow"]), []
+    )) and (not result or not typeof["deny"] or discordid not in context["overriderolesuids"].get(
+        translaterole(serverid, typeof["deny"]), []
+    )) and typeof["deny"] != "everyone"
 
 
 def create_dynamic_command(
@@ -12327,7 +12365,7 @@ async def {command_name}(ctx, {params_signature}):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("Command response timed out - server is unresponsive", ephemeral=False)
         return
-    if (resolvecommandpermsformainbot(serverid,"{command_name}") and checkrconallowed(ctx.author,resolvecommandpermsformainbot(serverid,"{command_name}"),serverid=serverid)):
+    if (resolvecommandpermsformainbot(serverid,"{command_name}") and checkrconallowed(ctx.author,resolvecommandpermsformainbot(serverid,"{command_name}",True),serverid=serverid)):
         pass #this stuff hurts my brain. good enough IF YOU ARE ALLOWED
     elif (resolvecommandpermsformainbot(serverid,"{command_name}")) or {rcon} and not checkrconallowed(ctx.author,serverid=serverid):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
