@@ -9,7 +9,7 @@ discordlogcommand function discordlogplayerfinder(discordlogcommand commandin) {
 
             array<string> recenthurts
             
-            if (IsAlive(player) &&  (GetPlayerArray()).len() > 1){
+            if (IsValid(player) && IsAlive(player) &&  (GetPlayerArray()).len() > 1){
                 int remove = 0
                 array<entity> otherPlayers = GetPlayerArray()
                 for(int i = 0; i < otherPlayers.len(); i++){
@@ -26,7 +26,7 @@ discordlogcommand function discordlogplayerfinder(discordlogcommand commandin) {
                 if ( history.time < recent )
                     break
 
-                if ( history.attacker.IsPlayer() && IsAlive(history.attacker) )
+                if (IsValid(history.attacker) && history.attacker.IsPlayer() && IsAlive(history.attacker) )
                     recenthurts.append(history.attacker.GetUID())
             }
             }
