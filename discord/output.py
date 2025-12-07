@@ -8501,7 +8501,7 @@ def resolvecommandpermsformainbot(serverid,command,returndenys = False):
     allow = tfcommandspermissions[serverid]["commands"].get(command)["permsneeded"] == "everyone" or tfcommandspermissions[serverid]["commands"].get(command)["permsneeded"] != "None" and getpriority(tfcommandspermissions[serverid]["commands"],[command,"permsneeded"],nofind = False)
     deny = tfcommandspermissions[serverid]["commands"].get(command)["deniedperms"] != "None" and getpriority(tfcommandspermissions[serverid]["commands"],[command,"deniedperms"],nofind = False)
     # print({"allow":allow,"deny":deny})
-    return (allow or "disallowed") if not returndenys else json.dumps({"allow":allow,"deny":deny})
+    return (allow or ("disallowed" if deny else allow)) if not returndenys else json.dumps({"allow":allow,"deny":deny})
 def resolvecommandperms(serverid,command,returndenys = False):
     # print(command,getpriority(tfcommandspermissions,[serverid,internaltoggles.get(command)]))
     # print([serverid,matchid])
@@ -8531,7 +8531,7 @@ def resolvecommandperms(serverid,command,returndenys = False):
     # return (( context["commands"]["ingamecommands"][command].get("run") == "functionless" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command)]) != "None" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command)]) ) or (context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) != "None" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) ) or context["commands"]["ingamecommands"][command].get("permsneeded", False))
     # only checks functionless commands against the thing tf sent, because uh uh uh they are the only ones that should corrolate to a tf command directly
     # print({"allow":allow,"deny":deny})
-    return (allow or "disallowed") if not returndenys else json.dumps({"allow":allow,"deny":deny})
+    return (allow or ("disallowed" if deny else False)) if not returndenys else json.dumps({"allow":allow,"deny":deny})
 keyletter = "!"
 
 def tftodiscordcommand(specificommand, command, serverid):
@@ -10800,7 +10800,7 @@ def recievetitanfallcommands(message, serverid, isfromserver):
     global tfcommandspermissions
     # print(json.dumps(message,indent=4))
     tfcommandspermissions[serverid] = {**tfcommandspermissions.get(serverid,{}),**message}# dict(map(lambda x: [x[0],list(x[1].keys())], message.items()))
-    print(json.dumps(tfcommandspermissions[serverid],indent=4))
+    # print(json.dumps(tfcommandspermissions[serverid],indent=4))
     hasoverriden = False
     for command,perms in tfcommandspermissions[serverid].get("discordcommands",{}).items():
         # print(command,perms)

@@ -84,7 +84,7 @@ array <actualrealcoolcommand> function getregisteredfunctions(){
 		addcommand(discordlogthrowplayer,"throw"),
 		addcommand(discordlogsimplesay,"simplesay"),
 		addcommand(discordloggetuid,"getuid"),
-		addcommand(discordlogkickplayer,"kick","None","small"),
+		addcommand(discordlogkickplayer,"kick"),
 		addcommand(discordlogsendimage,"sendimage"),
 		addcommand(discordlogtoggleadmin,"toggleadmin"),
 		addcommand(getconvar,"getconvar"),
