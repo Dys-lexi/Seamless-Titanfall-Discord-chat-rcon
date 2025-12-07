@@ -1832,18 +1832,26 @@ async def hideandshowchannels(serveridforce = None, force = False):
                 context["servers"][server]["ishidden"] = True
             else:
                 context["servers"][server]["ishidden"] = False
-    for index,(server,details) in enumerate(sorted(sorted(filter(lambda x: not serveridforce or serveridforce == x[0], context["servers"].items()),key = lambda x: x[0]),key = lambda x: x[1].get("widget","zzzz") or "zzzz")):
+    ididthisserver = []
+    enumeratethrough = enumerate([*context["categoryinfo"]["idealorder"],*list(map(lambda x: x[0],sorted(sorted(filter(lambda x: not serveridforce or serveridforce == x[0], context["servers"].items()),key = lambda x: x[0]),key = lambda x: x[1].get("widget","zzzz") or "zzzz")))])
+    for index,server in enumeratethrough:
+        # print(context["servers"][server]["name"])
+        if server in ididthisserver:
+            continue
+        ididthisserver.append(server)
         if server not in context["categoryinfo"]["idealorder"]: context["categoryinfo"]["idealorder"].insert(index,server)
         placement = functools.reduce(lambda a,b: {**a,"hasfound":True} if b == server else (a if (a["hasfound"] or context["servers"][b].get("ishidden",bot.get_channel(context["servers"][b]["channelid"]).id != context["categoryinfo"]["logging_cat_id"]) == True) else {**a,"server":b}),  context["categoryinfo"]["idealorder"],{"server":None,"hasfound":False})["server"]
         if not placement:
             actualplacement = functools.reduce(lambda a,b: {**a,"hasfound":True} if b == server else ({**a,"server":b} if (not a["server"] and (a["hasfound"] and not context["servers"][b].get("ishidden",bot.get_channel(context["servers"][b]["channelid"]).id != context["categoryinfo"]["logging_cat_id"]) == True)) else a),  context["categoryinfo"]["idealorder"],{"server":None,"hasfound":False})["server"]
             # print("placing before",actualplacement)
-        istf1 = bool(details.get("istf1server",False) )
+        
+        istf1 = bool(context["servers"][server].get("istf1server",False) )
         c.execute(f"SELECT time FROM matchid{"tf1" if istf1 else ""} WHERE serverid = ? ORDER BY time DESC LIMIT 1",(server,))
         mostrecentmatchid = c.fetchone()
-        if not mostrecentmatchid: continue
+        if not mostrecentmatchid:
+            mostrecentmatchid = [0] # bork to make sure that servers that have never been played on get shadow wealmed
         mostrecentmatchid = mostrecentmatchid[0]
-        channel = bot.get_channel(details["channelid"])
+        channel = bot.get_channel(context["servers"][server]["channelid"])
         category = channel.category
         # set to not equal for now, instead of == hidden_cat_id so that the ones in the weird old limbo cat slowly get moved
         if (force or category.id != context["categoryinfo"]["logging_cat_id"]) and now - TIMETILLCHANNELSGETHIDDEN < mostrecentmatchid:
@@ -1866,6 +1874,8 @@ async def hideandshowchannels(serveridforce = None, force = False):
             await channel.edit(sync_permissions=True,category=hidden)
             context["servers"][server]["ishidden"] = True
             # hide the channel
+        # else:
+        #     print(context["servers"][server]["name"],force,category.id != context["categoryinfo"]["logging_cat_id"],category.id == context["categoryinfo"]["logging_cat_id"],(now - TIMETILLCHANNELSGETHIDDEN < mostrecentmatchid))
     savecontext()
     tfdb.close()
 
@@ -2255,6 +2265,7 @@ def pullsanction(uid):
             name = "Unknown player"
         return {
             **existing_sanction,
+            "uid":uid,
             "affectedplayer": name,
             "humanexpire": expiry_text,
             "link": f"https://discord.com/channels/{context["categoryinfo"]["activeguild"]}/{context['overridechannels']['globalchannel']}/{existing_sanction.get('messageid')}"
