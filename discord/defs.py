@@ -205,6 +205,7 @@ NPC_NAMES = {
 
 
 WEAPON_NAMES = {
+    "mind_crime": "Mind crime",
     "fall":"the architects",
     "mp_titanweapon_shotgun": "WYS-0404 Shotgun",
     "mp_weapon_proximity_mine":"Proximity Mine",
@@ -807,6 +808,13 @@ GUNS_PILOT = [
     {
         "weapon_name": "mp_weapon_defender",
         "png_name": "mp_weapon_defender",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+        {
+        "weapon_name": "mp_weapon_arena3",
+        "png_name": "mp_weapon_arena3",
         "mods": [],
         "modsfiltertype": "include",
         "killedby" : ["player"]

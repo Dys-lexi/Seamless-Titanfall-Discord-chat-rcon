@@ -8494,6 +8494,7 @@ def sendthingstoplayer(outputstring, serverid, statuscode, uidoverride):
     )
 
 def resolvecommandpermsformainbot(serverid,command,returndenys = False):
+    print("wdqdq",command)
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     # print(command,getpriority(tfcommandspermissions,[serverid,internaltoggles.get(command)]))
     if not istf1 and not (getpriority(tfcommandspermissions,[serverid,"commands"])) and time.time() > getpriority(tfcommandspermissions,[serverid,"laststatspull"],nofind = 0) + 3:
@@ -8509,8 +8510,8 @@ def resolvecommandpermsformainbot(serverid,command,returndenys = False):
         return None
     # print(command)
     # print(tfcommandspermissions[serverid].get(command) != "None" and tfcommandspermissions[serverid]["commands"].get(command,False))
-    allow = tfcommandspermissions[serverid]["commands"].get(command)["permsneeded"] == "everyone" or tfcommandspermissions[serverid]["commands"].get(command)["permsneeded"] != "None" and getpriority(tfcommandspermissions[serverid]["commands"],[command,"permsneeded"],nofind = False)
-    deny = tfcommandspermissions[serverid]["commands"].get(command)["deniedperms"] != "None" and getpriority(tfcommandspermissions[serverid]["commands"],[command,"deniedperms"],nofind = False)
+    allow = getpriority(tfcommandspermissions,[serverid,"commands",command,"permsneeded"]) == "everyone" or getpriority(tfcommandspermissions,[serverid,"commands",command,"permsneeded"]) != "None" and getpriority(tfcommandspermissions,[serverid,"commands",command,"permsneeded"],nofind = False)
+    deny = getpriority(tfcommandspermissions,[serverid,"commands",command,"deniedperms"]) != "None" and getpriority(tfcommandspermissions,[serverid,"commands",command,"deniedperms"],nofind = False)
     # print({"allow":allow,"deny":deny})
     return (allow or ("disallowed" if deny else allow)) if not returndenys else json.dumps({"allow":allow,"deny":deny})
 def resolvecommandperms(serverid,command,returndenys = False):
@@ -10387,7 +10388,7 @@ def togglepersistentvar(message, serverid, isfromserver):
             args[0],
             "serversenabled",
         ],nofind=[int(serverid)])
-        )) or (len(args) and  resolvecommandperms(serverid,args[0]) and not checkrconallowedtfuid( getpriority(message, "uid", ["meta", "uid"]), resolvecommandperms(serverid,args[0],True),serverid=serverid,))or (not len(args) or args[0] not in [
+        )) or (len(args) and getpriority(context,["commands","ingamecommands",args[0]]) and  resolvecommandperms(serverid,args[0]) and not checkrconallowedtfuid( getpriority(message, "uid", ["meta", "uid"]), resolvecommandperms(serverid,args[0],True),serverid=serverid,))or (not len(args) or args[0] not in [
         *list(
             map(
                 lambda x: x[0],
@@ -10443,7 +10444,7 @@ def togglepersistentvar(message, serverid, isfromserver):
                     # "dotreacted": dotreacted
                 }
             )
-        if len(args) and  resolvecommandperms(serverid,args[0]) and not checkrconallowedtfuid( getpriority(message, "uid", ["meta", "uid"]), resolvecommandperms(serverid,args[0],True),serverid=serverid,) and not commandnotenabledonthisserver:
+        if len(args) and getpriority(context,["commands","ingamecommands",args[0]]) and  resolvecommandperms(serverid,args[0]) and not checkrconallowedtfuid( getpriority(message, "uid", ["meta", "uid"]), resolvecommandperms(serverid,args[0],True),serverid=serverid,) and not commandnotenabledonthisserver:
             cmdcounter+=1
             discordtotitanfall[serverid]["messages"].append(
                 {
