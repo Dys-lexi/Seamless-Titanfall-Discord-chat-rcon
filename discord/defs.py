@@ -812,9 +812,16 @@ GUNS_PILOT = [
         "modsfiltertype": "include",
         "killedby" : ["player"]
     },
-        {
+    {
         "weapon_name": "mp_weapon_arena3",
         "png_name": "mp_weapon_arena3",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mind_crime",
+        "png_name": "mind_crime",
         "mods": [],
         "modsfiltertype": "include",
         "killedby" : ["player"]
