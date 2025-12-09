@@ -22,8 +22,8 @@ void function discordloghighlightplayerforplayerinit(){
     AddCallback_OnPlayerRespawned( readdhighlightjustincase )
     AddCallback_OnPilotBecomesTitan(readdhighlightjustincasetitan)
     AddCallback_OnTitanBecomesPilot( readdhighlightjustincasetitan )
-    // addnewuidpairtotablething("1012640166434" , "2509670718")
-    // addnewuidpairtotablething("2509670718" , "1012640166434")
+    // addnewuidpairtotablething("1012640166434" , "1012744612530")
+    // addnewuidpairtotablething("1012744612530" , "1012640166434")
 
     // thread highlightplayertoplayer("1012640166434","2509670718")
     // thread highlightplayertoplayer("2509670718","1012640166434")
@@ -88,7 +88,12 @@ void function highlightplayertoplayer(string typeofhighlight,table<string,array<
     if (typeofhighlight == "tempwallhacks"){
      actuallyhighlight(entityhighlights,"enemy_boss_bounty",<1.0,0.2,0.7>,106,7.0)
     wait 5
-     actuallyhighlight(entityhighlights,"enemy_boss_bounty",<1.0,0.2,0.7>,112,1.0)}
+     actuallyhighlight(entityhighlights,"enemy_boss_bounty",<1.0,0.2,0.7>,112,1.0)
+        foreach (player in findallplayers(entityhighlights)){
+            // discordlogsendmessage("dqwdwq"+player.GetPlayerName())
+            thread keephighlighted(player,entityhighlights,"enemy_boss_bounty",<1.0,0.2,0.7>,112,1.0)
+        }
+     }
 
     if (typeofhighlight == "titanhighlight"){
     // thread actuallyhighlight(entityhighlights,"enemy_boss_bounty",<1.0,0.2,0.7>,106,7.0)
@@ -99,6 +104,45 @@ void function highlightplayertoplayer(string typeofhighlight,table<string,array<
     // thread actuallyhighlight(player1,npc,shouldhighlight)}
 }
     
+    array<entity> function findallplayers(table<entity,array<entity> > entityhighlights){
+        array<entity> found = []
+        foreach (key,value in entityhighlights){
+            foreach (thing in value){
+                if (!(found.contains(thing))){
+                    found.append(thing)
+                }
+            }
+        }
+        return found
+    }
+
+    void function keephighlighted(entity player,table<entity,array<entity> > entityhighlights,string highlightname, vector colour, int insideslot, float radius){
+        player.EndSignal(  "OnDestroy" )
+        player.EndSignal(  "OnDeath" )
+        while (true){
+            // discordlogsendmessage("eeestart"+player.GetPlayerName())
+            waitthread waitforstuff(player)
+            // discordlogsendmessage("eeestopped"+player.GetPlayerName())
+            foreach (key, value in entityhighlights){
+                if (value.contains(player)){
+                    entityhighlights[key] = [player]
+                }
+                else{
+                    entityhighlights[key] = []
+                }
+
+            }
+            actuallyhighlight(entityhighlights,highlightname,colour,insideslot,radius)
+        
+        }
+    }
+
+    void function waitforstuff(entity player){
+        player.EndSignal( "StopPhaseShift" )
+        player.EndSignal( "ForceStopPhaseShift" )
+        WaitForever()
+    }
+
     void function actuallyhighlight(table<entity,array<entity> > entityhighlights, string highlightname, vector colour, int insideslot, float radius){
     
 	// player1.EndSignal(  "OnDestroy" )
