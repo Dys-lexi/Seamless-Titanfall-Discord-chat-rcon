@@ -791,6 +791,37 @@ def playeruidnamelink():
         ALTER TABLE uidnamelink
         ALTER COLUMN playeruid TYPE BIGINT USING playeruid::BIGINT;
         """)
+
+    # # One-time migration to convert ipinfo format from dict to array
+    # try:
+    #     c.execute("SELECT id, ipinfo FROM uidnamelink WHERE ipinfo IS NOT NULL AND ipinfo != ''")
+    #     rows = c.fetchall()
+    #     for row_id, ipinfo_str in rows:
+    #         try:
+    #             ipinfo_data = json.loads(ipinfo_str)
+    #             # Check if already in new format (array)
+    #             if isinstance(ipinfo_data, list):
+    #                 continue
+    #             # Convert from dict to array format
+    #             ipinfo_array = []
+    #             for ip, timestamps in ipinfo_data.items():
+    #                 ipinfo_array.append({
+    #                     "ip": ip,
+    #                     "first": timestamps.get("first"),
+    #                     "last": timestamps.get("last")
+    #                 })
+    #             # Update the row with new format
+    #             c.execute("UPDATE uidnamelink SET ipinfo = %s WHERE id = %s", 
+    #                      (json.dumps(ipinfo_array), row_id))
+    #         except Exception as e:
+    #             # Skip malformed data
+    #             print(f"Error migrating ipinfo for row {row_id}: {e}")
+    #             pass
+    #     tfdb.commit()
+    # except Exception as e:
+    #     print(f"Error during ipinfo migration: {e}")
+    #     pass
+    
     # try:
     #     c.execute("ALTER TABLE uidnamelink ADD COLUMN ipinfo TEXT")
     # except:
@@ -5011,14 +5042,14 @@ if DISCORDBOTLOGSTATS == "1":
         uidinfo["searched"].append(uid)
         if not data or not data[0]:
             return uidinfo
-        knownips = list(json.loads(data[0]).keys())
+        knownips = list(json.loads(data[0]))
         
         for ip in knownips:
-            if ip in uidinfo["searchedips"] or not re.match(r'^(\d{1,3}\.){3}\d{1,3}$', ip):
+            if ip["ip"] in uidinfo["searchedips"] or not re.match(r'^(\d{1,3}\.){3}\d{1,3}$', ip["ip"]):
                 continue
-            uidinfo["searchedips"].append(ip)
+            uidinfo["searchedips"].append(ip["ip"])
             # print(ip)
-            c.execute("SELECT playeruid FROM uidnamelink WHERE ipinfo LIKE ?",(f"%{ip}%",))
+            c.execute("SELECT playeruid FROM uidnamelink WHERE ipinfo LIKE ?",(f"%{ip["ip"]}%",))
             uidinfo["all"] = list(set([*uidinfo["all"],*(list(map(lambda x: x[0],c.fetchall())))]))
             
         tfdb.close()
@@ -12836,12 +12867,15 @@ def checkandaddtouidnamelink(uid, playername, serverid, istf1=False,playerinfo={
 
         if not istf1 and playerinfo and playerinfo.get("ipaddr") and re.match(r'^(\d{1,3}\.){3}\d{1,3}$', playerinfo.get("ipaddr")):
             if ipinfo:
-                if ipinfo.get(playerinfo["ipaddr"]):
-                    ipinfo[playerinfo["ipaddr"]]["last"] = now
+                if getpriority(ipinfo[-1],"ip") == playerinfo["ipaddr"]:
+                    # print("this")
+                    ipinfo[-1]["last"] = now
                 else:
-                    ipinfo[playerinfo["ipaddr"]] = {"first":now,"last":now}
+                    # print("that")
+                    ipinfo.append({"ip":playerinfo["ipaddr"],"first":now,"last":now})
             else:
-                ipinfo = {playerinfo["ipaddr"]:{"first":now,"last":now}}
+                # print("woa")
+                ipinfo = [{"ip":playerinfo["ipaddr"],"first":now,"last":now}]
 
         if int(serverid) != lastserverid:
             resolveplayeruidfromdb.cache_clear()
