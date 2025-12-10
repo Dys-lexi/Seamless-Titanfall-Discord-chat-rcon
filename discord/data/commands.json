@@ -157,9 +157,7 @@
             "shouldblock": false
         },
         "natterforcoolperks": {
-            "games": [
-
-            ],
+            "games": [],
             "function": "natterforcoolperks",
             "run": "thread",
             "description": "natter a person to do cool perks",
@@ -171,7 +169,7 @@
                 "tf2"
             ],
             "run": "togglestat",
-            "sendvaluetoserver":false,
+            "sendvaluetoserver": false,
             "description": "True = disable debugchat",
             "shouldblock": false,
             "permsneeded": "debugchat"
@@ -182,7 +180,7 @@
                 "tf2"
             ],
             "run": "togglestat",
-            "sendvaluetoserver":false,
+            "sendvaluetoserver": false,
             "description": "True = disable auto showing of stats",
             "shouldblock": false,
             "internaltoggle": "togglestats"
@@ -193,7 +191,7 @@
                 "tf2"
             ],
             "run": "togglestat",
-            "sendvaluetoserver":false,
+            "sendvaluetoserver": false,
             "description": "True = disable showing of donation message",
             "shouldblock": true
         },
@@ -207,7 +205,6 @@
             "description": "Get help on commands that exec on the discord bot",
             "shouldblock": false
         },
-        
         "bettertb": {
             "aliases": [
                 "tbbbbbbb"
@@ -235,7 +232,7 @@
             "shouldblock": true
         },
         "impersonate": {
-        "aliases": [
+            "aliases": [
                 "i",
                 "imp",
                 "impdc"
@@ -346,6 +343,33 @@
                     "description": "The player name",
                     "required": true,
                     "autocompletefunc": "autocompletenamesfromingame"
+                }
+            ],
+            "rcon": true,
+            "outputfunc": false
+        },
+        "sendsound": {
+            "description": "Play a sound to a player",
+            "parameters": [
+                {
+                    "name": "playername",
+                    "type": "str",
+                    "description": "The player name",
+                    "required": true,
+                    "autocompletefunc": "autocompletenamesfromingame"
+                },
+                {
+                    "name": "sound",
+                    "type": "str",
+                    "description": "The sound to be played",
+                    "required": true,
+                    "autocompletefunc": "autocompletesounds"
+                },
+                {
+                    "name": "times",
+                    "type": "int",
+                    "description": "The sound to be played",
+                    "required": false
                 }
             ],
             "rcon": true,

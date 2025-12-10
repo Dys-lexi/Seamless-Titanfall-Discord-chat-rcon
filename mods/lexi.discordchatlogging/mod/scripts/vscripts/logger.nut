@@ -96,7 +96,8 @@ array <actualrealcoolcommand> function getregisteredfunctions(){
 		addcommand(discordlogplayerfinder,"playerfinder"),
 		addcommand(discordlogcompilestring,"compilestring"),
 		addcommand(discordbotwantingcommandlist,"reloadtfcommandlist"),
-		addcommand(discordlogaddnewhighlight,"highlightplayerforduels")
+		addcommand(discordlogaddnewhighlight,"highlightplayerforduels"),
+		addcommand(discordlogsendsoundtoplayer,"sendsound")
 		]
 		 //add functions here, and they'll work with / commands (if they fill criteria above)
 }

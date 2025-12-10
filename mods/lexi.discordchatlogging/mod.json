@@ -129,6 +129,10 @@
         {
             "Path": "discordlogcompilestring.nut",
             "RunOn": "SERVER"
+        },
+        {
+            "Path": "discordlogsendsoundtoplayer.nut",
+            "RunOn": "SERVER"
         }
     ]
 }

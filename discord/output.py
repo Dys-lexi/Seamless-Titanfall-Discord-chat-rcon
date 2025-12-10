@@ -1557,6 +1557,15 @@ async def autocompleteserversfromdb(ctx):
     return output
 
 
+async def autocompletesounds(ctx):
+    """autocompletes tf2 sounds"""
+    # {x["comment"]+"|" if x["comment"] else ""}
+    output = list(map(lambda x: f"{x["id"]+"|" if x["id"] else ""}{x["sound_name"]+" " if x["sound_name"] else ""}" ,sorted( filter(lambda x: ctx.value.lower() in (x["sound_name"] or "&").lower() or ctx.value.lower() in ( x["id"] or "&").lower() or ctx.value.lower() in (x["comment"] or "&").lower() ,SOUNDS),key = lambda x: int(ctx.value.lower() in (x["sound_name"] or "&"))*100+ int(ctx.value.lower() in (x["id"] or "&"))*10+ int(ctx.value.lower() in (x["comment"] or "&")),reverse = True)))
+    if len(output) == 0:
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        return ["No sound matches"]
+    return output[:30]
+
 async def autocompletenamesfromdb(ctx):
     """autocompletes tf2 names"""
     output = [
@@ -8525,7 +8534,7 @@ def sendthingstoplayer(outputstring, serverid, statuscode, uidoverride):
     )
 
 def resolvecommandpermsformainbot(serverid,command,returndenys = False):
-    print("wdqdq",command)
+    # print("wdqdq",command)
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     # print(command,getpriority(tfcommandspermissions,[serverid,internaltoggles.get(command)]))
     if not istf1 and not (getpriority(tfcommandspermissions,[serverid,"commands"])) and time.time() > getpriority(tfcommandspermissions,[serverid,"laststatspull"],nofind = 0) + 3:
