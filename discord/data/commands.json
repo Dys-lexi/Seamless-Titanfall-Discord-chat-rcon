@@ -135,6 +135,19 @@
             "shouldblock": true,
             "permsneeded": "rconrole"
         },
+        "sendsound": {
+            "aliases": [
+                "ss"
+            ],
+            "games": [
+                "tf2"
+            ],
+            "function":"sendsoundfromingame",
+            "run": "thread",
+            "description": "Play a sound to a player",
+            "shouldblock": true,
+            "permsneeded": "rconrole"
+        },
         "endofroundstats": {
             "games": [
                 "tf2",

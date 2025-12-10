@@ -23,7 +23,11 @@ discordlogcommand function discordlogsendsoundtoplayer(discordlogcommand command
         if  (commandin.commandargs.len() == 3){
             times = commandin.commandargs[2].tointeger()
         }
-        thread threadedspam(players[0],split(commandin.commandargs[1],"|")[1],times)
+        string thing = commandin.commandargs[1]
+        if (split(commandin.commandargs[1],"|").len() == 2){
+            thing = split(commandin.commandargs[1],"|")[1]
+        }
+        thread threadedspam(players[0],thing,times)
         commandin.returncode = 200
     }
     return commandin;

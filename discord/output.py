@@ -1560,11 +1560,16 @@ async def autocompleteserversfromdb(ctx):
 async def autocompletesounds(ctx):
     """autocompletes tf2 sounds"""
     # {x["comment"]+"|" if x["comment"] else ""}
-    output = list(map(lambda x: f"{x["id"]+"|" if x["id"] else ""}{x["sound_name"]+" " if x["sound_name"] else ""}" ,sorted( filter(lambda x: ctx.value.lower() in (x["sound_name"] or "&").lower() or ctx.value.lower() in ( x["id"] or "&").lower() or ctx.value.lower() in (x["comment"] or "&").lower() ,SOUNDS),key = lambda x: int(ctx.value.lower() in (x["sound_name"] or "&"))*100+ int(ctx.value.lower() in (x["id"] or "&"))*10+ int(ctx.value.lower() in (x["comment"] or "&")),reverse = True)))
+    output = completesound(ctx.value)
     if len(output) == 0:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         return ["No sound matches"]
     return output[:30]
+
+@functools.lru_cache(maxsize=None)
+def completesound(sound):
+    return list(map(lambda x: f"{x["id"]+"|" if x["id"] else ""}{x["sound_name"]+" " if x["sound_name"] else ""}" ,sorted( filter(lambda x: sound.lower() in (x["sound_name"] or "&").lower() or sound.lower() in ( x["id"] or "&").lower() or sound.lower() in (x["comment"] or "&").lower() ,SOUNDS),key = lambda x: int(sound.lower() in (x["sound_name"] or "&"))*100+ int(sound.lower() in (x["id"] or "&"))*10+ int(sound.lower() in (x["comment"] or "&")),reverse = True)))
+ 
 
 async def autocompletenamesfromdb(ctx):
     """autocompletes tf2 names"""
@@ -9794,6 +9799,29 @@ def ingamesetusertag(message, serverid, isfromserver):
         sender=getpriority(message, "originalname"),
     )
 
+def sendsoundfromingame(message, serverid, isfromserver):
+    if len(message.get("originalmessage", "w").split(" ")) < 3:
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                "content": f"{PREFIXES['discord']}You need to send a name, a sound, and optionally the number of times",
+                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+            }
+        )
+        return
+    # print("bw",message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))])
+    if not completesound("".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))])):
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                "content": f"{PREFIXES['discord']}Could not find {"".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))])}",
+                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+            }
+        )
+        return
+    number = 1
+    if len(message.get("originalmessage", "w").split(" ")) == 4:
+        number = message.get("originalmessage", "w").split(" ")[3]
+    print(f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound("".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}")
+    sendrconcommand(serverid,f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound("".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}",sender=getpriority(message, "originalname", "name"))
 
 def shownamecolours(message, serverid, isfromserver):
     """Shows available color options to players in-game"""
@@ -12333,9 +12361,9 @@ def checkrconallowedtfuid(uid, typeof="rconrole", **kwargs):
     #     translaterole(serverid, typeof), []
     # ))
     # print("meow")
-    print(result,typeof["deny"],discordid not in context["overriderolesuids"].get(
-        translaterole(serverid, typeof["deny"]), []
-    ))
+    # print(result,typeof["deny"],discordid not in context["overriderolesuids"].get(
+    #     translaterole(serverid, typeof["deny"]), []
+    # ))
     return (not typeof["allow"] or typeof["allow"] == "everyone" or  result and discordid in context["overriderolesuids"].get(
         translaterole(serverid, typeof["allow"]), []
     )) and (not result or not typeof["deny"] or discordid not in context["overriderolesuids"].get(
