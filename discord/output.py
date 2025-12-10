@@ -8544,6 +8544,9 @@ def resolvecommandpermsformainbot(serverid,command,returndenys = False):
     # print(command,getpriority(tfcommandspermissions,[serverid,internaltoggles.get(command)]))
     if not istf1 and not (getpriority(tfcommandspermissions,[serverid,"commands"])) and time.time() > getpriority(tfcommandspermissions,[serverid,"laststatspull"],nofind = 0) + 3:
         tfcommandspermissions.setdefault(serverid,{})["laststatspull"] = int(time.time())
+        if not serverid:
+            print("big panic when reloading commands",serverid,str(inspect.currentframe().f_back.f_code.co_name))
+            return None
         print("reloading commands for",serverid)
         sendrconcommand(
             serverid,
@@ -8566,6 +8569,9 @@ def resolvecommandperms(serverid,command,returndenys = False):
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     if not istf1 and not getpriority(tfcommandspermissions,[serverid,"commands"]) and time.time() > getpriority(tfcommandspermissions,[serverid,"laststatspull"],nofind = 0) + 3:
         tfcommandspermissions.setdefault(serverid,{})["laststatspull"] = int(time.time())
+        if not serverid:
+            print("big panic when reloading commands",serverid,str(inspect.currentframe().f_back.f_code.co_name))
+            return None
         print("reloading commands for",serverid)
         sendrconcommand(
             serverid,
@@ -13812,6 +13818,8 @@ def playerpoll():
         # I want to iterate through all servers, and ask them what they are up too.
         for serverid, data in discordtotitanfall.items():
             server = context["servers"][serverid]
+            if not serverid:
+                print("WTF PANIC PANIC INVALID SERVERID")
             # print(discordtotitanfall)
             if server.get("istf1server", False) and not discordtotitanfall.get(
                 serverid, {}
