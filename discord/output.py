@@ -9827,8 +9827,24 @@ def sendsoundfromingame(message, serverid, isfromserver):
     if len(message.get("originalmessage", "w").split(" ")) == 4:
         number = message.get("originalmessage", "w").split(" ")[3]
     print(f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound("".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}")
-    sendrconcommand(serverid,f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound("".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}",sender=getpriority(message, "originalname", "name"))
-
+    # sendrconcommand(serverid,f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound("".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}",sender=getpriority(message, "originalname", "name"))
+    asyncio.run_coroutine_threadsafe(
+        returncommandfeedback(
+            *sendrconcommand(
+                serverid,
+                (
+                    f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound("".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}"
+                ),
+                sender=getpriority(message, "originalname", "name"),
+            ),
+            "fake context",
+            sendthingstoplayer,
+            True,
+            True,
+            getpriority(message, "uid", ["meta", "uid"]),
+        ),
+        bot.loop,
+    )
 def shownamecolours(message, serverid, isfromserver):
     """Shows available color options to players in-game"""
     # print("HERHEHRHE")
