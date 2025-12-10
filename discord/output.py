@@ -9824,7 +9824,7 @@ def sendsoundfromingame(message, serverid, isfromserver):
         )
         return
     number = 1
-    if len(message.get("originalmessage", "w").split(" ")) == 4:
+    if len(message.get("originalmessage", "w").split(" ")) > 3 and message.get("originalmessage", "w").split(" ")[-1].isdigit():
         number = message.get("originalmessage", "w").split(" ")[3]
     print(f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound("".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}")
     # sendrconcommand(serverid,f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound("".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}",sender=getpriority(message, "originalname", "name"))
