@@ -148,6 +148,19 @@
             "shouldblock": true,
             "permsneeded": "rconrole"
         },
+        "wallhack": {
+            "aliases": [
+                "wh"
+            ],
+            "games": [
+                "tf2"
+            ],
+            "function":"wallhackingame",
+            "run": "thread",
+            "description": "Specify a player to give yourself wallhacks on",
+            "shouldblock": true,
+            "permsneeded": "rconrole"
+        },
         "endofroundstats": {
             "games": [
                 "tf2",

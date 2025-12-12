@@ -9804,7 +9804,32 @@ def ingamesetusertag(message, serverid, isfromserver):
         f"!reloadpersistentvars {getpriority(message, 'uid', ['meta', 'uid'], 'originalname', 'name')}",
         sender=getpriority(message, "originalname"),
     )
-
+def wallhackingame(message, serverid, isfromserver):
+    if len(message.get("originalmessage", "w").split(" ")) < 2:
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                "content": f"{PREFIXES['discord']}You need to send a name, and optionally the type of highlight",
+                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+            }
+        )
+        return
+    asyncio.run_coroutine_threadsafe(
+        returncommandfeedback(
+            *sendrconcommand(
+                serverid,
+                (
+                    f"!wallhack {getpriority(message, "uid", ["meta", "uid"])} {message.get("originalmessage", "w").split(" ")[1]}"
+                ),
+                sender=getpriority(message, "originalname", "name"),
+            ),
+            "fake context",
+            sendthingstoplayer,
+            True,
+            True,
+            getpriority(message, "uid", ["meta", "uid"]),
+        ),
+        bot.loop,
+    )
 def sendsoundfromingame(message, serverid, isfromserver):
     if len(message.get("originalmessage", "w").split(" ")) < 3:
         discordtotitanfall[serverid]["messages"].append(
@@ -9815,10 +9840,10 @@ def sendsoundfromingame(message, serverid, isfromserver):
         )
         return
     # print("bw",message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))])
-    if not completesound("".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))])):
+    if not completesound(" ".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))])):
         discordtotitanfall[serverid]["messages"].append(
             {
-                "content": f"{PREFIXES['discord']}Could not find {"".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))])}",
+                "content": f"{PREFIXES['discord']}Could not find {" ".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))])}",
                 "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
             }
         )
@@ -9826,14 +9851,14 @@ def sendsoundfromingame(message, serverid, isfromserver):
     number = 1
     if len(message.get("originalmessage", "w").split(" ")) > 3 and message.get("originalmessage", "w").split(" ")[-1].isdigit():
         number = message.get("originalmessage", "w").split(" ")[3]
-    print(f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound("".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}")
-    # sendrconcommand(serverid,f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound("".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}",sender=getpriority(message, "originalname", "name"))
+    print(f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound(" ".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}")
+    # sendrconcommand(serverid,f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound(" ".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}",sender=getpriority(message, "originalname", "name"))
     asyncio.run_coroutine_threadsafe(
         returncommandfeedback(
             *sendrconcommand(
                 serverid,
                 (
-                    f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound("".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}"
+                    f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound(" ".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}"
                 ),
                 sender=getpriority(message, "originalname", "name"),
             ),
@@ -12463,6 +12488,10 @@ def create_dynamic_command(
 async def {command_name}(ctx, {params_signature}):
     global messageflush, context
     serverid = getchannelidfromname(servername, ctx)
+    if serverid is None:
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
+        return
     if resolvecommandpermsformainbot(serverid,"{command_name}") == None:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("Command response timed out - server is unresponsive", ephemeral=False)
@@ -12475,11 +12504,6 @@ async def {command_name}(ctx, {params_signature}):
         return
     params = {dict_literal}
     print("DISCORDCOMMAND {command_name} command from", ctx.author.name, "with parameters:", params," to server:", servername)
-    
-    if serverid is None:
-        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-        await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
-        return
     await ctx.defer()
     command = {command_expr}
     print("Expression:",command)

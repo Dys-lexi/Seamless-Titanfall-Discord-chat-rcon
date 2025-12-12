@@ -1,17 +1,37 @@
 global function discordloghighlightplayerforplayerinit
 global function discordlogaddnewhighlight
+global function discordlogaddnewhighlightforwallhacks
 
+struct highlightinfo {
+    string whoishighlighted
+    entity whoishighlightedent
+    string typeofhighlight
+    table otherinfo = {}
+}
 struct {
-    table <string,array<string> > uidshighlights //this is the oopsie, what if one player is dueling more than one?
+    table <string,array<highlightinfo> > uidshighlights //this is the oopsie, what if one player is dueling more than one?
 } highlights
 
-void function addnewuidpairtotablething(string uid1,string uid2){
-    array<string> adder = []
+struct {
+    table <entity,vector> entitycolours
+} prettycolours
+
+void function addnewuidpairtotablething(string uid1,string uid2, string typeofhighlight){
+    array<highlightinfo> adder = []
     if ((uid1 in highlights.uidshighlights)){
         adder = highlights.uidshighlights[uid1]
     }
-    adder.append(uid2)
+    highlightinfo addedpersonhighlight
+    addedpersonhighlight.typeofhighlight = typeofhighlight
+    addedpersonhighlight.whoishighlighted = uid2
+    adder.append(addedpersonhighlight)
     highlights.uidshighlights[uid1] <- adder
+    table<string,array<highlightinfo> > newhighlight
+    highlightinfo highlightinfostuff
+    highlightinfostuff.whoishighlighted = uid2
+    highlightinfostuff.typeofhighlight = typeofhighlight
+    newhighlight[uid1] <- [highlightinfostuff]
+    thread highlightplayertoplayer(newhighlight)
 }
 
 
@@ -22,83 +42,144 @@ void function discordloghighlightplayerforplayerinit(){
     AddCallback_OnPlayerRespawned( readdhighlightjustincase )
     AddCallback_OnPilotBecomesTitan(readdhighlightjustincasetitan)
     AddCallback_OnTitanBecomesPilot( readdhighlightjustincasetitan )
-    // addnewuidpairtotablething("1012640166434" , "1012744612530")
-    // addnewuidpairtotablething("1012744612530" , "1012640166434")
+    // addnewuidpairtotablething("1012640166434" , "1012744612530","tempwallhacks")
+    // addnewuidpairtotablething("1012744612530" , "1012640166434","tempwallhacks")
 
-    // thread highlightplayertoplayer("1012640166434","2509670718")
-    // thread highlightplayertoplayer("2509670718","1012640166434")
+    // addnewuidpairtotablething("1012640166434","2509670718","actualwallhacks")
+    // addnewuidpairtotablething("2509670718","1012640166434","actualwallhacks")
 }
 void function readdhighlightjustincasetitan(entity player,entity titan){
-    table<string,array<string> > highlightsthings
+    table<string,array<highlightinfo> > highlightsthings
     foreach(key,value in highlights.uidshighlights){
         if ( key == player.GetUID()){
             highlightsthings[key] <- value
         }
-        if (value.contains(player.GetUID())){
-            highlightsthings[key] <- [player.GetUID()]
+        foreach (person in value){
+            if (person.whoishighlighted == player.GetUID()){
+                highlightsthings[key] <- [person]
+            }
         }
+
     }
-    thread highlightplayertoplayer("titanhighlight",highlightsthings)
+    thread highlightplayertoplayer(highlightsthings)
 }
 
 void function readdhighlightjustincase(entity player){
-    table<string,array<string> > highlightsthings
+    if (!(player in prettycolours.entitycolours)){
+        prettycolours.entitycolours[player] <- RandomVecc(1)
+    }
+    table<string,array<highlightinfo> > highlightsthings
     foreach(key,value in highlights.uidshighlights){
         if ( key == player.GetUID()){
             highlightsthings[key] <- value
+
         }
-        if (value.contains(player.GetUID())){
-            highlightsthings[key] <- [player.GetUID()]
+        foreach (person in value){
+            if (person.whoishighlighted == player.GetUID()){
+                highlightsthings[key] <- [person]
+
+            }
         }
+
     }
-    thread highlightplayertoplayer("tempwallhacks",highlightsthings)
+    thread highlightplayertoplayer(highlightsthings)
 }
 
-void function highlightplayertoplayer(string typeofhighlight,table<string,array<string> >  highlightsthings = {},table<entity,array<entity> >  highlightsthingsentitys = {}){
+void function highlightplayertoplayer(table<string,array<highlightinfo> >  highlightsthings = {},table<entity,array<highlightinfo> >  highlightsthingsentitys = {}){
     // wait 10
-    // discordlogsendmessage("eee "+ uid + "wqdq "+ uid2)
-    table<entity,array<entity> > entityhighlights
+    // // discordlogsendmessage("eee "+ uid + "wqdq "+ uid2)
+    // discordlogsendmessage("b")
+    table<entity,array<highlightinfo> > entityhighlights = highlightsthingsentitys
     foreach (key,value in highlightsthings){
+        // discordlogsendmessage("yyzzzzyy"+key)
         foreach (player in GetPlayerArray()){
+            
         if (key == (player.GetUID())){
+                // discordlogsendmessage("yyyy")
             entity realplayer = player
             entityhighlights[player] <- []
             // break
                 foreach (thing in value){
+                    // discordlogsendmessage("dwqdwq")
                     foreach (player in GetPlayerArray()){
-                        if (thing == (player.GetUID())){
-                            entityhighlights[realplayer].append(player)
+                        if (thing.whoishighlighted == (player.GetUID())){
+                                        // discordlogsendmessage("xxxx")
+                            highlightinfo addedplayer = thing
+                            addedplayer.whoishighlightedent = player
+                            // PrintTable(addedplayer)
+                            entityhighlights[realplayer].append(addedplayer)
                     }}
         }
         }}
 
     }
-    foreach (key, value in highlightsthingsentitys){
-        entityhighlights[key] <- value
-    }
-    
+
+    // PrintTable(entityhighlights)
     WaitFrame()
     // if (!IsValid(player1) || !IsValid(player2)){
     //     return
     // }
+    table<string,table<entity,array<highlightinfo> > > entityhighlightsfilteredbytype
 
-
+    foreach (key,value in entityhighlights){
+        // discordlogsendmessage("eeee")
+        foreach (thing in value) {
+            // discordlogsendmessage("dwqdwqd")
+            if (!(thing.typeofhighlight in entityhighlightsfilteredbytype)){
+                entityhighlightsfilteredbytype[thing.typeofhighlight] <- {}
+            }
+            if (!(key in entityhighlightsfilteredbytype[thing.typeofhighlight])){
+                entityhighlightsfilteredbytype[thing.typeofhighlight][key] <- []
+            }
+            entityhighlightsfilteredbytype[thing.typeofhighlight][key].append(thing)
+        }
+    }
+    // WaitFrame()
     
     // player1.Signal("discordlogsignalstop")
-    if (typeofhighlight == "tempwallhacks"){
-     actuallyhighlight(entityhighlights,"enemy_boss_bounty",<1.0,0.2,0.7>,106,7.0)
-    wait 5
-     actuallyhighlight(entityhighlights,"enemy_boss_bounty",<1.0,0.2,0.7>,112,1.0)
-        foreach (player in findallplayers(entityhighlights)){
-            // discordlogsendmessage("dqwdwq"+player.GetPlayerName())
-            thread keephighlighted(player,entityhighlights,"enemy_boss_bounty",<1.0,0.2,0.7>,112,1.0)
+    foreach (typeofhighlight,realhighlights in entityhighlightsfilteredbytype){
+        // discordlogsendmessage("wwww")
+        table<entity,array<entity> > shouldhighlight
+        foreach (key,value in entityhighlightsfilteredbytype[typeofhighlight]){
+            // discordlogsendmessage("wqdqd"+key.GetPlayerName())
+            shouldhighlight[key] <- []
+            foreach (person in value){
+                // printt(person.whoishighlightedent+"")
+                // discordlogsendmessage("wqdqd"+person.whoishighlightedent.GetPlayerName())
+                shouldhighlight[key].append((person.whoishighlightedent))
+            }
         }
-     }
+        // discordlogsendmessage("ee"+typeofhighlight)
+        if (typeofhighlight == "tempwallhacks"){
+            actuallyhighlight(shouldhighlight,"enemy_boss_bounty",<1.0,0.2,0.7>,126,7.0)
+            wait 5
+            actuallyhighlight(shouldhighlight,"enemy_boss_bounty",<1.0,0.2,0.7>,112,1.0)
+                foreach (player in findallplayers(shouldhighlight)){
+                    // // discordlogsendmessage("dqwdwq"+player.GetPlayerName())
+                    thread keephighlighted(player,shouldhighlight,"enemy_boss_bounty",<1.0,0.2,0.7>,112,1.0)
+                }
+        }
+        if (typeofhighlight == "actualwallhacks"){
+            // thread actuallyhighlight(shouldhighlight,"enemy_boss_bounty",<1.0,0.2,0.7>,106,7.0)
+            // wait 5
+            // 126, 114
+            // while (true){
+            actuallyhighlight(shouldhighlight,"enemy_boss_bounty",<1.0,0.2,0.7>,126,7.0)
+            // wait 0.5
+            // }
+            
+            foreach (player in findallplayers(shouldhighlight)){
+            // // discordlogsendmessage("dqwdwq"+player.GetPlayerName())
+            
+            thread keephighlighted(player,shouldhighlight,"enemy_boss_bounty",<1.0,0.2,0.7>,126,7.0)
+           }
+        }
 
-    if (typeofhighlight == "titanhighlight"){
-    // thread actuallyhighlight(entityhighlights,"enemy_boss_bounty",<1.0,0.2,0.7>,106,7.0)
-    // wait 5
-     actuallyhighlight(entityhighlights,"enemy_boss_bounty",<1.0,0.2,0.7>,112,1.0)}
+        if (typeofhighlight == "titanhighlight"){
+            // thread actuallyhighlight(shouldhighlight,"enemy_boss_bounty",<1.0,0.2,0.7>,106,7.0)
+            // wait 5
+            actuallyhighlight(shouldhighlight,"enemy_boss_bounty",<1.0,0.2,0.7>,112,1.0)}
+     }
     
     // foreach (npc in GetNPCArray()){
     // thread actuallyhighlight(player1,npc,shouldhighlight)}
@@ -120,9 +201,9 @@ void function highlightplayertoplayer(string typeofhighlight,table<string,array<
         player.EndSignal(  "OnDestroy" )
         player.EndSignal(  "OnDeath" )
         while (true){
-            // discordlogsendmessage("eeestart"+player.GetPlayerName())
+            // // discordlogsendmessage("eeestart"+player.GetPlayerName())
             waitthread waitforstuff(player)
-            // discordlogsendmessage("eeestopped"+player.GetPlayerName())
+            // // discordlogsendmessage("eeestopped"+player.GetPlayerName())
             foreach (key, value in entityhighlights){
                 if (value.contains(player)){
                     entityhighlights[key] = [player]
@@ -151,7 +232,7 @@ void function highlightplayertoplayer(string typeofhighlight,table<string,array<
     HighlightContext highlight = GetHighlight( highlightname )
 
     foreach (player1real, value in entityhighlights){
-        // discordlogsendmessage("eeestopped")
+        // // discordlogsendmessage("eeestopped")
 
         foreach (entity player2real in value){
             
@@ -159,11 +240,13 @@ void function highlightplayertoplayer(string typeofhighlight,table<string,array<
         if (!IsValid(player2real)){continue}
         
         if (!IsValid(player1real)){continue}
+        colour = prettycolours.entitycolours[player2real]
          Highlight_ClearOwnedHighlight(player2real)
+         WaitFrame()
         if (player1real == player2real){
             continue
         }
-        // discordlogsendmessage("highlighting "+ player1real.GetPlayerName() + " and "+ player2real.GetPlayerName())
+        // discordlogsendmessage("highlighting "+ player1real.GetPlayerName() +" and "+ player2real.GetPlayerName())
         // highlight.drawFuncId  = 3
         
         player2real.SetBossPlayer(player1real)
@@ -172,6 +255,7 @@ void function highlightplayertoplayer(string typeofhighlight,table<string,array<
         // Highlight_SetOwnedHighlight(player2real,"interact_object_los") //interact_object_always
         // /compilestring function:foreach(entity cPlayer in GetPlayerArray()){cPlayer.SetBossPlayer( discordlogmatchplayers("allu")[0]) ; Highlight_SetOwnedHighlight(cPlayer,"interact_object_los")}  servername:Aegisattritionihh
         highlight.paramVecs[0] = colour //<0.8,0.4,0.2>
+        highlight.paramVecs[1] = <0,0,0>
 
         highlight.adsFade = false
         highlight.outlineRadius = radius
@@ -232,8 +316,21 @@ void function highlightplayertoplayer(string typeofhighlight,table<string,array<
     // WaitFrame()
     //  if (!IsValid(player2real)){continue}
     // player2real.ClearBossPlayer()}}
-    // discordlogsendmessage("eeestopped")
+    // // discordlogsendmessage("eeestopped")
     }
+
+
+vector function RandomVecc( float range )
+{
+	// could rewrite so it doesnt make a box of random.
+	vector vec = Vector( 0, 0, 0 )
+	vec.x = RandomFloatRange( 0, range )
+	vec.y = RandomFloatRange( 0, range )
+	vec.z = RandomFloatRange( 0, range )
+
+	return vec
+}
+
 
 
 
@@ -243,12 +340,48 @@ discordlogcommand function discordlogaddnewhighlight(discordlogcommand commandin
 		commandin.returnmessage = "Wrong number of args"
 		return commandin
 	}
-    addnewuidpairtotablething(commandin.commandargs[0],commandin.commandargs[1])
-    table <string,array<string> > newhighlight
-    newhighlight[commandin.commandargs[0]] <- [commandin.commandargs[1]]
-    thread highlightplayertoplayer("tempwallhacks",newhighlight)
+    addnewuidpairtotablething(commandin.commandargs[0],commandin.commandargs[1],"tempwallhacks")
+
 		commandin.returncode = 200
 		commandin.returnmessage = "Highlighted " + commandin.commandargs[1]+ " to " + commandin.commandargs[0]
     return commandin
+}
+
+
+
+
+discordlogcommand function discordlogaddnewhighlightforwallhacks(discordlogcommand commandin) {
+    // if (commandin.commandargs.len() != 2 && commandin.commandargs.len() != 3)
+    // {
+    //     commandin.returnmessage = "Wrong number of args";
+    //     commandin.returncode = 400
+    //     return commandin;
+    // }
+    array<entity> players = discordlogmatchplayers(commandin.commandargs[1])
+    if (players.len() == 0 && commandin.commandargs[1] != "all"){
+        commandin.returnmessage = "No players found"
+        commandin.returncode = 401
+    }
+    else if (players.len() > 1 && commandin.commandargs[1] != "all"){
+        commandin.returnmessage = "Multiple players found"
+        commandin.returncode = 402
+    }
+    else {
+        if (commandin.commandargs[1] == "all"){
+            players = GetPlayerArray()
+            commandin.returnmessage = "Highlighting "+ players.len() + " players"  
+        }else{
+            commandin.returnmessage = "Highlighting " + players[0].GetPlayerName()       
+        }
+        string typeofhighlight = "actualwallhacks"
+        if (commandin.commandargs.len() == 3) {
+            typeofhighlight = commandin.commandargs[2]
+        }
+        foreach (player in players){
+            addnewuidpairtotablething(commandin.commandargs[0],player.GetUID(),typeofhighlight)
+        }
+        commandin.returncode = 200
+    }
+    return commandin;
 }
 
