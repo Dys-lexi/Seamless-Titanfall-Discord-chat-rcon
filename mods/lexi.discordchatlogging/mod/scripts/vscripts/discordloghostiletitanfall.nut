@@ -23,7 +23,7 @@ discordlogcommand function discordloghostiletitanfall(discordlogcommand commandi
             notatitan +=1
             continue
         }
-        playersranon += player.GetPlayerName() + ", "
+        playersranon += discordloggetplayername(player) + ", "
         Remote_CallFunction_NonReplay( player, "ServerCallback_TitanFallWarning", true )
 
 

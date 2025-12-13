@@ -35,7 +35,7 @@ discordlogcommand function discordlogtoggleadmin(discordlogcommand commandin) {
             // print("meow" + uids.find(players[0].GetUID()))
             uids = StringReplace(uids, players[0].GetUID() , "")
             SetConVarString("admin_lvl" + i, uids)
-            commandin.returnmessage = "Removed " + players[0].GetPlayerName() + " from admin lvl " + i
+            commandin.returnmessage = "Removed " + discordloggetplayername(players[0]) + " from admin lvl " + i
             commandin.returncode = 201
             foundadmin = true
         }}
@@ -43,7 +43,7 @@ discordlogcommand function discordlogtoggleadmin(discordlogcommand commandin) {
             string uids = GetConVarString("admin_lvl" + commandin.commandargs[1])
             uids += "," + players[0].GetUID()
             SetConVarString("admin_lvl" + commandin.commandargs[1], uids)
-            commandin.returnmessage = "Added " + players[0].GetPlayerName() + " to admin lvl " + commandin.commandargs[1]
+            commandin.returnmessage = "Added " + discordloggetplayername(players[0]) + " to admin lvl " + commandin.commandargs[1]
             commandin.returncode = 200
         }
 

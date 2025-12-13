@@ -114,6 +114,19 @@
             "description": "Change your tag",
             "shouldblock": false
         },
+        "nameoverride": {
+            "aliases": [
+                "name"
+            ],
+            "games": [
+                "tf2"
+            ],
+            "run": "thread",
+            "function": "changename",
+            "permsneeded": "rconrole",
+            "description": "Change your name in game - adding no arguments resets name",
+            "shouldblock": false
+        },
         "showname": {
             "games": [
                 "tf2"

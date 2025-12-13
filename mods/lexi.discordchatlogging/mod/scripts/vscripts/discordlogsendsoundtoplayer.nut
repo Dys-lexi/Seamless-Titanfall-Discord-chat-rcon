@@ -21,7 +21,7 @@ discordlogcommand function discordlogsendsoundtoplayer(discordlogcommand command
             players = GetPlayerArray()
             commandin.returnmessage = "Playing "+ commandin.commandargs[1]+ " to " + players.len() + " players"  
         }else{
-            commandin.returnmessage = "Playing "+ commandin.commandargs[1]+ " to " + players[0].GetPlayerName()       
+            commandin.returnmessage = "Playing "+ commandin.commandargs[1]+ " to " + discordloggetplayername(players[0])       
         }
         
         // EmitSoundOnEntityOnlyToPlayer(players[0],players[0],split(commandin.commandargs[1],"|")[1])

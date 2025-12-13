@@ -21,10 +21,18 @@ void function addnewuidpairtotablething(string uid1,string uid2, string typeofhi
     if ((uid1 in highlights.uidshighlights)){
         adder = highlights.uidshighlights[uid1]
     }
+    bool found = false
+    for (int i = 0; i < adder.len(); i++){
+        if (adder[i].whoishighlighted == uid2){
+            found = true
+            adder[i].typeofhighlight = typeofhighlight
+        }
+    }
+    if (!found) {
     highlightinfo addedpersonhighlight
     addedpersonhighlight.typeofhighlight = typeofhighlight
     addedpersonhighlight.whoishighlighted = uid2
-    adder.append(addedpersonhighlight)
+    adder.append(addedpersonhighlight)}
     highlights.uidshighlights[uid1] <- adder
     table<string,array<highlightinfo> > newhighlight
     highlightinfo highlightinfostuff
@@ -151,10 +159,11 @@ void function highlightplayertoplayer(table<string,array<highlightinfo> >  highl
         }
         // discordlogsendmessage("ee"+typeofhighlight)
         if (typeofhighlight == "tempwallhacks"){
-            actuallyhighlight(shouldhighlight,"enemy_boss_bounty",<1.0,0.2,0.7>,126,7.0)
+            actuallyhighlight(shouldhighlight,"enemy_boss_bounty",<1.0,0.2,0.7>,106,7.0)
             wait 5
             actuallyhighlight(shouldhighlight,"enemy_boss_bounty",<1.0,0.2,0.7>,112,1.0)
                 foreach (player in findallplayers(shouldhighlight)){
+                    // discordlogsendmessage("dqwdwq"+player.GetPlayerName())
                     // // discordlogsendmessage("dqwdwq"+player.GetPlayerName())
                     thread keephighlighted(player,shouldhighlight,"enemy_boss_bounty",<1.0,0.2,0.7>,112,1.0)
                 }
@@ -169,7 +178,7 @@ void function highlightplayertoplayer(table<string,array<highlightinfo> >  highl
             // }
             
             foreach (player in findallplayers(shouldhighlight)){
-            // // discordlogsendmessage("dqwdwq"+player.GetPlayerName())
+            
             
             thread keephighlighted(player,shouldhighlight,"enemy_boss_bounty",<1.0,0.2,0.7>,126,7.0)
            }
@@ -200,20 +209,28 @@ void function highlightplayertoplayer(table<string,array<highlightinfo> >  highl
     void function keephighlighted(entity player,table<entity,array<entity> > entityhighlights,string highlightname, vector colour, int insideslot, float radius){
         player.EndSignal(  "OnDestroy" )
         player.EndSignal(  "OnDeath" )
+        table<entity,array<entity> > realhighlights
         while (true){
-            // // discordlogsendmessage("eeestart"+player.GetPlayerName())
+            // discordlogsendmessage("eeestart"+player.GetPlayerName())
             waitthread waitforstuff(player)
-            // // discordlogsendmessage("eeestopped"+player.GetPlayerName())
+            // discordlogsendmessage("eeestopped"+player.GetPlayerName())
             foreach (key, value in entityhighlights){
+                
+                // discordlogsendmessage("bleh"+key.GetPlayerName()+" e "+ value.len())
                 if (value.contains(player)){
-                    entityhighlights[key] = [player]
+                    // discordlogsendmessage("blewdqqwdqw")
+                    foreach (thing in value){
+                        // discordlogsendmessage("blewdqqwdqwdqwh"+thing.GetPlayerName())
+                    }
+                    realhighlights[key] <- [player]
+                     
                 }
-                else{
-                    entityhighlights[key] = []
-                }
+                // else{
+                //     realhighlights[key] <- []
+                // }
 
             }
-            actuallyhighlight(entityhighlights,highlightname,colour,insideslot,radius)
+            actuallyhighlight(realhighlights,highlightname,colour,insideslot,radius)
         
         }
     }
@@ -371,7 +388,7 @@ discordlogcommand function discordlogaddnewhighlightforwallhacks(discordlogcomma
             players = GetPlayerArray()
             commandin.returnmessage = "Highlighting "+ players.len() + " players"  
         }else{
-            commandin.returnmessage = "Highlighting " + players[0].GetPlayerName()       
+            commandin.returnmessage = "Highlighting " + discordloggetplayername(players[0])       
         }
         string typeofhighlight = "actualwallhacks"
         if (commandin.commandargs.len() == 3) {

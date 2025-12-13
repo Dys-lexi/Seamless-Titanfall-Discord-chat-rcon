@@ -17,7 +17,7 @@ discordlogcommand function discordlogkickplayer(discordlogcommand commandin) {
         commandin.returncode = 402
     }
     else {
-        commandin.returnmessage = "Kicking " + players[0].GetPlayerName()
+        commandin.returnmessage = "Kicking " + discordloggetplayername(players[0])
         string reason = "You were kicked :( swwy"
         if (commandin.commandargs.len() > 1){
             reason = ""

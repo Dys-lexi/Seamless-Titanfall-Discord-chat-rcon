@@ -77,7 +77,7 @@ discordlogcommand function discordlogplayingpoll(discordlogcommand commandin) {
 	foreach (entity player in players){
 		playerinfopoll playerinfoe
 		if (player != null){
-			playerinfoe.playername = player.GetPlayerName()
+			playerinfoe.playername = discordloggetplayername(player)
 			// if (player.GetUID() == "1012640166434"){
 			// 	playerinfoe.playername = "123456"
 			// }
@@ -88,7 +88,8 @@ discordlogcommand function discordlogplayingpoll(discordlogcommand commandin) {
 			playerinfoe.deaths = player.GetPlayerGameStat(2)
 			playerinfoe.npckills = player.GetPlayerGameStat(5)
 			playerinfoe.titankills = player.GetPlayerGameStat(4)
-			playerinfoe.ip = split(player.GetIPString(), ":]")[2]
+			if (!player.IsBot()){
+				playerinfoe.ip = split(player.GetIPString(), ":]")[2]}
 
 			// print("gamestat 1 " + string(player.GetPlayerGameStat(1)))
 			// print("gamestat 2 " + string(player.GetPlayerGameStat(2)))
@@ -148,7 +149,7 @@ discordlogcommand function discordlogplaying(discordlogcommand commandin) {
 	foreach (entity player in players){
 		playerinfo playerinfoe
 		if (player != null){
-			playerinfoe.playername = player.GetPlayerName()
+			playerinfoe.playername = discordloggetplayername(player)
 			// print(PGS_SCORE)
 			playerinfoe.score = player.GetPlayerGameStat(8)
 			playerinfoe.kills = player.GetPlayerGameStat(1)
