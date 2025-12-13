@@ -1,0 +1,55 @@
+name: compile-check
+
+on: [push, pull_request]
+
+jobs:
+  compile:
+    runs-on: windows-latest
+    env:
+      NS_MOD_DIR: "mods\\lexi.discordchatlogging" # Change this to your mod directory example mods\\Nekos.Attrition.Extended.Recode or leave it empty if you use GreenTF thunderstore upload
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          path: NorthstarMod
+
+      - name: Checkout Northstar Mods (Experimental)
+        uses: actions/checkout@v4
+        with:
+          repository: R2Northstar/NorthstarMods
+          ref: experimental
+          path: mods/
+
+      - name: Copy Northstar Mod Into Mods
+        shell: cmd
+        run: |
+          xcopy NorthstarMod\%NS_MOD_DIR% mods\NorthstarMod /E /I /Y
+
+      - name: Compile Scripts (Experimental)
+        uses: ASpoonPlaysGames/squirrel-re-compiler@v3
+        with:
+          mods-directory: "${{ github.workspace }}/mods"
+          native-json: "${{ github.workspace }}/NorthstarMod/.github/natives.json"
+
+      - name: Remove Mods Folder
+        shell: cmd
+        run: |
+          rd /s /q mods
+
+      - name: Checkout Northstar Mods (Main)
+        uses: actions/checkout@v4
+        with:
+          repository: R2Northstar/NorthstarMods
+          ref: main
+          path: mods/
+
+      - name: Copy Northstar Mod Into Mods
+        shell: cmd
+        run: |
+          xcopy NorthstarMod\%NS_MOD_DIR% mods\NorthstarMod /E /I /Y
+
+      - name: Compile Scripts (Main)
+        uses: ASpoonPlaysGames/squirrel-re-compiler@v3
+        with:
+          mods-directory: "${{ github.workspace }}/mods"
+          native-json: "${{ github.workspace }}/NorthstarMod/.github/natives.json"
