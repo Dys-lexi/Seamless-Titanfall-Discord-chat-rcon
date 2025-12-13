@@ -221,6 +221,12 @@
 			"helpText":"Returns whether or not a given path leads to a folder.",
 			"returnTypeString":"bool",
 			"argTypes":"string path"
+		},
+		{
+			"name":"DisguiseName",
+			"helpText":"",
+			"returnTypeString":"void",
+			"argTypes":"entity player, string name"
 		}
 	],
 	"CLIENT":[
