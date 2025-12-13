@@ -614,7 +614,7 @@ void function checkshouldblockmessages(entity player){
 	params["password"] <- serverdetails.password
 	params["uid"] <- player.GetUID()
 	params["name"] <- discordloggetplayername(player)
-	params["actualname"] <- player.GetPlayerName()
+	// params["actualname"] <- player.GetPlayerName()
 	params["serverid"] <- serverdetails.serverid
 	HttpRequest request
 	request.method = HttpRequestMethod.POST
