@@ -669,11 +669,7 @@ void function checkshouldblockmessages(entity player){
 			}
 			// discordlogsendmessage("ww "+discordlogpullplayerstat(expect string(responses["uid"]),"nameoverride"))
 			if (discordlogpullplayerstat(expect string(responses["uid"]),"nameoverride") != "" && discordlogpullplayerstat(expect string(responses["uid"]),"overridename") != "False"){
-				bool bportoverride = false
-				if (GetConVarInt("bportoverride") == 1){
-					bportoverride = true
-					}
-				#if BP_ORT || bportoverride
+				#if BP_ORT
 					DisguiseName(player,discordlogpullplayerstat(expect string(responses["uid"]),"nameoverride"))
 				#endif
 			}

@@ -27,10 +27,6 @@
 		{
 			"name": "BP_ORT",
 			"value": 0
-		},
-		{
-			"name": "bportoverride",
-			"value": 0
 		}
 	],
 	"SERVER":[
