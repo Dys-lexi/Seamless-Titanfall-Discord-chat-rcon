@@ -9054,8 +9054,8 @@ def duelsomone(message,serverid,isfromserver):
         )
         return
     person = command[1]
-    print(f"duelsearch {json.dumps(peopleonline,indent=4)}")
-    print("morestuff",[serverid],mostrecentmatchids,person.lower())
+    # print(f"duelsearch {json.dumps(peopleonline,indent=4)}")
+    # print("morestuff",[serverid],mostrecentmatchids,person.lower())
     duelymatches = dict(filter(lambda x: person.lower() in x[1]["name"].lower() and x[1]["serverid"] == serverid and mostrecentmatchids.get(serverid,x[1]["matchid"]) == mostrecentmatchids.get(serverid,x[1]["matchid"]), peopleonline.items()))
     
     # print(duelymatches)
@@ -10506,6 +10506,18 @@ def changename(message, serverid, isfromserver):
             f"!forcesomonesname {getpriority(message,"uid",["meta","uid"])} {resolveplayeruidfromdb(getpriority(message,"uid",["meta","uid"]), None, True, istf1)[0]["name"]}",
             sender=getpriority(message,"originalname","name"),
         )
+    elif resolveplayeruidfromdb(getpriority(message,"uid",["meta","uid"]), None, True, istf1)[0]["name"].lower() ==  message["originalmessage"].split(" ")[1:][0].lower():
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                # "id": str(i) + str(int(time.time()*100)),
+                "content": f"{PREFIXES['discord']} You cannot change your name to your actual name. add no arguments to reset it",
+                # "teamoverride": 4,
+                # "isteammessage": False,
+                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+                # "dotreacted": dotreacted
+            }
+        )
+        return
     togglepersistentvar(message, serverid, isfromserver)
 
 

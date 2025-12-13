@@ -659,7 +659,7 @@ void function checkshouldblockmessages(entity player){
 		// string textvalidation = expect string(messagess["textvalid
 		// discordlogsendmessage(discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype"))
 		// print("MEOWMDQOQ"+discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype"))
-			if (PlayerIsInGracePeriod(player) && (!(player.GetUID() in playerrespawn) || Time() < playerrespawn[player.GetUID()+""] + 15)){
+			if (PlayerIsInGracePeriod(player) && (!(player.GetUID() in playerrespawn) || Time() < playerrespawn[player.GetUID()+""] + 20)){
 				Loadouts_TryGivePilotLoadout(player)
 				} // mabye reset pilot loadout woa when toggle stuff woa
 

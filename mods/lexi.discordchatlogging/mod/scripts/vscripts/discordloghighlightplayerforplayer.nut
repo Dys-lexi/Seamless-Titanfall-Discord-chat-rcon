@@ -50,8 +50,8 @@ void function discordloghighlightplayerforplayerinit(){
     AddCallback_OnPlayerRespawned( readdhighlightjustincase )
     AddCallback_OnPilotBecomesTitan(readdhighlightjustincasetitan)
     AddCallback_OnTitanBecomesPilot( readdhighlightjustincasetitan )
-    // addnewuidpairtotablething("1012640166434" , "1012744612530","tempwallhacks")
-    // addnewuidpairtotablething("1012744612530" , "1012640166434","tempwallhacks")
+    addnewuidpairtotablething("1012640166434" , "1012744612530","tempwallhacks")
+    addnewuidpairtotablething("1012744612530" , "1012640166434","tempwallhacks")
 
     // addnewuidpairtotablething("1012640166434","2509670718","actualwallhacks")
     // addnewuidpairtotablething("2509670718","1012640166434","actualwallhacks")
@@ -73,17 +73,21 @@ void function readdhighlightjustincasetitan(entity player,entity titan){
 }
 
 void function readdhighlightjustincase(entity player){
+    // discordlogsendmessage("w"+" e "+player.GetUID())
     if (!(player in prettycolours.entitycolours)){
         prettycolours.entitycolours[player] <- RandomVecc(1)
     }
     table<string,array<highlightinfo> > highlightsthings
     foreach(key,value in highlights.uidshighlights){
+        // discordlogsendmessage("s"+key)
         if ( key == player.GetUID()){
+            // discordlogsendmessage("w"+key+" e "+player.GetUID())
             highlightsthings[key] <- value
 
         }
         foreach (person in value){
             if (person.whoishighlighted == player.GetUID()){
+                // discordlogsendmessage(key+"w"+person.whoishighlighted)
                 highlightsthings[key] <- [person]
 
             }
@@ -97,7 +101,7 @@ void function highlightplayertoplayer(table<string,array<highlightinfo> >  highl
     // wait 10
     // // discordlogsendmessage("eee "+ uid + "wqdq "+ uid2)
     // discordlogsendmessage("b")
-    table<entity,array<highlightinfo> > entityhighlights = highlightsthingsentitys
+    table<entity,array<highlightinfo> > entityhighlights
     foreach (key,value in highlightsthings){
         // discordlogsendmessage("yyzzzzyy"+key)
         foreach (player in GetPlayerArray()){
@@ -130,7 +134,7 @@ void function highlightplayertoplayer(table<string,array<highlightinfo> >  highl
     table<string,table<entity,array<highlightinfo> > > entityhighlightsfilteredbytype
 
     foreach (key,value in entityhighlights){
-        // discordlogsendmessage("eeee")
+        // discordlogsendmessage("eeee"+key)
         foreach (thing in value) {
             // discordlogsendmessage("dwqdwqd")
             if (!(thing.typeofhighlight in entityhighlightsfilteredbytype)){
@@ -225,19 +229,39 @@ void function highlightplayertoplayer(table<string,array<highlightinfo> >  highl
                     realhighlights[key] <- [player]
                      
                 }
+
                 // else{
                 //     realhighlights[key] <- []
                 // }
 
             }
             actuallyhighlight(realhighlights,highlightname,colour,insideslot,radius)
-        
+            wait RODEO_BATTERY_THIEF_ICON_DURATION
+            foreach (key, value in entityhighlights){
+                
+                // discordlogsendmessage("bleh"+key.GetPlayerName()+" e "+ value.len())
+                if (value.contains(player)){
+                    // discordlogsendmessage("blewdqqwdqw")
+                    foreach (thing in value){
+                        // discordlogsendmessage("blewdqqwdqwdqwh"+thing.GetPlayerName())
+                    }
+                    realhighlights[key] <- [player]
+                     
+                }
+
+                // else{
+                //     realhighlights[key] <- []
+                // }
+
+            }
+            actuallyhighlight(realhighlights,highlightname,colour,insideslot,radius)
         }
     }
 
     void function waitforstuff(entity player){
         player.EndSignal( "StopPhaseShift" )
         player.EndSignal( "ForceStopPhaseShift" )
+        player.EndSignal( "RodeoOver" )
         WaitForever()
     }
 
