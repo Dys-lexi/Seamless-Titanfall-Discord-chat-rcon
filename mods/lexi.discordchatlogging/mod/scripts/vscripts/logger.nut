@@ -8,6 +8,7 @@ global function discordlogpostmessages // external call to main message sending 
 global function discordloggetlastmodels // used for /impersonate to pull peoples player models when they are dead
 global function runcommandondiscord // run a command on the discord bot like stats - runs as server, so is not validated like user commands are (rcon,asactuallyavailableintf2)
 global function discordlogpullplayerstat // returns a persistentvar for a player, for commands that have persistent effects.
+global function discordloggetplayername
 
 // to add your own function create a file called xyz.nut in the same place as this one
 // then make it's file load in the mod.json AFTER logger.nut
@@ -97,7 +98,9 @@ array <actualrealcoolcommand> function getregisteredfunctions(){
 		addcommand(discordlogcompilestring,"compilestring"),
 		addcommand(discordbotwantingcommandlist,"reloadtfcommandlist"),
 		addcommand(discordlogaddnewhighlight,"highlightplayerforduels"),
-		addcommand(discordlogsendsoundtoplayer,"sendsound")
+		addcommand(discordlogaddnewhighlightforwallhacks,"wallhack"),
+		addcommand(discordlogsendsoundtoplayer,"sendsound"),
+		addcommand(forcesomonesname,"forcesomonesname")
 		]
 		 //add functions here, and they'll work with / commands (if they fill criteria above)
 }
@@ -136,7 +139,7 @@ array <entity> function discordlogmatchplayers(string playername){ //returns all
         {
             if (player != null)
             {
-                string playernamec = player.GetPlayerName()
+                string playernamec = discordloggetplayername(player)
                 if (playernamec.tolower().find(playername.tolower()) != null)
                 {
                     matchedplayers.append(player)
@@ -169,6 +172,7 @@ struct {
 } serverdetails
 
 
+
 struct {
 	table playermodels
 } discordloglastmodels
@@ -176,6 +180,10 @@ struct {
 table function discordloggetlastmodels(){
 	return discordloglastmodels.playermodels
 }
+
+struct  {
+	table <entity,string> names
+} namedict
 
 struct discordtotf2message {
 	string content
@@ -358,9 +366,16 @@ struct {
 	int denylogging = 0
 	string timeof = "0"
 } check
+
+string function discordloggetplayername(entity player){
+	return namedict.names[player]
+}
+
 void function LogConnect( entity player )
 {
-
+	
+	namedict.names[player] <- player.GetPlayerName()
+	
 	thread Onmapchange()
 	table init
 	init["shouldblockmessages"] <- false
@@ -381,12 +396,12 @@ void function LogConnect( entity player )
 		runcommandondiscord("natterforcoolperks",{ uid = player.GetUID()})
 	}
 	if (Time() < 30){ // && serverdetails.currentlyplaying.find(player.GetUID().tostring()) != null){
-		print("[DiscordLogger] Player "+player.GetPlayerName()+" is already in the server, not logging")
+		print("[DiscordLogger] Player "+discordloggetplayername(player)+" is already in the server, not logging")
 		return
 	}
 	// print(Time())
 	outgoingmessage newmessage
-	newmessage.playername = player.GetPlayerName()
+	newmessage.playername = discordloggetplayername(player)
 	newmessage.message = "has joined the server ("+GetPlayerArray().len().tostring()+" Connected)"
 	newmessage.timestamp = GetUnixTimestamp()
 	table meta
@@ -405,7 +420,7 @@ void function LogDC( entity player )
 		return
 	}
 	outgoingmessage newmessage
-	newmessage.playername = player.GetPlayerName()
+	newmessage.playername = discordloggetplayername(player)
 	newmessage.message = "has left the server ("+(GetPlayerArray().len()-1).tostring()+" Connected)"
 	newmessage.timestamp = GetUnixTimestamp()
 	table meta
@@ -447,10 +462,10 @@ void function adddelayedrespawn(entity player, float respawntime) {
 
 ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	// log typical messages
-    // string playername = message.player.GetPlayerName()
+    // string playername = discordloggetplayername(message.player)
 	// string messagecontent = message.message
 	// print(serverdetails.Servername)
-	string teamnewmessage = message.player.GetPlayerName()
+	string teamnewmessage = discordloggetplayername(message.player)
 	string teammessage = "not team"
     if( message.isTeam && serverdetails.showchatprefix )
     {
@@ -542,12 +557,12 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 		message.shouldBlock = true;
 		// discordlogsendmessage("HEREEEE2")
 		if (!message.isTeam){
-		discordlogsendmessage("[112m["+discordlogpullplayerstat(message.player.GetUID(),"nameprefix")+"] "+ message.player.GetPlayerName()+":[110m " + message.message,( message.player.GetTeam() - 3)*-1+2)	
+		discordlogsendmessage("[112m["+discordlogpullplayerstat(message.player.GetUID(),"nameprefix")+"] "+ discordloggetplayername(message.player)+":[110m " + message.message,( message.player.GetTeam() - 3)*-1+2)	
 		
-		discordlogsendmessage("[111m["+discordlogpullplayerstat(message.player.GetUID(),"nameprefix")+"] "+ message.player.GetPlayerName()+":[110m " + message.message, message.player.GetTeam())	
+		discordlogsendmessage("[111m["+discordlogpullplayerstat(message.player.GetUID(),"nameprefix")+"] "+ discordloggetplayername(message.player)+":[110m " + message.message, message.player.GetTeam())	
 		}
 		else{
-		discordlogsendmessage("[111m[TEAM]["+discordlogpullplayerstat(message.player.GetUID(),"nameprefix")+"] "+ message.player.GetPlayerName()+":[110m " + message.message, message.player.GetTeam())	
+		discordlogsendmessage("[111m[TEAM]["+discordlogpullplayerstat(message.player.GetUID(),"nameprefix")+"] "+ discordloggetplayername(message.player)+":[110m " + message.message, message.player.GetTeam())	
 
 		}
 
@@ -598,7 +613,8 @@ void function checkshouldblockmessages(entity player){
 	table params = {}
 	params["password"] <- serverdetails.password
 	params["uid"] <- player.GetUID()
-	params["name"] <- player.GetPlayerName()
+	params["name"] <- discordloggetplayername(player)
+	// params["actualname"] <- player.GetPlayerName()
 	params["serverid"] <- serverdetails.serverid
 	HttpRequest request
 	request.method = HttpRequestMethod.POST
@@ -644,10 +660,23 @@ void function checkshouldblockmessages(entity player){
 			if (discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "ban" && serverdetails.enforcesanctions){
 				NSDisconnectPlayer(player,"You are banned, JOIN THE DISCORD IN SERVER DESC TO COMPLAIN. Expires: "+discordlogpullplayerstat(expect string(responses["uid"]),"expiry")+" Reason: "+ discordlogpullplayerstat(expect string(responses["uid"]),"reason"))
 			}
-				if (discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "nessify" && (!GetConVarBool("fatal_script_errors") || !GetConVarBool("fatal_script_errors_server "))){
+			if (discordlogpullplayerstat(expect string(responses["uid"]),"botchangingausersnameforcefully") != ""){
+				namedict.names[player] <-discordlogpullplayerstat(expect string(responses["uid"]),"botchangingausersnameforcefully")
+			}
+			if (discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "nessify" && (!GetConVarBool("fatal_script_errors") || !GetConVarBool("fatal_script_errors_server "))){
 
-		thread nessifyplayer(player)
-	}
+				thread nessifyplayer(player)
+			}
+			// discordlogsendmessage("ww "+discordlogpullplayerstat(expect string(responses["uid"]),"nameoverride"))
+			if (discordlogpullplayerstat(expect string(responses["uid"]),"nameoverride") != "" && discordlogpullplayerstat(expect string(responses["uid"]),"overridename") != "False"){
+				bool bportoverride = false
+				if (GetConVarInt("bportoverride") == 1){
+					bportoverride = true
+					}
+				#if BP_ORT || bportoverride
+					DisguiseName(player,discordlogpullplayerstat(expect string(responses["uid"]),"nameoverride"))
+				#endif
+			}
 			
     }
 
@@ -905,7 +934,7 @@ void function nessifyplayer(entity player,bool saywords = true){
 	// player.MakeInvisible()
 	// wait 5
 	// player.SetModel($"models/dev/empty_physics.mdl")
-	// discordlogsendmessage(player.GetPlayerName()+"qdq")
+	// discordlogsendmessage(discordloggetplayername(player)+"qdq")
 	if (!(player.GetMainWeapons().len())){
 		return
 	}
@@ -1302,7 +1331,7 @@ discordlogcommand function nessifyplayercommand(discordlogcommand commandin) {
 	commandin.returncode = 200
 	commandin.returnmessage = "Nessified "
 	foreach (entity player in players){
-		commandin.returnmessage += player.GetPlayerName() + " "
+		commandin.returnmessage += discordloggetplayername(player) + " "
 		thread nessifyplayer(player,false)
 	}
 	return commandin
@@ -1324,7 +1353,7 @@ discordlogcommand function reloadpersistentsettings(discordlogcommand commandin)
 		if (player.GetUID() == uid){
 			thread checkshouldblockmessages(player)
 
-			commandin.returnmessage = "Trying to set persistentvars for "+player.GetPlayerName();
+			commandin.returnmessage = "Trying to set persistentvars for "+discordloggetplayername(player);
 			commandin.returncode = 200
 			return commandin
 
@@ -1346,6 +1375,47 @@ discordlogcommand function reloadpersistentsettings(discordlogcommand commandin)
 	
 	
 	}
+
+discordlogcommand function forcesomonesname(discordlogcommand commandin) {
+	int i = 0
+	if (commandin.commandargs.len() != 2){
+		commandin.returncode = 404
+		commandin.returnmessage = "Wrong number of args"
+		return commandin
+	}
+	string username = ""
+	for( i = 0; i < commandin.commandargs.len()-1; i++) {
+		username = username + commandin.commandargs[i] + " "
+	}
+	string uid = commandin.commandargs[0]
+	foreach (player in GetPlayerArray()){
+		if (player.GetUID() == uid){
+			thread checkshouldblockmessages(player)
+			DisguiseName(player,commandin.commandargs[1])
+			commandin.returnmessage = "Trying to set name for "+discordloggetplayername(player);
+			commandin.returncode = 200
+			return commandin
+
+
+
+		}
+	}
+	username = username + commandin.commandargs[commandin.commandargs.len() -1 ]
+	array<entity> players = discordlogmatchplayers(username)
+	if (players.len() != 1){
+		commandin.returncode = 500
+		commandin.returnmessage = "PLAYER NOT FOUND"
+		return commandin
+	}
+
+	DisguiseName(players[0],commandin.commandargs[1])
+	commandin.returnmessage = "Trying to set name for "+players[0];
+	commandin.returncode = 200
+	return commandin
+	
+	
+	}
+
 
 discordlogcommand function discordloggetdiscordcommands(discordlogcommand commandin) {
 	int i = 0
@@ -1423,7 +1493,7 @@ discordlogcommand function discordbotwantingcommandlist(discordlogcommand comman
 // 	foreach (entity player in players){
 // 		playerinfo playerinfoe
 // 		if (player != null){
-// 			playerinfoe.playername = player.GetPlayerName()
+// 			playerinfoe.playername = discordloggetplayername(player)
 // 			// print(PGS_SCORE)
 // 			playerinfoe.score = player.GetPlayerGameStat(8)
 // 			playerinfoe.kills = player.GetPlayerGameStat(1)

@@ -26,12 +26,12 @@ discordlogcommand function discordlogthrowplayer(discordlogcommand commandin) {
 	else {
 		entity player = findname(splitargs[0])
 		if (player != null){
-			print("throwing "+player.GetPlayerName())
+			print("throwing "+discordloggetplayername(player))
 			vector velocity =player.GetVelocity()
 			velocity.z = 10000
 			PushEntWithVelocity(player,velocity)
 			// check.commandcheck[validation] <-  args + ": "+player.GetPlayerName()+" thrown"
-            commandin.returnmessage = commandin.command+": "+player.GetPlayerName()+" thrown"
+            commandin.returnmessage = commandin.command+": "+discordloggetplayername(player)+" thrown"
 			commandin.returncode = 200
 		}
 		else {
@@ -53,7 +53,7 @@ entity function findname(string name)
     {
         if (player != null)
         {
-            string playername = player.GetPlayerName()
+            string playername = discordloggetplayername(player)
             if (playername.tolower().find(name.tolower()) != null)
             {
               

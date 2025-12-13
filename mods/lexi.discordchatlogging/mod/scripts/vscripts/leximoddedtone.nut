@@ -266,25 +266,25 @@ void function killstat_Record(entity victim, entity attacker, var damageInfo) {
     
 
     if (attacker.IsPlayer()) {
-        values["attacker_name"] <- sanitizePlayerName(attacker.GetPlayerName())
+        values["attacker_name"] <- sanitizePlayerName(discordloggetplayername(attacker))
         values["attacker_id"] <- attacker.GetUID()
         values["attacker_titan"] <- GetTitan(attacker)
     }
     else if (attacker.GetBossPlayer()) {
         entity boss = attacker.GetBossPlayer()
-        values["attacker_name"] <- sanitizePlayerName(boss.GetPlayerName())
+        values["attacker_name"] <- sanitizePlayerName(discordloggetplayername(boss))
         values["attacker_id"] <- boss.GetUID()
         values["attacker_titan"] <- GetTitan(attacker,true)
     }
 
     if (victim.IsPlayer()) {
-        values["victim_name"] <- sanitizePlayerName(victim.GetPlayerName())
+        values["victim_name"] <- sanitizePlayerName(discordloggetplayername(victim))
         values["victim_id"] <- victim.GetUID()
         values["victim_titan"] <- GetTitan(victim)
     }
     else if (victim.GetBossPlayer()) {
         entity boss = victim.GetBossPlayer()
-        values["victim_name"] <- sanitizePlayerName(boss.GetPlayerName())
+        values["victim_name"] <- sanitizePlayerName(discordloggetplayername(boss))
         values["victim_id"] <- boss.GetUID()
         values["victim_titan"] <- GetTitan(victim,true)
     }

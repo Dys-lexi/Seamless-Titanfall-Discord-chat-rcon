@@ -6404,7 +6404,7 @@ def colourmessage(message, serverid):
             )
             and not message["metadata"]["blockedmessage"]
         ):
-            # print("e")
+            # print("e")d
             return False
     # print("HEHRHEE")
     authornicks = {}
@@ -6413,7 +6413,7 @@ def colourmessage(message, serverid):
     # print(colourslink[discorduid])
     if message["metadata"]["teamtype"] == "not team":
         authornicks["friendly"] = computeauthornick(
-            message["player"],
+            getpriority(readplayeruidpreferences(message["metadata"]["uid"], False),["tf2","nameoverride"]) or message["player"] ,
             discorduid,
             message["messagecontent"],
             serverid,
@@ -6428,7 +6428,7 @@ def colourmessage(message, serverid):
             True,
         )
         authornicks["enemy"] = computeauthornick(
-            message["player"],
+            getpriority(readplayeruidpreferences(message["metadata"]["uid"], False),["tf2","nameoverride"]) or message["player"],
             discorduid,
             message["messagecontent"],
             serverid,
@@ -6444,7 +6444,7 @@ def colourmessage(message, serverid):
         )
     else:
         authornicks["friendly"] = computeauthornick(
-            message["player"],
+            getpriority(readplayeruidpreferences(message["metadata"]["uid"], False),["tf2","nameoverride"]) or message["player"],
             discorduid,
             message["messagecontent"],
             serverid,
@@ -6675,10 +6675,19 @@ def recieveflaskprintrequests():
                 "reason": "change your name",
                 "sanctiontype": "ban",
             }
-        # print(json.dumps({"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{**({"nameprefix": colourslink[discorduid]["nameprefix"]} if getpriority(colourslink,[discorduid,"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())) else {}),**{x: str(y) for x,y in list(filter(lambda x: not internaltoggles.get(x[0],False) or (not getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]))  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))},**sanction}},indent=4))
-
+        nameoverride = {}
+        if resolveplayeruidfromdb(data["uid"],"uid",True) and playername == getpriority(readplayeruidpreferences(data["uid"], False),["tf2","nameoverride"]) and getpriority(readplayeruidpreferences(data["uid"], False),["tf2","nameoverride"]) != resolveplayeruidfromdb(data["uid"],"uid",True)[0]["name"]:
+            # must override name here!
+            print("THE SERVER IS USING THE WRONG NAME FOR",playername)
+            nameoverride["botchangingausersnameforcefully"] = resolveplayeruidfromdb(data["uid"],"uid",True)[0]["name"]
+        # elif data["actualname"] != playername and data["actualname"] != getpriority(readplayeruidpreferences(data["uid"], False),["tf2","nameoverride"]) and not getpriority(readplayeruidpreferences(data["uid"], False),["tf2","nameoverride"]):
+        #     # the nickname has been updated! (this check does not fire always <3 oh well (it does not fire if you set name in the same match you joined))
+        #     print("THE SERVER IS USING KIND OF WRONG NAME")
+        #     nameoverride["nameoverride"] = resolveplayeruidfromdb(data["uid"],"uid",True)[0]["name"]
+        # # print(json.dumps({"output":{"shouldblockmessages":any(map(lambda x: x[1],filter(lambda x: x[0] in ["FRIENDLY","NEUTRAL","ENEMY","nameprefix"],colourslink.get(discorduid,{}).items())))},"uid":data["uid"],"otherdata":{**({"nameprefix": colourslink[discorduid]["nameprefix"]} if getpriority(colourslink,[discorduid,"nameprefix"]) and not any(list((dict(filter(lambda x:x[0] in ["FRIENDLY","NEUTRAL","ENEMY"],colourslink.get(discorduid,{}).items()))).values())) else {}),**{x: str(y) for x,y in list(filter(lambda x: not internaltoggles.get(x[0],False) or (not getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]) or int(data["serverid"]) in getpriority(context,["commands","ingamecommands",internaltoggles[x[0]],"serversenabled"]))  ,readplayeruidpreferences(data["uid"],False).get("tf2",{}).items()))},**sanction}},indent=4))
+        # print(data["actualname"],playername,getpriority(readplayeruidpreferences(data["uid"], False),["tf2","nameoverride"]),not  getpriority(readplayeruidpreferences(data["uid"], False),["tf2","nameoverride"]))
         # print(json.dumps(,indent=4))
-        return {
+        output= {
             "output": {
                 "shouldblockmessages": any(
                     map(
@@ -6693,6 +6702,7 @@ def recieveflaskprintrequests():
             },
             "uid": data["uid"],
             "otherdata": {
+                
                 **(
                     {"nameprefix": colourslink[discorduid]["nameprefix"]}
                     if getpriority(colourslink, [discorduid, "nameprefix"])
@@ -6715,9 +6725,8 @@ def recieveflaskprintrequests():
                     x: str(y)
                     for x, y in list(
                         filter(
-                            lambda x: not internaltoggles.get(x[0], False) #HEH?????
-                            or (
-                                not getpriority(
+                            lambda x:  internaltoggles.get(x[0], False) #HEH?????
+                            and x[1] != "" and (not getpriority(
                                     context,
                                     [
                                         "commands",
@@ -6752,9 +6761,13 @@ def recieveflaskprintrequests():
                     )
                 },
                 **sanction,
+                **nameoverride,
             },
         }
-        # return output
+        # print(json.dumps(output["otherdata"],indent=4))
+        # print(len(output["otherdata"]))
+        # print(json.dumps(internaltoggles,indent=4))
+        return output
 
     @app.route("/getrunningservers", methods=["POST"])
     def getrunningservers():
@@ -9804,7 +9817,32 @@ def ingamesetusertag(message, serverid, isfromserver):
         f"!reloadpersistentvars {getpriority(message, 'uid', ['meta', 'uid'], 'originalname', 'name')}",
         sender=getpriority(message, "originalname"),
     )
-
+def wallhackingame(message, serverid, isfromserver):
+    if len(message.get("originalmessage", "w").split(" ")) < 2:
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                "content": f"{PREFIXES['discord']}You need to send a name, and optionally the type of highlight",
+                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+            }
+        )
+        return
+    asyncio.run_coroutine_threadsafe(
+        returncommandfeedback(
+            *sendrconcommand(
+                serverid,
+                (
+                    f"!wallhack {getpriority(message, "uid", ["meta", "uid"])} {message.get("originalmessage", "w").split(" ")[1]}"
+                ),
+                sender=getpriority(message, "originalname", "name"),
+            ),
+            "fake context",
+            sendthingstoplayer,
+            True,
+            True,
+            getpriority(message, "uid", ["meta", "uid"]),
+        ),
+        bot.loop,
+    )
 def sendsoundfromingame(message, serverid, isfromserver):
     if len(message.get("originalmessage", "w").split(" ")) < 3:
         discordtotitanfall[serverid]["messages"].append(
@@ -9815,10 +9853,10 @@ def sendsoundfromingame(message, serverid, isfromserver):
         )
         return
     # print("bw",message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))])
-    if not completesound("".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))])):
+    if not completesound(" ".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))])):
         discordtotitanfall[serverid]["messages"].append(
             {
-                "content": f"{PREFIXES['discord']}Could not find {"".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))])}",
+                "content": f"{PREFIXES['discord']}Could not find {" ".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))])}",
                 "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
             }
         )
@@ -9826,14 +9864,14 @@ def sendsoundfromingame(message, serverid, isfromserver):
     number = 1
     if len(message.get("originalmessage", "w").split(" ")) > 3 and message.get("originalmessage", "w").split(" ")[-1].isdigit():
         number = message.get("originalmessage", "w").split(" ")[3]
-    print(f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound("".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}")
-    # sendrconcommand(serverid,f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound("".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}",sender=getpriority(message, "originalname", "name"))
+    print(f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound(" ".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}")
+    # sendrconcommand(serverid,f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound(" ".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}",sender=getpriority(message, "originalname", "name"))
     asyncio.run_coroutine_threadsafe(
         returncommandfeedback(
             *sendrconcommand(
                 serverid,
                 (
-                    f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound("".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}"
+                    f"!sendsound {message.get("originalmessage", "w").split(" ")[1]} {completesound(" ".join(message.get("originalmessage", "w").split(" ")[2:max(3,len(message.get("originalmessage", "w").split(" "))-int(message.get("originalmessage", "w").split(" ")[-1].isdigit()))]))[0]} {number}"
                 ),
                 sender=getpriority(message, "originalname", "name"),
             ),
@@ -10456,12 +10494,27 @@ def displayendofroundstats(message, serverid, isfromserver):
     # }
     # )
 
+def changename(message, serverid, isfromserver):
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
+    if not message["originalmessage"].split(" ")[1:]:
+        # reset
+        sendrconcommand(
+            serverid,
+            f"!forcesomonesname {getpriority(message,"uid",["meta","uid"])} {resolveplayeruidfromdb(getpriority(message,"uid",["meta","uid"]), None, True, istf1)[0]["name"]}",
+            sender=getpriority(message,"originalname","name"),
+        )
+    togglepersistentvar(message, serverid, isfromserver)
 
 
 def togglepersistentvar(message, serverid, isfromserver):
     """Toggles persistent server variables like stats tracking and notifications"""
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     args = message["originalmessage"].split(" ")[1:]
+    if faketoggle := (message["originalmessage"].split(" ")[0] != f"{keyletter}toggle"): # fake the toggle to the server :)
+        args.insert(0, message["originalmessage"].split(" ")[0][1:]) 
+        
+
+    
 
 
 
@@ -10478,7 +10531,7 @@ def togglepersistentvar(message, serverid, isfromserver):
             args[0],
             "serversenabled",
         ],nofind=[int(serverid)])
-        )) or (len(args) and getpriority(context,["commands","ingamecommands",args[0]]) and  resolvecommandperms(serverid,args[0]) and not checkrconallowedtfuid( getpriority(message, "uid", ["meta", "uid"]), resolvecommandperms(serverid,args[0],True),serverid=serverid,))or (not len(args) or args[0] not in [
+        )) or (len(args) and getpriority(context,["commands","ingamecommands",args[0]]) and  resolvecommandperms(serverid,args[0]) and not checkrconallowedtfuid( getpriority(message, "uid", ["meta", "uid"]), resolvecommandperms(serverid,args[0],True),serverid=serverid,))or (not len(args) or (args[0] not in [
         *list(
             map(
                 lambda x: x[0],
@@ -10487,7 +10540,7 @@ def togglepersistentvar(message, serverid, isfromserver):
                     context["commands"]["ingamecommands"].items(),
                 ),
             )
-        )]):
+        )] and not faketoggle)):
         # we need to find all the toggle commands! they all run toggle stats.
         cmdcounter = 0
         if not commandnotenabledonthisserver or not len(args):
@@ -10546,7 +10599,7 @@ def togglepersistentvar(message, serverid, isfromserver):
                     # "dotreacted": dotreacted
                 }
             )
-        if args and args[0] not in [
+        if args and (args[0] not in [
             *list(
                 map(
                     lambda x: x[0],
@@ -10558,7 +10611,7 @@ def togglepersistentvar(message, serverid, isfromserver):
             ),
             "help",
             "h",
-        ]:
+        ] and not faketoggle):
             cmdcounter += 1
             discordtotitanfall[serverid]["messages"].append(
                 {
@@ -10597,7 +10650,7 @@ def togglepersistentvar(message, serverid, isfromserver):
                 }
             )
         return
-    togglestats(message, args[0], serverid)
+    togglestats(message, context["commands"]["ingamecommands"][args[0]].get("alias",args[0]), serverid," ".join(args[1:]))
 
 
 def showingamesettings(message, serverid, isfromserver):
@@ -10744,7 +10797,7 @@ def showingamesettings(message, serverid, isfromserver):
         )
 
 
-def togglestats(message, togglething, serverid):
+def togglestats(message, togglething, serverid,overridename = None):
     """Toggles various statistics tracking features for players"""
     # print(togglething,serverid)
     internaltoggle = context["commands"]["ingamecommands"][togglething].get(
@@ -10767,14 +10820,14 @@ def togglestats(message, togglething, serverid):
     preferences = readplayeruidpreferences(
         getpriority(message, "uid", ["meta", "uid"]), istf1
     )
-
-    shouldset = getpriority(preferences, ["tf1" if istf1 else "tf2", internaltoggle])
+    
+    shouldset = overridename if overridename != None else getpriority(preferences, ["tf1" if istf1 else "tf2", internaltoggle])
     if shouldset == None:
         shouldset = False
 
     setplayeruidpreferences(
         ["tf1" if istf1 else "tf2", internaltoggle],
-        not shouldset,
+        (not shouldset if isinstance(shouldset,bool) else shouldset),
         getpriority(message, "uid", ["meta", "uid"]),
         istf1,
     )
@@ -10789,7 +10842,7 @@ def togglestats(message, togglething, serverid):
     discordtotitanfall[serverid]["messages"].append(
         {
             # "id": str(int(time.time()*100)),
-            "content": f"{PREFIXES['discord']}Toggled {togglething} - is now {PREFIXES['stat']}{not shouldset}",
+            "content": f"{PREFIXES['discord']}Toggled {togglething} - is now {PREFIXES['stat']}{(not shouldset if isinstance(shouldset,bool) else shouldset)}",
             # "teamoverride": 4,
             # "isteammessage": False,
             "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
@@ -12463,6 +12516,10 @@ def create_dynamic_command(
 async def {command_name}(ctx, {params_signature}):
     global messageflush, context
     serverid = getchannelidfromname(servername, ctx)
+    if serverid is None:
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
+        return
     if resolvecommandpermsformainbot(serverid,"{command_name}") == None:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("Command response timed out - server is unresponsive", ephemeral=False)
@@ -12475,11 +12532,6 @@ async def {command_name}(ctx, {params_signature}):
         return
     params = {dict_literal}
     print("DISCORDCOMMAND {command_name} command from", ctx.author.name, "with parameters:", params," to server:", servername)
-    
-    if serverid is None:
-        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
-        await ctx.respond("Server not bound to this channel, could not send command.", ephemeral=False)
-        return
     await ctx.defer()
     command = {command_expr}
     print("Expression:",command)
@@ -13420,6 +13472,11 @@ def playerpolllog(data, serverid, statuscode):
                 50,
                 metadata["matchid"],
             ]  # 50 is a placeholder for actual time left!
+        newplayers = {}
+        for index,player in enumerate(players):
+            if not resolveplayeruidfromdb(data["uid"],"uid",True) or player["name"] != getpriority(readplayeruidpreferences(player["uid"], False),["tf2","nameoverride"]) or getpriority(readplayeruidpreferences(player["uid"], False),["tf2","nameoverride"]) == resolveplayeruidfromdb(player["uid"],"uid",True)[0]["name"]:
+                # this player is bad. I trust /playerdetails to fix it soon, so I am just going to pretend I did not see em
+                newplayers.append(player)
     # print(players)
     discordtotitanfall[serverid]["currentplayers"] = dict(
         map(lambda x: [str(x["uid"]), x["name"]], players)

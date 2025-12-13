@@ -114,6 +114,19 @@
             "description": "Change your tag",
             "shouldblock": false
         },
+        "nameoverride": {
+            "aliases": [
+                "name"
+            ],
+            "games": [
+                "tf2"
+            ],
+            "run": "thread",
+            "function": "changename",
+            "permsneeded": "rconrole",
+            "description": "Change your name in game - adding no arguments resets name",
+            "shouldblock": false
+        },
         "showname": {
             "games": [
                 "tf2"
@@ -145,6 +158,19 @@
             "function":"sendsoundfromingame",
             "run": "thread",
             "description": "Play a sound to a player",
+            "shouldblock": true,
+            "permsneeded": "rconrole"
+        },
+        "wallhack": {
+            "aliases": [
+                "wh"
+            ],
+            "games": [
+                "tf2"
+            ],
+            "function":"wallhackingame",
+            "run": "thread",
+            "description": "Specify a player to give yourself wallhacks on",
             "shouldblock": true,
             "permsneeded": "rconrole"
         },

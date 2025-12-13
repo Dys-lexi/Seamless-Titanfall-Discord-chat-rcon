@@ -32,7 +32,7 @@ discordlogcommand function discordlogimpersonate(discordlogcommand commandin) {
     }
 
 
-    commandin.returnmessage = "Impersonated " + players[0].GetPlayerName() +" with " + message
+    commandin.returnmessage = "Impersonated " + discordloggetplayername(players[0]) +" with " + message
     calcmessage (players[0],message)
     commandin.returncode = 200
     return commandin;
@@ -44,7 +44,7 @@ void function calcmessage ( entity player, string message, bool isTeam = false){
     // string playername = message.player.GetPlayerName()
 	// string messagecontent = message.message
 	// print(serverdetails.Servername)
-	string teamnewmessage = player.GetPlayerName()
+	string teamnewmessage = discordloggetplayername(player)
 	string teammessage = "not team"
     if( isTeam && serverdetails.showchatprefix )
     {
