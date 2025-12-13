@@ -13460,7 +13460,15 @@ def playerpolllog(data, serverid, statuscode):
         for index,player in enumerate(players):
             if not resolveplayeruidfromdb(player["uid"],"uid",True) or player["name"] != getpriority(readplayeruidpreferences(player["uid"], False),["tf2","nameoverride"]) or getpriority(readplayeruidpreferences(player["uid"], False),["tf2","nameoverride"]) == resolveplayeruidfromdb(player["uid"],"uid",True)[0]["name"]:
                 # this player is bad. I trust /playerdetails to fix it soon, so I am just going to pretend I did not see em
+                # nvm I don't
                 newplayers.append(player)
+            else:
+                print("reloading",player["name"],"due to badness on playerpoll")
+                sendrconcommand(
+                    serverid,
+                    f"!reloadpersistentvars {player["uid"]}",
+                    sender=None,
+                )
     else:
         players = [
             {

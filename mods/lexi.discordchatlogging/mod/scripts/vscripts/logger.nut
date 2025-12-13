@@ -368,6 +368,9 @@ struct {
 } check
 
 string function discordloggetplayername(entity player){
+	if (!(player in namedict.names)){
+		namedict.names[player] <- player.GetPlayerName() 
+	}
 	return namedict.names[player]
 }
 
