@@ -125,7 +125,7 @@
             "function": "changename",
             "permsneeded": "rconrole",
             "description": "Change your name in game - adding no arguments resets name",
-            "shouldblock": false
+            "shouldblock": true
         },
         "showname": {
             "games": [

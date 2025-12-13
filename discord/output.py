@@ -1844,8 +1844,11 @@ async def updateroles():
         for role in potentialrole:
             if not role:
                 continue
+            if isinstance(role, int):
             # context["overriderolesuids"][roletype]
-            uids.extend([member.id for member in guild.get_role(role).members])
+                uids.extend([member.id for member in guild.get_role(role).members])
+            else:
+                uids.extend(context["overriderolesuids"].get(role,[]))
         context["overriderolesuids"][roletype] = uids
     knownpeople = {
         x.id: {
@@ -10650,7 +10653,7 @@ def togglepersistentvar(message, serverid, isfromserver):
                 }
             )
         return
-    togglestats(message, context["commands"]["ingamecommands"][args[0]].get("alias",args[0]), serverid," ".join(args[1:]))
+    togglestats(message, context["commands"]["ingamecommands"][args[0]].get("alias",args[0]), serverid," ".join(args[1:]) if faketoggle else None)
 
 
 def showingamesettings(message, serverid, isfromserver):
@@ -10821,7 +10824,7 @@ def togglestats(message, togglething, serverid,overridename = None):
         getpriority(message, "uid", ["meta", "uid"]), istf1
     )
     
-    shouldset = overridename if overridename != None else getpriority(preferences, ["tf1" if istf1 else "tf2", internaltoggle])
+    shouldset = overridename if overridename != None else bool(getpriority(preferences, ["tf1" if istf1 else "tf2", internaltoggle]))
     if shouldset == None:
         shouldset = False
 
@@ -10838,7 +10841,7 @@ def togglestats(message, togglething, serverid,overridename = None):
                 "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
             }
         )
-
+    
     discordtotitanfall[serverid]["messages"].append(
         {
             # "id": str(int(time.time()*100)),
@@ -12961,6 +12964,8 @@ def checkandaddtouidnamelink(uid, playername, serverid, istf1=False,playerinfo={
     
     """Updates player UID-name mapping in database with timestamp tracking"""
     global playercontext
+    if resolveplayeruidfromdb(uid,"uid",True) and playername == getpriority(readplayeruidpreferences(uid, False),["tf2","nameoverride"]) and getpriority(readplayeruidpreferences(uid, False),["tf2","nameoverride"]) == resolveplayeruidfromdb(uid,"uid",True)[0]["name"]:
+        return
     # print("PLAYERINFO",json.dumps(playerinfo))
     now = int(time.time())
     tfdb = postgresem("./data/tf2helper.db")
@@ -13019,6 +13024,9 @@ def onplayerjoin(uid, serverid, nameof=False):
     )  # {"tf2" if istf1 else ""}
     if istf1:
         return
+    if resolveplayeruidfromdb(uid,"uid",True) and nameof == getpriority(readplayeruidpreferences(uid, False),["tf2","nameoverride"]) and getpriority(readplayeruidpreferences(uid, False),["tf2","nameoverride"]) == resolveplayeruidfromdb(uid,"uid",True)[0]["name"]:
+        return
+
     # print("joincommand", uid, serverid)
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
@@ -13448,6 +13456,11 @@ def playerpolllog(data, serverid, statuscode):
             }
             for x in list(filter(lambda x: x[0] != "meta", list(data.items())))
         ]
+        newplayers = []
+        for index,player in enumerate(players):
+            if not resolveplayeruidfromdb(player["uid"],"uid",True) or player["name"] != getpriority(readplayeruidpreferences(player["uid"], False),["tf2","nameoverride"]) or getpriority(readplayeruidpreferences(player["uid"], False),["tf2","nameoverride"]) == resolveplayeruidfromdb(player["uid"],"uid",True)[0]["name"]:
+                # this player is bad. I trust /playerdetails to fix it soon, so I am just going to pretend I did not see em
+                newplayers.append(player)
     else:
         players = [
             {
@@ -13472,11 +13485,7 @@ def playerpolllog(data, serverid, statuscode):
                 50,
                 metadata["matchid"],
             ]  # 50 is a placeholder for actual time left!
-        newplayers = {}
-        for index,player in enumerate(players):
-            if not resolveplayeruidfromdb(data["uid"],"uid",True) or player["name"] != getpriority(readplayeruidpreferences(player["uid"], False),["tf2","nameoverride"]) or getpriority(readplayeruidpreferences(player["uid"], False),["tf2","nameoverride"]) == resolveplayeruidfromdb(player["uid"],"uid",True)[0]["name"]:
-                # this player is bad. I trust /playerdetails to fix it soon, so I am just going to pretend I did not see em
-                newplayers.append(player)
+
     # print(players)
     discordtotitanfall[serverid]["currentplayers"] = dict(
         map(lambda x: [str(x["uid"]), x["name"]], players)

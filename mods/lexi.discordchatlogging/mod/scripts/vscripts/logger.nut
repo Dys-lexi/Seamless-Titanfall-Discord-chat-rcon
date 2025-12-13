@@ -669,11 +669,7 @@ void function checkshouldblockmessages(entity player){
 			}
 			// discordlogsendmessage("ww "+discordlogpullplayerstat(expect string(responses["uid"]),"nameoverride"))
 			if (discordlogpullplayerstat(expect string(responses["uid"]),"nameoverride") != "" && discordlogpullplayerstat(expect string(responses["uid"]),"overridename") != "False"){
-				bool bportoverride = false
-				if (GetConVarInt("bportoverride") == 1){
-					bportoverride = true
-					}
-				#if BP_ORT || bportoverride
+				#if BP_ORT
 					DisguiseName(player,discordlogpullplayerstat(expect string(responses["uid"]),"nameoverride"))
 				#endif
 			}
@@ -1391,7 +1387,9 @@ discordlogcommand function forcesomonesname(discordlogcommand commandin) {
 	foreach (player in GetPlayerArray()){
 		if (player.GetUID() == uid){
 			thread checkshouldblockmessages(player)
-			DisguiseName(player,commandin.commandargs[1])
+			#if BP_ORT
+				DisguiseName(player,commandin.commandargs[1])
+			#endif
 			commandin.returnmessage = "Trying to set name for "+discordloggetplayername(player);
 			commandin.returncode = 200
 			return commandin
@@ -1407,8 +1405,9 @@ discordlogcommand function forcesomonesname(discordlogcommand commandin) {
 		commandin.returnmessage = "PLAYER NOT FOUND"
 		return commandin
 	}
-
-	DisguiseName(players[0],commandin.commandargs[1])
+	#if BP_ORT
+		DisguiseName(players[0],commandin.commandargs[1])
+	#endif
 	commandin.returnmessage = "Trying to set name for "+players[0];
 	commandin.returncode = 200
 	return commandin

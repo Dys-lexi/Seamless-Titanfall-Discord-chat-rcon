@@ -8,9 +8,10 @@
     "Contacts": [
         "dyslexi (Discord)"
     ],
-	"Dependencies": {
-		"BP_ORT":"cat_or_not.BotExtras"
-	},
+    "PluginDependencies": [
+        "BP_ORT"
+    ],
+    
     "LoadPriority": 1,
     "RequiredOnClient": false,
     "ConVars": [
@@ -57,10 +58,6 @@
         {
             "Name": "discordlogfunctionpermoverrides",
             "DefaultValue": "" // use in the format commandname,perm,deniedperm,commandname,perm,deniedperm eg: helpdc,rconrole,None,nessify,rconrole,debugchat (this overrides the permissions on commands)
-        },
-        {
-            "Name": "bportoverride",
-            "DefaultValue": "0" // override bport
         }
 
     ],
