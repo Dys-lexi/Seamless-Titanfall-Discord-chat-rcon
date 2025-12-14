@@ -930,7 +930,7 @@ def printtodiscordflush():
             i+=1
         botlogprint = botlogprint[i:]
 
-        asyncio.run_coroutine_threadsafe(botchannel.send(f"```ansi\n{actualprinting}```"),bot.loop)
+        asyncio.run_coroutine_threadsafe(botchannel.send(discord.utils.escape_mentions(f"```ansi\n{actualprinting}```")),bot.loop)
 
 
 def printtodiscord(function,line,*message):
@@ -984,7 +984,7 @@ SERVERNAMEISCHOICE = os.getenv("DISCORD_BOT_SERVERNAME_IS_CHOICE", "0")
 SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
 TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass")
 USEDYNAMICPFPS = os.getenv("USE_DYNAMIC_PFPS", "1")
-# USEDYNAMICPFPS = "1"
+USEDYNAMICPFPS = "1"
 PFPROUTE = os.getenv(
     "PFP_ROUTE",
     "https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/",
@@ -10891,10 +10891,13 @@ def togglestats(message, togglething, serverid,overridename = None):
     shouldset = overridename if overridename != None else bool(getpriority(preferences, ["tf1" if istf1 else "tf2", internaltoggle]))
     if shouldset == None:
         shouldset = False
-
+    extratoggles = {}
+    if shouldset == False:
+        if group := context["commands"]["ingamecommands"][togglething].get("togglegroup", False):
+            extratoggles = dict(map(lambda x: [x[1].get("internaltoggle", x[0]),False],filter(lambda x:x[0]!= togglething and x[1].get("run") == "togglestat" and x[1].get("togglegroup") == group ,context["commands"]["ingamecommands"].items())))
     setplayeruidpreferences(
-        ["tf1" if istf1 else "tf2", internaltoggle],
-        (not shouldset if isinstance(shouldset,bool) else shouldset),
+        ["tf1" if istf1 else "tf2"],
+        {**getpriority(preferences, ["tf1" if istf1 else "tf2"],nofind = {}),internaltoggle:(not shouldset if isinstance(shouldset,bool) else shouldset),**extratoggles},
         getpriority(message, "uid", ["meta", "uid"]),
         istf1,
     )

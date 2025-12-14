@@ -1,6 +1,8 @@
 
 MODEL_DICT = {
+
     '$"models/humans/pilots/pilot_medium_geist_m.mdl"': "pilots/grapple_cropped.png",
+    '$"models/robots/marvin/marvin.mdl"': "misc/MRVN.webp",
     '$"models/humans/pilots/pilot_medium_geist_f.mdl"': "pilots/grapple_cropped.png",
     '$"models/titans/medium/titan_medium_ajax.mdl"': "kevstitans/Ionkev.png",
     '$"models/titans/heavy/titan_heavy_ogre.mdl"': "kevstitans/Scorchkev.png",
