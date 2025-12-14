@@ -1380,23 +1380,25 @@ discordlogcommand function reloadpersistentsettings(discordlogcommand commandin)
 
 discordlogcommand function forcesomonesname(discordlogcommand commandin) {
 	int i = 0
-	if (commandin.commandargs.len() != 2){
+	if (commandin.commandargs.len() < 2){
 		commandin.returncode = 404
 		commandin.returnmessage = "Wrong number of args"
 		return commandin
 	}
 	string username = ""
-	for( i = 0; i < commandin.commandargs.len()-1; i++) {
+	for( i = 1; i < commandin.commandargs.len()-1; i++) {
 		username = username + commandin.commandargs[i] + " "
 	}
+	username = username + commandin.commandargs[commandin.commandargs.len() -1 ]
 	string uid = commandin.commandargs[0]
 	foreach (player in GetPlayerArray()){
 		if (player.GetUID() == uid){
-			thread checkshouldblockmessages(player)
+			// thread checkshouldblockmessages(player)
 			#if BP_ORT
-				DisguiseName(player,commandin.commandargs[1])
+				// printt("YWQNWQFNQW"+commandin.commandargs[1])
+				DisguiseName(player,username)
 			#endif
-			commandin.returnmessage = "Trying to set name for "+discordloggetplayername(player);
+			commandin.returnmessage = "Setting name for "+discordloggetplayername(player) + " to "+username;
 			commandin.returncode = 200
 			return commandin
 
@@ -1404,7 +1406,7 @@ discordlogcommand function forcesomonesname(discordlogcommand commandin) {
 
 		}
 	}
-	username = username + commandin.commandargs[commandin.commandargs.len() -1 ]
+	
 	array<entity> players = discordlogmatchplayers(username)
 	if (players.len() != 1){
 		commandin.returncode = 500
@@ -1412,9 +1414,9 @@ discordlogcommand function forcesomonesname(discordlogcommand commandin) {
 		return commandin
 	}
 	#if BP_ORT
-		DisguiseName(players[0],commandin.commandargs[1])
+		DisguiseName(players[0],username)
 	#endif
-	commandin.returnmessage = "Trying to set name for "+players[0];
+	commandin.returnmessage = "Setting name for "+discordloggetplayername(players[0]) + " to "+username;
 	commandin.returncode = 200
 	return commandin
 	

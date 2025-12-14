@@ -7634,7 +7634,7 @@ def getmessagewidget(metadata, serverid, messagecontent, message):
     elif metadata["type"] in ["command", "botcommand", "tf1command"]:
         if DISCORDBOTLOGCOMMANDS != "1":
             return "", player
-        output = f"""> {context["servers"].get(serverid, {}).get("name", "Unknown server").ljust(30)} {(message["player"] + ":").ljust(20)} {message["messagecontent"]}"""
+        output = f"""> {context["servers"].get(serverid, {}).get("name", "Unknown server").ljust(30)} {(getpriority(message,["metadata","veryoriginalname"],["player"]) + ":").ljust(20)} {message["messagecontent"]}"""
     # elif metadata["type"] == "tf1command":
     #     if DISCORDBOTLOGCOMMANDS != "1":
     #         return "",player
@@ -9752,7 +9752,7 @@ def nocarocompleterequest(uid, serverid, istf1, route, extra_querys={}):
 def ingamesetusercolour(message, serverid, isfromserver):
     """Handles in-game color setting commands from players"""
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
-    name = getpriority(message, "originalname", "name")
+    name = getpriority(message, 'uid', ['meta', 'uid'])
     teamspecify = False
     teams = {
         "all": "all",
@@ -9787,7 +9787,7 @@ def ingamesetusercolour(message, serverid, isfromserver):
     ):
         teamspecify = True
 
-    name = resolveplayeruidfromdb(name, None, True)
+    name = resolveplayeruidfromdb(name, "uid", True)
     if not name:
         discordtotitanfall[serverid]["messages"].append(
             {
@@ -9825,7 +9825,8 @@ def ingamesetusercolour(message, serverid, isfromserver):
 def ingamesetusertag(message, serverid, isfromserver):
     """Handles in-game tag setting commands from players"""
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
-    name = getpriority(message, "originalname", "name")
+    name = getpriority(message, 'uid', ['meta', 'uid'])
+
 
     if len(message.get("originalmessage", "w").split(" ")) == 1:
         discordtotitanfall[serverid]["messages"].append(
@@ -9836,7 +9837,7 @@ def ingamesetusertag(message, serverid, isfromserver):
         )
         return
 
-    name = resolveplayeruidfromdb(name, None, True)
+    name = resolveplayeruidfromdb(name, "uid", True)
     if not name:
         discordtotitanfall[serverid]["messages"].append(
             {
@@ -10553,16 +10554,59 @@ def displayendofroundstats(message, serverid, isfromserver):
     # # "uidoverride": [getpriority(message,"uid",["meta","uid"])]
     # }
     # )
+def checknameisactuallychanged(outputstring, serverid, statuscode, message):
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
+    if statuscode != 200:
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                # "id": str(int(time.time()*100)),
+                "content": f"{PREFIXES['discord']}{outputstring}",
+                # "teamoverride": 4,
+                # "isteammessage": False,
+                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+                # "dotreacted": dotreacted
+            }
+        )
+    discordtotitanfall[serverid]["messages"].append(
+        {
+            # "id": str(int(time.time()*100)),
+            "content": f"{PREFIXES['discord']}{f"Changed name to {PREFIXES["stat"]}{message["newname"]}" if message["newname"] != "" else "Reset name"}",
+            # "teamoverride": 4,
+            # "isteammessage": False,
+            "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+            # "dotreacted": dotreacted
+        }
+    )
+    setplayeruidpreferences(
+        ["tf1" if istf1 else "tf2",context["commands"]["ingamecommands"][message["originalmessage"].split(" ")[0][1:]].get("internaltoggle", message["originalmessage"].split(" ")[0][1:])],
+        message["newname"],
+        getpriority(message, "uid", ["meta", "uid"]),
+        istf1,
+    )
+    
+
 
 def changename(message, serverid, isfromserver):
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     if not message["originalmessage"].split(" ")[1:]:
-        # reset
-        sendrconcommand(
-            serverid,
-            f"!forcesomonesname {getpriority(message,"uid",["meta","uid"])} {resolveplayeruidfromdb(getpriority(message,"uid",["meta","uid"]), None, True, istf1)[0]["name"]}",
-            sender=getpriority(message,"originalname","name"),
+        asyncio.run_coroutine_threadsafe(
+            returncommandfeedback(
+                *sendrconcommand(
+                    serverid,
+                    (
+                        f"!forcesomonesname {getpriority(message,"uid",["meta","uid"])} {resolveplayeruidfromdb(getpriority(message,"uid",["meta","uid"]), None, True, istf1)[0]["name"]}"
+                    ),
+                    sender=getpriority(message, "originalname", "name"),
+                ),
+                "fake context",
+                checknameisactuallychanged,
+                True,
+                True,
+                {**message,"newname":""},
+            ),
+            bot.loop,
         )
+        return
     elif resolveplayeruidfromdb(getpriority(message,"uid",["meta","uid"]), None, True, istf1)[0]["name"].lower() ==  message["originalmessage"].split(" ")[1:][0].lower():
         discordtotitanfall[serverid]["messages"].append(
             {
@@ -10575,7 +10619,25 @@ def changename(message, serverid, isfromserver):
             }
         )
         return
-    togglepersistentvar(message, serverid, isfromserver)
+    # print(f"!forcesomonesname {getpriority(message,"uid",["meta","uid"])} {message["originalmessage"].split(" ")[1:][0]}")
+    asyncio.run_coroutine_threadsafe(
+        returncommandfeedback(
+            *sendrconcommand(
+                serverid,
+                (
+                    f"!forcesomonesname {getpriority(message,"uid",["meta","uid"])} {message["originalmessage"].split(" ",1)[1:][0]}"
+                ),
+                sender=getpriority(message, "originalname", "name"),
+            ),
+            "fake context",
+            checknameisactuallychanged,
+            True,
+            True,
+            {**message,"newname":message["originalmessage"].split(" ",1)[1:][0]},
+        ),
+        bot.loop,
+    )
+
 
 
 def togglepersistentvar(message, serverid, isfromserver):
@@ -10722,7 +10784,7 @@ def togglepersistentvar(message, serverid, isfromserver):
                 }
             )
         return
-    togglestats(message, context["commands"]["ingamecommands"][args[0]].get("alias",args[0]), serverid," ".join(args[1:]) if faketoggle else None)
+    togglestats(message, context["commands"]["ingamecommands"][args[0]].get("alias",args[0]), serverid," ".join(args[1:]) if faketoggle else None,message.get("function",None))
 
 
 def showingamesettings(message, serverid, isfromserver):
@@ -10869,7 +10931,7 @@ def showingamesettings(message, serverid, isfromserver):
         )
 
 
-def togglestats(message, togglething, serverid,overridename = None):
+def togglestats(message, togglething, serverid,overridename = None,function = None):
     """Toggles various statistics tracking features for players"""
     # print(togglething,serverid)
     internaltoggle = context["commands"]["ingamecommands"][togglething].get(
@@ -10925,11 +10987,30 @@ def togglestats(message, togglething, serverid,overridename = None):
         }
     )
     if not istf1:
-        sendrconcommand(
-            serverid,
-            f"!reloadpersistentvars {getpriority(message, 'uid', ['meta', 'uid'], 'originalname', 'name')}",
-            sender=getpriority(message, "originalname"),
-        )
+        if not function:
+            sendrconcommand(
+                serverid,
+                f"!reloadpersistentvars {getpriority(message, 'uid', ['meta', 'uid'], 'originalname', 'name')}",
+                sender=getpriority(message, "originalname"),
+            )
+        else:
+            asyncio.run_coroutine_threadsafe(
+                returncommandfeedback(
+                    *sendrconcommand(
+                        serverid,
+                        (
+                            f"!reloadpersistentvars {getpriority(message, 'uid', ['meta', 'uid'], 'originalname', 'name')}",
+                        ),
+                        sender=getpriority(message, "originalname", "name"),
+                    ),
+                    "fake context",
+                    function,
+                    True,
+                    True,
+                    getpriority(message, "uid", ["meta", "uid"]),
+                ),
+                bot.loop,
+            )
     for stat in context["commands"]["ingamecommands"][togglething].get(
         "extendeddesc", []
     ):
@@ -11555,7 +11636,7 @@ def calcstats(message, serverid, isfromserver):
             output = getstats(" ".join(message["originalmessage"].split(" ")[1:]),isfromserver,istf1)
         else:
             # print(getpriority(message,"originalname","name"))
-            output = getstats(str(getpriority(message, "originalname", "name")),isfromserver,istf1)
+            output = getstats(str(getpriority(message,"uid", ["meta", "uid"] ,"originalname", "name")),isfromserver,istf1)
         # if not isfromserver:
         #     name = resolveplayeruidfromdb(
         #         getpriority(message, "originalname", "name"), None, True, istf1
