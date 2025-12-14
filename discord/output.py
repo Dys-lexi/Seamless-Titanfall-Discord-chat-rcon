@@ -984,7 +984,7 @@ SERVERNAMEISCHOICE = os.getenv("DISCORD_BOT_SERVERNAME_IS_CHOICE", "0")
 SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
 TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass")
 USEDYNAMICPFPS = os.getenv("USE_DYNAMIC_PFPS", "1")
-USEDYNAMICPFPS = "1"
+# USEDYNAMICPFPS = "1"
 PFPROUTE = os.getenv(
     "PFP_ROUTE",
     "https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/",
@@ -1015,6 +1015,7 @@ MORECOLOURS = os.getenv("MORE_COLOURFUL_OUTPUT", "1")
 NOCAROENDPOINT = os.getenv("NOCARO_API_ENDPOINT", "https://nocaro.awesome.tf/")
 NOCAROAUTH = os.getenv("NOCARO_AUTH", False)
 SANSURL = os.getenv("SANS_URL",False)
+USEOVERRIDDENNAMESINDISCORD = bool(int(os.getenv("USE_OVERRIDDEN_NAMES_IN_DISCORD",1))) #not everywhere, but a lot of places
 TIMETILLCHANNELSGETHIDDEN = int(os.getenv("TIME_TO_HIDE_CHANNEL",86400*3))
 GLOBALIP = 0
 if OVERRIDEIPFORCDNLEADERBOARD == "use_actual_ip":
@@ -7360,7 +7361,7 @@ def recieveflaskprintrequests():
         if "servername" in data.keys():
             newmessage["servername"] = data["servername"]
         if "player" in data.keys():
-            newmessage["player"] = data["player"]
+            newmessage["player"] = data["player"] 
         if (
             "serverid" not in data.keys()
             or "type" not in data.keys()
@@ -7424,6 +7425,10 @@ def recieveflaskprintrequests():
                 onplayerjoin(data["metadata"]["uid"], data["serverid"], data["player"])
             elif data["metadata"]["type"] == "disconnect":
                 onplayerleave(data["metadata"]["uid"], data["serverid"])
+            if USEOVERRIDDENNAMESINDISCORD and getpriority(data,["metadata","uid"]) and data["player"]:
+                    data["metadata"]["veryoriginalname"] = data["player"]
+                    # print(json.dumps(data,indent=4))
+                    newmessage["player"] = getpriority(readplayeruidpreferences(data["metadata"]["uid"], False),["tf2","nameoverride"]) or data["player"] 
         if addtomessageflush:
             # print(json.dumps(newmessage,indent =4))
 
