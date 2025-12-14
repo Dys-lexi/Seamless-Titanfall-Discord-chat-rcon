@@ -846,6 +846,7 @@ mostrecentmatchids = {}
 potentialduels = {}
 registeredaccepts = {}
 tfcommandspermissions = {}
+botlogprint = []
 
 
 # log_file = "logs"
@@ -898,15 +899,64 @@ def print(*message, end="\033[0m\n"):
             if colour not in DISALLOWED_COLOURS:
                 break
         linecolours[line] = colour
+    if botisalreadyready and getpriority(context,["overridechannels","botlogschannel"]):
+        # realprint("e")
+        
+        printtodiscord(function,line,message),
+
     if MORECOLOURS != "1":
         realprint(
-            f"[0m{(('[' + function[:9] + ']').ljust(11) if True else '⯈'.ljust(11))}{('[' + line + ']').ljust(7)}[{datetime.now().strftime('%H:%M:%S %d/%m')}] {message}"
+            f"[0m{(('[' + function[:9].ljust(9) + ']') if True else '⯈'.ljust(11))}{('[' + line.ljust(5) + ']')}[{datetime.now().strftime('%H:%M:%S %d/%m')}] {message}"
         )
     else:
         realprint(
-            f"[38;2;215;22;105m{(('[' + function[:9] + ']').ljust(11) if True else '⯈'.ljust(11))}[38;2;126;89;140m{('[' + line + ']').ljust(7)}[38;2;27;64;152m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{linecolours[line]}m {(message)}",
+            f"[38;2;215;22;105m{(('[' + function[:9].ljust(9) + ']') if True else '⯈'.ljust(11))}[38;2;126;89;140m{('[' + line.ljust(5) + ']')}[38;2;27;64;152m[{datetime.now().strftime('%H:%M:%S %d/%m')}][38;5;{linecolours[line]}m {(message)}",
             end=end,
         )
+def printtodiscordflush():
+    global botlogprint
+    
+    while True:
+        botchannel = bot.get_channel(getpriority(context,["overridechannels","botlogschannel"]))
+        if not botlogprint:
+            time.sleep(5)
+            continue
+        actualprinting = ""
+        i = 0
+        for thing in botlogprint:
+            if len(actualprinting+(thing)+"\n") > 2000:
+                break
+            actualprinting+=(thing)+"\n"
+            i+=1
+        botlogprint = botlogprint[i:]
+
+        asyncio.run_coroutine_threadsafe(botchannel.send(f"```ansi\n{actualprinting}```"),bot.loop)
+
+
+def printtodiscord(function,line,*message):
+    global botlogprint
+    
+
+    message = " ".join(message)
+    if ("\033[") in message:
+        # print("colour codes found in message")
+        while "\033[" in message:
+            startpos = message.index("\033[")
+            if "m" not in message[startpos:]:
+                break
+            endpos = message[startpos:].index("m") + startpos
+            message = (
+                message[:startpos] + message[endpos + 1 :]
+            )
+    message = message.replace("```ansi\n", "")
+    message = message.replace("```ansi", "")
+    message = message.replace("\n```ansi", "")
+    message = message.replace("\n```", "")
+    message = message.replace("```\n", "")
+    message = message.replace("```", "")
+        
+
+    botlogprint .append (f"{ANSI_COLOURS[list(ANSI_COLOURS.keys())[sum(list(map(lambda x: ord(x),function)))%len(ANSI_COLOURS)-1]]}{('[' + (function[:9].ljust(9)) + ']')}{ANSI_COLOURS["reset"]}{ANSI_COLOURS_BG["bg_firefly_dark_blue"]}{('[' + line.ljust(5) + ']')}{ANSI_COLOURS["reset"]} {message}"[:2000])
 
 
 lastrestart = 0
@@ -1341,6 +1391,7 @@ context = {
         "commandlogchannel": 0,
         "leaderboardchannel": 0,
         "wordfilternotifychannel": 0,
+        "botlogschannel":0
     },
     "slashcommandoverrides":{},
     "overrideroles": {"rconrole": 0, "coolperksrole": 0, "debugchat": 0},
@@ -1801,6 +1852,7 @@ async def on_ready():
         category = guild.get_channel(context["categoryinfo"]["logging_cat_id"])
         serverchannels = category.channels
     if not botisalreadyready:
+        botisalreadyready = True
         if DISCORDBOTLOGSTATS == "1":
             updateleaderboards.start()
         updateroles.start()
@@ -1813,7 +1865,7 @@ async def on_ready():
         hideandshowchannels.start()
 
 
-    botisalreadyready = True
+    
 
 
 @bot.event
@@ -9323,7 +9375,7 @@ def autobalance(message, serverid, isfromserver):
 
 def autobalanceoverride(data, serverid, statuscode):
     data = getjson(data)
-    print(json.dumps(data, indent=4))
+    # print(json.dumps(data, indent=4))
     # playerinfo = {}
     # for uid,playerdata in data.items():
     #     if not uid.isdigit():
@@ -14587,6 +14639,7 @@ sys.excepthook = log_uncaught_exceptions
 if DISCORDBOTLOGSTATS == "1":
     threading.Thread(target=threadwrap, daemon=True, args=(playerpoll,)).start()
 threading.Thread(target=threadwrap, daemon=True, args=(messageloop,)).start()
+threading.Thread(target=threadwrap, daemon=True, args=(printtodiscordflush,)).start()
 threading.Thread(
     target=threadwrap, daemon=True, args=(recieveflaskprintrequests,)
 ).start()

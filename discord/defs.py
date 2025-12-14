@@ -457,7 +457,9 @@ ANSI_COLOURS = {
     "red":     "\u001b[0;31m",
     "white":   "\u001b[0;37m",
     "grey":    "\u001b[0;30m",
-    "reset":   "\u001b[0m",
+    "reset":   "\u001b[0m"}
+
+ANSI_COLOURS_BG ={
     "bg_firefly_dark_blue":  "\u001b[40m",  
     "bg_orange":             "\u001b[41m",  
     "bg_marble_blue":        "\u001b[42m",  
