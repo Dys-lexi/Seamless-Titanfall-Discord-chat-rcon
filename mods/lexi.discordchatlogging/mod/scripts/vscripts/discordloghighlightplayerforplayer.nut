@@ -101,6 +101,7 @@ void function highlightplayertoplayer(table<string,array<highlightinfo> >  highl
     // wait 10
     // // discordlogsendmessage("eee "+ uid + "wqdq "+ uid2)
     // discordlogsendmessage("b")
+    WaitFrame()
     table<entity,array<highlightinfo> > entityhighlights
     foreach (key,value in highlightsthings){
         // discordlogsendmessage("yyzzzzyy"+key)
@@ -127,7 +128,7 @@ void function highlightplayertoplayer(table<string,array<highlightinfo> >  highl
     }
 
     // PrintTable(entityhighlights)
-    WaitFrame()
+    
     // if (!IsValid(player1) || !IsValid(player2)){
     //     return
     // }

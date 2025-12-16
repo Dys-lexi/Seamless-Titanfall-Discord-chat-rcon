@@ -8120,7 +8120,8 @@ def tf1readsend(serverid, checkstatus):
                 # if len(discordtotitanfall[serverid]["returnids"]["messages"][now]) == 0:
                 # del discordtotitanfall[serverid]["returnids"]["messages"][now]
             except Exception as e:
-                print("crash while deleting key", e)
+                pass
+                # print("crash while deleting key", e)
             ids.append(commands[key]["id"])
             # print("HEREEEE SENT IT I THINK MABYE")
             discordtotitanfall[serverid]["messages"][messagelist[key]] = False
@@ -8508,7 +8509,7 @@ def messageloop():
                             or not message["name"]
                             or not message["uid"]
                         ):
-                            print("VERY BIG ERROR, PLEASE LOOK INTO IT", message)
+                            # print("VERY BIG ERROR, PLEASE LOOK INTO IT", message)
                             if not message.get("pfp"):
                                 message["pfp"] = "player has no model :("
                             else:
@@ -9948,7 +9949,7 @@ def shownamecolours(message, serverid, isfromserver):
     """Shows available color options to players in-game"""
     # print("HERHEHRHE")
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
-    name = getpriority(message, "originalname", "name")
+    name = getpriority(message, "uid", ["meta", "uid"])
     if len(message.get("originalmessage", "w").split(" ")) > 1:
         name = " ".join(message["originalmessage"].split(" ")[1:])
     name = resolveplayeruidfromdb(name, None, True)
@@ -11733,6 +11734,7 @@ async def checkverify(message, serverid):
             "uidoverride": [uid],
         }
     )
+    await updateroles()
     del accountlinker[str(content).strip()]
 
 
@@ -13163,7 +13165,7 @@ def checkandaddtouidnamelink(uid, playername, serverid, istf1=False,playerinfo={
         resolveplayeruidfromdb.cache_clear()
         c.execute(
             f"INSERT INTO uidnamelink{'tf1' if istf1 else ''} (playeruid, playername, firstseenunix, lastseenunix, lastserverid, ipinfo) VALUES (?, ?, ?, ?, ?, ?)",
-            (uid, playername, now, now, int(serverid), json.dumps({playerinfo["ipaddr"]:{"first":now,"last":now}}) if playerinfo.get("ipaddr") else None),
+            (uid, playername, now, now, int(serverid), json.dumps([{"ip":playerinfo["ipaddr"],"first":now,"last":now}]) if playerinfo.get("ipaddr") else None),
         )
     tfdb.commit()
     tfdb.close()
