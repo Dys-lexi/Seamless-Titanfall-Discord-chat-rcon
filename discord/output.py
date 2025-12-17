@@ -7621,7 +7621,7 @@ def getmessagewidget(metadata, serverid, messagecontent, message):
                         ),
                         bot.loop,
                     )
-            if str(message.get("player", "Unknown player")).lower() in context["wordfilter"]["namestokick"]:
+            if str(getpriority(message,["metadata","veryoriginalname"],["player"])).lower() in context["wordfilter"]["namestokick"]:
                     asyncio.run_coroutine_threadsafe(
                         channel.send(
                             (f"Name rule enforced for {player} (change your name)")
@@ -9171,7 +9171,7 @@ def duelstats(message, serverid, isfromserver):
     if duelinfo:
         discordtotitanfall[serverid]["messages"].append(
             {
-                "content": f"{PREFIXES['discord']} {"Global Duels stats" if not player[0]["uid"] else f"Duels stats for {PREFIXES["stat"]}{player[0]["name"]}"}",
+                "content": f"{PREFIXES['discord']}{"Global Duels stats" if not player[0]["uid"] else f"Duels stats for {PREFIXES["stat"]}{player[0]["name"]}"}",
                 "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
             }
         )
@@ -9502,34 +9502,42 @@ def autobalanceoverride(data, serverid, statuscode):
         if playername:
             playername = playername[0].get("name", player)
         playernamecache[player] = playername
-    discordtotitanfall[serverid]["messages"].append(
-        {
-            "content": f"{PREFIXES['discord']}{PREFIXES['stat']}TEAMBALANCE{PREFIXES['neutral']} Names in {PREFIXES['warning']}this colour{PREFIXES['neutral']} are people you have interacted with recently"
-        }
-    )
+    # discordtotitanfall[serverid]["messages"].append(
+    #     {
+    #         "content": f"{PREFIXES['discord']}{PREFIXES['stat']}TEAMBALANCE{PREFIXES['neutral']} Names in {PREFIXES['warning']}this colour{PREFIXES['neutral']} are people you have interacted with recently"
+    #     }
+    # )
 
     # discordtotitanfall[serverid]["messages"].append(
     #     {
     #         "content": f"{PREFIXES['discord']}Below is the new teambalance, along with each players weight"
     #     }
     # )
-    for teamint, team in enumerate(outputtedteams):
-        for player in team:
-            # if player["uid"] != "1012640166434":
-            #     continue
-            discordtotitanfall[serverid]["messages"].append(
-                {
-                    "content": f"{PREFIXES['stat']}Your team: {', '.join(functools.reduce(lambda a, b: {'lastcolour': PREFIXES['warning'] if b in data[player['uid']]['scary'] else PREFIXES['friendly'], 'output': [*a['output'], f'{(PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["friendly"]) if (PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["friendly"]) != a["lastcolour"] else ""}{playernamecache[b]}:{searchablestats[b]["kph"]:.2f}']}, list(map(lambda x: x['uid'], outputtedteams[teamint])), {'lastcolour': False, 'output': []})['output'])}",
-                    "uidoverride": [player["uid"]],
-                }
-            )
-            discordtotitanfall[serverid]["messages"].append(
-                {
-                    "content": f"{PREFIXES['stat']}Enemy team: {', '.join(functools.reduce(lambda a, b: {'lastcolour': PREFIXES['warning'] if b in data[player['uid']]['scary'] else PREFIXES['enemy'], 'output': [*a['output'], f'{(PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["enemy"]) if (PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["enemy"]) != a["lastcolour"] else ""}{playernamecache[b]}:{searchablestats[b]["kph"]:.2f}']}, list(map(lambda x: x['uid'], outputtedteams[abs(teamint - 1)])), {'lastcolour': False, 'output': []})['output'])}",
-                    "uidoverride": [player["uid"]],
-                }
-            )
 
+    # OLD SYSTEM, PRINTED EVERYONES KILLS PER MINUTE
+    # for teamint, team in enumerate(outputtedteams):
+    #     for player in team:
+    #         # if player["uid"] != "1012640166434":
+    #         #     continue
+    #         discordtotitanfall[serverid]["messages"].append(
+    #             {
+    #                 "content": f"{PREFIXES['stat']}Your team: {', '.join(functools.reduce(lambda a, b: {'lastcolour': PREFIXES['warning'] if b in data[player['uid']]['scary'] else PREFIXES['friendly'], 'output': [*a['output'], f'{(PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["friendly"]) if (PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["friendly"]) != a["lastcolour"] else ""}{playernamecache[b]}:{searchablestats[b]["kph"]:.2f}']}, list(map(lambda x: x['uid'], outputtedteams[teamint])), {'lastcolour': False, 'output': []})['output'])}",
+    #                 "uidoverride": [player["uid"]],
+    #             }
+    #         )
+    #         discordtotitanfall[serverid]["messages"].append(
+    #             {
+    #                 "content": f"{PREFIXES['stat']}Enemy team: {', '.join(functools.reduce(lambda a, b: {'lastcolour': PREFIXES['warning'] if b in data[player['uid']]['scary'] else PREFIXES['enemy'], 'output': [*a['output'], f'{(PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["enemy"]) if (PREFIXES["warning"] if b in data[player["uid"]]["scary"] else PREFIXES["enemy"]) != a["lastcolour"] else ""}{playernamecache[b]}:{searchablestats[b]["kph"]:.2f}']}, list(map(lambda x: x['uid'], outputtedteams[abs(teamint - 1)])), {'lastcolour': False, 'output': []})['output'])}",
+    #                 "uidoverride": [player["uid"]],
+    #             }
+    #         )
+
+    discordtotitanfall[serverid]["messages"].append(
+        {
+            "content": f"{PREFIXES["discord"]}Balancing based on {PREFIXES["stat"]}60% percentile Kills/Min\n{PREFIXES["stat2"]}(yell at dyslexi on discord if you think you have a better algorithm)",
+            # "uidoverride": [player["uid"]],
+        }
+    )
     threading.Thread(
         target=threadwrap, daemon=True, args=(autobalancerun, outputtedteams, serverid)
     ).start()
@@ -9539,17 +9547,17 @@ def autobalanceoverride(data, serverid, statuscode):
 
 def autobalancerun(outputtedteams, serverid):
     # discordtotitanfall[serverid]["messages"].append({
-    #     "content":f"{PREFIXES['discord']} Balance in {PREFIXES["warning"]}10{PREFIXES["neutral"]} seconds"})
+    #     "content":f"{PREFIXES['discord']}Balance in {PREFIXES["warning"]}10{PREFIXES["neutral"]} seconds"})
     # time.sleep(5)
     discordtotitanfall[serverid]["messages"].append(
         {
-            "content": f"{PREFIXES['discord']} Balance in {PREFIXES['warning']}5{PREFIXES['neutral']} seconds"
+            "content": f"{PREFIXES['discord']}Balance in {PREFIXES['warning']}5{PREFIXES['neutral']} seconds"
         }
     )
     time.sleep(5)
-    discordtotitanfall[serverid]["messages"].append(
-        {"content": f"{PREFIXES['discord']} Trying to balance now"}
-    )
+    # discordtotitanfall[serverid]["messages"].append(
+    #     {"content": f"{PREFIXES['discord']}Trying to balance now"}
+    # )
     sendrconcommand(
         serverid,
         f"!bettertb {' '.join([f'2 {x["uid"]}' for x in outputtedteams[0]])} {' '.join([f'3 {x["uid"]}' for x in outputtedteams[1]])}",
@@ -10612,7 +10620,7 @@ def changename(message, serverid, isfromserver):
         discordtotitanfall[serverid]["messages"].append(
             {
                 # "id": str(i) + str(int(time.time()*100)),
-                "content": f"{PREFIXES['discord']} You cannot change your name to your actual name. add no arguments to reset it",
+                "content": f"{PREFIXES['discord']}You cannot change your name to your actual name. add no arguments to reset it",
                 # "teamoverride": 4,
                 # "isteammessage": False,
                 "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
@@ -11651,7 +11659,7 @@ def calcstats(message, serverid, isfromserver):
             discordtotitanfall[serverid]["messages"].append(
                 {
                     # "id": str(int(time.time()*100)),
-                    "content": f"{PREFIXES['discord']} player not found :(",
+                    "content": f"{PREFIXES['discord']}player not found :(",
                     # "teamoverride": 4,
                     # "isteammessage": False,
                     "uidoverride": [getpriority(message, "uid", ["meta", "uid"],"name")],
@@ -11867,7 +11875,7 @@ async def checkfilters(messages, message):
                 
                 await notify_channel.send(
                     discord.utils.escape_mentions(f""">>> **Ban word found**
-    Sent by: **{bad_msg["originalname"]}{sanctionalreadyfoundmessage}**
+    Sent by: **{getpriority(bad_msg,["meta","veryoriginalname"],"originalname")}{sanctionalreadyfoundmessage}**
     UID: **{bad_msg["uid"]}**
     Message: "{getpriority(bad_msg, "originalmessage", "messagecontent", "message")}"
     Found pattern: "{bad_msg["isbad"][1]}"
@@ -11922,7 +11930,7 @@ async def checkfilters(messages, message):
                 
                 await notify_channel.send(
                     discord.utils.escape_mentions(f""">>> **Filtered word found**
-    Sent by: **{notify_msg["originalname"]}{sanctionalreadyfoundmessage}**
+    Sent by: **{getpriority(notify_msg,["meta","veryoriginalname"],"originalname")}{sanctionalreadyfoundmessage}**
     UID: **{notify_msg["uid"]}**
     Message: "{getpriority(notify_msg, "originalmessage", "messagecontent", "message")}"
     Found pattern: "{notify_msg["isbad"][1]}"
