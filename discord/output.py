@@ -2012,7 +2012,7 @@ def threadedfinder(ctx, filterword1,filterword2,filterword3):
         SELECT message, type, serverid
         FROM messagelogger
         WHERE message LIKE ? AND message LIKE ? AND message LIKE ? COLLATE NOCASE
-        AND type NOT IN ('command', 'tf1command', 'botcommand', 'blockedcommand')
+        AND type NOT IN ('command', 'tf1command', 'botcommand', 'colourfulcommand')
     """,
         ("%" + filterword1 + "%","%" + filterword2 + "%","%" + filterword3 + "%"),
     )
@@ -6354,7 +6354,7 @@ def colourmessage(message, serverid):
         not message.get("metadata", False)
         or not message["metadata"].get("uid", False)
         or not message["metadata"].get("type", False)
-        in ["usermessagepfp", "chat_message", "impersonate","command"]
+        in ["usermessagepfp", "chat_message", "impersonate","colourfulcommand"]
     ):
         # print("oxoxo",message["metadata"])
         return False
@@ -7631,7 +7631,7 @@ def getmessagewidget(metadata, serverid, messagecontent, message):
         except Exception as e:
             traceback.print_exc()
             print(e)
-    elif metadata["type"] in ["command", "botcommand", "tf1command","blockedcommand"]:
+    elif metadata["type"] in ["command", "botcommand", "tf1command","colourfulcommand"]:
         if DISCORDBOTLOGCOMMANDS != "1":
             return "", player
         output = f"""> {context["servers"].get(serverid, {}).get("name", "Unknown server").ljust(30)} {(getpriority(message,["metadata","veryoriginalname"],["player"]) + ":").ljust(20)} {message["messagecontent"]}"""
@@ -8717,7 +8717,7 @@ def tftodiscordcommand(specificommand, command, serverid):
             command["originalmessage"][1:].split(" ")[0]
         ]["games"]
         and command.get("type", False)
-        in ["usermessagepfp", "chat_message", "command", "tf1command","blockedcommand"]
+        in ["usermessagepfp", "chat_message", "command", "tf1command","colourfulcommand"]
         and (
             not context["commands"]["ingamecommands"][
                 command["originalmessage"][1:].split(" ")[0]

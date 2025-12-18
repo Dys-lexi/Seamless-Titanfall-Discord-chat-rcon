@@ -534,7 +534,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	meta["uid"] <- message.player.GetUID()
 	if (newmessage.message[0] == 47 || newmessage.message[0] == 33){
 		
-		meta["type"] <- "command"
+		meta["type"] <- "colourfulcommand"
 		
 
 		newmessage.overridechannel = "commandlogchannel"
@@ -561,10 +561,10 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 			// Chat_ServerBroadcast("BLOCKING")
 			message.shouldBlock = true
 			meta["blockedcommand"] <- true
-			meta["type"] <- "blockedcommand"
+			meta["type"] <- "command"
 		}
 		else if (originallyblocked){
-			meta["type"] <- "blockedcommand"
+			meta["type"] <- "command"
 		}
 	else if (serverdetails.uselocaltags && discordlogpullplayerstat(message.player.GetUID(),"nameprefix") != "" && !((discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "mute"||discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "meanmute" )&& serverdetails.enforcesanctions)){
 		meta["donotcolour"] <- true
