@@ -557,7 +557,16 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 		message.shouldBlock = true;
 		// discordlogsendmessage("HEREEEE")
 	}
-	if (serverdetails.uselocaltags && discordlogpullplayerstat(message.player.GetUID(),"nameprefix") != "" && !((discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "mute"||discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "meanmute" )&& serverdetails.enforcesanctions)){
+			if (message.message.len() > 1 && (format("%c", message.message.tolower()[0]) == "!" && (split(message.message.tolower().slice(1)," ")[0] in tf2todiscordcommands && (tf2todiscordcommands[split(message.message.tolower().slice(1)," ")[0]] || (split(message.message.tolower().slice(1)," ").len() > 1 && split(message.message.tolower().slice(1)," ")[1] in tf2todiscordcommands && tf2todiscordcommands[split(message.message.tolower().slice(1)," ")[1]]))))){
+			// Chat_ServerBroadcast("BLOCKING")
+			message.shouldBlock = true
+			meta["blockedcommand"] <- true
+			meta["type"] <- "blockedcommand"
+		}
+		else if (originallyblocked){
+			meta["type"] <- "blockedcommand"
+		}
+	else if (serverdetails.uselocaltags && discordlogpullplayerstat(message.player.GetUID(),"nameprefix") != "" && !((discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "mute"||discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "meanmute" )&& serverdetails.enforcesanctions)){
 		meta["donotcolour"] <- true
 		message.shouldBlock = true;
 		// discordlogsendmessage("HEREEEE2")
@@ -575,15 +584,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	
 	// }
 	// Chat_ServerBroadcast("BLOCKING"+split(message.message.tolower().slice(1)," ")[0] + " " + (split(message.message.tolower().slice(1)," ")[0] in tf2todiscordcommands ) )
-		if (message.message.len() > 1 && (format("%c", message.message.tolower()[0]) == "!" && (split(message.message.tolower().slice(1)," ")[0] in tf2todiscordcommands && (tf2todiscordcommands[split(message.message.tolower().slice(1)," ")[0]] || (split(message.message.tolower().slice(1)," ").len() > 1 && split(message.message.tolower().slice(1)," ")[1] in tf2todiscordcommands && tf2todiscordcommands[split(message.message.tolower().slice(1)," ")[1]]))))){
-			// Chat_ServerBroadcast("BLOCKING")
-			message.shouldBlock = true
-			meta["blockedcommand"] <- true
-			meta["type"] <- "blockedcommand"
-		}
-		else if (originallyblocked){
-			meta["type"] <- "blockedcommand"
-		}
+
 	newmessage.metadata = EncodeJSON(meta)
 	thread Postmessages(newmessage)
 
