@@ -12,7 +12,7 @@
         "BP_ORT"
     ],
     
-    "LoadPriority": 1,
+    "LoadPriority": 10, // should be higher than other mods that block messages
     "RequiredOnClient": false,
     "ConVars": [
         {

@@ -468,6 +468,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
     // string playername = discordloggetplayername(message.player)
 	// string messagecontent = message.message
 	// print(serverdetails.Servername)
+	bool originallyblocked = message.shouldBlock
 	string teamnewmessage = discordloggetplayername(message.player)
 	string teammessage = "not team"
     if( message.isTeam && serverdetails.showchatprefix )
@@ -535,11 +536,12 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 		
 		meta["type"] <- "command"
 		
-		
+
 		newmessage.overridechannel = "commandlogchannel"
 		newmessage.typeofmsg = 3
+
 	}
-	else{
+	// else{
 	
 	
 
@@ -571,13 +573,17 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 
 	}
 	
-	}
+	// }
 	// Chat_ServerBroadcast("BLOCKING"+split(message.message.tolower().slice(1)," ")[0] + " " + (split(message.message.tolower().slice(1)," ")[0] in tf2todiscordcommands ) )
-	if (message.message.len() > 1 && (format("%c", message.message.tolower()[0]) == "!" && (split(message.message.tolower().slice(1)," ")[0] in tf2todiscordcommands && (tf2todiscordcommands[split(message.message.tolower().slice(1)," ")[0]] || (split(message.message.tolower().slice(1)," ").len() > 1 && split(message.message.tolower().slice(1)," ")[1] in tf2todiscordcommands && tf2todiscordcommands[split(message.message.tolower().slice(1)," ")[1]]))))){
-		// Chat_ServerBroadcast("BLOCKING")
-		message.shouldBlock = true
-		meta["blockedcommand"] <- true
-	}
+		if (message.message.len() > 1 && (format("%c", message.message.tolower()[0]) == "!" && (split(message.message.tolower().slice(1)," ")[0] in tf2todiscordcommands && (tf2todiscordcommands[split(message.message.tolower().slice(1)," ")[0]] || (split(message.message.tolower().slice(1)," ").len() > 1 && split(message.message.tolower().slice(1)," ")[1] in tf2todiscordcommands && tf2todiscordcommands[split(message.message.tolower().slice(1)," ")[1]]))))){
+			// Chat_ServerBroadcast("BLOCKING")
+			message.shouldBlock = true
+			meta["blockedcommand"] <- true
+			meta["type"] <- "blockedcommand"
+		}
+		else if (originallyblocked){
+			meta["type"] <- "blockedcommand"
+		}
 	newmessage.metadata = EncodeJSON(meta)
 	thread Postmessages(newmessage)
 

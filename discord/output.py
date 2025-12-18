@@ -2012,7 +2012,7 @@ def threadedfinder(ctx, filterword1,filterword2,filterword3):
         SELECT message, type, serverid
         FROM messagelogger
         WHERE message LIKE ? AND message LIKE ? AND message LIKE ? COLLATE NOCASE
-        AND type NOT IN ('command', 'tf1command', 'botcommand')
+        AND type NOT IN ('command', 'tf1command', 'botcommand', 'blockedcommand')
     """,
         ("%" + filterword1 + "%","%" + filterword2 + "%","%" + filterword3 + "%"),
     )
@@ -5816,7 +5816,7 @@ async def linktfaccount(ctx):
         "name": ctx.author.display_name,
     }
     await ctx.respond(
-        f"Trying to link {ctx.author.nick if hasattr(ctx.author, 'nick') and ctx.author.nick is not None else ctx.author.display_name} '{linkcode}' in any server chat to link in next 5 mins",
+        f"Trying to link {ctx.author.nick if hasattr(ctx.author, 'nick') and ctx.author.nick is not None else ctx.author.display_name} type '{linkcode}' in any titanfall 2 chat to link in next 5 mins",
         ephemeral=True,
     )
 
@@ -6354,7 +6354,7 @@ def colourmessage(message, serverid):
         not message.get("metadata", False)
         or not message["metadata"].get("uid", False)
         or not message["metadata"].get("type", False)
-        in ["usermessagepfp", "chat_message", "impersonate"]
+        in ["usermessagepfp", "chat_message", "impersonate","command"]
     ):
         # print("oxoxo",message["metadata"])
         return False
@@ -7624,14 +7624,14 @@ def getmessagewidget(metadata, serverid, messagecontent, message):
             if str(getpriority(message,["metadata","veryoriginalname"],["player"])).lower() in context["wordfilter"]["namestokick"]:
                     asyncio.run_coroutine_threadsafe(
                         channel.send(
-                            (f"Name rule enforced for {player} (change your name)")
+                            (f"```Name rule enforced for {player} (change your name)```")
                         ),
                         bot.loop,
                     )
         except Exception as e:
             traceback.print_exc()
             print(e)
-    elif metadata["type"] in ["command", "botcommand", "tf1command"]:
+    elif metadata["type"] in ["command", "botcommand", "tf1command","blockedcommand"]:
         if DISCORDBOTLOGCOMMANDS != "1":
             return "", player
         output = f"""> {context["servers"].get(serverid, {}).get("name", "Unknown server").ljust(30)} {(getpriority(message,["metadata","veryoriginalname"],["player"]) + ":").ljust(20)} {message["messagecontent"]}"""
@@ -8717,7 +8717,7 @@ def tftodiscordcommand(specificommand, command, serverid):
             command["originalmessage"][1:].split(" ")[0]
         ]["games"]
         and command.get("type", False)
-        in ["usermessagepfp", "chat_message", "command", "tf1command"]
+        in ["usermessagepfp", "chat_message", "command", "tf1command","blockedcommand"]
         and (
             not context["commands"]["ingamecommands"][
                 command["originalmessage"][1:].split(" ")[0]
