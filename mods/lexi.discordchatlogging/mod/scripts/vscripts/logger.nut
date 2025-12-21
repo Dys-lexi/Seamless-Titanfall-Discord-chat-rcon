@@ -562,6 +562,7 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 			message.shouldBlock = true
 			meta["blockedcommand"] <- true
 			meta["type"] <- "command"
+
 		}
 		else if (originallyblocked){
 			meta["type"] <- "command"

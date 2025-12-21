@@ -7425,7 +7425,7 @@ def recieveflaskprintrequests():
                 onplayerjoin(data["metadata"]["uid"], data["serverid"], data["player"])
             elif data["metadata"]["type"] == "disconnect":
                 onplayerleave(data["metadata"]["uid"], data["serverid"])
-            if USEOVERRIDDENNAMESINDISCORD and getpriority(data,["metadata","uid"]) and data["player"]:
+            if False and USEOVERRIDDENNAMESINDISCORD and getpriority(data,["metadata","uid"]) and data["player"]:
                     data["metadata"]["veryoriginalname"] = data["player"]
                     # print(json.dumps(data,indent=4))
                     newmessage["player"] = getpriority(readplayeruidpreferences(data["metadata"]["uid"], False),["tf2","nameoverride"]) or data["player"] 
@@ -7549,8 +7549,10 @@ def getmessagewidget(metadata, serverid, messagecontent, message):
     """Processes and formats game messages for Discord display with player status and team info"""
     global context
     output = messagecontent
-    player = str(message.get("player", "Unknown player"))
 
+    player = str(message.get("player", "Unknown player"))
+    if USEOVERRIDDENNAMESINDISCORD and getpriority(message,["metadata","uid"]):
+        player = getpriority(readplayeruidpreferences(message["metadata"]["uid"], False),["tf2","nameoverride"]) or player 
     if getpriority(
         colourslink,
         [

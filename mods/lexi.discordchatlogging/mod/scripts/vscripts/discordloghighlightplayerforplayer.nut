@@ -50,8 +50,8 @@ void function discordloghighlightplayerforplayerinit(){
     AddCallback_OnPlayerRespawned( readdhighlightjustincase )
     AddCallback_OnPilotBecomesTitan(readdhighlightjustincasetitan)
     AddCallback_OnTitanBecomesPilot( readdhighlightjustincasetitan )
-    // addnewuidpairtotablething("1012640166434" , "1012744612530","tempwallhacks")
-    // addnewuidpairtotablething("1012744612530" , "1012640166434","tempwallhacks")
+    // addnewuidpairtotablething("1012640166434" , "0","tempwallhacks")
+    // addnewuidpairtotablething("0" , "1012640166434","tempwallhacks")
 
     // addnewuidpairtotablething("1012640166434","2509670718","actualwallhacks")
     // addnewuidpairtotablething("2509670718","1012640166434","actualwallhacks")
