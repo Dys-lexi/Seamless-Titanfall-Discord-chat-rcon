@@ -13635,7 +13635,7 @@ def playerpolllog(data, serverid, statuscode):
                     f"!reloadpersistentvars {player["uid"]}",
                     sender=None,
                 )
-                players[index]["name"] =  resolveplayeruidfromdb(player["uid"],"uid",True) #pretend that this is their actual name
+                players[index]["name"] =  resolveplayeruidfromdb(player["uid"],"uid",True)["name"] #pretend that this is their actual name
     else:
         players = [
             {
