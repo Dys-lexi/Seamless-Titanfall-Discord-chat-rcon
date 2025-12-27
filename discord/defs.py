@@ -207,6 +207,7 @@ NPC_NAMES = {
 
 
 WEAPON_NAMES = {
+    "mp_weapon_3030":"30-30 Repeater",
     "mind_crime": "Mind crime",
     "fall":"the architects",
     "mp_titanweapon_shotgun": "WYS-0404 Shotgun",
@@ -784,6 +785,13 @@ GUNS_PILOT = [
     {
         "weapon_name": "mp_weapon_alternator_smg",
         "png_name": "mp_weapon_alternator_smg",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_weapon_3030",
+        "png_name": "mp_weapon_3030",
         "mods": [],
         "modsfiltertype": "include",
         "killedby" : ["player"]
