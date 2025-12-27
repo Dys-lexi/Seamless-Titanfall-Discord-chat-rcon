@@ -8359,7 +8359,7 @@ def messageloop():
                         # print("b")
                         output[message["overridechannel"]] = []
                     if ("\033[") in messagewidget:
-                        print("colour codes found in message")
+                        # print("colour codes found in message")
                         while "\033[" in messagewidget:
                             startpos = messagewidget.index("\033[")
                             if "m" not in messagewidget[startpos:]:
@@ -13621,19 +13621,21 @@ def playerpolllog(data, serverid, statuscode):
             }
             for x in list(filter(lambda x: x[0] != "meta", list(data.items())))
         ]
-        newplayers = []
+
         for index,player in enumerate(players):
-            if not resolveplayeruidfromdb(player["uid"],"uid",True) or player["name"] != getpriority(readplayeruidpreferences(player["uid"], False),["tf2","nameoverride"]) or getpriority(readplayeruidpreferences(player["uid"], False),["tf2","nameoverride"]) == resolveplayeruidfromdb(player["uid"],"uid",True)[0]["name"]:
+            if not (not resolveplayeruidfromdb(player["uid"],"uid",True) or player["name"] != getpriority(readplayeruidpreferences(player["uid"], False),["tf2","nameoverride"]) or getpriority(readplayeruidpreferences(player["uid"], False),["tf2","nameoverride"]) == resolveplayeruidfromdb(player["uid"],"uid",True)[0]["name"]):
                 # this player is bad. I trust /playerdetails to fix it soon, so I am just going to pretend I did not see em
                 # nvm I don't
-                newplayers.append(player)
-            else:
+                # do nothing
+            #     OH HERE OOPS 
+            # else:
                 print("reloading",player["name"],"due to badness on playerpoll")
                 sendrconcommand(
                     serverid,
                     f"!reloadpersistentvars {player["uid"]}",
                     sender=None,
                 )
+                players[index]["name"] =  resolveplayeruidfromdb(player["uid"],"uid",True) #pretend that this is their actual name
     else:
         players = [
             {

@@ -2,7 +2,9 @@
     "ingamecommands": {
         "namecolour": {
             "aliases": [
-                "namecolor"
+                "namecolor",
+                "colour",
+                "color"
             ],
             "games": [
                 "tf2"
@@ -106,6 +108,9 @@
             "shouldblock": true
         },
         "nametag": {
+            "aliases": [
+                "tag"
+            ],
             "games": [
                 "tf2"
             ],
