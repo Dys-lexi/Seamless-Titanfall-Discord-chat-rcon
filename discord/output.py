@@ -10622,7 +10622,7 @@ def changename(message, serverid, isfromserver):
             bot.loop,
         )
         return
-    elif resolveplayeruidfromdb(getpriority(message,"uid",["meta","uid"]), None, True, istf1)[0]["name"].lower() ==  message["originalmessage"].split(" ")[1:][0].lower():
+    elif resolveplayeruidfromdb(getpriority(message,"uid",["meta","uid"]), None, True, istf1)[0]["name"].lower() ==  filterprefix(message["originalmessage"].split(" ",1)[1:][0]).lower():
         discordtotitanfall[serverid]["messages"].append(
             {
                 # "id": str(i) + str(int(time.time()*100)),
@@ -10640,7 +10640,7 @@ def changename(message, serverid, isfromserver):
             *sendrconcommand(
                 serverid,
                 (
-                    f"!forcesomonesname {getpriority(message,"uid",["meta","uid"])} {message["originalmessage"].split(" ",1)[1:][0]}"
+                    f"!forcesomonesname {getpriority(message,"uid",["meta","uid"])} {filterprefix(message["originalmessage"].split(" ",1)[1:][0])}"
                 ),
                 sender=getpriority(message, "originalname", "name"),
             ),
@@ -10648,7 +10648,7 @@ def changename(message, serverid, isfromserver):
             checknameisactuallychanged,
             True,
             True,
-            {**message,"newname":message["originalmessage"].split(" ",1)[1:][0]},
+            {**message,"newname":filterprefix(message["originalmessage"].split(" ",1)[1:][0])},
         ),
         bot.loop,
     )
@@ -13138,7 +13138,6 @@ def checkandaddtouidnamelink(uid, playername, serverid, istf1=False,playerinfo={
     """Updates player UID-name mapping in database with timestamp tracking"""
     global playercontext
     
-    # Filter the playername to remove single-digit prefixes
     playername = filterprefix(playername)
     
     if resolveplayeruidfromdb(uid,"uid",True) and playername == getpriority(readplayeruidpreferences(uid, False),["tf2","nameoverride"]) and getpriority(readplayeruidpreferences(uid, False),["tf2","nameoverride"]) == resolveplayeruidfromdb(uid,"uid",True)[0]["name"]:
