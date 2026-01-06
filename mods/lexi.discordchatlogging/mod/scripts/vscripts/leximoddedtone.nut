@@ -511,10 +511,18 @@ string function GetTitan(entity player, bool getboss = false) {
         return "expedition"
     }   
     }
-
+    if (getboss){
+    if (discordlogpullplayerstat(player.GetBossPlayer().GetUID(),"tgrap") == "True" && (player.GetModelName() == $"models/titans/light/titan_light_locust.mdl" || player.GetModelName() == $"models/titans/light/titan_light_ronin_prime.mdl")){
+        return "tgrap"
+    }}
+    else{
+    if (discordlogpullplayerstat(player.GetUID(),"tgrap") == "True" && (player.GetModelName() == $"models/titans/light/titan_light_locust.mdl" || player.GetModelName() == $"models/titans/light/titan_light_ronin_prime.mdl")){
+        return "tgrap"
+    }   
+    }
     return GetTitanCharacterName(player)
 }
-
+//  ( (discordlogpullplayerstat(player.GetUID(),"tgrap") == "True") &&(titan.GetModelName() == $"models/titans/light/titan_light_locust.mdl" || titan.GetModelName() == $"models/titans/light/titan_light_ronin_prime.mdl"))
 // string function Anonymize(entity player) {
 //     return "null" // unused
 // }

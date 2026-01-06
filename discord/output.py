@@ -31,7 +31,7 @@ import psycopg2
 from psycopg2 import pool
 from sanshelper import sans
 
-
+# emi was here
 
 def safe_eval(calculation, data):
     """Safely evaluate calculation with division by zero protection"""
@@ -2339,6 +2339,7 @@ def embedjson(name, output, ctx=False):
 
 
 def pullsanction(uid):
+    now = int(time.time())
     existing_sanction = getpriority(
         readplayeruidpreferences(uid, False), ["banstf2", "sanction"], nofind={}
     )
@@ -2352,11 +2353,13 @@ def pullsanction(uid):
         )
     ):
         try:
-            expiry_text = (
+            expiry_text = modifyvalue(existing_sanction["expiry"] - now,"time") if  existing_sanction.get("expiry") and existing_sanction["expiry"] - now < 86400*2.5 else (
                 modifyvalue(existing_sanction["expiry"], "date")
                 if existing_sanction["expiry"]
                 else "Never"
             )
+
+            
         except (OSError, ValueError, OverflowError):
             expiry_text = f"Invalid date ({existing_sanction['expiry']})"
         name = resolveplayeruidfromdb(uid, None, True)
@@ -2414,6 +2417,7 @@ async def quickaddsanction(target,action,interaction,link):
 async def process_sanctiontf2(
     serverid, sender, name, sanctiontype, reason, expiry=None, iscommand=False
 ):
+    now = int(time.time())
     name = str(name)
     if len(name.rsplit("->", 1)) > 1:
         name = name.rsplit("->", 1)[1][1:-1]
@@ -2450,7 +2454,8 @@ async def process_sanctiontf2(
     else:
         expiry = None
 
-    expiry_log_text = modifyvalue(expiry, "date") if expiry else None
+    # expiry_log_text = modifyvalue(expiry, "date") if expiry else None
+    expiry_text = "forever" if expiry is None else (modifyvalue(expiry, "date") if expiry - now > 86400*2.5 else modifyvalue(expiry - now,"time"))
 
     global_channel = bot.get_channel(context["overridechannels"]["globalchannel"])
     if global_channel:
@@ -2460,15 +2465,15 @@ async def process_sanctiontf2(
                     existing_messageid
                 )
                 message = await existing_message.reply(
-                    f"New {sanctiontype} uploaded by {sender} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry_log_text if expiry_log_text else ''} {'Reason: ' + reason if reason else ''} Source: {iscommand if iscommand else 'in game'}"
+                    f"New {sanctiontype} uploaded by {sender} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry_text if expiry_text else ''} {'Reason: ' + reason if reason else ''} Source: {iscommand if iscommand else 'in game'}"
                 )
             except:
                 message = await global_channel.send(
-                    f"New {sanctiontype} uploaded by {sender} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry_log_text if expiry_log_text else ''} {'Reason: ' + reason if reason else ''} Source: {iscommand if iscommand else 'in game'}"
+                    f"New {sanctiontype} uploaded by {sender} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry_text if expiry_text else ''} {'Reason: ' + reason if reason else ''} Source: {iscommand if iscommand else 'in game'}"
                 )
         else:
             message = await global_channel.send(
-                f"New {sanctiontype} uploaded by {sender} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry_log_text if expiry_log_text else ''} {'Reason: ' + reason if reason else ''} Source: {iscommand if iscommand else 'in game'}"
+                f"New {sanctiontype} uploaded by {sender} for player {player['name']} UID: {player['uid']} {'Expiry: ' + expiry_text if expiry_text else ''} {'Reason: ' + reason if reason else ''} Source: {iscommand if iscommand else 'in game'}"
             )
         message_id = message.id
     else:
@@ -2495,7 +2500,6 @@ async def process_sanctiontf2(
         },
         player["uid"],
     )
-    expiry_text = "forever" if expiry is None else modifyvalue(expiry, "date")
     if serverid:
         sendrconcommand(
             serverid,
@@ -2511,7 +2515,7 @@ async def process_sanctiontf2(
             **{
                 "reason": reason,
                 "expiry": expiry,
-                "humanexpiry":expiry_text,
+                "humanexpire":expiry_text,
                 "sanctiontype": sanctiontype,
                 "messageid": message_id,
                 "issuer": sender,
@@ -6688,7 +6692,7 @@ def recieveflaskprintrequests():
             print("invalid password used on playerdetails")
             return {"message": "sorry, wrong pass"}
         discorduid = discorduidnamelink.get(data["uid"], False)
-        playername = data.get("name", "")
+        playername = filterprefix(data.get("name", ""))
         if not discorduid:
             tfdb = postgresem("./data/tf2helper.db")
             c = tfdb
@@ -13125,10 +13129,18 @@ playerjoinlist = {}
 peopleonline = {}
 
 
+def filterprefix(playername):
+    return re.sub(r'^\(\d\)', '', playername)
+
+
 def checkandaddtouidnamelink(uid, playername, serverid, istf1=False,playerinfo={}):
     
     """Updates player UID-name mapping in database with timestamp tracking"""
     global playercontext
+    
+    # Filter the playername to remove single-digit prefixes
+    playername = filterprefix(playername)
+    
     if resolveplayeruidfromdb(uid,"uid",True) and playername == getpriority(readplayeruidpreferences(uid, False),["tf2","nameoverride"]) and getpriority(readplayeruidpreferences(uid, False),["tf2","nameoverride"]) == resolveplayeruidfromdb(uid,"uid",True)[0]["name"]:
         return
     # print("PLAYERINFO",json.dumps(playerinfo))
@@ -13613,7 +13625,7 @@ def playerpolllog(data, serverid, statuscode):
                 "team": x[1][1],
                 "kills": x[1][2],
                 "deaths": x[1][3],
-                "name": x[1][4],
+                "name": filterprefix(x[1][4]),
                 "titankills": x[1][5],
                 "npckills": x[1][6],
                 "timecounter": x[1][7],

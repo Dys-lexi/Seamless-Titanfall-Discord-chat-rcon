@@ -3,8 +3,7 @@
         "namecolour": {
             "aliases": [
                 "namecolor",
-                "colour",
-                "color"
+                "colour"
             ],
             "games": [
                 "tf2"
