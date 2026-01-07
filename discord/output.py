@@ -1860,7 +1860,7 @@ async def on_ready():
         updateroles.start()
         
         # 
-        load_extensions(bot)
+        await load_extensions(bot)
         await hideandshowchannels(None,True)
         await asyncio.sleep(30)
         updatechannels.start()
@@ -14121,6 +14121,10 @@ def playerpoll():
 
 
 def load_cogs():
+    if not os.path.exists("./cogs"):
+        print("Cogs directory not found, skipping cog loading")
+        return
+    
     for filename in os.listdir("./cogs"):
         if filename.endswith(".py") and filename != "__init__.py":
             try:
