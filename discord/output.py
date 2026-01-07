@@ -1853,13 +1853,14 @@ async def on_ready():
         category = guild.get_channel(context["categoryinfo"]["logging_cat_id"])
         serverchannels = category.channels
     if not botisalreadyready:
+        load_cogs()
         botisalreadyready = True
         if DISCORDBOTLOGSTATS == "1":
             updateleaderboards.start()
         updateroles.start()
         
         # 
-        load_extensions()
+        load_extensions(bot)
         await hideandshowchannels(None,True)
         await asyncio.sleep(30)
         updatechannels.start()
@@ -13966,26 +13967,20 @@ def setlotsofdefault(dicto, value, *nests):
     return setlotsofdefault(dicto.setdefault(nests[0], {}), value, *nests[1:])
 
 
-def load_extensions():
-    """Load optional extension modules"""
+
+async def load_extensions(bot):
     extensions_dir = "extensions"
     if not os.path.exists(extensions_dir):
         return
 
     for filename in os.listdir(extensions_dir):
-        if filename.endswith('.py') and not filename.startswith('_'):
+        if filename.endswith(".py") and not filename.startswith("_"):
             module_name = filename[:-3]
-            try:
-                spec = importlib.util.spec_from_file_location(
-                    f"extensions.{module_name}",
-                    f"{extensions_dir}/{filename}"
-                )
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
+            extension_path = f"{extensions_dir}.{module_name}"
 
-                if hasattr(module, 'setup'):
-                    module.setup(bot, postgresem, globals())
-                    print(f"Loaded extension: {module_name}")
+            try:
+                await bot.load_extension(extension_path)
+                print(f"Loaded extension: {module_name}")
             except Exception as e:
                 print(f"Failed to load extension {module_name}: {e}")
                 traceback.print_exc()
@@ -14124,6 +14119,15 @@ def playerpoll():
     # this one just asks the server every so often, using a command.
     # then it calls commandresponseoverrideand does stuff!
 
+
+def load_cogs():
+    for filename in os.listdir("./cogs"):
+        if filename.endswith(".py") and filename != "__init__.py":
+            try:
+                bot.load_extension(f"cogs.{filename[:-3]}")
+                print(f"Loaded cog: {filename}")
+            except Exception as e:
+                print(f"Failed to load cog {filename}: {e}")
 
 # IMAGE SLOP PLEASE DON'T LOOK AT IT I HATE IT
 

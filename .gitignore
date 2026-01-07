@@ -11,6 +11,8 @@ discord/discordtitanfall/*
 discord/discordtitanfall/**
 discord/data/*
 discord/extensions/*
+discord/cogs/*
+discord/cogsw/*
 discord/extensionsw/*
 !discord/data/commands.json
 discord/venv
