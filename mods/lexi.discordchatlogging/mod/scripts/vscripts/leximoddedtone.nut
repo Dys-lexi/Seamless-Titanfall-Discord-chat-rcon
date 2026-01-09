@@ -33,6 +33,10 @@ string function sanitizePlayerName(string name) {
 }
 
 void function Lexi_killstat_Init() {
+	if (GetConVarInt("discordloggingserverid") == 0){
+		print("[DiscordLogger]Server ID not set, please set it in the console PLEASE FIX THIS")
+		return
+	} 
     // KcommandArr.append(new_KCommandStruct(["stats"], false,  realstats, 0, "Usage: !stats (player name or UID) => show your (or someone else's) stats on the server"))
     // KcommandArr.append(new_KCommandStruct(["bettertb"], false,  threadtbreal, 1, "actually good tb!!! woa!!! no way!!!"))
     file.host = GetConVarString("discordlogginghttpServer")
