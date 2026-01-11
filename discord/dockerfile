@@ -13,11 +13,11 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy bot code
-COPY . .
+COPY ./discord .
 
 # Install dependencies
 RUN python -m venv /venv && \
-    /venv/bin/pip install --no-cache-dir -r requirements.txt
+    /venv/bin/pip install --no-cache-dir -r ./requirements.txt
 
 # Set environment variable for virtual environment
 ENV PATH="/venv/bin:$PATH"
