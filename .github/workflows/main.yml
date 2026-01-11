@@ -47,4 +47,4 @@ jobs:
           context: .                                                                                                                                                                                                      
           file: ./dockerfile                                                                                                                                                                                              
           push: true                                                                                                                                                                                                      
-          tags: ${{ vars.DOCKER_USERNAME }}/${{ github.event.repository.name }}:latest    
+          tags: ${{ vars.DOCKER_USERNAME }}/${{ DOCKERHUB_PROJECT_NAME }}:latest    
