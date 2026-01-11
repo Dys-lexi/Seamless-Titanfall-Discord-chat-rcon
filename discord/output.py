@@ -1451,6 +1451,14 @@ if os.path.exists("./data/" + command_file):
     with open("./data/" + command_file, "r") as f:
         context["commands"] = json.load(f)
         print("Command file found, using commands.")
+elif os.path.exists("./" + command_file):
+    with open("./" + command_file, "r") as f:
+        context["commands"] = json.load(f)
+        print("Command file found, using commands.")
+    with open("./data/" + command_file, "w") as f:
+        json.dump(context["commands"], f, indent=4)
+        print("Copied commands to ./data/" + command_file)
+    
         # for commands in context["commands"].values():
         # for command in commands.keys():
         #     # print(f"{command} ", end="")
