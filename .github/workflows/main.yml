@@ -44,7 +44,7 @@ jobs:
       - name: Build and push                                                                                                                                                                                              
         uses: docker/build-push-action@v6                                                                                                                                                                                 
         with:                                                                                                                                                                                                             
-          context: .                                                                                                                                                                                                      
-          file: ./discord/dockerfile                                                                                                                                                                                              
+          context: ./discord                                                                                                                                                                                                   
+          file: ./dockerfile                                                                                                                                                                                              
           push: true                                                                                                                                                                                                      
           tags: ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKERHUB_PROJECT_NAME }}:latest    
