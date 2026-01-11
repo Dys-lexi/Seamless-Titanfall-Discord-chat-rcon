@@ -13,8 +13,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy bot code
-COPY ./discord .
-COPY ./discord/data/commands.json .
+COPY . .
+COPY ./data/commands.json .
 
 # Install dependencies
 RUN python -m venv /venv && \
