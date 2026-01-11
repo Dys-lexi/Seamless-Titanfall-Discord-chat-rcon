@@ -18,8 +18,8 @@ you'll have to create a discord bot at discord developers to use this, and put t
 
 ```
 discordlog:
-    << : *logging
-    build: ./discord
+    pull_policy: always  
+    image: dyslexi/seamless-titanfall-discord-chat-rcon:latest
     container_name: discordlog
     environment:
       - DISCORD_BOT_TOKEN=PUT YOUR DISCORD TOKEN HERE
