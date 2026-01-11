@@ -1860,7 +1860,7 @@ async def on_ready():
         updateroles.start()
         
         # 
-        await load_extensions(bot)
+        # await load_extensions(bot)
         await hideandshowchannels(None,True)
         await asyncio.sleep(30)
         updatechannels.start()
@@ -13968,22 +13968,22 @@ def setlotsofdefault(dicto, value, *nests):
 
 
 
-async def load_extensions(bot):
-    extensions_dir = "extensions"
-    if not os.path.exists(extensions_dir):
-        return
+# async def load_extensions(bot):
+#     extensions_dir = "extensions"
+#     if not os.path.exists(extensions_dir):
+#         return
 
-    for filename in os.listdir(extensions_dir):
-        if filename.endswith(".py") and not filename.startswith("_"):
-            module_name = filename[:-3]
-            extension_path = f"{extensions_dir}.{module_name}"
+#     for filename in os.listdir(extensions_dir):
+#         if filename.endswith(".py") and not filename.startswith("_"):
+#             module_name = filename[:-3]
+#             extension_path = f"{extensions_dir}.{module_name}"
 
-            try:
-                await bot.load_extension(extension_path)
-                print(f"Loaded extension: {module_name}")
-            except Exception as e:
-                print(f"Failed to load extension {module_name}: {e}")
-                traceback.print_exc()
+#             try:
+#                 await bot.load_extension(extension_path)
+#                 print(f"Loaded extension: {module_name}")
+#             except Exception as e:
+#                 print(f"Failed to load extension {module_name}: {e}")
+#                 traceback.print_exc()
 
 
 @tasks.loop(seconds=360)

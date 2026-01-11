@@ -687,6 +687,13 @@ GUNS_TITAN = [
         "killedby" : ["player"]
     },
     {
+        "weapon_name": "mp_titanweapon_xo16_shorty",
+        "png_name": "mp_titanweapon_xo16_shorty",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
         "weapon_name": "mp_titanweapon_40mm",
         "png_name": "mp_titanweapon_40mm",
         "mods": [],
