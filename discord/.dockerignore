@@ -1,9 +1,9 @@
-db/                                                                                                                                                                                                                       
-venv/                                                                                                                                                                                                                     
-__pycache__/                                                                                                                                                                                                              
-*.pyc                                                                                                                                                                                                                     
-.git/                                                                                                                                                                                                                     
-.gitignore                                                                                                                                                                                                                
-.claude/                                                                                                                                                                                                                  
-*.md     
+db/
+venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.claude/
+*.md
 data/
