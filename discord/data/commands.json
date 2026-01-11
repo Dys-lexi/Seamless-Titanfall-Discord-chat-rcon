@@ -157,7 +157,7 @@
             "games": [
                 "tf2"
             ],
-            "function":"sendsoundfromingame",
+            "function": "sendsoundfromingame",
             "run": "thread",
             "description": "Play a sound to a player",
             "shouldblock": true,
@@ -170,7 +170,7 @@
             "games": [
                 "tf2"
             ],
-            "function":"wallhackingame",
+            "function": "wallhackingame",
             "run": "thread",
             "description": "Specify a player to give yourself wallhacks on",
             "shouldblock": true,
@@ -248,7 +248,8 @@
         },
         "bettertb": {
             "aliases": [
-                "tbbbbbbb","tb"
+                "tbbbbbbb",
+                "tb"
             ],
             "games": [
                 "tf2"
