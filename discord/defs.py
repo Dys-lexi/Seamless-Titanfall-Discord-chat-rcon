@@ -54,7 +54,7 @@ MODEL_DICT = {
     "true models/robots/spectre/imc_spectre.mdl":"titanfall1/pilots/tf1spectre.png",
     "false models/Robots/spectre/spectre_corporate_pilot.mdl":"titanfall1/pilots/tf1spectre.png",
     "true models/Robots/spectre/spectre_corporate_pilot.mdl":"titanfall1/pilots/tf1spectre.png",
-    "expedition":"kevstitans/Expeditionkev.png"
+    "expedition":"kevstitans/Expeditionkev.png",
     "tgrap":"titans/grappler_icon.png"
 }
 
