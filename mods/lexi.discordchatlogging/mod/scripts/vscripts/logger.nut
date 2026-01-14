@@ -450,6 +450,7 @@ void function playerstabbedmodelsaver( entity player, entity attacker, var damag
 	else if (discordlogpullplayerstat(player.GetUID(),"tgrap") == "True" && (player.GetModelName() == $"models/titans/light/titan_light_locust.mdl" || player.GetModelName() == $"models/titans/light/titan_light_ronin_prime.mdl")){
 		discordloglastmodels.playermodels[player.GetUID()] <- "tgrap"
 	}
+
 	float respawntime = Time()
 	int methodOfDeath = DamageInfo_GetDamageSourceIdentifier( damageInfo )
 	float replayLength = CalculateLengthOfKillReplay( player, methodOfDeath )
@@ -503,6 +504,9 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 		else if ( discordlogpullplayerstat(message.player.GetUID(),"toggleexpi") == "True" && message.player.GetModelName() == $"models/titans/medium/titan_medium_vanguard.mdl" )
 		{
 			meta["pfp"] <-  "expedition"
+		}
+		else if (discordlogpullplayerstat(message.player.GetUID(),"tgrap") == "True" && (message.player.GetModelName() == $"models/titans/light/titan_light_locust.mdl" || message.player.GetModelName() == $"models/titans/light/titan_light_ronin_prime.mdl")){
+			meta["pfp"] <- "tgrap"
 		}
 		else{
 			meta["pfp"] <- message.player.GetModelName() + ""}

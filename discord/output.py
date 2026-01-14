@@ -984,7 +984,7 @@ SERVERNAMEISCHOICE = os.getenv("DISCORD_BOT_SERVERNAME_IS_CHOICE", "0")
 SANCTIONAPIBANKEY = os.getenv("SANCTION_API_BAN_KEY", "0")
 TF1RCONKEY = os.getenv("TF1_RCON_PASSWORD", "pass")
 USEDYNAMICPFPS = os.getenv("USE_DYNAMIC_PFPS", "1")
-# USEDYNAMICPFPS = "1"
+USEDYNAMICPFPS = "1"
 PFPROUTE = os.getenv(
     "PFP_ROUTE",
     "https://raw.githubusercontent.com/Dys-lexi/TitanPilotprofiles/main/avatars/",
