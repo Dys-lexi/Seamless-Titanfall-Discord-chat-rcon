@@ -447,6 +447,9 @@ void function playerstabbedmodelsaver( entity player, entity attacker, var damag
 	{
 		discordloglastmodels.playermodels[player.GetUID()] <- "expedition"
 	}
+	else if (discordlogpullplayerstat(player.GetUID(),"tgrap") == "True" && (player.GetModelName() == $"models/titans/light/titan_light_locust.mdl" || player.GetModelName() == $"models/titans/light/titan_light_ronin_prime.mdl")){
+		discordloglastmodels.playermodels[player.GetUID()] <- "tgrap"
+	}
 	float respawntime = Time()
 	int methodOfDeath = DamageInfo_GetDamageSourceIdentifier( damageInfo )
 	float replayLength = CalculateLengthOfKillReplay( player, methodOfDeath )
