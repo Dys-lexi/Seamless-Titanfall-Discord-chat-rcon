@@ -11086,7 +11086,7 @@ def ingamehelp(message, serverid, isfromserver):
         # print(  (not command.get("permsneeded",False) or checkrconallowedtfuid(getpriority(message,"uid",["meta","uid"])),command.get("permsneeded",False)) )
         if (
             name != "helpdc"
-            and ((not commandoverride and not command.get("hiddencommand", False)) or (commandoverride and commandoverride.lower() in name))
+            and ((not commandoverride and not command.get("hiddencommand", False)) or (commandoverride and (commandoverride.lower() in name or list(filter(lambda x: commandoverride.lower() in x.lower(),command.get("aliases",[]))))))
             and ("tf1" if istf1 else "tf2") in command["games"]
             and (
                 not resolvecommandperms(serverid,name)
@@ -11114,7 +11114,7 @@ def ingamehelp(message, serverid, isfromserver):
                     "content": f"{PREFIXES['discord']}{PREFIXES['gold']}{cmdcounter}) {PREFIXES['bronze'] + resolvecommandperms(serverid,name) + ' ' if resolvecommandperms(serverid,name) else ''}{PREFIXES['commandname']}{name}{', ' + extra if extra else ''}{PREFIXES['chatcolour'] if not cmdcounter % 2 else PREFIXES['offchatcolour']}: {command['description']}",
                     # "teamoverride": 4,
                     # "isteammessage": False,
-                    "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+                    "uidoverride": [getpriority(message, "uid", ["meta", "uid"])] if not commandoverride else [],
                     # "dotreacted": dotreacted
                 }
             )
