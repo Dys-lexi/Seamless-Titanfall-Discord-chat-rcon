@@ -420,6 +420,25 @@ def specifickilltrackerdb():
     # if "victim_type" not in columns:
     #     c.execute("ALTER TABLE specifickilltracker ADD COLUMN victim_type TEXT")
 
+    # Count kills where victim was NOT in a titan (victim_titan is NULL or "null")
+    c.execute("""
+        SELECT COUNT(*) FROM specifickilltracker
+        WHERE (victim_titan IS NULL OR victim_titan = 'null')
+        AND victim_type = 'player'
+    """)
+    no_titan_kills = c.fetchone()[0]
+    print(f"Kills where victim was NOT in a titan: {no_titan_kills}")
+
+    # Count kills where victim WAS in a titan (victim_titan is not NULL and not "null")
+    c.execute("""
+        SELECT COUNT(*) FROM specifickilltracker
+        WHERE victim_titan IS NOT NULL
+        AND victim_titan != 'null'
+        AND victim_type = 'player'
+    """)
+    in_titan_kills = c.fetchone()[0]
+    print(f"Kills where victim WAS in a titan: {in_titan_kills}")
+
     tfdb.commit()
     c.close()
     tfdb.close()
@@ -514,10 +533,11 @@ playerpreferencescache = {"tf1": {}, "tf2": {}}
 def readplayeruidpreferences(uid, istf1=False):
     """read settings that generally affect gameplay and are linked to a tf|1/2 account, eg toggle stats"""
     global playerpreferencescache
+    uid = str(uid)
     output = playerpreferencescache["tf1" if istf1 else "tf2"].get(uid)
     if output:
         return output
-    # uid = int(uid)
+    
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
     c.execute(
@@ -547,7 +567,7 @@ def setplayeruidpreferences(path, value, uid, istf1=False):
     tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
     istf1_int = 1 if istf1 else 0
-
+    uid = str(uid)
     c.execute(
         "SELECT preferences FROM playeruidpreferences WHERE uid = ? AND istf1 = ?",
         (uid, istf1_int),
@@ -12486,7 +12506,7 @@ async def returncommandfeedback(
                     except Exception as e:
                         print("error in defaultoverride", e)
                         overridemsg = None
-            if iscommandnotmessage and not isinstance(ctx, str) and not (command.replace("!","").replace("/","").lower()).startswith("playingpoll"):
+            if iscommandnotmessage and not isinstance(ctx, str): #and not (command.replace("!","").replace("/","").lower()).startswith("playingpoll"):
                 try:
                     await ctx.respond(
                         f"Command sent to server: **{context['servers'][serverid]['name']}**."
@@ -14064,26 +14084,29 @@ def playerpoll():
         counter += 1
         # print("counter",counter,autosaveinterval/pinginterval)
         if not counter % int(autosaveinterval / pinginterval):
-            # print("autosaving")
-            for serverid, data in playercontext.items():
-                for uid, value in data.items():
-                    for name, value2 in value.items():
-                        for matchid, value3 in value2.items():
-                            if value3[-1]["mostrecentsave"] == False:
-                                # print("here")
-                                savestats(
-                                    {
-                                        "uid": uid,
-                                        "name": name,
-                                        "matchid": matchid,
-                                        "endtype": 4,
-                                        "index": -1,
-                                        "serverid": serverid,
-                                    }
-                                )
-                                playercontext[serverid][uid][name][matchid][-1][
-                                    "mostrecentsave"
-                                ] = True
+            try:
+                for serverid, data in playercontext.items():
+                    for uid, value in data.items():
+                        for name, value2 in value.items():
+                            for matchid, value3 in value2.items():
+                                if value3[-1]["mostrecentsave"] == False:
+                                    # print("here")
+                                    savestats(
+                                        {
+                                            "uid": uid,
+                                            "name": name,
+                                            "matchid": matchid,
+                                            "endtype": 4,
+                                            "index": -1,
+                                            "serverid": serverid,
+                                        }
+                                    )
+                                    playercontext[serverid][uid][name][matchid][-1][
+                                        "mostrecentsave"
+                                    ] = True
+            except:
+                pass
+                # lazy soloution for for race condition
 
         # poll time
         # I want to iterate through all servers, and ask them what they are up too.

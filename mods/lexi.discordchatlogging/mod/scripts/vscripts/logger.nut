@@ -462,7 +462,7 @@ void function playerstabbedmodelsaver( entity player, entity attacker, var damag
 }
 
 void function adddelayedrespawn(entity player, float respawntime) {
-	wait 1
+	wait 2
 	if(IsValid(player)){
 	playerrespawn[player.GetUID()+""] <- respawntime}
 }
@@ -910,17 +910,17 @@ void function discordlogsendmessagemakesureissent(string message, int team = 4, 
 			shouldsend.append(player)
 		}
 	}
-	while (shouldsend.len() > 0){
-		array <int> removeindexes = []
+	array <entity> sentplayers = []
+	while (sentplayers.len() != shouldsend.len()){
 		for (int i = 0; i < shouldsend.len() ; i++){
 			// Chat_ServerPrivateMessage(shouldsend[i],"e "+message,false,false)
 			if (!IsValid(shouldsend[i]) ){
-				removeindexes.append(i)
+				sentplayers.append(shouldsend[i])
 			}
-			else if ( !(shouldsend[i].GetUID() +"" in playerrespawn) ||  Time() > playerrespawn[shouldsend[i].GetUID() +""] ) {
+			else if (!(sentplayers.contains(shouldsend[i])) && (!(shouldsend[i].GetUID() +"" in playerrespawn) ||  Time() > playerrespawn[shouldsend[i].GetUID() +""]) ) {
 				
-				removeindexes.append(i)
-				
+				sentplayers.append(shouldsend[i])
+				// printt("eee"+discordloggetplayername(shouldsend[i]))
 				Chat_ServerPrivateMessage(shouldsend[i],message,false,false)
 				// Chat_PrivateMessage(shouldsend[i],shouldsend[i], "PRIVATE MESSAGE"+message,false)
 				// discordlogextmessage("TRYING TO SEND "+message+" TO "+shouldsend[i].GetPlayerName() + Time() + " "+  playerrespawn[shouldsend[i].GetUID() +""] + IsAlive(shouldsend[i]) +  (Time() > playerrespawn[shouldsend[i].GetUID() +""]) )
@@ -929,11 +929,6 @@ void function discordlogsendmessagemakesureissent(string message, int team = 4, 
 
 			
 			// Chat_ServerBroadcast("alive" + IsAlive(shouldsend[i]) + "time" + Time() + "desiredtime" +shouldsend[i].GetPlayerName())
-		}
-		int offset = 0
-		foreach (int removeindex in removeindexes){
-			shouldsend.remove(removeindex-offset)
-			offset +=1
 		}
 		WaitFrame()
 	}
@@ -1033,7 +1028,7 @@ void function Fish(entity player)
     }
 }
 void function waitisalive(entity player) {
-	playerrespawn[player.GetUID()+""] <- Time() + 1
+	playerrespawn[player.GetUID()+""] <- Time() + 2
 }
 void function DiscordClientMessageinloop()
 {
