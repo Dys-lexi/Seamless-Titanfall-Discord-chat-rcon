@@ -1920,7 +1920,7 @@ async def updateroles():
         return
     guild = bot.get_guild(context["categoryinfo"]["activeguild"])
     for roletype, potentialrole in context["overrideroles"].items():
-        if isinstance(potentialrole, int):
+        if not isinstance(potentialrole, list):
             potentialrole = [potentialrole]
         uids = []
         for role in potentialrole:
