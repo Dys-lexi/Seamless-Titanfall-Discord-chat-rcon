@@ -418,26 +418,26 @@ def specifickilltrackerdb():
     # columns = [row[1] for row in c.fetchall()]
 
     # if "victim_type" not in columns:
-    #     c.execute("ALTER TABLE specifickilltracker ADD COLUMN victim_type TEXT")
+    # #     c.execute("ALTER TABLE specifickilltracker ADD COLUMN victim_type TEXT")
 
-    # Count kills where victim was NOT in a titan (victim_titan is NULL or "null")
-    c.execute("""
-        SELECT COUNT(*) FROM specifickilltracker
-        WHERE (victim_titan IS NULL OR victim_titan = 'null')
-        AND victim_type = 'player'
-    """)
-    no_titan_kills = c.fetchone()[0]
-    print(f"Kills where victim was NOT in a titan: {no_titan_kills}")
+    # # Count kills where victim was NOT in a titan (victim_titan is NULL or "null")
+    # c.execute("""
+    #     SELECT COUNT(*) FROM specifickilltracker
+    #     WHERE (victim_titan IS NULL OR victim_titan = 'null')
+    #     AND victim_type = 'player'
+    # """)
+    # no_titan_kills = c.fetchone()[0]
+    # print(f"Kills where victim was NOT in a titan: {no_titan_kills}")
 
-    # Count kills where victim WAS in a titan (victim_titan is not NULL and not "null")
-    c.execute("""
-        SELECT COUNT(*) FROM specifickilltracker
-        WHERE victim_titan IS NOT NULL
-        AND victim_titan != 'null'
-        AND victim_type = 'player'
-    """)
-    in_titan_kills = c.fetchone()[0]
-    print(f"Kills where victim WAS in a titan: {in_titan_kills}")
+    # # Count kills where victim WAS in a titan (victim_titan is not NULL and not "null")
+    # c.execute("""
+    #     SELECT COUNT(*) FROM specifickilltracker
+    #     WHERE victim_titan IS NOT NULL
+    #     AND victim_titan != 'null'
+    #     AND victim_type = 'player'
+    # """)
+    # in_titan_kills = c.fetchone()[0]
+    # print(f"Kills where victim WAS in a titan: {in_titan_kills}")
 
     tfdb.commit()
     c.close()
@@ -6842,7 +6842,12 @@ def recieveflaskprintrequests():
                                         internaltoggles[x[0]],
                                         "sendvaluetoserver",
                                     ],
-                                nofind = True),
+                                nofind = True
+                            ) and (not resolvecommandperms(data["serverid"],internaltoggles[x[0]]) or checkrconallowedtfuid(
+                            data["uid"],
+                            resolvecommandperms(serverid,internaltoggles[x[0]],True),
+                            serverid=data["serverid"],
+                        ) ),
                             readplayeruidpreferences(data["uid"], False)
                             .get("tf2", {})
                             .items(),
@@ -6853,7 +6858,7 @@ def recieveflaskprintrequests():
                 **nameoverride,
             },
         }
-        # print(json.dumps(output["otherdata"],indent=4))
+        # print(json.dumps(output,indent=4))
         # print(len(output["otherdata"]))
         # print(json.dumps(internaltoggles,indent=4))
         return output
