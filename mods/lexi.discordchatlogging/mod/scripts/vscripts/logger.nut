@@ -462,7 +462,7 @@ void function playerstabbedmodelsaver( entity player, entity attacker, var damag
 }
 
 void function adddelayedrespawn(entity player, float respawntime) {
-	wait 2
+	wait 1
 	if(IsValid(player)){
 	playerrespawn[player.GetUID()+""] <- respawntime}
 }
