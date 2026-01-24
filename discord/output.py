@@ -6845,7 +6845,7 @@ def recieveflaskprintrequests():
                                 nofind = True
                             ) and (not resolvecommandperms(data["serverid"],internaltoggles[x[0]]) or checkrconallowedtfuid(
                             data["uid"],
-                            resolvecommandperms(serverid,internaltoggles[x[0]],True),
+                            resolvecommandperms(data["serverid"],internaltoggles[x[0]],True),
                             serverid=data["serverid"],
                         ) ),
                             readplayeruidpreferences(data["uid"], False)
