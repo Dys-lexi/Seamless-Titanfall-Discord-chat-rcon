@@ -178,10 +178,10 @@ def create_all_indexes():
     c.execute("CREATE INDEX IF NOT EXISTS idx_matchid_map_time ON matchid(map, time);")
 
     # --- matchtf1 ---
-    c.execute("CREATE INDEX IF NOT EXISTS idx_matchtf1_serverid ON matchtf1(serverid);")
-    c.execute(
-        "CREATE INDEX IF NOT EXISTS idx_matchtf1_map_time ON matchtf1(map, time);"
-    )
+    # c.execute("CREATE INDEX IF NOT EXISTS idx_matchtf1_serverid ON matchtf1(serverid);")
+    # c.execute(
+    #     "CREATE INDEX IF NOT EXISTS idx_matchtf1_map_time ON matchtf1(map, time);"
+    # )
 
     # --- banstf1 ---
     # c.execute("CREATE INDEX IF NOT EXISTS idx_banstf1_playerip ON banstf1(playerip);")
@@ -6858,7 +6858,7 @@ def recieveflaskprintrequests():
                 **nameoverride,
             },
         }
-        print(json.dumps(output,indent=4))
+        # print(json.dumps(output,indent=4))
         # print(len(output["otherdata"]))
         # print(json.dumps(internaltoggles,indent=4))
         return output
