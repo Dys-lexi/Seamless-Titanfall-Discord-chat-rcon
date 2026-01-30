@@ -11906,7 +11906,7 @@ async def checkfilters(messages, message):
                         discord.SelectOption(label="7 day ban", value="ban_7", emoji="🔨"),      
                         discord.SelectOption(label="30 day ban", value="ban_30", emoji="🔨"),
                         discord.SelectOption(label="60 day ban", value="ban_60", emoji="🔨"),
-                        *((discord.SelectOption(label = "remove sanction (to add new one)",value = "unsanction",emoji = "⛓️‍💥")) if sanction else ())
+                        *((discord.SelectOption(label = "remove sanction (to add new one)",value = "unsanction",emoji = "⛓️‍💥"),) if sanction else ())
                     ]
                 )
 
@@ -11961,7 +11961,7 @@ async def checkfilters(messages, message):
                         discord.SelectOption(label="7 day ban", value="ban_7", emoji="🔨"),      
                         discord.SelectOption(label="30 day ban", value="ban_30", emoji="🔨"),
                         discord.SelectOption(label="60 day ban", value="ban_60", emoji="🔨"),
-                        *((discord.SelectOption(label = "remove sanction (to add new one)",value = "unsanction",emoji = "⛓️‍💥")) if sanction else ())
+                        *((discord.SelectOption(label = "remove sanction (to add new one)",value = "unsanction",emoji = "⛓️‍💥"),) if sanction else ())
                     ]
                 )
 
