@@ -809,6 +809,41 @@ GUNS_PILOT = [
         "modsfiltertype": "include",
         "killedby" : ["player"]
     },
+        {
+        "weapon_name": "mp_weapon_throwingknife",
+        "png_name": "mp_weapon_throwingknife",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_weapon_peacekeeper",
+        "png_name": "mp_weapon_peacekeeper",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_weapon_dragon_lmg",
+        "png_name": "mp_weapon_dragon_lmg",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_weapon_prowler_smg",
+        "png_name": "mp_weapon_prowler_smg",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
+        "weapon_name": "mp_weapon_nemesis",
+        "png_name": "mp_weapon_nemesis",
+        "mods": [],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
     {
         "weapon_name": "mp_weapon_arc_launcher",
         "png_name": "mp_weapon_arc_launcher",
