@@ -208,6 +208,11 @@ NPC_NAMES = {
 
 
 WEAPON_NAMES = {
+    "mp_weapon_throwingknife":"Throwing Knife",
+    "mp_weapon_peacekeeper":"Peacekeeper Shotgun",
+    "mp_weapon_dragon_lmg":"Rampage LMG",
+    "mp_weapon_prowler_smg":"Prowler SMG",
+    "mp_weapon_nemesis":"Nemesis AR",
     "mp_weapon_3030":"30-30 Repeater",
     "mind_crime": "Mind crime",
     "fall":"the architects",
