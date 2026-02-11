@@ -7397,7 +7397,7 @@ def recieveflaskprintrequests():
             if data["password"] != SERVERPASS and SERVERPASS != "*"  :
                 print("invalid password used on data")
                 return {"message": "invalid password"}
-        print(json.dumps(data,indent=4))
+        # print(json.dumps(data,indent=4))
         realonkilldata(data)
         return {"message":"ok"}
 
