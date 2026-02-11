@@ -378,7 +378,7 @@ victimWeapons.sort(MainWeaponSort)
         typedMods = DamageInfo_GetWeapon(damageInfo).GetMods()
 
     }
-    else{
+    else if (IsValid(attacker) &&  attacker.IsPlayer()){
         foreach (entity weapon  in attacker.GetMainWeapons()){
   
             if (weapon.GetWeaponClassName() == damageName){
