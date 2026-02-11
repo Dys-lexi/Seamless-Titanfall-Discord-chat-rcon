@@ -376,6 +376,21 @@ victimWeapons.sort(MainWeaponSort)
     array<string> typedMods
     if (IsValid(DamageInfo_GetWeapon(damageInfo))){
         typedMods = DamageInfo_GetWeapon(damageInfo).GetMods()
+
+    }
+    else{
+        foreach (entity weapon  in attacker.GetMainWeapons()){
+  
+            if (weapon.GetWeaponClassName() == damageName){
+                typedMods = weapon.GetMods()
+            }
+        }
+        foreach (entity  weapon in attacker.GetOffhandWeapons() ){
+    
+            if (weapon.GetWeaponClassName() == damageName){
+                typedMods = weapon.GetMods()
+            }
+        }
     }
     array untypedMods = []
     foreach (mod in typedMods){

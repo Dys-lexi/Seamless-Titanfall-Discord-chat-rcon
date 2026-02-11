@@ -33,6 +33,19 @@ from sanshelper import sans
 
 # emi was here
 
+ALL_WEAPONS = [
+                            *ABILITYS_PILOT,
+                            *GRENADES,
+                            *DEATH_BY_MAP,
+                            *MISC_MISC,
+                            *MISC_TITAN,
+                            *MISC_PILOT,
+                            *CORES,
+                            *GUNS_TITAN,
+                            *GUNS_PILOT,
+                            *ABILITYS_TITAN,
+                        ]
+
 def safe_eval(calculation, data):
     """Safely evaluate calculation with division by zero protection"""
     try:
@@ -4354,19 +4367,22 @@ if DISCORDBOTLOGSTATS == "1":
 
         # print("calculated pngleaderboard in", (int(time.time()*100)-now)/100,"seconds")
         # print(specificweapon)
+        extraweapons = functools.reduce(lambda a,b: a if not b.get("boundgun") else {**a,b["boundgun"]:b["weapon_name"]} ,ALL_WEAPONS ,{})
         if specificweapon:
             specificweaponsallowed = list(
                 map(lambda x: x["weapon_name"], specificweapon)
             )
-            specificweaponsallowedex = list(
-                map(lambda x: x.get("boundgun"), specificweapon)
-            )
+            # specificweaponsallowedex = list(
+            #     map(lambda x: x.get("boundgun"), specificweapon)
+            # )
             weapon_kills = {"main": {}, "cutoff": {}}
             for name, cutoff in timecutoffs.items():
                 stabsofweapons = bvsuggestedthistome(cutoff, swoptovictims)
                 for weapon, killer, mods, stabcount, whomurdered in stabsofweapons:
+                    weapon = extraweapons.get(weapon)
                     if weapon not in specificweaponsallowed:
                         continue
+                    
                     index = specificweaponsallowed.index(weapon)
                     modswanted = specificweapon[index].get("mods", [])
                     modsused = mods.split(" ")
@@ -7381,6 +7397,7 @@ def recieveflaskprintrequests():
             if data["password"] != SERVERPASS and SERVERPASS != "*"  :
                 print("invalid password used on data")
                 return {"message": "invalid password"}
+        print(json.dumps(data,indent=4))
         realonkilldata(data)
         return {"message":"ok"}
 
@@ -11193,7 +11210,8 @@ def natterforcoolperks(message, serverid, isfromserver):
     # print("meow")
     if context.get("coolperksnatter").isdigit() and not int(context.get("coolperksnatter")):
         return
-
+    if random.randint(0, 4):
+        return # 1/5 chance to natter
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
 
     # checks

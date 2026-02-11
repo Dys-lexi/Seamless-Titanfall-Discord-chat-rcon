@@ -1356,6 +1356,16 @@ ABILITYS_PILOT = [
         "killedby" : ["player"]
     },
     {
+    "weapon_name": "Big melee",
+    "boundgun":"melee_pilot_emptyhanded",
+    "png_name": "bigmelee",
+    "mods": [
+        "oldmeleedmg"
+    ],
+    "modsfiltertype": "include",
+    "killedby" : ["player"]
+    },
+    {
         "weapon_name": "mp_ability_cloak",
         "png_name": "mp_ability_cloak",
         "mods": [],
