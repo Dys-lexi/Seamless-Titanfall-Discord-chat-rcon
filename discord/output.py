@@ -4379,7 +4379,7 @@ if DISCORDBOTLOGSTATS == "1":
             for name, cutoff in timecutoffs.items():
                 stabsofweapons = bvsuggestedthistome(cutoff, swoptovictims)
                 for weapon, killer, mods, stabcount, whomurdered in stabsofweapons:
-                    weapon = extraweapons.get(weapon)
+                    weapon = extraweapons.get(weapon,weapon)
                     if weapon not in specificweaponsallowed:
                         continue
                     
