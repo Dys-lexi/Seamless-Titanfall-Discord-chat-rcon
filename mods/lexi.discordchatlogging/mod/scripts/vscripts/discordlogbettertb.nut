@@ -76,7 +76,7 @@ discordlogcommand function discordlogtb(discordlogcommand commandin) {
 		if ((i+1) % 2) {
 			prevarg = commandin.commandargs[i].tointeger()
 		}
-		else if ( GetPlayerArray().contains(uidentmap[ commandin.commandargs[i]]) ){
+		else if (commandin.commandargs[i] in uidentmap && GetPlayerArray().contains(uidentmap[ commandin.commandargs[i]]) ){
 			SetTeam(uidentmap[ commandin.commandargs[i]], prevarg)
 		}
 		
