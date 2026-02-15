@@ -4367,7 +4367,7 @@ if DISCORDBOTLOGSTATS == "1":
 
         # print("calculated pngleaderboard in", (int(time.time()*100)-now)/100,"seconds")
         # print(specificweapon)
-        extraweapons = functools.reduce(lambda a,b: a if not b.get("boundgun") else {**a,b["boundgun"]:b["weapon_name"]} ,ALL_WEAPONS ,{})
+        extraweapons = functools.reduce(lambda a,b: a if not b.get("boundgun") else {**a,b["boundgun"]:{"weapon_name":b["weapon_name"],"mods":b["mods"]}} ,ALL_WEAPONS ,{})
         if specificweapon:
             specificweaponsallowed = list(
                 map(lambda x: x["weapon_name"], specificweapon)
@@ -4379,8 +4379,10 @@ if DISCORDBOTLOGSTATS == "1":
             for name, cutoff in timecutoffs.items():
                 stabsofweapons = bvsuggestedthistome(cutoff, swoptovictims)
                 for weapon, killer, mods, stabcount, whomurdered in stabsofweapons:
-                    weapon = extraweapons.get(weapon,weapon)
-                    if weapon not in specificweaponsallowed:
+                    if foundgun := extraweapons.get(weapon):
+                        actualmods = mods.split(" ")
+                        weapon = foundgun["weapon_name"] if len(actualmods) == len(list(set([*actualmods,*foundgun["mods"]]))) else weapon
+                    if weapon not in specificweaponsallowed :
                         continue
                     
                     index = specificweaponsallowed.index(weapon)

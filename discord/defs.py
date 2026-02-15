@@ -1041,6 +1041,14 @@ GUNS_PILOT = [
         "killedby" : ["player"]
     },
     {
+        "weapon_name": "Dumb Pistol",
+        "boundgun":"mp_weapon_smart_pistol",
+        "png_name": "dumbpistol",
+        "mods": ["proto_tracker"],
+        "modsfiltertype": "include",
+        "killedby" : ["player"]
+    },
+    {
         "weapon_name": "mp_weapon_smr",
         "png_name": "mp_weapon_smr",
         "mods": [],
@@ -1600,6 +1608,16 @@ MISC_PILOT = [
 ]
 
 CORES = [
+    {
+    "weapon_name": "Dumb core",
+    "boundgun":"mp_titanweapon_predator_cannon",
+    "png_name": "dumbcore",
+    "mods": [
+        "Dumb_Core"
+    ],
+    "modsfiltertype": "include",
+    "killedby" : ["player"]
+    },
     {
     "weapon_name": "Smart core",
     "boundgun":"mp_titanweapon_predator_cannon",
