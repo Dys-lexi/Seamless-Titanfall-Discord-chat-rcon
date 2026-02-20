@@ -4592,13 +4592,13 @@ if DISCORDBOTLOGSTATS == "1":
         for weapon in weapon_names:
             try:
                 if istf1:
-                    tf1_path = os.path.join(IMAGE_DIR_TF1, weapon + ".png")
+                    tf1_path = os.path.join(IMAGE_DIR_TF1, random.choice(weapon.split(" ")) + ".png")
                     if os.path.exists(tf1_path):
                         img_path = tf1_path
                     else:
-                        img_path = os.path.join(IMAGE_DIR, weapon + ".png")
+                        img_path = os.path.join(IMAGE_DIR, random.choice(weapon.split(" ")) + ".png")
                 else:
-                    img_path = os.path.join(IMAGE_DIR, weapon + ".png")
+                    img_path = os.path.join(IMAGE_DIR, random.choice(weapon.split(" ")) + ".png")
                 gun_img = Image.open(img_path)
                 if gun_img.width > maxwidth:
                     aspect_ratio = gun_img.height / gun_img.width

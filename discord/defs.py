@@ -764,14 +764,24 @@ GUNS_TITAN = [
     }]
 GUNS_PILOT = [
     {
-    "weapon_name": "RE125",
-    "boundgun":"mp_weapon_autopistol",
-    "png_name": "re125",
-    "mods": [
-        "rocket_arena"
-    ],
-    "modsfiltertype": "include",
-    "killedby" : ["player"]
+      "weapon_name": "RE125",
+      "boundgun":"mp_weapon_autopistol",
+      "png_name": "re125",
+      "mods": [
+          "rocket_arena"
+      ],
+      "modsfiltertype": "include",
+      "killedby" : ["player"]
+    },
+    {
+      "weapon_name": "Rocket Jumper Epg",
+      "boundgun":"mp_weapon_epg",
+      "png_name": "mp_weapon_pirate mp_weapon_epg_bouncy",
+      "mods": [
+          "rocket_arena"
+      ],
+      "modsfiltertype": "include",
+      "killedby" : ["player"]
     },
     {
         "weapon_name": "arc tool",

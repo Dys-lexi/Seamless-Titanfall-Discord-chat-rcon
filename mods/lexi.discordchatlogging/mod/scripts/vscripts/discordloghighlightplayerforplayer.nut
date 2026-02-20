@@ -165,7 +165,7 @@ void function highlightplayertoplayer(table<string,array<highlightinfo> >  highl
         // discordlogsendmessage("ee"+typeofhighlight)
         if (typeofhighlight == "tempwallhacks"){
             actuallyhighlight(shouldhighlight,"enemy_boss_bounty",<1.0,0.2,0.7>,106,7.0)
-            wait 5
+            wait 3
             actuallyhighlight(shouldhighlight,"enemy_boss_bounty",<1.0,0.2,0.7>,112,1.0)
                 foreach (player in findallplayers(shouldhighlight)){
                     // discordlogsendmessage("dqwdwq"+player.GetPlayerName())
