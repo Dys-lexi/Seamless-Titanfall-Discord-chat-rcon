@@ -3043,35 +3043,35 @@ if DISCORDBOTLOGSTATS == "1":
 
         return "bleh"
 
-    @bot.slash_command(
-        name="leaderboards", description="Gets leaderboards for a player"
-    )
-    async def retrieveleaderboard(
-        ctx,
-        playername: Option(
-            str, "Who to get a leaderboard for", autocomplete=autocompletenamesfromdb
-        ),
-        leaderboard: Option(
-            str,
-            "Witch leaderboard, omit for all, more specific data when not ommitted",
-            choices=list(
-                map(
-                    lambda x: x["name"],
-                    list(
-                        filter(
-                            lambda x: "name" in x.get("merge", "none"),
-                            context["leaderboardchannelmessages"],
-                        )
-                    ),
-                )
-            ),
-        ) = None,
-    ):
-        """uses the existing leaderboards in channels.json and finds where the player is, and shows them in it"""
-        await ctx.defer()
-        threading.Thread(
-            target=threadwrap, daemon=True, args=(threadedleaderboard, ctx, playername, leaderboard)
-        ).start()
+    # @bot.slash_command(
+    #     name="leaderboards", description="Gets leaderboards for a player"
+    # )
+    # async def retrieveleaderboard(
+    #     ctx,
+    #     playername: Option(
+    #         str, "Who to get a leaderboard for", autocomplete=autocompletenamesfromdb
+    #     ),
+    #     leaderboard: Option(
+    #         str,
+    #         "Witch leaderboard, omit for all, more specific data when not ommitted",
+    #         choices=list(
+    #             map(
+    #                 lambda x: x["name"],
+    #                 list(
+    #                     filter(
+    #                         lambda x: "name" in x.get("merge", "none"),
+    #                         context["leaderboardchannelmessages"],
+    #                     )
+    #                 ),
+    #             )
+    #         ),
+    #     ) = None,
+    # ):
+    #     """uses the existing leaderboards in channels.json and finds where the player is, and shows them in it"""
+    #     await ctx.defer()
+    #     threading.Thread(
+    #         target=threadwrap, daemon=True, args=(threadedleaderboard, ctx, playername, leaderboard)
+    #     ).start()
     
     def threadedleaderboard(ctx, playername, leaderboard):
         """Threaded version of leaderboard retrieval"""
@@ -4321,6 +4321,7 @@ if DISCORDBOTLOGSTATS == "1":
                         [
                             *weapon_names,
                             *list(map(lambda x: x["weapon_name"], specificweapon)),
+                            *list(map(lambda x: x["png_name"], specificweapon)),
                         ]
                     )
                 )
@@ -4346,19 +4347,19 @@ if DISCORDBOTLOGSTATS == "1":
             tfdb.close()
             return rows
 
-        def bvsuggestedthistome(timecutoff=0, swoptovictims=False):
+        def bvsuggestedthistome(timecutoff=0, swoptovictims=False,extraweaponsotherwayround=[]):
             timecutoff = int(time.time() - timecutoff)
             tfdb = postgresem("./data/tf2helper.db")
             c = tfdb
             if not swoptovictims:
                 c.execute(
-                    f"SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker{'tf1' if istf1 else ''} WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, playeruid, weapon_mods, attacker_type",
-                    (timecutoff,),
+                    f"SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker{'tf1' if istf1 else ''} WHERE timeofkill < ?  {f"AND ({" OR ".join(list(map(lambda x: f"cause_of_death = ?" ,extraweaponsotherwayround )))})" if extraweaponsotherwayround else ""} AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, playeruid, weapon_mods, attacker_type",
+                    (timecutoff,*extraweaponsotherwayround),
                 )
             else:
                 c.execute(
-                    f"SELECT cause_of_death, victim_id, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker{'tf1' if istf1 else ''} WHERE timeofkill < ? AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, victim_id, weapon_mods, attacker_type",
-                    (timecutoff,),
+                    f"SELECT cause_of_death, victim_id, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker{'tf1' if istf1 else ''} WHERE timeofkill < ?  {f"AND ({" OR ".join(list(map(lambda x: f"cause_of_death = ?" ,extraweaponsotherwayround )))})" if extraweaponsotherwayround else ""}  AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, victim_id, weapon_mods, attacker_type",
+                    (timecutoff,*extraweaponsotherwayround),
                 )
 
             rows = c.fetchall()
@@ -4368,16 +4369,21 @@ if DISCORDBOTLOGSTATS == "1":
         # print("calculated pngleaderboard in", (int(time.time()*100)-now)/100,"seconds")
         # print(specificweapon)
         extraweapons = functools.reduce(lambda a,b: a if not b.get("boundgun") else {**a,b["boundgun"]:{"weapon_name":b["weapon_name"],"mods":b["mods"]}} ,ALL_WEAPONS ,{})
+        
+        
         if specificweapon:
             specificweaponsallowed = list(
                 map(lambda x: x["weapon_name"], specificweapon)
             )
+            extraweaponsotherwayround = list(set([*specificweaponsallowed,*functools.reduce(lambda a,b:  a if b[1]["weapon_name"] not in specificweaponsallowed else [*a,b[0]]  ,extraweapons.items(), [])]))
+            
+
             # specificweaponsallowedex = list(
             #     map(lambda x: x.get("boundgun"), specificweapon)
             # )
             weapon_kills = {"main": {}, "cutoff": {}}
             for name, cutoff in timecutoffs.items():
-                stabsofweapons = bvsuggestedthistome(cutoff, swoptovictims)
+                stabsofweapons = bvsuggestedthistome(cutoff, swoptovictims,extraweaponsotherwayround)
                 for weapon, killer, mods, stabcount, whomurdered in stabsofweapons:
                     if foundgun := extraweapons.get(weapon):
                         actualmods = mods.split(" ")
@@ -4434,7 +4440,6 @@ if DISCORDBOTLOGSTATS == "1":
                     weapon_kills[name][specificweapon[index]["png_name"]][killer] += (
                         stabcount
                     )
-
                 # for weapon, killer, mods, stabcount, whomurdered in stabsofweapons:
                 #     if weapon not in specificweaponsallowedex:
                 #         continue
@@ -4592,13 +4597,13 @@ if DISCORDBOTLOGSTATS == "1":
         for weapon in weapon_names:
             try:
                 if istf1:
-                    tf1_path = os.path.join(IMAGE_DIR_TF1, random.choice(weapon.split(" ")) + ".png")
+                    tf1_path = os.path.join(IMAGE_DIR_TF1, random.choice(weapon.split()) + ".png")
                     if os.path.exists(tf1_path):
                         img_path = tf1_path
                     else:
-                        img_path = os.path.join(IMAGE_DIR, random.choice(weapon.split(" ")) + ".png")
+                        img_path = os.path.join(IMAGE_DIR, random.choice(weapon.split()) + ".png")
                 else:
-                    img_path = os.path.join(IMAGE_DIR, random.choice(weapon.split(" ")) + ".png")
+                    img_path = os.path.join(IMAGE_DIR, random.choice(weapon.split()) + ".png")
                 gun_img = Image.open(img_path)
                 if gun_img.width > maxwidth:
                     aspect_ratio = gun_img.height / gun_img.width
@@ -4632,9 +4637,9 @@ if DISCORDBOTLOGSTATS == "1":
 
             counts = {}
             if weaponalter in weapon_kills["main"]:
-                for attacker, murdercount in weapon_kills["main"][weaponalter].items():
+                for i,(attacker, murdercount) in enumerate(weapon_kills["main"][weaponalter].items()):
                     counts.setdefault(
-                        attacker, {"kills": murdercount, "killscutoff": 0}
+                        attacker, {"kills": murdercount, "killscutoff": 0,"indexer":i}
                     )
 
             if weaponalter in weapon_kills["cutoff"]:
@@ -4658,14 +4663,14 @@ if DISCORDBOTLOGSTATS == "1":
             playerinleaderboard = True
             if not playeroverride:
                 sorted_players = sorted(
-                    counts.items(), key=lambda item: item[1]["kills"], reverse=True
+                    sorted(counts.items(),key = lambda x: x[1]["indexer"]), key=lambda item: item[1]["kills"], reverse=True
                 )[:max_players]
                 startindex = 0
                 notsubtractedhalf = -1
                 sorted_player_index = -1
             else:
                 sorted_players = sorted(
-                    counts.items(), key=lambda item: item[1]["kills"], reverse=True
+                    sorted(counts.items(),key = lambda x: x[1]["indexer"]), key=lambda item: item[1]["kills"], reverse=True
                 )
                 sorted_player_index = functools.reduce(
                     lambda a, b: (a[0] + 1, a[1])
@@ -4692,10 +4697,15 @@ if DISCORDBOTLOGSTATS == "1":
                 sorted_players = sorted_players[start:end]
                 startindex = start
             sorted_players_cutoff = sorted(
-                counts.items(), key=lambda item: item[1]["killscutoff"], reverse=True
+                sorted(counts.items(),key = lambda x: x[1]["indexer"]), key=lambda item: item[1]["killscutoff"], reverse=True
             )
-
+            # if weapon == "mp_weapon_sniper":
+            #     print("\n","\n".join(list(map(str,sorted_players[:10]))),"\n\n","\n".join(list(map(str,sorted_players_cutoff[:10]))))
             sorted_players_cutoff = [item[0] for (item) in sorted_players_cutoff]
+            # bleh = [item[0] for (item) in sorted_players]
+
+            # print(bleh.index(1012640166434),sorted_players_cutoff.index(1012640166434),weapon,sorted_player_index)
+
             num_display = len(sorted_players)
             if playerinleaderboard:
                 text_area_height = (FONT_SIZE + LINE_SPACING) * num_display + 10
@@ -4746,7 +4756,7 @@ if DISCORDBOTLOGSTATS == "1":
                         name = f"{i + 1 + sorted_player_index}) {resolved[0]['name'] if attacker and resolved else NPC_NAMES.get(attacker,attacker)}"
                     delta_kills = count - oldkills
                     previous_index = sorted_players_cutoff.index(attacker)
-                    delta = previous_index - i
+                    delta = previous_index - i - sorted_player_index
                     if delta > 0:
                         change_text = f"↑ {delta}"
                         change_color = (0, 200, 0)
