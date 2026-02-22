@@ -4667,7 +4667,7 @@ if DISCORDBOTLOGSTATS == "1":
                 )[:max_players]
                 startindex = 0
                 notsubtractedhalf = -1
-                sorted_player_index = -1
+                sorted_player_index = 0
             else:
                 sorted_players = sorted(
                     sorted(counts.items(),key = lambda x: x[1]["indexer"]), key=lambda item: item[1]["kills"], reverse=True
