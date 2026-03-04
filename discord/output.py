@@ -11821,7 +11821,8 @@ def checkifbad(message):
     global context
     if message["type"] not in FILTERNAMESINMESSAGES.split(","):
         return [0, 0]
-    lowered = message["originalmessage"].lower()
+    lowered ="".join(c for c in message["originalmessage"].lower() if ord(c) >= 0x20) 
+    
     wordfilter = context.get("wordfilter", {})
     banwords = wordfilter.get("banwords", [])
     notifywords = wordfilter.get("notifybadwords", [])

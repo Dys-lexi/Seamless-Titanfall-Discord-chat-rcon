@@ -681,6 +681,10 @@ void function checkshouldblockmessages(entity player){
 			if (discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "ban" && serverdetails.enforcesanctions){
 				NSDisconnectPlayer(player,"You are banned, JOIN THE DISCORD IN SERVER DESC TO COMPLAIN. Expires: "+discordlogpullplayerstat(expect string(responses["uid"]),"expiry")+" Reason: "+ discordlogpullplayerstat(expect string(responses["uid"]),"reason"))
 			}
+			if (discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "mute" && serverdetails.enforcesanctions){
+				// NSDisconnectPlayer(player,"You are banned, JOIN THE DISCORD IN SERVER DESC TO COMPLAIN. Expires: "+discordlogpullplayerstat(expect string(responses["uid"]),"expiry")+" Reason: "+ discordlogpullplayerstat(expect string(responses["uid"]),"reason"))
+				// NSSetVoiceCommsBanned(player,true)
+			}
 			if (discordlogpullplayerstat(expect string(responses["uid"]),"botchangingausersnameforcefully") != ""){
 				namedict.names[player] <-discordlogpullplayerstat(expect string(responses["uid"]),"botchangingausersnameforcefully")
 			}
