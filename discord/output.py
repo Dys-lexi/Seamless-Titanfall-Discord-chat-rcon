@@ -11816,12 +11816,24 @@ async def checkverify(message, serverid):
     del accountlinker[str(content).strip()]
 
 
+def filter_zero_width(s: str) -> str:
+    zero_width_chars = [
+        "\u200b",  # zero-width space
+        "\u200c",  # zero-width non-joiner
+        "\u200d",  # zero-width joiner
+        "\u2060",  # word joiner
+        "\ufeff",  # zero-width no-break space
+    ]
+    for c in zero_width_chars:
+        s = s.replace(c, "")
+    return s
+
 def checkifbad(message):
     """Checks messages against profanity filter and banned word lists"""
     global context
     if message["type"] not in FILTERNAMESINMESSAGES.split(","):
         return [0, 0]
-    lowered ="".join(c for c in message["originalmessage"].lower() if ord(c) >= 0x20) 
+    lowered =filter_zero_width( message["originalmessage"].lower())
     
     wordfilter = context.get("wordfilter", {})
     banwords = wordfilter.get("banwords", [])
