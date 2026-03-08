@@ -97,7 +97,7 @@ def execution_tracer(frame, event, arg):
     return execution_tracer
 
 
-sys.settrace(execution_tracer)
+# sys.settrace(execution_tracer)
 
 
 def create_all_indexes():
@@ -11939,6 +11939,7 @@ async def checkfilters(messages, message):
                     placeholder="Buttons!",
                     custom_id=f"moderation_dropdown_{bad_msg['uid']}_{bad_msg["oserverid"]}_{message.id}",
                     options=[
+                        *((discord.SelectOption(label = "remove sanction (to add new one)",value = "unsanction",emoji = "⛓️‍💥"),) if sanction else ()),
                         discord.SelectOption(label="1 hour mute", value="mute_h_1", emoji="🔇"),
                         discord.SelectOption(label="1 day mute", value="mute_1", emoji="🔇"),         
                         discord.SelectOption(label="7 day mute", value="mute_7", emoji="🔇"),         
@@ -11948,8 +11949,8 @@ async def checkfilters(messages, message):
                         discord.SelectOption(label="1 day ban", value="ban_1", emoji="🔨"),
                         discord.SelectOption(label="7 day ban", value="ban_7", emoji="🔨"),      
                         discord.SelectOption(label="30 day ban", value="ban_30", emoji="🔨"),
-                        discord.SelectOption(label="60 day ban", value="ban_60", emoji="🔨"),
-                        *((discord.SelectOption(label = "remove sanction (to add new one)",value = "unsanction",emoji = "⛓️‍💥"),) if sanction else ())
+                        discord.SelectOption(label="60 day ban", value="ban_60", emoji="🔨")
+                        
                     ]
                 )
 
@@ -11994,6 +11995,7 @@ async def checkfilters(messages, message):
                     placeholder="Buttons!",
                     custom_id=f"moderation_dropdown_{notify_msg['uid']}_{notify_msg["oserverid"]}_{message.id}",
                     options=[
+                        *((discord.SelectOption(label = "remove sanction (to add new one)",value = "unsanction",emoji = "⛓️‍💥"),) if sanction else ()),
                         discord.SelectOption(label="1 hour mute", value="mute_h_1", emoji="🔇"),
                         discord.SelectOption(label="1 day mute", value="mute_1", emoji="🔇"),         
                         discord.SelectOption(label="7 day mute", value="mute_7", emoji="🔇"),         
@@ -12003,8 +12005,8 @@ async def checkfilters(messages, message):
                         discord.SelectOption(label="1 day ban", value="ban_1", emoji="🔨"),
                         discord.SelectOption(label="7 day ban", value="ban_7", emoji="🔨"),      
                         discord.SelectOption(label="30 day ban", value="ban_30", emoji="🔨"),
-                        discord.SelectOption(label="60 day ban", value="ban_60", emoji="🔨"),
-                        *((discord.SelectOption(label = "remove sanction (to add new one)",value = "unsanction",emoji = "⛓️‍💥"),) if sanction else ())
+                        discord.SelectOption(label="60 day ban", value="ban_60", emoji="🔨")
+                        
                     ]
                 )
 
