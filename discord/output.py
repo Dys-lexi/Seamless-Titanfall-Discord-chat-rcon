@@ -8352,7 +8352,7 @@ def messageloop():
                         (
                             message["serverid"] not in context["servers"]
                             or "channelid"
-                            not in context["servers"][message["serverid"]]
+                            not in context["servers"][message["serverid"]] or not context["servers"][message["serverid"]]["channelid"]
                         )
                         and not addflag
                         and message["serverid"] != "-100"
