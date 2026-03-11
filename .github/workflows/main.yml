@@ -1,9 +1,8 @@
 name: botbuilder                                                                                                                                                                                                          
                                                                                                                                                                                                                           
 on:                                                                                                                                                                                                                       
-  push:                                                                                                                                                                                                                   
-    branches:                                                                                                                                                                                                             
-      - main                                                                                                                                                                                                              
+  [push]                                                                                                                                                                                                                
+                                                                                                                                                                                                          
                                                                                                                                                                                                                           
 jobs:                                                                                                                                                                                                                     
   lint-test:                                                                                                                                                                                                                                                            
@@ -23,7 +22,10 @@ jobs:
                                                                                                                                                                                                                                                                         
       - name: Check Python compiles                                                                                                                                                                                                                                     
         run: python -m py_compile ./discord/*.py                                                                                                                                                                                                    
-  build_and_push:                                                                                                                                                                                                         
+  build_and_push:         
+    # root of workflow yml
+    env:
+     BRANCH_NAME: ${{ github.head_ref || github.ref_name }} 
     runs-on: ubuntu-latest                                                                                                                                                                                                
     needs: lint-test                                                                                                                                                                                                      
     steps:                                                                                                                                                                                                                
@@ -44,4 +46,4 @@ jobs:
           context: ./discord                                                                                                                                                                                                   
           file: ./discord/dockerfile                                                                                                                                                                                              
           push: true                                                                                                                                                                                                      
-          tags: ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKERHUB_PROJECT_NAME }}:latest    
+          tags: ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKERHUB_PROJECT_NAME }}:latest-${{env.BRANCH_NAME}} 
