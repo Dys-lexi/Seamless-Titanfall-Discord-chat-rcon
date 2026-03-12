@@ -891,7 +891,6 @@ linecolours = {}
 
 
 def removecolourcodes(message):
-    import re
 
     # Remove all ANSI escape sequences: [...m, \u001b[...m, and [38;2;R;G;Bm patterns
     # Pattern matches:
@@ -1362,6 +1361,7 @@ def on(thing,sync="thread"):
         callbacks.setdefault(thing, []).append({"func":function,"sync":sync})
         return function
     return fancything
+
 def callback(name,*stuff,**morestuff):
     global callbacks
     for callback in callbacks.get(name,[]):
@@ -1391,8 +1391,6 @@ def savecontext():
 
 if SHOULDUSEIMAGES == "1":
     print("Images enabled")
-    import io
-    from PIL import Image
     import numpy as np
     from sklearn.cluster import MeanShift, estimate_bandwidth
 if SERVERPASS == "*":
@@ -3766,7 +3764,6 @@ if DISCORDBOTLOGSTATS == "1":
                 # Check if the image is available using requests instead of aiohttp
                 image_available = True
                 try:
-                    import requests
 
                     response = requests.get(cdn_url + "TEST", timeout=10)
                     if response.status_code != 200:
@@ -8536,6 +8533,10 @@ def messageloop():
                                 message["oserverid"],
                             ),
                         ).start()
+                        try:
+                            callback("onmessage",message)
+                        except:
+                            traceback.print_exc()
                         threading.Thread(
                             target=threadwrap,
                             daemon=True,
