@@ -1,6 +1,6 @@
 # Seamless Titanfall <-> Discord chat relay, rcon, custom commands and leaderboards
 
-## Supports both Northstar and R1delta
+## Supports both Northstar and R1delta (right now you need the ion server image - accuracy tracking not in ns yet)
 
 Message @dyslexi on discord for how to use this, as you'll probably need to be shown the ropes
 
