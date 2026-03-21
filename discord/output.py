@@ -3020,7 +3020,7 @@ if DISCORDBOTLOGSTATS == "1":
 
     ):
         """return a specific pngleaderboard to a person"""
-        serverid = getchannelidfromname(servername, ctx)
+        serverid = getchannelidfromname(serverfilter, ctx)
         await ctx.defer()
         # def getweaponspng(swoptovictims = False,specificweapon=False, max_players=10, COLUMNS=False):
         # timestamp = await asyncio.to_thread(getweaponspng, leaderboard_entry.get("displayvictims", False),leaderboardcategorysshown, maxshown, leaderboard_entry.get("columns", False))
@@ -4403,6 +4403,7 @@ if DISCORDBOTLOGSTATS == "1":
             tfdb.close()
             return rows
 
+        # def lexisuggestedthisoneforaccuracy(timecutoff=0, swoptovictims=False,serverid = None,extraweaponsotherwayround=[])
         def bvsuggestedthistome(timecutoff=0, swoptovictims=False,serverid = None,extraweaponsotherwayround=[]):
             timecutoff = int(time.time() - timecutoff)
             tfdb = postgresem("./data/tf2helper.db")
@@ -7475,7 +7476,7 @@ def recieveflaskprintrequests():
                             totalshots = accuracydata.totalshots + excluded.totalshots,
                             hitshots = accuracydata.hitshots + excluded.hitshots
                         """,
-                        (serverid, match_id, shots.get("total", 0), shots.get("hit", 0), weapon_name, weapon_mods, playeruid),
+                        (serverid, match_id, shots.get("total", 0), shots.get("hit", 0), weapon_name, " ".join(sorted(weapon_mods.split(" "))), playeruid),
                     )
         tfdb.commit()
         tfdb.close()
