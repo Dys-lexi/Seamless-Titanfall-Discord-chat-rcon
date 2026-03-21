@@ -28,6 +28,7 @@ struct  {
     int shots = 0
 } accuracy
 
+table <entity,bool> preventtoomanyhints
 // array<entity> alreadyhits
 
 string function sanitizePlayerName(string name) {
@@ -98,15 +99,24 @@ void function trackhits( entity player, var damageInfo ) {
     else if (IsValid(attacker) &&  attacker.IsPlayer()){
         foreach (entity weapon  in attacker.GetMainWeapons()){
   
-            if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId)){ //&& !(alreadyhits.contains(weapon)  )){
+            if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId) ){ //&& !(alreadyhits.contains(weapon)  )){
+                            if (preventtoomanyhints[weapon] == false){
+                    return
+                }
                 typedMods = weapon.GetMods()
+                preventtoomanyhints[weapon] <- false
                 // alreadyhits.append(weapon)
             }
         }
         foreach (entity  weapon in attacker.GetOffhandWeapons() ){
     
             if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId)){//&& !(alreadyhits.contains(weapon)) ){
+                            if (preventtoomanyhints[weapon] == false){
+                    return
+                }
                 typedMods = weapon.GetMods()
+
+                preventtoomanyhints[weapon] <- false
                 // alreadyhits.append(weapon)
             }
         }
@@ -141,6 +151,7 @@ void function OnWeaponAttack(entity player,entity weapon,string weaponName,int s
     string uid = player.GetUID()
     string mods = ""
     bool hasMods = false
+    preventtoomanyhints[weapon] <- true
     foreach (string mod in weapon.GetMods()) {
         if (hasMods)
             mods += " "
@@ -160,7 +171,7 @@ void function OnWeaponAttack(entity player,entity weapon,string weaponName,int s
         playerweapon defaultt = { shotsfired = 1, hitshots = 0 }
         accuracy.killstuff[uid][weaponName][mods] <- defaultt
     }
-    if (accuracy.shots > 100){
+    if (accuracy.shots > 10){
         accuracy.shots = 0
         thread sendshots()
     } 
