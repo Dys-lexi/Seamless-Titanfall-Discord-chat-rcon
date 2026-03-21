@@ -100,6 +100,8 @@ NPC_NAMES = {
     "npc_drone": "Drone",
     "npc_drone_beam": "Beam Drone",
     "npc_drone_cloaked": "Cloak Drone",
+    "damagedef_frag_drone_throwable_PLAYER": "Tick",
+    "damagedef_frag_drone_throwable_NPC": "Tick",
     "npc_drone_plasma": "Plasma Drone",
     "npc_drone_rocket": "Rocket Drone",
     "npc_drone_shield": "Shield Drone",

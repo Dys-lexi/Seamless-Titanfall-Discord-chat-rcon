@@ -74,10 +74,48 @@ void function Lexi_killstat_Init() {
     AddCallback_OnWeaponAttack(OnWeaponAttack)
     AddCallback_GameStateEnter(9,sendaccuracyforlasttime);
     AddCallback_OnClientDisconnected( sendaccuracyforplayer )
+    // GameMode_AddScoreboardColumnData( "pants", "#SCOREBOARD_ASSAULT", PGS_ASSAULT_SCORE, 4 )
     AddDamageCallback( "player", trackhits )
+    if (GetConVarInt("discordlogshowaccuracyinsteadofassists")){
+        AddCallback_OnWeaponAttack(updateassistsasaccuracy)
+
+    }
 
 }
 
+void function updateassistsasaccuracy(entity player,entity weapon,string weaponName,int shotsFired){
+    // PGS_ASSISTS
+    // attacker.SetPlayerGameStat( PGS_ASSAULT_SCORE, attacker.GetPlayerGameStat( PGS_ASSAULT_SCORE ) + 1 )
+
+        // discordlogsendmessage("e")
+       
+            
+            // discordlogsendmessage(player.GetPlayerName())
+            if (player.GetUID() in accuracy.killstuff){
+                
+                
+            entity weapon =  player.GetActiveWeapon()
+            if (weapon.GetWeaponClassName() in accuracy.killstuff[player.GetUID()]){
+                string mods = ""
+                bool hasMods = false
+                        foreach (string mod in  weapon.GetMods()) {
+
+            if (hasMods){
+                mods += " "}
+            mods += mod
+            hasMods = true
+        }
+    
+        if (mods in accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()] && accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired){
+            // discordlogsendmessage("d"+( (accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots.tofloat()/accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired)*100).tointeger()+ " w " + accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired + " e " + accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots)
+            player.SetPlayerGameStat( PGS_ASSISTS,( (accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots.tofloat()/accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired)*100).tointeger())
+            
+        }        
+            }       
+            }   
+        
+    
+}
 
 void function trackhits( entity player, var damageInfo ) {
     entity attacker = DamageInfo_GetAttacker( damageInfo )
@@ -101,7 +139,7 @@ void function trackhits( entity player, var damageInfo ) {
         foreach (entity weapon  in attacker.GetMainWeapons()){
   
             if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId) ){ //&& !(alreadyhits.contains(weapon)  )){
-                            if (preventtoomanyhints[weapon] == false){
+                            if (!(weapon in preventtoomanyhints) || preventtoomanyhints[weapon] == false){
                     return
                 }
                 typedMods = weapon.GetMods()
@@ -112,7 +150,7 @@ void function trackhits( entity player, var damageInfo ) {
         foreach (entity  weapon in attacker.GetOffhandWeapons() ){
     
             if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId)){//&& !(alreadyhits.contains(weapon)) ){
-                            if (preventtoomanyhints[weapon] == false){
+                            if (!(weapon in preventtoomanyhints) ||  preventtoomanyhints[weapon] == false){
                     return
                 }
                 typedMods = weapon.GetMods()
@@ -210,7 +248,7 @@ void function sendshots(){
     request.url = file.host + "/sendaccuracydata"
     void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse messages )
 		{
-            printt("sent accuracy data")
+            // printt("sent accuracy data")
         }
 void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
 		{

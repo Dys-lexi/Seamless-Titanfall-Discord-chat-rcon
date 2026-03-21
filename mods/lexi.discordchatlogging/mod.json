@@ -58,6 +58,10 @@
         {
             "Name": "discordlogfunctionpermoverrides",
             "DefaultValue": "" // use in the format commandname,perm,deniedperm,commandname,perm,deniedperm eg: helpdc,rconrole,None,nessify,rconrole,debugchat (this overrides the permissions on commands)
+        },
+        {
+            "Name": "discordlogshowaccuracyinsteadofassists",
+            "DefaultValue": "0" // show accuracy in the assists leaderboards
         }
 
     ],
