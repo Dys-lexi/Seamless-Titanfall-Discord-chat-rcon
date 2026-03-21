@@ -1689,13 +1689,12 @@ async def moderation(interaction, parts):
 
 
 async def autocompleteserversfromdb(ctx):
-    if not ctx.value.strip(" "):
-        return []
+
     server_names = [
         s.get("name", "Unknown") for s in context["servers"].values() if s.get("name")
     ]
     output = [
-        name for name in server_names if ctx.value.strip(" ").lower() in name.lower()
+        name for name in server_names if (ctx.value.strip(" ").lower() in name.lower() or not ctx.value)
     ][:20]
     if len(output) == 0:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
@@ -3013,12 +3012,15 @@ if DISCORDBOTLOGSTATS == "1":
             "What weapon (please select one or pay my power bills)",
             autocomplete=weaponnamesautocomplete,
         ) = None,
+        serverfilter: Option(str,"Only show results for this server",autocomplete=autocompleteserversfromdb)= None,
         titanfall1: Option(str, "Use titanfall 1 database", choices=["Yes", "No"]) = "No",
         fliptovictims: Option(str, "Flip to victims?", choices=["Yes", "No"]) = "No",
         onlynpcscount: Option(str, "Only show leaderboards for npcs?", choices=["Yes", "No"]) = "No",
 
+
     ):
         """return a specific pngleaderboard to a person"""
+        serverid = getchannelidfromname(servername, ctx)
         await ctx.defer()
         # def getweaponspng(swoptovictims = False,specificweapon=False, max_players=10, COLUMNS=False):
         # timestamp = await asyncio.to_thread(getweaponspng, leaderboard_entry.get("displayvictims", False),leaderboardcategorysshown, maxshown, leaderboard_entry.get("columns", False))
@@ -3072,7 +3074,8 @@ if DISCORDBOTLOGSTATS == "1":
             350,
             player[0]["uid"],
             onlynpcscount == "Yes",
-            titanfall1 == "Yes"
+            titanfall1 == "Yes",
+            serverid
         )
         cdn_url = f"{GLOBALIP}/cdn/{timestamp}"
         if not timestamp:
@@ -4254,7 +4257,8 @@ if DISCORDBOTLOGSTATS == "1":
         widthoverride=300,
         playeroverride=False,
         canonlybenpcs=False,
-        istf1 = False
+        istf1 = False,
+        serverfilter = False
     ):
         """calculates all the pngleaderboards"""
         global imagescdn
@@ -4399,19 +4403,19 @@ if DISCORDBOTLOGSTATS == "1":
             tfdb.close()
             return rows
 
-        def bvsuggestedthistome(timecutoff=0, swoptovictims=False,extraweaponsotherwayround=[]):
+        def bvsuggestedthistome(timecutoff=0, swoptovictims=False,serverid = None,extraweaponsotherwayround=[]):
             timecutoff = int(time.time() - timecutoff)
             tfdb = postgresem("./data/tf2helper.db")
             c = tfdb
             if not swoptovictims:
                 c.execute(
-                    f"SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker{'tf1' if istf1 else ''} WHERE timeofkill < ?  {f"AND ({" OR ".join(list(map(lambda x: f"cause_of_death = ?" ,extraweaponsotherwayround )))})" if extraweaponsotherwayround else ""} AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, playeruid, weapon_mods, attacker_type",
-                    (timecutoff,*extraweaponsotherwayround),
+                    f"SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker{'tf1' if istf1 else ''} WHERE {"serverid = ? AND " if serverid else ""}timeofkill < ?  {f"AND ({" OR ".join(list(map(lambda x: f"cause_of_death = ?" ,extraweaponsotherwayround )))})" if extraweaponsotherwayround else ""} AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, playeruid, weapon_mods, attacker_type",
+                    (*list(filter(lambda x: x,[serverid])),timecutoff,*extraweaponsotherwayround),
                 )
             else:
                 c.execute(
-                    f"SELECT cause_of_death, victim_id, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker{'tf1' if istf1 else ''} WHERE timeofkill < ?  {f"AND ({" OR ".join(list(map(lambda x: f"cause_of_death = ?" ,extraweaponsotherwayround )))})" if extraweaponsotherwayround else ""}  AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, victim_id, weapon_mods, attacker_type",
-                    (timecutoff,*extraweaponsotherwayround),
+                    f"SELECT cause_of_death, victim_id, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker{'tf1' if istf1 else ''} WHERE {"serverid = ? AND " if serverid else ""} timeofkill < ?  {f"AND ({" OR ".join(list(map(lambda x: f"cause_of_death = ?" ,extraweaponsotherwayround )))})" if extraweaponsotherwayround else ""}  AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, victim_id, weapon_mods, attacker_type",
+                    (*list(filter(lambda x: x,[serverid])),timecutoff,*extraweaponsotherwayround),
                 )
 
             rows = c.fetchall()
@@ -4435,7 +4439,7 @@ if DISCORDBOTLOGSTATS == "1":
             # )
             weapon_kills = {"main": {}, "cutoff": {}}
             for name, cutoff in timecutoffs.items():
-                stabsofweapons = bvsuggestedthistome(cutoff, swoptovictims,extraweaponsotherwayround)
+                stabsofweapons = bvsuggestedthistome(cutoff, swoptovictims,serverfilter,extraweaponsotherwayround)
                 for weapon, killer, mods, stabcount, whomurdered in stabsofweapons:
                     if foundgun := extraweapons.get(weapon):
                         actualmods = mods.split(" ")
@@ -4548,7 +4552,7 @@ if DISCORDBOTLOGSTATS == "1":
             weapon_kills = {"main": {}, "cutoff": {}}
             for name, cutoff in timecutoffs.items():
                 for weapon, killer, mods, stabcount, whomurdered in bvsuggestedthistome(
-                    cutoff, swoptovictims
+                    cutoff, swoptovictims,serverfilter
                 ):
                     if not killer:
                         killer = whomurdered
