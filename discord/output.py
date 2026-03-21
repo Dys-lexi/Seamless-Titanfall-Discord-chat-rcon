@@ -373,6 +373,59 @@ def discorduidinfodb():
     tfdb.commit()
     tfdb.close()
 
+def accuracydatadb():
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
+
+    # Create the table if it doesn't exist
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS accuracydata (
+            serverid                TEXT,
+            match_id                TEXT,
+            totalshots              INTEGER,
+            hitshots                INTEGER,
+            weapon_name             TEXT,
+            weapon_mods             TEXT,
+            playeruid               INTEGER,           
+            PRIMARY KEY (match_id, playeruid,weapon_name,weapon_mods)
+        )"""
+    )
+    if POSTGRESQLDBURL != "0":
+        c.execute("""
+        ALTER TABLE accuracydata
+        ALTER COLUMN playeruid TYPE BIGINT  USING playeruid::BIGINT
+        """)
+        c.commit()
+
+    # c.execute("PRAGMA table_info(specifickilltracker)")
+    # columns = [row[1] for row in c.fetchall()]
+
+    # if "victim_type" not in columns:
+    # #     c.execute("ALTER TABLE specifickilltracker ADD COLUMN victim_type TEXT")
+
+    # # Count kills where victim was NOT in a titan (victim_titan is NULL or "null")
+    # c.execute("""
+    #     SELECT COUNT(*) FROM specifickilltracker
+    #     WHERE (victim_titan IS NULL OR victim_titan = 'null')
+    #     AND victim_type = 'player'
+    # """)
+    # no_titan_kills = c.fetchone()[0]
+    # print(f"Kills where victim was NOT in a titan: {no_titan_kills}")
+
+    # # Count kills where victim WAS in a titan (victim_titan is not NULL and not "null")
+    # c.execute("""
+    #     SELECT COUNT(*) FROM specifickilltracker
+    #     WHERE victim_titan IS NOT NULL
+    #     AND victim_titan != 'null'
+    #     AND victim_type = 'player'
+    # """)
+    # in_titan_kills = c.fetchone()[0]
+    # print(f"Kills where victim WAS in a titan: {in_titan_kills}")
+
+    tfdb.commit()
+    c.close()
+    tfdb.close()
+
 
 def specifickilltrackerdb():
     tfdb = postgresem("./data/tf2helper.db")
@@ -1447,6 +1500,8 @@ playeruidpreferences()
 creatediscordlinkdb()
 specifickilltrackerdb()
 specifickilltrackerdbtf1()
+specifickilltrackerdb()
+accuracydatadb()
 playeruidnamelinktf1()
 # tf1matchplayers()
 matchidtf1()
@@ -7395,7 +7450,33 @@ def recieveflaskprintrequests():
 
     #     tfdb.close()
     #     return {**output, **messages}
-    
+    @app.route("/sendaccuracydata", methods=["POST"])
+    def accuracydata():
+        data = request.get_json()
+        if data["password"] != SERVERPASS and SERVERPASS != "*"  :
+            print("invalid password used on data")
+            return {"message": "invalid password"}
+        print(json.dumps(data,indent=4))
+        tfdb = postgresem("./data/tf2helper.db")
+        match_id = data.get("matchid", "0")
+        serverid = data.get("serverid", None)
+        for playeruid, weapons in data.get("killstuff", {}).items():
+            for weapon_name, mods_dict in weapons.items():
+                for weapon_mods, shots in mods_dict.items():
+                    tfdb.execute(
+                        """
+                        INSERT INTO accuracydata (serverid, match_id, totalshots, hitshots, weapon_name, weapon_mods, playeruid)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(match_id, playeruid, weapon_name, weapon_mods) DO UPDATE SET
+                            totalshots = accuracydata.totalshots + excluded.totalshots,
+                            hitshots = accuracydata.hitshots + excluded.hitshots
+                        """,
+                        (serverid, match_id, shots.get("total", 0), shots.get("hit", 0), weapon_name, weapon_mods, playeruid),
+                    )
+        tfdb.commit()
+        tfdb.close()
+        return {"message": "ok"}
+
     @app.route("/data", methods=["POST"])
     def onkilldata(data = None):
         # takes input directly from (slightly modified) nutone (https://github.com/nutone-tf) code for this to work is not on the github repo, so probably don't try using it.

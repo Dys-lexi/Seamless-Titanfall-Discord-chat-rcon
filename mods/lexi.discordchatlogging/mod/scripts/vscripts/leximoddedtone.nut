@@ -15,6 +15,23 @@ struct {
     string map
 } file
 
+struct playerweapon {
+    int shotsfired
+    int hitshots
+    // string uidofpersonshooting
+//     string gunname
+//     array<string> weaponmods
+}
+
+struct  {
+    table<string,table<string,table<string,playerweapon> > > killstuff
+    string matchid = ""
+    int shots = 0
+    string password = ""
+} accuracy
+
+
+
 string function sanitizePlayerName(string name) {
     
 
@@ -33,6 +50,7 @@ string function sanitizePlayerName(string name) {
 }
 
 void function Lexi_killstat_Init() {
+    
 	if (GetConVarInt("discordloggingserverid") == 0){
 		print("[DiscordLogger]Server ID not set, please set it in the console PLEASE FIX THIS")
 		return
@@ -54,8 +72,141 @@ void function Lexi_killstat_Init() {
     AddCallback_OnNPCKilled(killstat_Record)
     AddCallback_GameStateEnter(eGameState.Postmatch, killstat_End)
     AddCallback_OnClientConnected(JoinMessage)
+    AddCallback_OnWeaponAttack(OnWeaponAttack)
+    AddCallback_GameStateEnter(9,sendaccuracyforlasttime);
+    // AddCallback_OnPlayerDisconnected( sendaccuracyforplayer )
+    AddDamageCallback( "player", trackhits )
+    accuracy.matchid = GetConVarString("discordloggingmatchid")
+    accuracy.password = GetConVarString("discordloggingserverpassword")
 }
 
+
+void function trackhits( entity player, var damageInfo ) {
+    entity attacker = DamageInfo_GetAttacker( damageInfo )
+    if (!IsValid(attacker) || !attacker.IsPlayer())
+        return
+
+    string uid = attacker.GetUID()
+    int damageSourceId = DamageInfo_GetDamageSourceIdentifier( damageInfo )
+    string weaponName = DamageSourceIDToString( damageSourceId )
+
+    string mods = ""
+    bool hasMods = false
+    array<string> typedMods
+
+    if (IsValid(DamageInfo_GetWeapon(damageInfo))){
+        typedMods = DamageInfo_GetWeapon(damageInfo).GetMods()
+
+    }
+    else if (IsValid(attacker) &&  attacker.IsPlayer()){
+        foreach (entity weapon  in attacker.GetMainWeapons()){
+  
+            if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId)){
+                typedMods = weapon.GetMods()
+            }
+        }
+        foreach (entity  weapon in attacker.GetOffhandWeapons() ){
+    
+            if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId)){
+                typedMods = weapon.GetMods()
+            }
+        }
+    }
+
+    
+        foreach (string mod in  typedMods) {
+
+            if (hasMods)
+                mods += " "
+            mods += mod
+            hasMods = true
+        }
+    
+
+    if (!(uid in accuracy.killstuff))
+        accuracy.killstuff[uid] <- {}
+
+    if (!(weaponName in accuracy.killstuff[uid]))
+        accuracy.killstuff[uid][weaponName] <- {}
+
+    if (mods in accuracy.killstuff[uid][weaponName])
+        accuracy.killstuff[uid][weaponName][mods].hitshots += 1
+    else {
+        playerweapon defaultt = { shotsfired = 0, hitshots = 1 }
+        accuracy.killstuff[uid][weaponName][mods] <- defaultt
+    }
+}
+
+void function OnWeaponAttack(entity player,entity weapon,string weaponName,int shotsFired) {
+    accuracy.shots += 1
+    string uid = player.GetUID()
+    string mods = ""
+    bool hasMods = false
+    foreach (string mod in weapon.GetMods()) {
+        if (hasMods)
+            mods += " "
+        mods += mod
+        hasMods = true
+    }
+
+    if (!(uid in accuracy.killstuff))
+        accuracy.killstuff[uid] <- {}
+
+    if (!(weaponName in accuracy.killstuff[uid]))
+        accuracy.killstuff[uid][weaponName] <- {}
+
+    if (mods in accuracy.killstuff[uid][weaponName])
+        accuracy.killstuff[uid][weaponName][mods].shotsfired +=1
+    else {
+        playerweapon defaultt = { shotsfired = 1, hitshots = 0 }
+        accuracy.killstuff[uid][weaponName][mods] <- defaultt
+    }
+    if (accuracy.shots > 100){
+        accuracy.shots = 0
+        thread sendshots()
+    } 
+}
+void function sendaccuracyforplayer(entity player){
+    accuracy.shots = 0
+    thread sendshots()
+}
+void function sendaccuracyforlasttime(){
+    accuracy.shots = -100000
+    thread sendshots()
+}
+
+void function sendshots(){
+    HttpRequest request
+    table things = {}
+    things["matchid"] <- accuracy.matchid
+    things["password"] <- GetConVarString("discordloggingserverpassword")
+    table killstuffTable = {}
+    foreach (string uid, table<string,table<string,playerweapon> > weapons in accuracy.killstuff) {
+        table weaponsTable = {}
+        foreach (string weaponName, table<string,playerweapon> modsTable in weapons) {
+            table modsOut = {}
+            foreach (string mods, playerweapon pw in modsTable) {
+                modsOut[mods] <- {total = pw.shotsfired, hit =  pw.hitshots}
+            }
+            weaponsTable[weaponName] <- modsOut
+        }
+        killstuffTable[uid] <- weaponsTable
+    }
+    things["killstuff"] <- killstuffTable
+    request.body = EncodeJSON(things)
+    request.method = HttpRequestMethod.POST
+    request.url = file.host + "/sendaccuracydata"
+    void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse messages )
+		{
+            printt("sent accuracy data")
+        }
+void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
+		{
+			printt("could not send accuracy data")
+        }
+
+    NSHttpRequest( request, onSuccess, onFailure )
+}
 string prefix = "\x1b[38;5;81m[NUTONEAPI]\x1b[0m "
 // bool function realstats (entity player, array<string> args){
 //     thread CommandStats(player,args)
