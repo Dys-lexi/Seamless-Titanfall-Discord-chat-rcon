@@ -25,12 +25,10 @@ struct playerweapon {
 
 struct  {
     table<string,table<string,table<string,playerweapon> > > killstuff
-    string matchid = ""
     int shots = 0
-    string password = ""
 } accuracy
 
-
+// array<entity> alreadyhits
 
 string function sanitizePlayerName(string name) {
     
@@ -74,10 +72,9 @@ void function Lexi_killstat_Init() {
     AddCallback_OnClientConnected(JoinMessage)
     AddCallback_OnWeaponAttack(OnWeaponAttack)
     AddCallback_GameStateEnter(9,sendaccuracyforlasttime);
-    // AddCallback_OnPlayerDisconnected( sendaccuracyforplayer )
+    AddCallback_OnClientDisconnected( sendaccuracyforplayer )
     AddDamageCallback( "player", trackhits )
-    accuracy.matchid = GetConVarString("discordloggingmatchid")
-    accuracy.password = GetConVarString("discordloggingserverpassword")
+
 }
 
 
@@ -101,14 +98,16 @@ void function trackhits( entity player, var damageInfo ) {
     else if (IsValid(attacker) &&  attacker.IsPlayer()){
         foreach (entity weapon  in attacker.GetMainWeapons()){
   
-            if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId)){
+            if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId)){ //&& !(alreadyhits.contains(weapon)  )){
                 typedMods = weapon.GetMods()
+                // alreadyhits.append(weapon)
             }
         }
         foreach (entity  weapon in attacker.GetOffhandWeapons() ){
     
-            if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId)){
+            if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId)){//&& !(alreadyhits.contains(weapon)) ){
                 typedMods = weapon.GetMods()
+                // alreadyhits.append(weapon)
             }
         }
     }
@@ -178,8 +177,9 @@ void function sendaccuracyforlasttime(){
 void function sendshots(){
     HttpRequest request
     table things = {}
-    things["matchid"] <- accuracy.matchid
-    things["password"] <- GetConVarString("discordloggingserverpassword")
+    things.matchid <- GetConVarString("discordloggingmatchid")
+    things.password <- GetConVarString("discordloggingserverpassword")
+    things.serverid <- GetConVarString("discordloggingserverid")
     table killstuffTable = {}
     foreach (string uid, table<string,table<string,playerweapon> > weapons in accuracy.killstuff) {
         table weaponsTable = {}

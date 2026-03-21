@@ -3013,6 +3013,7 @@ if DISCORDBOTLOGSTATS == "1":
             autocomplete=weaponnamesautocomplete,
         ) = None,
         serverfilter: Option(str,"Only show results for this server",autocomplete=autocompleteserversfromdb)= None,
+        accuracy: Option(str, "Display accuracy instead!", choices=["Yes", "No"]) = "No",
         titanfall1: Option(str, "Use titanfall 1 database", choices=["Yes", "No"]) = "No",
         fliptovictims: Option(str, "Flip to victims?", choices=["Yes", "No"]) = "No",
         onlynpcscount: Option(str, "Only show leaderboards for npcs?", choices=["Yes", "No"]) = "No",
@@ -3075,7 +3076,8 @@ if DISCORDBOTLOGSTATS == "1":
             player[0]["uid"],
             onlynpcscount == "Yes",
             titanfall1 == "Yes",
-            serverid
+            serverid,
+            accuracy == "Yes",
         )
         cdn_url = f"{GLOBALIP}/cdn/{timestamp}"
         if not timestamp:
@@ -4258,7 +4260,8 @@ if DISCORDBOTLOGSTATS == "1":
         playeroverride=False,
         canonlybenpcs=False,
         istf1 = False,
-        serverfilter = False
+        serverfilter = False,
+        shouldbekd = False
     ):
         """calculates all the pngleaderboards"""
         global imagescdn
@@ -4403,12 +4406,18 @@ if DISCORDBOTLOGSTATS == "1":
             tfdb.close()
             return rows
 
-        # def lexisuggestedthisoneforaccuracy(timecutoff=0, swoptovictims=False,serverid = None,extraweaponsotherwayround=[])
-        def bvsuggestedthistome(timecutoff=0, swoptovictims=False,serverid = None,extraweaponsotherwayround=[]):
+
+
+        def bvsuggestedthistome(timecutoff=0, swoptovictims=False,serverid = None,shouldbekd= False,extraweaponsotherwayround=[]):
             timecutoff = int(time.time() - timecutoff)
             tfdb = postgresem("./data/tf2helper.db")
             c = tfdb
-            if not swoptovictims:
+            if shouldbekd:
+                c.execute(
+                    f"SELECT a.weapon_name, a.playeruid, a.weapon_mods, SUM(a.hitshots) * 100.0 / SUM(a.totalshots) as amount, 'player' as attacker_type FROM accuracydata a JOIN matchid m ON a.match_id = m.matchid WHERE {"a.serverid = ? AND " if serverid else ""}m.time < ? {f"AND ({" OR ".join(list(map(lambda x: f"a.weapon_name = ?" ,extraweaponsotherwayround )))})" if extraweaponsotherwayround else ""} AND a.totalshots > 0 GROUP BY a.weapon_name, a.playeruid, a.weapon_mods",
+                    (*list(filter(lambda x: x,[serverid])),timecutoff,*extraweaponsotherwayround),
+                )
+            elif not swoptovictims:
                 c.execute(
                     f"SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker{'tf1' if istf1 else ''} WHERE {"serverid = ? AND " if serverid else ""}timeofkill < ?  {f"AND ({" OR ".join(list(map(lambda x: f"cause_of_death = ?" ,extraweaponsotherwayround )))})" if extraweaponsotherwayround else ""} AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, playeruid, weapon_mods, attacker_type",
                     (*list(filter(lambda x: x,[serverid])),timecutoff,*extraweaponsotherwayround),
@@ -4553,7 +4562,7 @@ if DISCORDBOTLOGSTATS == "1":
             weapon_kills = {"main": {}, "cutoff": {}}
             for name, cutoff in timecutoffs.items():
                 for weapon, killer, mods, stabcount, whomurdered in bvsuggestedthistome(
-                    cutoff, swoptovictims,serverfilter
+                    cutoff, swoptovictims,serverfilter,shouldbekd
                 ):
                     if not killer:
                         killer = whomurdered
@@ -4838,11 +4847,11 @@ if DISCORDBOTLOGSTATS == "1":
 
                     y = maxheight + i * (FONT_SIZE + LINE_SPACING) + 5
                     x = 5
-                    base_text = f"{name}: {count}"
+                    base_text = f"{name}: {count:.2f}{"%" if shouldbekd else ""}"
                     draw.text((x, y), base_text, font=font, fill=color)
                     x += draw.textlength(base_text, font=font)
                     if delta_kills:
-                        plus_text = f" +{delta_kills}"
+                        plus_text = f" {"+" if delta_kills > 0 else ""}{delta_kills:.2f}{"%" if shouldbekd else ""}"
                         draw.text((x, y), plus_text, font=font, fill=(100, 100, 100))
                     arrow_x = maxwidth - draw.textlength(change_text, font=font) - 10
                     draw.text((arrow_x, y), change_text, font=font, fill=change_color)
@@ -7461,7 +7470,7 @@ def recieveflaskprintrequests():
         if data["password"] != SERVERPASS and SERVERPASS != "*"  :
             print("invalid password used on data")
             return {"message": "invalid password"}
-        print(json.dumps(data,indent=4))
+        # print(json.dumps(data,indent=4))
         tfdb = postgresem("./data/tf2helper.db")
         match_id = data.get("matchid", "0")
         serverid = data.get("serverid", None)
@@ -7473,8 +7482,8 @@ def recieveflaskprintrequests():
                         INSERT INTO accuracydata (serverid, match_id, totalshots, hitshots, weapon_name, weapon_mods, playeruid)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(match_id, playeruid, weapon_name, weapon_mods) DO UPDATE SET
-                            totalshots = accuracydata.totalshots + excluded.totalshots,
-                            hitshots = accuracydata.hitshots + excluded.hitshots
+                            totalshots = excluded.totalshots,
+                            hitshots =  excluded.hitshots
                         """,
                         (serverid, match_id, shots.get("total", 0), shots.get("hit", 0), weapon_name, " ".join(sorted(weapon_mods.split(" "))), playeruid),
                     )
