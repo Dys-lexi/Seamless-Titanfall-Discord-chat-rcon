@@ -119,7 +119,7 @@ void function updateassistsasaccuracy(entity player,entity weapon,string weaponN
 
 void function trackhits( entity player, var damageInfo ) {
     entity attacker = DamageInfo_GetAttacker( damageInfo )
-    if (!IsValid(attacker) || !attacker.IsPlayer())
+    if (!IsValid(attacker) || !attacker.IsPlayer() || attacker == player)
         return
 
     string uid = attacker.GetUID()
@@ -139,7 +139,7 @@ void function trackhits( entity player, var damageInfo ) {
         foreach (entity weapon  in attacker.GetMainWeapons()){
   
             if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId) ){ //&& !(alreadyhits.contains(weapon)  )){
-                            if (!(weapon in preventtoomanyhints) || preventtoomanyhints[weapon] == false){
+                            if ( weapon.GetWeaponInfoFileKeyField( "fire_rate" ) < 5 && (!(weapon in preventtoomanyhints) || preventtoomanyhints[weapon] == false)){
                     return
                 }
                 typedMods = weapon.GetMods()
@@ -150,7 +150,7 @@ void function trackhits( entity player, var damageInfo ) {
         foreach (entity  weapon in attacker.GetOffhandWeapons() ){
     
             if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId)){//&& !(alreadyhits.contains(weapon)) ){
-                            if (!(weapon in preventtoomanyhints) ||  preventtoomanyhints[weapon] == false){
+                            if (weapon.GetWeaponInfoFileKeyField( "fire_rate" ) < 5 && (!(weapon in preventtoomanyhints) ||  preventtoomanyhints[weapon] == false)){
                     return
                 }
                 typedMods = weapon.GetMods()
