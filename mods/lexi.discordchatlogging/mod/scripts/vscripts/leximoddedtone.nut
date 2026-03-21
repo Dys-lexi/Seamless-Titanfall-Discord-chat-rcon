@@ -94,6 +94,7 @@ void function trackhits( entity player, var damageInfo ) {
 
     if (IsValid(DamageInfo_GetWeapon(damageInfo))){
         typedMods = DamageInfo_GetWeapon(damageInfo).GetMods()
+        // can get over 100% accuracy, future lexi if hitscan gun
 
     }
     else if (IsValid(attacker) &&  attacker.IsPlayer()){

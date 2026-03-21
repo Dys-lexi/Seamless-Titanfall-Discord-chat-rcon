@@ -373,59 +373,6 @@ def discorduidinfodb():
     tfdb.commit()
     tfdb.close()
 
-def accuracydatadb():
-    tfdb = postgresem("./data/tf2helper.db")
-    c = tfdb
-
-    # Create the table if it doesn't exist
-    c.execute(
-        """CREATE TABLE IF NOT EXISTS accuracydata (
-            serverid                TEXT,
-            match_id                TEXT,
-            totalshots              INTEGER,
-            hitshots                INTEGER,
-            weapon_name             TEXT,
-            weapon_mods             TEXT,
-            playeruid               INTEGER,           
-            PRIMARY KEY (match_id, playeruid,weapon_name,weapon_mods)
-        )"""
-    )
-    if POSTGRESQLDBURL != "0":
-        c.execute("""
-        ALTER TABLE accuracydata
-        ALTER COLUMN playeruid TYPE BIGINT  USING playeruid::BIGINT
-        """)
-        c.commit()
-
-    # c.execute("PRAGMA table_info(specifickilltracker)")
-    # columns = [row[1] for row in c.fetchall()]
-
-    # if "victim_type" not in columns:
-    # #     c.execute("ALTER TABLE specifickilltracker ADD COLUMN victim_type TEXT")
-
-    # # Count kills where victim was NOT in a titan (victim_titan is NULL or "null")
-    # c.execute("""
-    #     SELECT COUNT(*) FROM specifickilltracker
-    #     WHERE (victim_titan IS NULL OR victim_titan = 'null')
-    #     AND victim_type = 'player'
-    # """)
-    # no_titan_kills = c.fetchone()[0]
-    # print(f"Kills where victim was NOT in a titan: {no_titan_kills}")
-
-    # # Count kills where victim WAS in a titan (victim_titan is not NULL and not "null")
-    # c.execute("""
-    #     SELECT COUNT(*) FROM specifickilltracker
-    #     WHERE victim_titan IS NOT NULL
-    #     AND victim_titan != 'null'
-    #     AND victim_type = 'player'
-    # """)
-    # in_titan_kills = c.fetchone()[0]
-    # print(f"Kills where victim WAS in a titan: {in_titan_kills}")
-
-    tfdb.commit()
-    c.close()
-    tfdb.close()
-
 
 def specifickilltrackerdb():
     tfdb = postgresem("./data/tf2helper.db")
@@ -1500,8 +1447,6 @@ playeruidpreferences()
 creatediscordlinkdb()
 specifickilltrackerdb()
 specifickilltrackerdbtf1()
-specifickilltrackerdb()
-accuracydatadb()
 playeruidnamelinktf1()
 # tf1matchplayers()
 matchidtf1()
@@ -1689,12 +1634,13 @@ async def moderation(interaction, parts):
 
 
 async def autocompleteserversfromdb(ctx):
-
+    if not ctx.value.strip(" "):
+        return []
     server_names = [
         s.get("name", "Unknown") for s in context["servers"].values() if s.get("name")
     ]
     output = [
-        name for name in server_names if (ctx.value.strip(" ").lower() in name.lower() or not ctx.value)
+        name for name in server_names if ctx.value.strip(" ").lower() in name.lower()
     ][:20]
     if len(output) == 0:
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
@@ -3012,16 +2958,12 @@ if DISCORDBOTLOGSTATS == "1":
             "What weapon (please select one or pay my power bills)",
             autocomplete=weaponnamesautocomplete,
         ) = None,
-        serverfilter: Option(str,"Only show results for this server",autocomplete=autocompleteserversfromdb)= None,
-        accuracy: Option(str, "Display accuracy instead!", choices=["Yes", "No"]) = "No",
         titanfall1: Option(str, "Use titanfall 1 database", choices=["Yes", "No"]) = "No",
         fliptovictims: Option(str, "Flip to victims?", choices=["Yes", "No"]) = "No",
         onlynpcscount: Option(str, "Only show leaderboards for npcs?", choices=["Yes", "No"]) = "No",
 
-
     ):
         """return a specific pngleaderboard to a person"""
-        serverid = getchannelidfromname(serverfilter, ctx)
         await ctx.defer()
         # def getweaponspng(swoptovictims = False,specificweapon=False, max_players=10, COLUMNS=False):
         # timestamp = await asyncio.to_thread(getweaponspng, leaderboard_entry.get("displayvictims", False),leaderboardcategorysshown, maxshown, leaderboard_entry.get("columns", False))
@@ -3075,9 +3017,7 @@ if DISCORDBOTLOGSTATS == "1":
             350,
             player[0]["uid"],
             onlynpcscount == "Yes",
-            titanfall1 == "Yes",
-            serverid,
-            accuracy == "Yes",
+            titanfall1 == "Yes"
         )
         cdn_url = f"{GLOBALIP}/cdn/{timestamp}"
         if not timestamp:
@@ -4259,9 +4199,7 @@ if DISCORDBOTLOGSTATS == "1":
         widthoverride=300,
         playeroverride=False,
         canonlybenpcs=False,
-        istf1 = False,
-        serverfilter = False,
-        shouldbekd = False
+        istf1 = False
     ):
         """calculates all the pngleaderboards"""
         global imagescdn
@@ -4406,26 +4344,19 @@ if DISCORDBOTLOGSTATS == "1":
             tfdb.close()
             return rows
 
-
-
-        def bvsuggestedthistome(timecutoff=0, swoptovictims=False,serverid = None,shouldbekd= False,extraweaponsotherwayround=[]):
+        def bvsuggestedthistome(timecutoff=0, swoptovictims=False,extraweaponsotherwayround=[]):
             timecutoff = int(time.time() - timecutoff)
             tfdb = postgresem("./data/tf2helper.db")
             c = tfdb
-            if shouldbekd:
+            if not swoptovictims:
                 c.execute(
-                    f"SELECT a.weapon_name, a.playeruid, a.weapon_mods, SUM(a.hitshots) as hits, SUM(a.totalshots) as total FROM accuracydata a JOIN matchid m ON a.match_id = m.matchid WHERE {"a.serverid = ? AND " if serverid else ""}m.time < ? {f"AND ({" OR ".join(list(map(lambda x: f"a.weapon_name = ?" ,extraweaponsotherwayround )))})" if extraweaponsotherwayround else ""} AND a.totalshots > 0 GROUP BY a.weapon_name, a.playeruid, a.weapon_mods",
-                    (*list(filter(lambda x: x,[serverid])),timecutoff,*extraweaponsotherwayround),
-                )
-            elif not swoptovictims:
-                c.execute(
-                    f"SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker{'tf1' if istf1 else ''} WHERE {"serverid = ? AND " if serverid else ""}timeofkill < ?  {f"AND ({" OR ".join(list(map(lambda x: f"cause_of_death = ?" ,extraweaponsotherwayround )))})" if extraweaponsotherwayround else ""} AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, playeruid, weapon_mods, attacker_type",
-                    (*list(filter(lambda x: x,[serverid])),timecutoff,*extraweaponsotherwayround),
+                    f"SELECT cause_of_death, playeruid, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker{'tf1' if istf1 else ''} WHERE timeofkill < ?  {f"AND ({" OR ".join(list(map(lambda x: f"cause_of_death = ?" ,extraweaponsotherwayround )))})" if extraweaponsotherwayround else ""} AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, playeruid, weapon_mods, attacker_type",
+                    (timecutoff,*extraweaponsotherwayround),
                 )
             else:
                 c.execute(
-                    f"SELECT cause_of_death, victim_id, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker{'tf1' if istf1 else ''} WHERE {"serverid = ? AND " if serverid else ""} timeofkill < ?  {f"AND ({" OR ".join(list(map(lambda x: f"cause_of_death = ?" ,extraweaponsotherwayround )))})" if extraweaponsotherwayround else ""}  AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, victim_id, weapon_mods, attacker_type",
-                    (*list(filter(lambda x: x,[serverid])),timecutoff,*extraweaponsotherwayround),
+                    f"SELECT cause_of_death, victim_id, weapon_mods, COUNT(*) as amount, attacker_type FROM specifickilltracker{'tf1' if istf1 else ''} WHERE timeofkill < ?  {f"AND ({" OR ".join(list(map(lambda x: f"cause_of_death = ?" ,extraweaponsotherwayround )))})" if extraweaponsotherwayround else ""}  AND (victim_type = 'player' OR victim_type IS NULL) GROUP BY cause_of_death, victim_id, weapon_mods, attacker_type",
+                    (timecutoff,*extraweaponsotherwayround),
                 )
 
             rows = c.fetchall()
@@ -4449,7 +4380,7 @@ if DISCORDBOTLOGSTATS == "1":
             # )
             weapon_kills = {"main": {}, "cutoff": {}}
             for name, cutoff in timecutoffs.items():
-                stabsofweapons = bvsuggestedthistome(cutoff, swoptovictims,serverfilter,shouldbekd,extraweaponsotherwayround)
+                stabsofweapons = bvsuggestedthistome(cutoff, swoptovictims,extraweaponsotherwayround)
                 for weapon, killer, mods, stabcount, whomurdered in stabsofweapons:
                     if foundgun := extraweapons.get(weapon):
                         actualmods = mods.split(" ")
@@ -4500,16 +4431,12 @@ if DISCORDBOTLOGSTATS == "1":
                     elif canonlybenpcs:
                         continue
                     weapon_kills[name].setdefault(specificweapon[index]["png_name"], {})
-                    if shouldbekd:
-                        existing = weapon_kills[name][specificweapon[index]["png_name"]].get(killer, (0, 0))
-                        weapon_kills[name][specificweapon[index]["png_name"]][killer] = (existing[0] + stabcount, existing[1] + whomurdered)
-                    else:
-                        weapon_kills[name][specificweapon[index]["png_name"]].setdefault(
-                            killer, 0
-                        )
-                        weapon_kills[name][specificweapon[index]["png_name"]][killer] += (
-                            stabcount
-                        )
+                    weapon_kills[name][specificweapon[index]["png_name"]].setdefault(
+                        killer, 0
+                    )
+                    weapon_kills[name][specificweapon[index]["png_name"]][killer] += (
+                        stabcount
+                    )
                 # for weapon, killer, mods, stabcount, whomurdered in stabsofweapons:
                 #     if weapon not in specificweaponsallowedex:
                 #         continue
@@ -4573,19 +4500,8 @@ if DISCORDBOTLOGSTATS == "1":
                     elif canonlybenpcs:
                         continue
                     weapon_kills[name].setdefault(f"{weapon}", {})
-                    if shouldbekd:
-                        existing = weapon_kills[name][f"{weapon}"].get(killer, (0, 0))
-                        weapon_kills[name][f"{weapon}"][killer] = (existing[0] + stabcount, existing[1] + whomurdered)
-                    else:
-                        weapon_kills[name][f"{weapon}"].setdefault(killer, 0)
-                        weapon_kills[name][f"{weapon}"][killer] += stabcount
-
-        if shouldbekd:
-            for name in weapon_kills:
-                for weapon in weapon_kills[name]:
-                    for killer in weapon_kills[name][weapon]:
-                        hits, total = weapon_kills[name][weapon][killer]
-                        weapon_kills[name][weapon][killer] = hits * 100.0 / total if total > 0 else 0
+                    weapon_kills[name][f"{weapon}"].setdefault(killer, 0)
+                    weapon_kills[name][f"{weapon}"][killer] += stabcount
 
         # weapon_kills = {"main":{},"cutoff":{}}
         # for name,cutoff in timecutoffs.items():
@@ -4862,11 +4778,11 @@ if DISCORDBOTLOGSTATS == "1":
 
                     y = maxheight + i * (FONT_SIZE + LINE_SPACING) + 5
                     x = 5
-                    base_text = f"{name}: {f"{count:.2f}%" if shouldbekd else count}"
+                    base_text = f"{name}: {count}"
                     draw.text((x, y), base_text, font=font, fill=color)
                     x += draw.textlength(base_text, font=font)
                     if delta_kills:
-                        plus_text = f" {"+" if delta_kills > 0 else ""}{f"{delta_kills:.2f}%" if shouldbekd else delta_kills}"
+                        plus_text = f" +{delta_kills}"
                         draw.text((x, y), plus_text, font=font, fill=(100, 100, 100))
                     arrow_x = maxwidth - draw.textlength(change_text, font=font) - 10
                     draw.text((arrow_x, y), change_text, font=font, fill=change_color)
@@ -7479,33 +7395,7 @@ def recieveflaskprintrequests():
 
     #     tfdb.close()
     #     return {**output, **messages}
-    @app.route("/sendaccuracydata", methods=["POST"])
-    def accuracydata():
-        data = request.get_json()
-        if data["password"] != SERVERPASS and SERVERPASS != "*"  :
-            print("invalid password used on data")
-            return {"message": "invalid password"}
-        # print(json.dumps(data,indent=4))
-        tfdb = postgresem("./data/tf2helper.db")
-        match_id = data.get("matchid", "0")
-        serverid = data.get("serverid", None)
-        for playeruid, weapons in data.get("killstuff", {}).items():
-            for weapon_name, mods_dict in weapons.items():
-                for weapon_mods, shots in mods_dict.items():
-                    tfdb.execute(
-                        """
-                        INSERT INTO accuracydata (serverid, match_id, totalshots, hitshots, weapon_name, weapon_mods, playeruid)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                        ON CONFLICT(match_id, playeruid, weapon_name, weapon_mods) DO UPDATE SET
-                            totalshots = excluded.totalshots,
-                            hitshots =  excluded.hitshots
-                        """,
-                        (serverid, match_id, shots.get("total", 0), shots.get("hit", 0), weapon_name, " ".join(sorted(weapon_mods.split(" "))), playeruid),
-                    )
-        tfdb.commit()
-        tfdb.close()
-        return {"message": "ok"}
-
+    
     @app.route("/data", methods=["POST"])
     def onkilldata(data = None):
         # takes input directly from (slightly modified) nutone (https://github.com/nutone-tf) code for this to work is not on the github repo, so probably don't try using it.
