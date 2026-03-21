@@ -4414,7 +4414,7 @@ if DISCORDBOTLOGSTATS == "1":
             c = tfdb
             if shouldbekd:
                 c.execute(
-                    f"SELECT a.weapon_name, a.playeruid, a.weapon_mods, SUM(a.hitshots) * 100.0 / SUM(a.totalshots) as amount, 'player' as attacker_type FROM accuracydata a JOIN matchid m ON a.match_id = m.matchid WHERE {"a.serverid = ? AND " if serverid else ""}m.time < ? {f"AND ({" OR ".join(list(map(lambda x: f"a.weapon_name = ?" ,extraweaponsotherwayround )))})" if extraweaponsotherwayround else ""} AND a.totalshots > 0 GROUP BY a.weapon_name, a.playeruid, a.weapon_mods",
+                    f"SELECT a.weapon_name, a.playeruid, a.weapon_mods, SUM(a.hitshots) as hits, SUM(a.totalshots) as total FROM accuracydata a JOIN matchid m ON a.match_id = m.matchid WHERE {"a.serverid = ? AND " if serverid else ""}m.time < ? {f"AND ({" OR ".join(list(map(lambda x: f"a.weapon_name = ?" ,extraweaponsotherwayround )))})" if extraweaponsotherwayround else ""} AND a.totalshots > 0 GROUP BY a.weapon_name, a.playeruid, a.weapon_mods",
                     (*list(filter(lambda x: x,[serverid])),timecutoff,*extraweaponsotherwayround),
                 )
             elif not swoptovictims:
@@ -4500,12 +4500,16 @@ if DISCORDBOTLOGSTATS == "1":
                     elif canonlybenpcs:
                         continue
                     weapon_kills[name].setdefault(specificweapon[index]["png_name"], {})
-                    weapon_kills[name][specificweapon[index]["png_name"]].setdefault(
-                        killer, 0
-                    )
-                    weapon_kills[name][specificweapon[index]["png_name"]][killer] += (
-                        stabcount
-                    )
+                    if shouldbekd:
+                        existing = weapon_kills[name][specificweapon[index]["png_name"]].get(killer, (0, 0))
+                        weapon_kills[name][specificweapon[index]["png_name"]][killer] = (existing[0] + stabcount, existing[1] + whomurdered)
+                    else:
+                        weapon_kills[name][specificweapon[index]["png_name"]].setdefault(
+                            killer, 0
+                        )
+                        weapon_kills[name][specificweapon[index]["png_name"]][killer] += (
+                            stabcount
+                        )
                 # for weapon, killer, mods, stabcount, whomurdered in stabsofweapons:
                 #     if weapon not in specificweaponsallowedex:
                 #         continue
@@ -4569,8 +4573,19 @@ if DISCORDBOTLOGSTATS == "1":
                     elif canonlybenpcs:
                         continue
                     weapon_kills[name].setdefault(f"{weapon}", {})
-                    weapon_kills[name][f"{weapon}"].setdefault(killer, 0)
-                    weapon_kills[name][f"{weapon}"][killer] += stabcount
+                    if shouldbekd:
+                        existing = weapon_kills[name][f"{weapon}"].get(killer, (0, 0))
+                        weapon_kills[name][f"{weapon}"][killer] = (existing[0] + stabcount, existing[1] + whomurdered)
+                    else:
+                        weapon_kills[name][f"{weapon}"].setdefault(killer, 0)
+                        weapon_kills[name][f"{weapon}"][killer] += stabcount
+
+        if shouldbekd:
+            for name in weapon_kills:
+                for weapon in weapon_kills[name]:
+                    for killer in weapon_kills[name][weapon]:
+                        hits, total = weapon_kills[name][weapon][killer]
+                        weapon_kills[name][weapon][killer] = hits * 100.0 / total if total > 0 else 0
 
         # weapon_kills = {"main":{},"cutoff":{}}
         # for name,cutoff in timecutoffs.items():
@@ -4847,11 +4862,11 @@ if DISCORDBOTLOGSTATS == "1":
 
                     y = maxheight + i * (FONT_SIZE + LINE_SPACING) + 5
                     x = 5
-                    base_text = f"{name}: {count:.2f}{"%" if shouldbekd else ""}"
+                    base_text = f"{name}: {f"{count:.2f}%" if shouldbekd else count}"
                     draw.text((x, y), base_text, font=font, fill=color)
                     x += draw.textlength(base_text, font=font)
                     if delta_kills:
-                        plus_text = f" {"+" if delta_kills > 0 else ""}{delta_kills:.2f}{"%" if shouldbekd else ""}"
+                        plus_text = f" {"+" if delta_kills > 0 else ""}{f"{delta_kills:.2f}%" if shouldbekd else delta_kills}"
                         draw.text((x, y), plus_text, font=font, fill=(100, 100, 100))
                     arrow_x = maxwidth - draw.textlength(change_text, font=font) - 10
                     draw.text((arrow_x, y), change_text, font=font, fill=change_color)
