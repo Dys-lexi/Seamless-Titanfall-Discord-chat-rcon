@@ -14638,7 +14638,14 @@ def getstats(playeruid,isfromserver = False,istf1 = False):
     """,
         (playeruid, playeruid),
     )
-    output["total"]["recent_weapon_kills"] = c.fetchone()
+    output["total"]["recent_weapon_kills"] = list(c.fetchone())
+
+    if output["total"]["recent_weapon_kills"]:
+        c.execute(f"SELECT SUM(totalshots), SUM(hitshots) FROM accuracydata WHERE weapon_name = ? AND playeruid = ?",(output["total"]["recent_weapon_kills"][0],playeruid))
+        accuracy =(c.fetchone())
+        if accuracy:
+            accuracyreal = {"total":accuracy[0],"hits":accuracy[1]}
+            output["total"]["recent_weapon_kills"].append(accuracyreal)
 
     if output["total"]["deaths"] != 0:
         kd = output["total"]["kills"] / output["total"]["deaths"]
@@ -14684,7 +14691,7 @@ def getstats(playeruid,isfromserver = False,istf1 = False):
     # [38;5;244m
     if output["total"]["recent_weapon_kills"]:
         messages[str(offset)] = (
-            f"[38;5;{colour}mMost recent weapon: {PREFIXES['stat']}{WEAPON_NAMES.get(output['total']['recent_weapon_kills'][0], output['total']['recent_weapon_kills'][0])}: {PREFIXES['stat']}{output['total']['recent_weapon_kills'][1]}{' ' + PREFIXES['stat2'] + '#' + str(output['total']['recentweaponkillspos']) if output['total']['recentweaponkillspos'] else ''} {PREFIXES['chatcolour']}kills"
+            f"[38;5;{colour}mMost recent weapon: {PREFIXES['stat']}{WEAPON_NAMES.get(output['total']['recent_weapon_kills'][0], output['total']['recent_weapon_kills'][0])}: {PREFIXES['stat']}{output['total']['recent_weapon_kills'][1]}{' ' + PREFIXES['stat2'] + '#' + str(output['total']['recentweaponkillspos']) if output['total']['recentweaponkillspos'] else ''} {PREFIXES['chatcolour']}kills {PREFIXES['stat']}{100*(output['total']['recent_weapon_kills'][2]["hits"]/output['total']['recent_weapon_kills'][2]["total"]):.2f}% {PREFIXES['chatcolour']}accuracy"
         )
         offset += 1
     messages[str(offset)] = (
