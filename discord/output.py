@@ -10983,10 +10983,23 @@ def runcommanddirectly(message, serverid, isfromserver):
                 "uidoverride": getpriority(message, "uid", ["meta", "uid"]),
             }
         )
-    sendrconcommand(
-        serverid, f"{getpriority(message, "originalmessage").split(" ", 1)[1]}", sender=message["sender"]
+    asyncio.run_coroutine_threadsafe(
+        returncommandfeedback(
+            *sendrconcommand(
+                serverid,
+                (
+                    f"{getpriority(message, "originalmessage").split(" ", 1)[1]}"
+                ),
+                sender=getpriority(message, "originalname", "name"),
+            ),
+            "fake context",
+            sendthingstoplayer,
+            True,
+            True,
+            getpriority(message, "uid", ["meta", "uid"]),
+        ),
+        bot.loop,
     )
-
 def showingamesettings(message, serverid, isfromserver):
     """Displays current server settings and configuration to players"""
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)

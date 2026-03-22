@@ -14,6 +14,19 @@
             "shouldblock": false,
             "permsneeded": "coolperksrole"
         },
+        "rcon": {
+            "permsneeded": "rconrole",
+            "aliases": [
+                "r"
+            ],
+            "games": [
+                "tf2"
+            ],
+            "run": "thread",
+            "function": "runcommanddirectly",
+            "description": "rcon command",
+            "shouldblock": true
+        },
         "nessify": {
             "games": [
                 "tf2"
