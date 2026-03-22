@@ -27,7 +27,12 @@ struct  {
     table<string,table<string,table<string,playerweapon> > > killstuff
     int shots = 0
 } accuracy
-
+array<string> gunsthataccuracyisreducedon = ["mp_titanweapon_particle_accelerator",
+                                            "mp_titanweapon_heat_shield",
+                                            "mp_titanweapon_flame_wall",
+                                            "mp_titancore_salvo_core",
+                                            "mp_titanweapon_cluster_rocket"
+                                            ]
 table <entity,bool> preventtoomanyhints
 // array<entity> alreadyhits
 
@@ -142,7 +147,7 @@ void function trackhits( entity player, var damageInfo ) {
         foreach (entity weapon  in attacker.GetMainWeapons()){
   
             if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId) ){ //&& !(alreadyhits.contains(weapon)  )){
-                            if ( weapon.GetWeaponInfoFileKeyField( "fire_rate" ) < 5 && (!(weapon in preventtoomanyhints) || preventtoomanyhints[weapon] == false)){
+                            if ((gunsthataccuracyisreducedon.contains(weapon.GetWeaponClassName()) || weapon.GetWeaponInfoFileKeyField( "fire_rate" ) < 5) && (!(weapon in preventtoomanyhints) || preventtoomanyhints[weapon] == false)){
                     return
                 }
                 typedMods = weapon.GetMods()
@@ -153,7 +158,7 @@ void function trackhits( entity player, var damageInfo ) {
         foreach (entity  weapon in attacker.GetOffhandWeapons() ){
     
             if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId)){//&& !(alreadyhits.contains(weapon)) ){
-                            if (weapon.GetWeaponInfoFileKeyField( "fire_rate" ) < 5 && (!(weapon in preventtoomanyhints) ||  preventtoomanyhints[weapon] == false)){
+                            if ((gunsthataccuracyisreducedon.contains(weapon.GetWeaponClassName()) || weapon.GetWeaponInfoFileKeyField( "fire_rate" ) < 5 )&& (!(weapon in preventtoomanyhints) ||  preventtoomanyhints[weapon] == false)){
                     return
                 }
                 typedMods = weapon.GetMods()

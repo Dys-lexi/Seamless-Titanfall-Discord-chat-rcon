@@ -4414,7 +4414,7 @@ if DISCORDBOTLOGSTATS == "1":
             c = tfdb
             if shouldbekd:
                 c.execute(
-                    f"SELECT a.weapon_name, a.playeruid, a.weapon_mods, SUM(a.hitshots) as hits, SUM(a.totalshots) as total FROM accuracydata a JOIN matchid m ON a.match_id = m.matchid WHERE {"a.serverid = ? AND " if serverid else ""}m.time < ? {f"AND ({" OR ".join(list(map(lambda x: f"a.weapon_name = ?" ,extraweaponsotherwayround )))})" if extraweaponsotherwayround else ""} AND a.totalshots > 0 GROUP BY a.weapon_name, a.playeruid, a.weapon_mods",
+                    f"SELECT a.weapon_name, a.playeruid, a.weapon_mods, SUM(a.hitshots) as hits, SUM(a.totalshots) as total FROM accuracydata a JOIN matchid m ON a.match_id = m.matchid WHERE {"a.serverid = ? AND " if serverid else ""}m.time < ? {f"AND ({" OR ".join(list(map(lambda x: f"a.weapon_name = ?" ,extraweaponsotherwayround )))})" if extraweaponsotherwayround else ""} AND a.totalshots > 10 GROUP BY a.weapon_name, a.playeruid, a.weapon_mods",
                     (*list(filter(lambda x: x,[serverid])),timecutoff,*extraweaponsotherwayround),
                 )
             elif not swoptovictims:
@@ -10975,6 +10975,17 @@ def togglepersistentvar(message, serverid, isfromserver):
         return
     togglestats(message, context["commands"]["ingamecommands"][args[0]].get("alias",args[0]), serverid," ".join(args[1:]) if faketoggle else None,message.get("function",None))
 
+def runcommanddirectly(message, serverid, isfromserver):
+    if   not len(getpriority(message, "originalmessage").split(" ", 1)[1:]):
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                "content": f"{PREFIXES['discord']}Error: you must specify a command!",
+                "uidoverride": getpriority(message, "uid", ["meta", "uid"]),
+            }
+        )
+    sendrconcommand(
+        serverid, f"{getpriority(message, "originalmessage").split(" ", 1)[1]}", sender=message["sender"]
+    )
 
 def showingamesettings(message, serverid, isfromserver):
     """Displays current server settings and configuration to players"""
@@ -11942,7 +11953,7 @@ def filter_zero_width(s: str) -> str:
 def checkifbad(message):
     """Checks messages against profanity filter and banned word lists"""
     global context
-    if message["type"] not in FILTERNAMESINMESSAGES.split(",") or message["oserverid"] in getpriority(context,["wordfilter","ignoredservers"]):
+    if message["type"] not in FILTERNAMESINMESSAGES.split(",") or message.get("oserverid") in getpriority(context,["wordfilter","ignoredservers"]):
         return [0, 0]
     lowered =filter_zero_width( message["originalmessage"].lower())
     
