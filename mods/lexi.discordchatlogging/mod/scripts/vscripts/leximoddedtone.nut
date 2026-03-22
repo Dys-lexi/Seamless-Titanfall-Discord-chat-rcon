@@ -147,7 +147,7 @@ void function trackhits( entity player, var damageInfo ) {
         foreach (entity weapon  in attacker.GetMainWeapons()){
   
             if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId) ){ //&& !(alreadyhits.contains(weapon)  )){
-                            if ((gunsthataccuracyisreducedon.contains(weapon.GetWeaponClassName()) || weapon.GetWeaponInfoFileKeyField( "fire_rate" ) < 5) && (!(weapon in preventtoomanyhints) || preventtoomanyhints[weapon] == false)){
+                            if ((gunsthataccuracyisreducedon.contains(weapon.GetWeaponClassName()) || (weapon.GetWeaponInfoFileKeyField( "fire_rate" ) && weapon.GetWeaponInfoFileKeyField( "fire_rate" ) < 5)) && (!(weapon in preventtoomanyhints) || preventtoomanyhints[weapon] == false)){
                     return
                 }
                 typedMods = weapon.GetMods()
@@ -158,7 +158,7 @@ void function trackhits( entity player, var damageInfo ) {
         foreach (entity  weapon in attacker.GetOffhandWeapons() ){
     
             if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId)){//&& !(alreadyhits.contains(weapon)) ){
-                            if ((gunsthataccuracyisreducedon.contains(weapon.GetWeaponClassName()) || weapon.GetWeaponInfoFileKeyField( "fire_rate" ) < 5 )&& (!(weapon in preventtoomanyhints) ||  preventtoomanyhints[weapon] == false)){
+                            if ((gunsthataccuracyisreducedon.contains(weapon.GetWeaponClassName()) || (weapon.GetWeaponInfoFileKeyField( "fire_rate" ) && weapon.GetWeaponInfoFileKeyField( "fire_rate" ) < 5) )&& (!(weapon in preventtoomanyhints) ||  preventtoomanyhints[weapon] == false)){
                     return
                 }
                 typedMods = weapon.GetMods()
