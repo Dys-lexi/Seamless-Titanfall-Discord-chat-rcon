@@ -1462,7 +1462,7 @@ maxkills = {}
 lexitoneapicache = {}
 # Load channel ID from file
 context = {
-    "wordfilter": {"banwords": [], "notifybadwords": [], "namestokick": []},
+    "wordfilter": {"banwords": [], "notifybadwords": [], "namestokick": [],"ignoredservers":[]},
     "categoryinfo":{
         "logging_cat_id":0,
         "hidden_cat_id":0,
@@ -11942,7 +11942,7 @@ def filter_zero_width(s: str) -> str:
 def checkifbad(message):
     """Checks messages against profanity filter and banned word lists"""
     global context
-    if message["type"] not in FILTERNAMESINMESSAGES.split(","):
+    if message["type"] not in FILTERNAMESINMESSAGES.split(",") or message["oserverid"] in getpriority(context,["wordfilter","ignoredservers"]):
         return [0, 0]
     lowered =filter_zero_width( message["originalmessage"].lower())
     
