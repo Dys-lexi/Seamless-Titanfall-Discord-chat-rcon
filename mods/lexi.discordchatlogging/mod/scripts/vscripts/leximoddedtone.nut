@@ -70,7 +70,10 @@ void function Lexi_killstat_Init() {
     AddCallback_OnPlayerKilled(killstat_Record)
     AddCallback_OnNPCKilled(killstat_Record)
     AddCallback_GameStateEnter(eGameState.Postmatch, killstat_End)
-    AddCallback_OnClientConnected(JoinMessage)
+    if (GetConVarInt("discordlogsendstatsonjoins")){
+        AddCallback_OnClientConnected(JoinMessage)
+
+    }
     AddCallback_OnWeaponAttack(OnWeaponAttack)
     AddCallback_GameStateEnter(9,sendaccuracyforlasttime);
     AddCallback_OnClientDisconnected( sendaccuracyforplayer )

@@ -14638,15 +14638,14 @@ def getstats(playeruid,isfromserver = False,istf1 = False):
     """,
         (playeruid, playeruid),
     )
-    output["total"]["recent_weapon_kills"] = list(c.fetchone())
+    output["total"]["recent_weapon_kills"] = c.fetchone()
 
     if output["total"]["recent_weapon_kills"]:
         c.execute(f"SELECT SUM(totalshots), SUM(hitshots) FROM accuracydata WHERE weapon_name = ? AND playeruid = ?",(output["total"]["recent_weapon_kills"][0],playeruid))
         accuracy =(c.fetchone())
         if accuracy:
             accuracyreal = {"total":accuracy[0],"hits":accuracy[1]}
-            output["total"]["recent_weapon_kills"].append(accuracyreal)
-
+            output["total"]["recent_weapon_kills"] = [*list(output["total"]["recent_weapon_kills"]),accuracyreal]
     if output["total"]["deaths"] != 0:
         kd = output["total"]["kills"] / output["total"]["deaths"]
     else:
