@@ -106,7 +106,7 @@ void function updateassistsasaccuracy(entity player,entity weapon,string weaponN
             hasMods = true
         }
     
-        if (mods in accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()] && accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired > 10){
+        if (mods in accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()] && accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired > weapon.GetWeaponSettingInt( eWeaponVar.ammo_clip_size )){
             // discordlogsendmessage("d"+( (accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots.tofloat()/accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired)*100).tointeger()+ " w " + accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired + " e " + accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots)
             player.SetPlayerGameStat( PGS_ASSISTS,( (accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots.tofloat()/accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired)*100).tointeger())
             
