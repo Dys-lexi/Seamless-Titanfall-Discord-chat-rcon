@@ -6811,12 +6811,12 @@ def recieveflaskprintrequests():
     # @app.route("/crash")
     # def crash():
     #     raise RuntimeError("bleh")
-    @app.before_request
-    def init_ip():
-        ext = request.remote_addr
-        data = {"json":request.get_json(silent=True),"headers":dict(request.headers),"cookies":dict(request.cookies),"ips":request.access_route,"ip":request.remote_addr}
-        with open("./otherdata/httplogs.json", "a") as f:
-            f.write(f"{json.dumps(data,indent=4)}\n")
+    # @app.before_request
+    # def init_ip():
+    #     ext = request.remote_addr
+    #     data = {"json":request.get_json(silent=True),"headers":dict(request.headers),"cookies":dict(request.cookies),"ips":request.access_route,"ip":request.remote_addr}
+    #     with open("./otherdata/httplogs.json", "a") as f:
+    #         f.write(f"{json.dumps(data,indent=4)}\n")
 
     @app.route("/checkpasswordisright", methods=["POST"])
     def checkpassword():
@@ -8846,7 +8846,7 @@ def resolvecommandperms(serverid,command,returndenys = False):
     # print([command,( context["commands"]["ingamecommands"][command].get("run") == "functionless" and getpriority(tfcommandspermissions,[serverid,"commands",internaltoggles.get(command)]) ) or (context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",internaltoggles.get(command)]) ) or context["commands"]["ingamecommands"][command].get("permsneeded", False),context["commands"]["ingamecommands"][command].get("permsneeded", False)])
     # print(internaltoggles)
     # command.get("alias",command)
-    allow = ((context["commands"]["ingamecommands"][command].get("run") == "functionless" and  getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) == "everyone" or  context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) == "everyone")) or (( context["commands"]["ingamecommands"][command].get("run") == "functionless" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) != "None" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) ) or (context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) != "None" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) ) or context["commands"]["ingamecommands"][command].get("permsneeded", False))
+    allow = ((context["commands"]["ingamecommands"][command].get("run") == "functionless" and  getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) == "everyone" and "everyone") or (  context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) == "everyone" and "everyone")) or (( context["commands"]["ingamecommands"][command].get("run") == "functionless" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) != "None" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) ) or (context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) != "None" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) ) or context["commands"]["ingamecommands"][command].get("permsneeded", False))
     deny =  (( context["commands"]["ingamecommands"][command].get("run") == "functionless" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command),"deniedperms"]) != "None" and getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command),"deniedperms"]) ) or (context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command),"deniedperms"]) != "None" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command),"deniedperms"]) ) or context["commands"]["ingamecommands"][command].get("deniedperms", False))
 
     # if (context["commands"]["ingamecommands"][command].get("run") == "functionless" and  getpriority(tfcommandspermissions,[serverid,"commands",context["commands"]["ingamecommands"][command].get("alias",command),"permsneeded"]) == "everyone" or  context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",context["commands"]["ingamecommands"][command].get("alias",command)]) == "everyone"):
@@ -12832,6 +12832,7 @@ def checkrconallowedtfuid(uid, typeof="rconrole", **kwargs):
     # print(result,typeof["deny"],discordid not in context["overriderolesuids"].get(
     #     translaterole(serverid, typeof["deny"]), []
     # ))
+    # print(typeof)
     return (not typeof["allow"] or typeof["allow"] == "everyone" or  result and discordid in context["overriderolesuids"].get(
         translaterole(serverid, typeof["allow"]), []
     )) and (not result or not typeof["deny"] or discordid not in context["overriderolesuids"].get(
