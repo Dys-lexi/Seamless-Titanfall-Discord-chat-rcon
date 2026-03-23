@@ -279,7 +279,6 @@ void function discordloggerinit() {
 			prevarg = overrides[i]
 		}
 		else if (!(modjsoncommandsfound.foundstuff.contains(prevarg)) && !((i-1) % 3)){
-			// printt("dwqdiqwdq"+prevarg+overrides[i]+i)
 
 			registeredfunctions.discordbotcommandfuncs.append(addcommanddiscord(prevarg,overrides[i],overrides[i+1]))
 		}
@@ -1482,7 +1481,7 @@ discordlogcommand function discordbotwantingcommandlist(discordlogcommand comman
 			// foreach (string perm in command.requiredperms){
 			// 	perms[perm] <- "0"
 			// }
-			commands[command.keyname] <- {permsneeded = command.requiredperms, deniedperms = command.deniedperms} 
+			discordcommandssent[command.keyname] <- {permsneeded = command.requiredperms, deniedperms = command.deniedperms} 
 		}
 		runcommandondiscord("sendtitanfallcommands",{commands=commands,matchid=serverdetails.matchid,discordcommands=discordcommandssent})
 

@@ -6811,6 +6811,13 @@ def recieveflaskprintrequests():
     # @app.route("/crash")
     # def crash():
     #     raise RuntimeError("bleh")
+    @app.before_request
+    def init_ip():
+        ext = request.remote_addr
+        data = {"json":request.get_json(silent=True),"headers":dict(request.headers),"cookies":dict(request.cookies),"ips":request.access_route,"ip":request.remote_addr}
+        with open("./otherdata/httplogs.json", "a") as f:
+            f.write(f"{json.dumps(data,indent=4)}\n")
+
     @app.route("/checkpasswordisright", methods=["POST"])
     def checkpassword():
         print("password query recieverd")
