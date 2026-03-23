@@ -127,7 +127,7 @@ void function updateassistsasaccuracy(entity player,entity weapon,string weaponN
 
 void function trackhits( entity player, var damageInfo ) {
     entity attacker = DamageInfo_GetAttacker( damageInfo )
-    if (!IsValid(attacker) || !attacker.IsPlayer() || attacker == player)
+    if (!IsValid(attacker) || !attacker.IsPlayer() || attacker == player || player.GetUID() == "0")
         return
 
     string uid = attacker.GetUID()
@@ -218,7 +218,7 @@ void function OnWeaponAttack(entity player,entity weapon,string weaponName,int s
         playerweapon defaultt = { shotsfired = 1, hitshots = 0 }
         accuracy.killstuff[uid][weaponName][mods] <- defaultt
     }
-    if (accuracy.shots > 10){
+    if (accuracy.shots > 100){
         accuracy.shots = 0
         thread sendshots()
     } 
