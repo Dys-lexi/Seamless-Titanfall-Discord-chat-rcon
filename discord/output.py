@@ -6881,6 +6881,9 @@ def recieveflaskprintrequests():
                 "sanctiontype": "ban",
             }
         nameoverride = {}
+        # print(resolveplayeruidfromdb(data["uid"],"uid",True))
+        # print(playername,getpriority(readplayeruidpreferences(data["uid"], False),["tf2","nameoverride"]))
+        # print(getpriority(readplayeruidpreferences(data["uid"], False),["tf2","nameoverride"]),resolveplayeruidfromdb(data["uid"],"uid",True)[0]["name"])
         if resolveplayeruidfromdb(data["uid"],"uid",True) and playername == getpriority(readplayeruidpreferences(data["uid"], False),["tf2","nameoverride"]) and getpriority(readplayeruidpreferences(data["uid"], False),["tf2","nameoverride"]) != resolveplayeruidfromdb(data["uid"],"uid",True)[0]["name"]:
             # must override name here!
             print("THE SERVER IS USING THE WRONG NAME FOR",playername)
@@ -6977,6 +6980,8 @@ def recieveflaskprintrequests():
         # print(json.dumps(output,indent=4))
         # print(len(output["otherdata"]))
         # print(json.dumps(internaltoggles,indent=4))
+        # print(checkrconallowedtfuid(data["uid"],resolvecommandperms(data["serverid"],internaltoggles["nameoverride"],True),serverid=data["serverid"]))
+        # print(resolvecommandperms(data["serverid"],internaltoggles["nameoverride"],True))
         return output
 
     @app.route("/getrunningservers", methods=["POST"])
@@ -8807,16 +8812,16 @@ def resolvecommandpermsformainbot(serverid,command,returndenys = False):
         tfcommandspermissions.setdefault(serverid,{})["laststatspull"] = int(time.time())
         if not serverid:
             print("big panic when reloading commands",serverid,str(inspect.currentframe().f_back.f_code.co_name))
-            return None
+            return True
         print("reloading commands for",serverid)
         sendrconcommand(
             serverid,
             f"!reloadtfcommandlist",
             sender=None,
         )
-        return None # Panic here
+        return True # Panic here
     elif not istf1 and not (getpriority(tfcommandspermissions,[serverid,"commands"])) :
-        return None
+        return True
     # print(command)
     # print(tfcommandspermissions[serverid].get(command) != "None" and tfcommandspermissions[serverid]["commands"].get(command,False))
     allow = getpriority(tfcommandspermissions,[serverid,"commands",command,"permsneeded"]) == "everyone" or getpriority(tfcommandspermissions,[serverid,"commands",command,"permsneeded"]) != "None" and getpriority(tfcommandspermissions,[serverid,"commands",command,"permsneeded"],nofind = False)
@@ -8832,7 +8837,7 @@ def resolvecommandperms(serverid,command,returndenys = False):
         tfcommandspermissions.setdefault(serverid,{})["laststatspull"] = int(time.time())
         if not serverid:
             print("big panic when reloading commands",serverid,str(inspect.currentframe().f_back.f_code.co_name))
-            return None
+            return True
         print("reloading commands for",serverid)
         sendrconcommand(
             serverid,
@@ -8841,7 +8846,7 @@ def resolvecommandperms(serverid,command,returndenys = False):
         )
         return True # should not resolve
     elif not istf1 and not getpriority(tfcommandspermissions,[serverid,"commands"]):
-        return None
+        return True
     # print([command,getpriority(tfcommandspermissions,[serverid,"discordcommands",internaltoggles.get(command)])])
     # print([command,( context["commands"]["ingamecommands"][command].get("run") == "functionless" and getpriority(tfcommandspermissions,[serverid,"commands",internaltoggles.get(command)]) ) or (context["commands"]["ingamecommands"][command].get("run") != "functionless" and getpriority(tfcommandspermissions,[serverid,"discordcommands",internaltoggles.get(command)]) ) or context["commands"]["ingamecommands"][command].get("permsneeded", False),context["commands"]["ingamecommands"][command].get("permsneeded", False)])
     # print(internaltoggles)
