@@ -223,6 +223,13 @@
             "description": "display your stats. do !stats lexi for a specific player",
             "shouldblock": false
         },
+        "natterfortoggles": {
+            "games": [],
+            "function": "natterfortoggles",
+            "run": "thread",
+            "description": "natter a person to do toggles",
+            "shouldblock": false
+        },
         "natterforcoolperks": {
             "games": [],
             "function": "natterforcoolperks",

@@ -31,7 +31,8 @@ array<string> gunsthataccuracyisreducedon = ["mp_titanweapon_particle_accelerato
                                             "mp_titanweapon_heat_shield",
                                             "mp_titanweapon_flame_wall",
                                             "mp_titancore_salvo_core",
-                                            "mp_titanweapon_cluster_rocket"
+                                            "mp_titanweapon_cluster_rocket",
+                                            "mp_titancore_flame_wave"
                                             ]
 table <entity,bool> preventtoomanyhints
 // array<entity> alreadyhits

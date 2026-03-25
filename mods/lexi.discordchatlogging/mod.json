@@ -87,6 +87,10 @@
         {
             "Name": "discordlogsendstatsonjoins",
             "DefaultValue": "1" // send stats on join
+        },
+        {
+            "Name": "discordlognatterfortoggles",
+            "DefaultValue": "0" // remind a player about the toggle command
         }
 
     ],

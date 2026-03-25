@@ -11042,7 +11042,7 @@ def findaliasesafterplaying(data,serverid,statuscode,inputargs):
     found = False
     for uid,name in formattedata["playerinfo"].items():
             print(uid,name)
-            if (alias := getpriority(readplayeruidpreferences(uid, False),["tf2","nameoverride"])) and (not inputargs["message"].split(" ", 1)[1:] or alias.lower() in inputargs["message"].split(" ", 1)[1].lower()):
+            if (alias := getpriority(readplayeruidpreferences(uid, False),["tf2","nameoverride"])) and (not inputargs["message"].split(" ", 1)[1:] or inputargs["message"].split(" ", 1)[1].lower() in alias.lower() ):
                 found = True
                 discordtotitanfall[serverid]["messages"].append(
                     {
@@ -11467,6 +11467,25 @@ def senddiscordcommands(message, serverid, isfromserver):
         f"!senddiscordcommands {' '.join(functools.reduce(lambda a, b: [*a, b[0], str(int(b[1].get("shouldblock")))],filter(lambda x: int (serverid) in x[1].get("serversenabled",[int(serverid)]) and (not x[1].get("games") or ("tf1" if istf1 else "tf2") in x[1]["games"] ) ,context['commands']['ingamecommands'].items()), []))}",
         sender=None,
     )
+
+def natterfortoggles(message,serverid,isfromserver):
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
+    istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
+
+    c.execute(
+        f"SELECT COALESCE(SUM(duration), 0) FROM playtime{'tf1' if istf1 else ''} WHERE playeruid = ?",
+        (getpriority(message, 'uid', ['meta', 'uid'], 'name'),)
+    )
+
+    timeplayed = c.fetchone()
+    if not timeplayed or timeplayed[0] < 3600*12:
+
+        discordtotitanfall[serverid]["messages"].append({
+            "content": f"{PREFIXES["discord"]} This server has optional gameplay settings - type !toggle to see them",
+            "uidoverride": [getpriority(message, 'uid', ['meta', 'uid'], 'name')],
+        })
+
 def natterforcoolperks(message, serverid, isfromserver):
     """Natters someone for the coolperks role"""
 

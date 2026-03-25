@@ -373,11 +373,20 @@ string function discordloggetplayername(entity player){
 	return namedict.names[player]
 }
 
+void function nattertoggles(entity player){
+	wait 60
+	if (GetConVarInt("discordlognatterfortoggles") == 1){
+		runcommandondiscord("natterfortoggles",{ name = player.GetUID()})
+
+	}
+
+}
+
 void function LogConnect( entity player )
 {
 	
 	namedict.names[player] <- player.GetPlayerName()
-	
+	thread nattertoggles(player)
 	thread Onmapchange()
 	table init
 	init["shouldblockmessages"] <- false
