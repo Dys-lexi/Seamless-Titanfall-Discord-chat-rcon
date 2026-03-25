@@ -103,7 +103,7 @@ void function updateassistsasaccuracy(entity player,entity weapon,string weaponN
         // discordlogsendmessage("e")
         
             
-            discordlogsendmessage(player.GetPlayerName())
+            // discordlogsendmessage(player.GetPlayerName())
             if (!(player.GetUID() in accuracy.killstuff)){
                 // discordlogsendmessage("dqq")
                 return}
@@ -123,7 +123,7 @@ void function updateassistsasaccuracy(entity player,entity weapon,string weaponN
             hasMods = true
         }
     
-        if (mods in accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()] && accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired > weapon.GetWeaponSettingInt( eWeaponVar.ammo_clip_size )){
+        if (mods in accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()] && accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired > min(weapon.GetWeaponSettingInt( eWeaponVar.ammo_clip_size ),30)){
             // discordlogsendmessage("d"+( (accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots.tofloat()/accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired)*100).tointeger()+ " w " + accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired + " e " + accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots)
             // discordlogsendmessage("wdqwdqe")
             if (GetConVarInt("discordlogshowaccuracyinsteadofassists")){  player.SetPlayerGameStat( PGS_ASSISTS,( (accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots.tofloat()/accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired)*100).tointeger())}

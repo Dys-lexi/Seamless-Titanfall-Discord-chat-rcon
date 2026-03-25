@@ -11482,7 +11482,7 @@ def natterfortoggles(message,serverid,isfromserver):
     if not timeplayed or timeplayed[0] < 3600*12:
 
         discordtotitanfall[serverid]["messages"].append({
-            "content": f"{PREFIXES["discord"]} This server has optional gameplay settings - type !toggle to see them",
+            "content": f"{PREFIXES["discord"]} This server has optional gameplay settings - type {PREFIXES["commandname"]}!toggle{PREFIXES["chatcolour"]} to see them",
             "uidoverride": [getpriority(message, 'uid', ['meta', 'uid'], 'name')],
         })
 
