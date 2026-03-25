@@ -243,7 +243,11 @@ def creatediscordlinkdb():
             linktime INTEGER
         )"""
     )
-
+    if POSTGRESQLDBURL != "0":
+        c.execute("""
+        ALTER TABLE discordlinkdata
+        ALTER COLUMN uid TYPE BIGINT USING uid::BIGINT;
+        """)
     tfdb.commit()
     tfdb.close()
 
@@ -808,6 +812,16 @@ def notifydb():
             PRIMARY KEY (discordidnotify, uidnotify)
             )"""
     )
+    if POSTGRESQLDBURL != "0":
+        c.execute("""
+        ALTER TABLE joinnotify
+        ALTER COLUMN discordidnotify TYPE BIGINT USING discordidnotify::BIGINT;
+        """)
+    if POSTGRESQLDBURL != "0":
+        c.execute("""
+        ALTER TABLE joinnotify
+        ALTER COLUMN uidnotify TYPE BIGINT USING uidnotify::BIGINT;
+        """)
     tfdb.commit()
     tfdb.close()
 
@@ -823,7 +837,11 @@ def joincounterdb():
             PRIMARY KEY (playeruid, serverid)
         )"""
     )
-
+    if POSTGRESQLDBURL != "0":
+        c.execute("""
+        ALTER TABLE joincounter
+        ALTER COLUMN playeruid TYPE BIGINT USING playeruid::BIGINT;
+        """)
     tfdb.commit()
     tfdb.close()
 
@@ -851,7 +869,11 @@ def playtimedb():
             timecounter INTEGER
             )"""
     )
-
+    if POSTGRESQLDBURL != "0":
+        c.execute("""
+        ALTER TABLE playtime
+        ALTER COLUMN playeruid TYPE BIGINT USING playeruid::BIGINT;
+        """)
     tfdb.commit()
     tfdb.close()
 
@@ -4585,7 +4607,11 @@ if DISCORDBOTLOGSTATS == "1":
                 for weapon in weapon_kills[name]:
                     for killer in weapon_kills[name][weapon]:
                         hits, total = weapon_kills[name][weapon][killer]
+                        # if name = "main":
                         weapon_kills[name][weapon][killer] = hits * 100.0 / total if total > 0 else 0
+                        # else:
+                        #     weapon_kills[name][weapon][killer] = weapon_kills["main"][weapon][killer][0]
+                        
 
         # weapon_kills = {"main":{},"cutoff":{}}
         # for name,cutoff in timecutoffs.items():
@@ -14432,7 +14458,7 @@ def playerpoll():
         # poll time
         # I want to iterate through all servers, and ask them what they are up too.
         for serverid, data in discordtotitanfall.items():
-            server = context["servers"][serverid]
+            if not (server := getpriority(context,["servers",serverid])): continue
             if not serverid:
                 print("WTF PANIC PANIC INVALID SERVERID")
             # print(discordtotitanfall)

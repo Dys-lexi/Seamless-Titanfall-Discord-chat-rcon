@@ -1306,6 +1306,7 @@ void function runcommandondiscordreal(string commandname, table paramaters){
 	NSHttpRequest( request)
 }
 void function runcommand(string command,string validation) {
+	// printt("WIQMIWQ command "+command)
 	check.commandcheck[validation] <- EncodeJSON({statuscode=-3,output=command+": Special command not found"})
 	discordlogcommand commandstruct
 	commandstruct.matchid = serverdetails.matchid
