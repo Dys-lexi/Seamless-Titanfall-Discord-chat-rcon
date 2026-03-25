@@ -6814,7 +6814,7 @@ def recieveflaskprintrequests():
     # @app.before_request
     # def init_ip():
     #     ext = request.remote_addr
-    #     data = {"json":request.get_json(silent=True),"headers":dict(request.headers),"cookies":dict(request.cookies),"ips":request.access_route,"ip":request.remote_addr}
+    #     data = {"time":datetime.now().strftime("%d/%m/%Y %H:%M:%S"),"json":request.get_json(silent=True),"headers":dict(request.headers),"cookies":dict(request.cookies),"ips":request.access_route,"ip":request.remote_addr}
     #     with open("./otherdata/httplogs.json", "a") as f:
     #         f.write(f"{json.dumps(data,indent=4)}\n")
 
@@ -10986,7 +10986,111 @@ def togglepersistentvar(message, serverid, isfromserver):
             )
         return
     togglestats(message, context["commands"]["ingamecommands"][args[0]].get("alias",args[0]), serverid," ".join(args[1:]) if faketoggle else None,message.get("function",None))
+def findaliasesafterplaying(data,serverid,statuscode,inputargs):
 
+    formattedata = {"playerinfo":{}}
+    for key, value in data.items():
+        if key == "meta":
+            # formattedata["meta"]["map"] = value[0]
+            # value[1] = int(value[1])
+            # formattedata["meta"]["time"] = f"{value[1] // 60}m {value[1] % 60}s"
+            # # formattedata["meta"]["time"] = f"<t:{int(time.time()+value[1])}:R>"
+            continue
+
+        # if value[1] not in formattedata.keys():
+        #     formattedata[value[1]] = {
+        #         "playerinfo": {},
+        #         "teaminfo": {"score": 0},
+        #     }
+        formattedata["playerinfo"][key] = value[4]
+        # formattedata[value[1]]["teaminfo"]["score"] += value[0]
+    # embed = discord.Embed(
+    #     title=f"Server status for {context['servers'][serverid]['name']}",
+    #     description=""
+    #     if len(data.keys()) < 22
+    #     else f"__{len(data) - 21} player{'s' if len(data) - 21 > 1 else ''} truncated due to embed limits__",
+    #     color=0xFF70CB,
+    # )
+    # if statuscode != 200:
+    #     embed.add_field(name="Error", value=f"\u200b {data} {statuscode}", inline=False)
+    #     return embed
+    # embed.add_field(
+    #     name="Map", value=f"\u200b {formattedata['meta']['map']}", inline=True
+    # )
+    # embed.add_field(
+    #     name="Players", value=f"\u200b {len(data) - 1} players online", inline=True
+    # )
+    # embed.add_field(
+    #     name="Time left", value=f"\u200b {formattedata['meta']['time']}", inline=True
+    # )
+    # sortedteams = sorted(
+    #     [team for team in formattedata.keys() if team != "meta"],
+    #     key=lambda x: formattedata[x]["teaminfo"]["score"],
+    #     reverse=True,
+    # )
+    # sortedvalues = {}
+    # for team in sortedteams:
+    #     sortedvalues[team] = formattedata[team]
+    # for team in sortedvalues.keys():
+    #     if team == "meta":
+    #         continue
+        # embed.add_field(
+        #     name=f"> *Team {team}*",
+        #     value=f"\u200b Score: {formattedata[team]['teaminfo']['score']} | Players: {len(formattedata[team]['playerinfo'])}",
+        #     inline=False,
+        # )
+    found = False
+    for uid,name in formattedata["playerinfo"].items():
+            print(uid,name)
+            if (alias := getpriority(readplayeruidpreferences(uid, False),["tf2","nameoverride"])) and (not inputargs["message"].split(" ", 1)[1:] or alias.lower() in inputargs["message"].split(" ", 1)[1].lower()):
+                found = True
+                discordtotitanfall[serverid]["messages"].append(
+                    {
+                        "content": f"{PREFIXES['discord']}{PREFIXES["commandname"]}{alias} {PREFIXES["stat2"]}-> {PREFIXES["commandname"]}{name}",
+                        "uidoverride": [inputargs["uid"]],
+                    }
+                )
+    if not found:
+        discordtotitanfall[serverid]["messages"].append(
+    {
+        "content": f"{PREFIXES['discord']}No people with aliases found",
+        "uidoverride": [inputargs["uid"]],
+    }
+)
+        
+            # embed.add_field(
+            #     name=f"\u200b \u200b \u200b \u200b \u200b \u200b {player}",
+            #     value=f"\u200b \u200b \u200b \u200b \u200b \u200b \u200b Score: {formattedata[team]['playerinfo'][player]['score']} | Kills: {formattedata[team]['playerinfo'][player]['kills']} | Deaths: {formattedata[team]['playerinfo'][player]['deaths']}",
+            #     inline=False,
+            # )
+    # return embed
+
+    # return f"```{data}```"
+
+def findaliases(message,serverid,isfromserver):
+    discordtotitanfall[serverid]["messages"].append(
+        {
+            "content": f"{PREFIXES['discord']}Finding Aliases on server (Alias -> Actualname)",
+                "uidoverride": getpriority(message, "uid", ["meta", "uid"]),
+        }
+    )
+    asyncio.run_coroutine_threadsafe(
+        returncommandfeedback(
+            *sendrconcommand(
+                serverid,
+                (
+                    f"!playingpoll"
+                ),
+                sender=getpriority(message, "originalname", "name"),
+            ),
+            "fake context",
+            findaliasesafterplaying,
+            True,
+            True,
+            {"uid":getpriority(message, "uid", ["meta", "uid"]),"message":getpriority(message, "originalmessage")},
+        ),
+        bot.loop,
+    )
 def runcommanddirectly(message, serverid, isfromserver):
     if   not len(getpriority(message, "originalmessage").split(" ", 1)[1:]):
         discordtotitanfall[serverid]["messages"].append(

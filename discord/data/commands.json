@@ -14,6 +14,19 @@
             "shouldblock": false,
             "permsneeded": "coolperksrole"
         },
+        "findactualname": {
+            "permsneeded": "rconrole",
+            "aliases": [
+                "findname","fn"
+            ],
+            "games": [
+                "tf2"
+            ],
+            "run": "thread",
+            "function": "findaliases",
+            "description": "find somones aliases",
+            "shouldblock": true
+        },
         "rcon": {
             "permsneeded": "rconrole",
             "aliases": [

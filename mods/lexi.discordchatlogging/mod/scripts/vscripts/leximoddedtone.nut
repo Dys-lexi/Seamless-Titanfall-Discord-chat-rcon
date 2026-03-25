@@ -84,26 +84,34 @@ void function Lexi_killstat_Init() {
     AddCallback_OnClientDisconnected( sendaccuracyforplayer )
     // GameMode_AddScoreboardColumnData( "pants", "#SCOREBOARD_ASSAULT", PGS_ASSAULT_SCORE, 4 )
     AddDamageCallback( "player", trackhits )
-    if (GetConVarInt("discordlogshowaccuracyinsteadofassists")){
+    if (GetConVarInt("discordlogshowaccuracyinsteadofassists") || GetConVarInt("discordlogshowaccuracyinplayertitle")){
         AddCallback_OnWeaponAttack(updateassistsasaccuracy)
+        // AddCallback_OnSelectedWeaponChanged(newweapon)
 
     }
 
 }
-
+// void function newweapon(entity weapon){
+//     if (IsValid(weapon.GetWeaponOwner()) && weapon.GetWeaponOwner().IsPlayer()){
+//     updateassistsasaccuracy(weapon.GetWeaponOwner(),weapon,1)}
+// }
 void function updateassistsasaccuracy(entity player,entity weapon,string weaponName,int shotsFired){
     // PGS_ASSISTS
     // attacker.SetPlayerGameStat( PGS_ASSAULT_SCORE, attacker.GetPlayerGameStat( PGS_ASSAULT_SCORE ) + 1 )
 
         // discordlogsendmessage("e")
-       
+        
             
-            // discordlogsendmessage(player.GetPlayerName())
-            if (player.GetUID() in accuracy.killstuff){
+            discordlogsendmessage(player.GetPlayerName())
+            if (!(player.GetUID() in accuracy.killstuff)){
+                // discordlogsendmessage("dqq")
+                return}
                 
                 
             entity weapon =  player.GetActiveWeapon()
-            if (weapon.GetWeaponClassName() in accuracy.killstuff[player.GetUID()]){
+            if (!(weapon.GetWeaponClassName() in accuracy.killstuff[player.GetUID()])){
+                // discordlogsendmessage("fake")
+                return }
                 string mods = ""
                 bool hasMods = false
                         foreach (string mod in  weapon.GetMods()) {
@@ -116,11 +124,14 @@ void function updateassistsasaccuracy(entity player,entity weapon,string weaponN
     
         if (mods in accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()] && accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired > weapon.GetWeaponSettingInt( eWeaponVar.ammo_clip_size )){
             // discordlogsendmessage("d"+( (accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots.tofloat()/accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired)*100).tointeger()+ " w " + accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired + " e " + accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots)
-            player.SetPlayerGameStat( PGS_ASSISTS,( (accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots.tofloat()/accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired)*100).tointeger())
-            // player.SetTitle("Avg Accuracy: "+( (accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots.tofloat()/accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired)*100).tointeger()+"%")
+            // discordlogsendmessage("wdqwdqe")
+            if (GetConVarInt("discordlogshowaccuracyinsteadofassists")){  player.SetPlayerGameStat( PGS_ASSISTS,( (accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots.tofloat()/accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired)*100).tointeger())}
+            if ( GetConVarInt("discordlogshowaccuracyinplayertitle")){
+                // discordlogsendmessage("weee")
+             player.SetTitle("Accuracy: "+( (accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots.tofloat()/accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired)*100).tointeger()+"%")}
         }        
-            }       
-            }   
+            
+            // discordlogsendmessage("weeqwdwqfwq")
         
     
 }
