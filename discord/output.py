@@ -248,6 +248,11 @@ def creatediscordlinkdb():
         ALTER TABLE discordlinkdata
         ALTER COLUMN uid TYPE BIGINT USING uid::BIGINT;
         """)
+    if POSTGRESQLDBURL != "0":
+        c.execute("""
+        ALTER TABLE discordlinkdata
+        ALTER COLUMN discordid TYPE BIGINT USING discordid::BIGINT;
+        """)
     tfdb.commit()
     tfdb.close()
 
@@ -10794,6 +10799,17 @@ def checknameisactuallychanged(outputstring, serverid, statuscode, message):
                 # "dotreacted": dotreacted
             }
         )
+    if message.get("toolong"):
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                # "id": str(int(time.time()*100)),
+                "content": f"{PREFIXES['discord']}New name too long to fit: truncated it from {message.get("toolong")} chars to 64",
+                # "teamoverride": 4,
+                # "isteammessage": False,
+                "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+                # "dotreacted": dotreacted
+            }
+        )
     discordtotitanfall[serverid]["messages"].append(
         {
             # "id": str(int(time.time()*100)),
@@ -10852,7 +10868,7 @@ def changename(message, serverid, isfromserver):
             *sendrconcommand(
                 serverid,
                 (
-                    f"!forcesomonesname {getpriority(message,"uid",["meta","uid"])} {filterprefix(message["originalmessage"].split(" ",1)[1:][0])}"
+                    f"!forcesomonesname {getpriority(message,"uid",["meta","uid"])} {filterprefix(message["originalmessage"].split(" ",1)[1:][0][64:])}"
                 ),
                 sender=getpriority(message, "originalname", "name"),
             ),
@@ -10860,7 +10876,7 @@ def changename(message, serverid, isfromserver):
             checknameisactuallychanged,
             True,
             True,
-            {**message,"newname":filterprefix(message["originalmessage"].split(" ",1)[1:][0])},
+            {**message,"newname":filterprefix(message["originalmessage"].split(" ",1)[1:][0]),"toolong":len(filterprefix(message["originalmessage"].split(" ",1)[1:][0])) > 64 and len(filterprefix(message["originalmessage"].split(" ",1)[1:][0]))},
         ),
         bot.loop,
     )
