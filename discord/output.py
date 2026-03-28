@@ -10799,6 +10799,7 @@ def checknameisactuallychanged(outputstring, serverid, statuscode, message):
                 # "dotreacted": dotreacted
             }
         )
+        return
     if message.get("toolong"):
         discordtotitanfall[serverid]["messages"].append(
             {
@@ -10868,7 +10869,7 @@ def changename(message, serverid, isfromserver):
             *sendrconcommand(
                 serverid,
                 (
-                    f"!forcesomonesname {getpriority(message,"uid",["meta","uid"])} {filterprefix(message["originalmessage"].split(" ",1)[1:][0][64:])}"
+                    f"!forcesomonesname {getpriority(message,"uid",["meta","uid"])} {filterprefix(message["originalmessage"].split(" ",1)[1:][0][:64])}"
                 ),
                 sender=getpriority(message, "originalname", "name"),
             ),
