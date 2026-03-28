@@ -375,7 +375,7 @@ string function discordloggetplayername(entity player){
 
 void function nattertoggles(entity player){
 	wait 60
-	if (GetConVarInt("discordlognatterfortoggles") == 1){
+	if (GetConVarInt("discordlognatterfortoggles") == 1 && IsValid(player)){
 		runcommandondiscord("natterfortoggles",{ name = player.GetUID()})
 
 	}

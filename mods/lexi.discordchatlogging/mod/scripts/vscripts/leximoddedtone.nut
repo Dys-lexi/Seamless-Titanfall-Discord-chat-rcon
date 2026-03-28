@@ -87,15 +87,16 @@ void function Lexi_killstat_Init() {
     AddDamageCallback( "player", trackhits )
     if (GetConVarInt("discordlogshowaccuracyinsteadofassists") || GetConVarInt("discordlogshowaccuracyinplayertitle")){
         AddCallback_OnWeaponAttack(updateassistsasaccuracy)
-        // AddCallback_OnSelectedWeaponChanged(newweapon)
+        AddCallback_OnPlayerRespawned(playerrespawn)
 
     }
 
 }
-// void function newweapon(entity weapon){
-//     if (IsValid(weapon.GetWeaponOwner()) && weapon.GetWeaponOwner().IsPlayer()){
-//     updateassistsasaccuracy(weapon.GetWeaponOwner(),weapon,1)}
-// }
+void function playerrespawn(entity player){
+    if (IsValid(player)){
+    updateassistsasaccuracy(player,player.GetActiveWeapon(),"wee",1)}
+}
+
 void function updateassistsasaccuracy(entity player,entity weapon,string weaponName,int shotsFired){
     // PGS_ASSISTS
     // attacker.SetPlayerGameStat( PGS_ASSAULT_SCORE, attacker.GetPlayerGameStat( PGS_ASSAULT_SCORE ) + 1 )
