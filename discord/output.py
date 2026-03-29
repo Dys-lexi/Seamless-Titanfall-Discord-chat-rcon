@@ -10786,6 +10786,7 @@ def displayendofroundstats(message, serverid, isfromserver):
     # # "uidoverride": [getpriority(message,"uid",["meta","uid"])]
     # }
     # )
+maxnamelen = 256
 def checknameisactuallychanged(outputstring, serverid, statuscode, message):
     istf1 = context["servers"].get(serverid, {}).get("istf1server", False)
     if statuscode != 200:
@@ -10804,7 +10805,7 @@ def checknameisactuallychanged(outputstring, serverid, statuscode, message):
         discordtotitanfall[serverid]["messages"].append(
             {
                 # "id": str(int(time.time()*100)),
-                "content": f"{PREFIXES['discord']}New name too long to fit: truncated it from {message.get("toolong")} chars to 64",
+                "content": f"{PREFIXES['discord']}New name too long to fit: truncated it from {message.get("toolong")} chars to maxnamelen",
                 # "teamoverride": 4,
                 # "isteammessage": False,
                 "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
@@ -10869,7 +10870,7 @@ def changename(message, serverid, isfromserver):
             *sendrconcommand(
                 serverid,
                 (
-                    f"!forcesomonesname {getpriority(message,"uid",["meta","uid"])} {filterprefix(message["originalmessage"].split(" ",1)[1:][0][:64])}"
+                    f"!forcesomonesname {getpriority(message,"uid",["meta","uid"])} {filterprefix(message["originalmessage"].split(" ",1)[1:][0][:maxnamelen])}"
                 ),
                 sender=getpriority(message, "originalname", "name"),
             ),
@@ -10877,7 +10878,7 @@ def changename(message, serverid, isfromserver):
             checknameisactuallychanged,
             True,
             True,
-            {**message,"newname":filterprefix(message["originalmessage"].split(" ",1)[1:][0]),"toolong":len(filterprefix(message["originalmessage"].split(" ",1)[1:][0])) > 64 and len(filterprefix(message["originalmessage"].split(" ",1)[1:][0]))},
+            {**message,"newname":filterprefix(message["originalmessage"].split(" ",1)[1:][0]),"toolong":len(filterprefix(message["originalmessage"].split(" ",1)[1:][0])) > maxnamelen and len(filterprefix(message["originalmessage"].split(" ",1)[1:][0]))},
         ),
         bot.loop,
     )
