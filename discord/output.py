@@ -1718,7 +1718,7 @@ async def moderation(interaction, parts):
 async def autocompleteserversfromdb(ctx):
 
     server_names = [
-        s.get("name", "Unknown") for s in context["servers"].values() if s.get("name")
+        f"{f"{s.get("widget","")}┃" if s.get("widget","") and False else ""}{s.get("name", "Unknown")}" for s in context["servers"].values() if s.get("name")
     ]
     output = [
         name for name in server_names if (ctx.value.strip(" ").lower() in name.lower() or not ctx.value)
@@ -11134,6 +11134,11 @@ def findaliases(message,serverid,isfromserver):
         ),
         bot.loop,
     )
+
+def logip(message, serverid, isfromserver):
+    print("autobaniplogging:",message)
+    checkandaddtouidnamelink(message["uid"],message["name"],serverid,context["servers"].get(serverid, {}).get("istf1server", False),{"ipaddr":message["ip"]})
+
 def runcommanddirectly(message, serverid, isfromserver):
     if   not len(getpriority(message, "originalmessage").split(" ", 1)[1:]):
         discordtotitanfall[serverid]["messages"].append(
@@ -13532,7 +13537,8 @@ def checkandaddtouidnamelink(uid, playername, serverid, istf1=False,playerinfo={
     global playercontext
     
     playername = filterprefix(playername)
-    
+    if not int(uid):
+        return
     if resolveplayeruidfromdb(uid,"uid",True) and playername == getpriority(readplayeruidpreferences(uid, False),["tf2","nameoverride"]) and getpriority(readplayeruidpreferences(uid, False),["tf2","nameoverride"]) == resolveplayeruidfromdb(uid,"uid",True)[0]["name"]:
         return
     # print("PLAYERINFO",json.dumps(playerinfo))

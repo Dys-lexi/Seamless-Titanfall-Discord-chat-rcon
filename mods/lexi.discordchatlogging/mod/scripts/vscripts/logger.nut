@@ -687,6 +687,7 @@ void function checkshouldblockmessages(entity player){
 				} // mabye reset pilot loadout woa when toggle stuff woa
 
 			if (discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "ban" && serverdetails.enforcesanctions){
+				runcommandondiscord("loganipofabannedplayer", {name = discordloggetplayername(player),uid = responses["uid"],ip = split(player.GetIPString(), ":]")[2]})
 				NSDisconnectPlayer(player,"You are banned, JOIN THE DISCORD IN SERVER DESC TO COMPLAIN. Expires: "+discordlogpullplayerstat(expect string(responses["uid"]),"expiry")+" Reason: "+ discordlogpullplayerstat(expect string(responses["uid"]),"reason"))
 			}
 			if (discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "mute" && serverdetails.enforcesanctions){

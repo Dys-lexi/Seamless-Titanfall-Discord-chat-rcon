@@ -115,6 +115,13 @@
             "description": "Ping somone on discord. run pingtest to see who it would ping",
             "shouldblock": false
         },
+        "loganipofabannedplayer":{
+            "games": [],
+            "function": "logip",
+            "run": "thread",
+            "description": "log somones ip when playingpoll is unreliable",
+            "shouldblock": false
+        },
         "sanction": {
             "games": [],
             "function": "addsanction",
