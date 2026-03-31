@@ -6147,7 +6147,7 @@ async def show_color_why(
     global colourslink
     colourslist = []
     colours = colour
-
+    colours = colours.replace(",", " ")
     if len(colours.split(" ")) > 1:
         if not checkrconallowed(ctx.author,  getslashcommandoverridesperms("discordtotf2chatcolour","coolperksrole")):
             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)

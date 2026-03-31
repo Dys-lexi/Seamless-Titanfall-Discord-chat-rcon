@@ -110,7 +110,9 @@ void function updateassistsasaccuracy(entity player,entity weapon,string weaponN
                 return}
                 
                 
-            entity weapon =  player.GetActiveWeapon()
+            // entity weapon =  player.GetActiveWeapon()
+                if (!IsValid(weapon))
+            {return}
             if (!(weapon.GetWeaponClassName() in accuracy.killstuff[player.GetUID()])){
                 // discordlogsendmessage("fake")
                 return }
