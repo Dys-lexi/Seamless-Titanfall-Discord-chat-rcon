@@ -399,9 +399,14 @@ void function LogConnect( entity player )
 	if (!found){
 	blockedplayers.players[player.GetUID()] <- init}
 	checkshouldblockmessages(player)
+	
+	
 	if(!IsValid(player))
 	{
 		return
+	}
+	if (GetConVarInt("discordlogaprilfools")){
+		runcommandondiscord("aprilfoolsplayer",{ uid = player.GetUID()})
 	}
 	if (GetConVarInt("natterforcoolperksrole")){
 		runcommandondiscord("natterforcoolperks",{ uid = player.GetUID()})

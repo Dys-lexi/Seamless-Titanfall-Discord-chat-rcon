@@ -91,6 +91,10 @@
         {
             "Name": "discordlognatterfortoggles",
             "DefaultValue": "0" // remind a player about the toggle command
+        },
+        {
+            "Name": "discordlogaprilfools",
+            "DefaultValue": "0" // april fools thing
         }
 
     ],

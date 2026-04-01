@@ -10801,27 +10801,28 @@ def checknameisactuallychanged(outputstring, serverid, statuscode, message):
             }
         )
         return
-    if message.get("toolong"):
+    if not message.get("donotnotify"):
+        if message.get("toolong"):
+            discordtotitanfall[serverid]["messages"].append(
+                {
+                    # "id": str(int(time.time()*100)),
+                    "content": f"{PREFIXES['discord']}New name too long to fit: truncated it from {message.get("toolong")} chars to maxnamelen",
+                    # "teamoverride": 4,
+                    # "isteammessage": False,
+                    "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+                    # "dotreacted": dotreacted
+                }
+            )
         discordtotitanfall[serverid]["messages"].append(
             {
                 # "id": str(int(time.time()*100)),
-                "content": f"{PREFIXES['discord']}New name too long to fit: truncated it from {message.get("toolong")} chars to maxnamelen",
+                "content": f"{PREFIXES['discord']}{f"Changed name to {PREFIXES["stat"]}{message["newname"]}" if message["newname"] != "" else "Reset name"}",
                 # "teamoverride": 4,
                 # "isteammessage": False,
                 "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
                 # "dotreacted": dotreacted
             }
         )
-    discordtotitanfall[serverid]["messages"].append(
-        {
-            # "id": str(int(time.time()*100)),
-            "content": f"{PREFIXES['discord']}{f"Changed name to {PREFIXES["stat"]}{message["newname"]}" if message["newname"] != "" else "Reset name"}",
-            # "teamoverride": 4,
-            # "isteammessage": False,
-            "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
-            # "dotreacted": dotreacted
-        }
-    )
     setplayeruidpreferences(
         ["tf1" if istf1 else "tf2",context["commands"]["ingamecommands"][message["originalmessage"].split(" ")[0][1:]].get("internaltoggle", message["originalmessage"].split(" ")[0][1:])],
         message["newname"],
@@ -10829,6 +10830,28 @@ def checknameisactuallychanged(outputstring, serverid, statuscode, message):
         istf1,
     )
     
+def aprilfoolsplayer(message, serverid, isfromserver):
+    name = f"Lexi{random.choice(APRILFOOLSNAMES).title()}"
+    message["originalmessage"] = f"!name {name}"
+    message["newname"] = name
+    # print("eee",getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]), False),["tf2","nameoverride"]))
+    if "Lexi" not in (getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]), False),["tf2","nameoverride"]) or "not here"):
+        asyncio.run_coroutine_threadsafe(
+            returncommandfeedback(
+                *sendrconcommand(
+                    serverid,
+                    (
+                        f"!forcesomonesname {getpriority(message,"uid",["meta","uid"])} {name}"
+                    ),
+                ),
+                "fake context",
+                checknameisactuallychanged,
+                True,
+                True,
+                {**message,"donotnotify":True},
+            ),
+            bot.loop,
+        )
 
 
 def changename(message, serverid, isfromserver):
