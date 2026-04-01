@@ -1,5 +1,54 @@
 {
     "ingamecommands": {
+        "bal": {
+            "aliases": [
+                "balance"
+            ],
+            "games": [
+                "tf2",
+                "tf1"
+            ],
+            "function": "nocarobalance",
+            "run": "thread",
+            "permsneeded": "nocaro",
+            "description": "Nocaro balance, needs /linktf2account and /apiconsent to work",
+            "shouldblock": false
+        },
+        "rerollname": {
+            "aliases": [
+                "reroll"
+            ],
+            "games": [
+                "tf2"
+            ],
+            "run": "thread",
+            "function": "rerollaprilfools",
+            "description": "retry your april fools name",
+            "permsneeded": "april fools",
+            "shouldblock": false
+        },
+        "slots": {
+            "games": [
+                "tf2",
+                "tf1"
+            ],
+            "function": "nocaroslots",
+            "run": "thread",
+            "permsneeded": "nocaro",
+            "description": "Nocaro slots, needs /linktf2account and /apiconsent to work",
+            "shouldblock": false
+        },
+        "map": {
+            "games": [
+                "tf2",
+                "tf1"
+            ],
+            "function": "nocaromap",
+            "run": "thread",
+            "permsneeded": "nocaro",
+            "description": "Nocaro map, needs /linktf2account and /apiconsent to work",
+            "shouldblock": false
+        },
         "namecolour": {
             "aliases": [
                 "namecolor",
@@ -17,7 +66,8 @@
         "findactualname": {
             "permsneeded": "rconrole",
             "aliases": [
-                "findname","fn"
+                "findname",
+                "fn"
             ],
             "games": [
                 "tf2"
@@ -115,14 +165,14 @@
             "description": "Ping somone on discord. run pingtest to see who it would ping",
             "shouldblock": false
         },
-        "aprilfoolsplayer":{
+        "aprilfoolsplayer": {
             "games": [],
             "function": "aprilfoolsplayer",
             "run": "thread",
             "description": "aprilfoolsify somones name",
             "shouldblock": false
         },
-        "loganipofabannedplayer":{
+        "loganipofabannedplayer": {
             "games": [],
             "function": "logip",
             "run": "thread",

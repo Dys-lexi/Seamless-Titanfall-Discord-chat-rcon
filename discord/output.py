@@ -7768,7 +7768,7 @@ def getmessagewidget(metadata, serverid, messagecontent, message):
     output = messagecontent
 
     player = str(message.get("player", "Unknown player"))
-    if USEOVERRIDDENNAMESINDISCORD and getpriority(message,["metadata","uid"]):
+    if USEOVERRIDDENNAMESINDISCORD and getpriority(message,["metadata","uid"]) and (not resolvecommandperms(serverid,internaltoggles["nameoverride"]) or checkrconallowedtfuid(message["metadata"]["uid"],resolvecommandperms(serverid,internaltoggles["nameoverride"],True),serverid=serverid)) :
         player = getpriority(readplayeruidpreferences(message["metadata"]["uid"], False),["tf2","nameoverride"]) or player 
     if getpriority(
         colourslink,
@@ -11494,7 +11494,7 @@ def ingamehelp(message, serverid, isfromserver):
                 not command.get("serversenabled", False)
                 or int(serverid) in command["serversenabled"]
             )
-            and command.get("run") != "togglestat"
+            and (command.get("run") != "togglestat" or commandoverride)
             and not command.get("alias")
         ):
             cmdcounter += 1
@@ -11517,6 +11517,17 @@ def ingamehelp(message, serverid, isfromserver):
             {
                 # "id": str(int(time.time()*100)),
                 "content": f"{PREFIXES['discord']}{PREFIXES['commandname']}[38;5;201m[{cmdcounter - 10}]{PREFIXES['warning']} More command{'s' if cmdcounter - 10 > 1 else ''} hidden above.{PREFIXES['commandname']} open chat box and press up arrow {PREFIXES['warning']}to see them!",
+                # "teamoverride": 4,
+                # "isteammessage": False,
+                "uidoverride": ([getpriority(message, "uid", ["meta", "uid"])]),
+                # "dotreacted": dotreacted
+            }
+        )
+    elif not cmdcounter:
+        discordtotitanfall[serverid]["messages"].append(
+            {
+                # "id": str(int(time.time()*100)),
+                "content": f"{PREFIXES['discord']}No commands found matching {PREFIXES['commandname']}{commandoverride}",
                 # "teamoverride": 4,
                 # "isteammessage": False,
                 "uidoverride": ([getpriority(message, "uid", ["meta", "uid"])]),
