@@ -10831,27 +10831,31 @@ def checknameisactuallychanged(outputstring, serverid, statuscode, message):
     )
     
 def aprilfoolsplayer(message, serverid, isfromserver):
-    name = f"Lexi{random.choice(APRILFOOLSNAMES).title()}"
+    
+
+    # print("eee",getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]), False),["tf2","nameoverride"]))
+    if "Lexi" in (getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]), False),["tf2","nameoverride"]) or "not here"):
+        name = (getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]), False),["tf2","nameoverride"]) or "not here")
+    else:
+        name = f"Lexi{random.choice(APRILFOOLSNAMES).title()}"
     message["originalmessage"] = f"!name {name}"
     message["newname"] = name
-    # print("eee",getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]), False),["tf2","nameoverride"]))
-    if "Lexi" not in (getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]), False),["tf2","nameoverride"]) or "not here"):
-        asyncio.run_coroutine_threadsafe(
-            returncommandfeedback(
-                *sendrconcommand(
-                    serverid,
-                    (
-                        f"!forcesomonesname {getpriority(message,"uid",["meta","uid"])} {name}"
-                    ),
+    asyncio.run_coroutine_threadsafe(
+        returncommandfeedback(
+            *sendrconcommand(
+                serverid,
+                (
+                    f"!forcesomonesname {getpriority(message,"uid",["meta","uid"])} {name}"
                 ),
-                "fake context",
-                checknameisactuallychanged,
-                True,
-                True,
-                {**message,"donotnotify":True},
             ),
-            bot.loop,
-        )
+            "fake context",
+            checknameisactuallychanged,
+            True,
+            True,
+            {**message,"donotnotify":True},
+        ),
+        bot.loop,
+    )
 
 
 def changename(message, serverid, isfromserver):
