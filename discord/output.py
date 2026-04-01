@@ -10829,12 +10829,25 @@ def checknameisactuallychanged(outputstring, serverid, statuscode, message):
         getpriority(message, "uid", ["meta", "uid"]),
         istf1,
     )
-    
+
+def rerollaprilfools(message, serverid, isfromserver):
+    message["reroll"] = True
+    discordtotitanfall[serverid]["messages"].append(
+        {
+            # "id": str(i) + str(int(time.time()*100)),
+            "content": f"{PREFIXES['discord']}Trying to reroll",
+            # "teamoverride": 4,
+            # "isteammessage": False,
+            "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
+            # "dotreacted": dotreacted
+        }
+    )
+    aprilfoolsplayer(message,serverid,isfromserver)
 def aprilfoolsplayer(message, serverid, isfromserver):
     
 
     # print("eee",getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]), False),["tf2","nameoverride"]))
-    if "Lexi" in (getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]), False),["tf2","nameoverride"]) or "not here"):
+    if "Lexi" in (getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]), False),["tf2","nameoverride"]) or "not here") and not message.get("reroll"):
         name = (getpriority(readplayeruidpreferences(getpriority(message,"uid",["meta","uid"]), False),["tf2","nameoverride"]) or "not here")
     else:
         name = f"Lexi{random.choice(APRILFOOLSNAMES).title()}"
