@@ -6642,7 +6642,7 @@ def colourmessage(message, serverid):
     # print(colourslink[discorduid])
     if message["metadata"]["teamtype"] == "not team":
         authornicks["friendly"] = computeauthornick(
-            getpriority(readplayeruidpreferences(message["metadata"]["uid"], False),["tf2","nameoverride"]) or message["player"] ,
+            ((not resolvecommandperms(serverid,internaltoggles["nameoverride"]) or checkrconallowedtfuid(message["metadata"]["uid"],resolvecommandperms(serverid,internaltoggles["nameoverride"],True),serverid=serverid))  and getpriority(readplayeruidpreferences(message["metadata"]["uid"], False),["tf2","nameoverride"])) or message["player"] ,
             discorduid,
             message["messagecontent"],
             serverid,
@@ -6657,7 +6657,7 @@ def colourmessage(message, serverid):
             True,
         )
         authornicks["enemy"] = computeauthornick(
-            getpriority(readplayeruidpreferences(message["metadata"]["uid"], False),["tf2","nameoverride"]) or message["player"],
+            ((not resolvecommandperms(serverid,internaltoggles["nameoverride"]) or checkrconallowedtfuid(message["metadata"]["uid"],resolvecommandperms(serverid,internaltoggles["nameoverride"],True),serverid=serverid))  and getpriority(readplayeruidpreferences(message["metadata"]["uid"], False),["tf2","nameoverride"])) or message["player"] ,
             discorduid,
             message["messagecontent"],
             serverid,
@@ -6673,7 +6673,7 @@ def colourmessage(message, serverid):
         )
     else:
         authornicks["friendly"] = computeauthornick(
-            getpriority(readplayeruidpreferences(message["metadata"]["uid"], False),["tf2","nameoverride"]) or message["player"],
+            ((not resolvecommandperms(serverid,internaltoggles["nameoverride"]) or checkrconallowedtfuid(message["metadata"]["uid"],resolvecommandperms(serverid,internaltoggles["nameoverride"],True),serverid=serverid))  and getpriority(readplayeruidpreferences(message["metadata"]["uid"], False),["tf2","nameoverride"])) or message["player"] ,
             discorduid,
             message["messagecontent"],
             serverid,
