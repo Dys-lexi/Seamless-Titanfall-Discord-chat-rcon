@@ -4606,12 +4606,16 @@ if DISCORDBOTLOGSTATS == "1":
                     else:
                         weapon_kills[name][f"{weapon}"].setdefault(killer, 0)
                         weapon_kills[name][f"{weapon}"][killer] += stabcount
-
+        shotsfired = {}
         if shouldbekd:
             for name in weapon_kills:
+                shotsfired.setdefault(name,{})
                 for weapon in weapon_kills[name]:
+                    shotsfired[name].setdefault(weapon,{})
                     for killer in weapon_kills[name][weapon]:
+                        
                         hits, total = weapon_kills[name][weapon][killer]
+                        shotsfired[name][weapon][killer] = total
                         # if name = "main":
                         weapon_kills[name][weapon][killer] = hits * 100.0 / total if total > 0 else 0
                         # else:
@@ -4896,8 +4900,8 @@ if DISCORDBOTLOGSTATS == "1":
                     base_text = f"{name}: {f"{count:.2f}%" if shouldbekd else count}"
                     draw.text((x, y), base_text, font=font, fill=color)
                     x += draw.textlength(base_text, font=font)
-                    if delta_kills:
-                        plus_text = f" {"+" if delta_kills > 0 else ""}{f"{delta_kills:.2f}%" if shouldbekd else delta_kills}"
+                    if delta_kills or shouldbekd:
+                        plus_text = f" {getpriority(shotsfired,["main",weapon,attacker],nofind = "n/a") if shouldbekd else (f"{"+" if delta_kills > 0 else ""}{delta_kills}")}"
                         draw.text((x, y), plus_text, font=font, fill=(100, 100, 100))
                     arrow_x = maxwidth - draw.textlength(change_text, font=font) - 10
                     draw.text((arrow_x, y), change_text, font=font, fill=change_color)
@@ -6899,10 +6903,11 @@ def recieveflaskprintrequests():
         if sanction:
     
             sanction["expiry"] = modifyvalue(sanction["expiry"] - now,"time") if  sanction.get("expiry") and sanction["expiry"] - now < 86400*2 else sanction["humanexpire"]
-
+            result = asyncio.run_coroutine_threadsafe(resolvemessagefromlink(sanction["reason"]), bot.loop)    
+            actualresult = result.result(timeout=5)     
             sanction = {
                 "expiry": sanction["expiry"],
-                "reason": sanction["reason"],
+                "reason": sanction["reason"] if not actualresult else f'"{resolveplayeruidfromdb(data["uid"],"uid",True)[0]["name"]}: {actualresult.content}"',
                 "sanctiontype": sanction["sanctiontype"],
             }
         if playername.lower() in context["wordfilter"]["namestokick"]:
@@ -12851,6 +12856,17 @@ def notifydebugchat(affectedserver, message, prefix="Commandnotify"):
                 }
             )
 
+async def resolvemessagefromlink(link):
+    if "https://" not in link:
+        return False
+    link = link.rsplit("/",3)
+    print(link)
+    try:
+        message = await bot.get_guild(int(link[1])).get_channel(int(link[2])).fetch_message(int(link[3]))
+    except:
+        traceback.print_exc()
+        return False
+    return message
 
 async def returncommandfeedback(
     serverid,
