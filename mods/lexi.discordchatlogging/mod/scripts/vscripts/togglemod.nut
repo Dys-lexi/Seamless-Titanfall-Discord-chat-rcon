@@ -1,57 +1,62 @@
 global function discordlogtoggleadmin
 
-discordlogcommand function discordlogtoggleadmin(discordlogcommand commandin) {
-    if (commandin.commandargs.len() != 1 && commandin.commandargs.len() != 2)
-    {
-        commandin.returnmessage = "Wrong number of args";
-        commandin.returncode = 400
-        return commandin;
-    }
-    array<entity> players = discordlogmatchplayers(commandin.commandargs[0])
-    // print("boop")
-    if (players.len() == 0){
-        commandin.returnmessage = "No players found"
-        commandin.returncode = 401
-    }
-    else if (players.len() > 1){
-        commandin.returnmessage = "Multiple players found"
-        commandin.returncode = 402
-    }
+discordlogcommand function discordlogtoggleadmin( discordlogcommand commandin )
+{
+	if ( commandin.commandargs.len() != 1 && commandin.commandargs.len() != 2 )
+	{
+		commandin.returnmessage = "Wrong number of args"
+		commandin.returncode = 400
+		return commandin
+	}
+	array<entity> players = discordlogmatchplayers( commandin.commandargs[ 0 ] )
+	// print("boop")
+	if ( players.len() == 0 )
+	{
+		commandin.returnmessage = "No players found"
+		commandin.returncode = 401
+	}
+	else if ( players.len() > 1 )
+	{
+		commandin.returnmessage = "Multiple players found"
+		commandin.returncode = 402
+	}
+	else
+	{
 
-    else {
+		if ( commandin.commandargs.len() == 1 )
+		{
+			print( "resizing" )
+			commandin.commandargs.resize( 2, "1" )
+		}
+		print( "commandin.commandargs[1]: " + commandin.commandargs[ 1 ] )
+		bool foundadmin = false
+		for ( int i = 1; i < 4; i++ )
+		{
 
-        if (commandin.commandargs.len() == 1){
-            print("resizing")
-            commandin.commandargs.resize(2,"1")
-        }
-        print("commandin.commandargs[1]: " + commandin.commandargs[1])
-        bool foundadmin = false
-        for (int i = 1; i < 4; i++){
+			string uids = GetConVarString( "admin_lvl" + i )
+			print( "uids: " + uids )
+			if ( uids.find( players[ 0 ].GetUID() ) != null )
+			{
+				// print("meow" + uids.find(players[0].GetUID()))
+				uids = StringReplace( uids, players[ 0 ].GetUID(), "" )
+				SetConVarString( "admin_lvl" + i, uids )
+				commandin.returnmessage = "Removed " + discordloggetplayername( players[ 0 ] ) + " from admin lvl " + i
+				commandin.returncode = 201
+				foundadmin = true
+			}
+		}
+		if ( !foundadmin )
+		{
+			string uids = GetConVarString( "admin_lvl" + commandin.commandargs[ 1 ] )
+			uids += "," + players[ 0 ].GetUID()
+			SetConVarString( "admin_lvl" + commandin.commandargs[ 1 ], uids )
+			commandin.returnmessage = "Added " + discordloggetplayername( players[ 0 ] ) + " to admin lvl " + commandin.commandargs[ 1 ]
+			commandin.returncode = 200
+		}
+	}
 
-
-        string uids = GetConVarString("admin_lvl" + i)
-        print("uids: " + uids)
-        if (uids.find(players[0].GetUID()) != null){
-            // print("meow" + uids.find(players[0].GetUID()))
-            uids = StringReplace(uids, players[0].GetUID() , "")
-            SetConVarString("admin_lvl" + i, uids)
-            commandin.returnmessage = "Removed " + discordloggetplayername(players[0]) + " from admin lvl " + i
-            commandin.returncode = 201
-            foundadmin = true
-        }}
-        if (!foundadmin){
-            string uids = GetConVarString("admin_lvl" + commandin.commandargs[1])
-            uids += "," + players[0].GetUID()
-            SetConVarString("admin_lvl" + commandin.commandargs[1], uids)
-            commandin.returnmessage = "Added " + discordloggetplayername(players[0]) + " to admin lvl " + commandin.commandargs[1]
-            commandin.returncode = 200
-        }
-
-    }
-
-    return commandin;
+	return commandin
 }
-
 
 // serverdetails.currentlyplaying = GetConVarString("discordlogpreviousroundplayers")
 

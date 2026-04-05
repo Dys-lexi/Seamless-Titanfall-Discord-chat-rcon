@@ -1,284 +1,342 @@
 global function Lexi_killstat_Init
 
+struct
+{
+	string killstatVersion
+	string host
+	string protocol
+	string serverId
+	string serverName
+	string token
+	bool connected
 
-struct {
-    string killstatVersion
-    string host
-    string protocol
-    string serverId
-    string serverName
-    string token
-    bool connected
-
-    int matchId
-    string gameMode
-    string map
+	int matchId
+	string gameMode
+	string map
 } file
 
-struct playerweapon {
-    int shotsfired
-    int hitshots
-    // string uidofpersonshooting
+struct playerweapon
+{
+	int shotsfired
+	int hitshots
+// string uidofpersonshooting
 //     string gunname
 //     array<string> weaponmods
 }
 
-struct  {
-    table<string,table<string,table<string,playerweapon> > > killstuff
-    int shots = 0
+struct
+{
+	table<string, table<string, table<string, playerweapon> > > killstuff
+	int shots = 0
 } accuracy
-array<string> gunsthataccuracyisreducedon = ["mp_titanweapon_particle_accelerator",
-                                            "mp_titanweapon_heat_shield",
-                                            "mp_titanweapon_flame_wall",
-                                            "mp_titancore_salvo_core",
-                                            "mp_titanweapon_cluster_rocket",
-                                            "mp_titancore_flame_wave"
-                                            ]
-table <entity,bool> preventtoomanyhints
+array<string> gunsthataccuracyisreducedon = [
+	"mp_titanweapon_particle_accelerator",
+	"mp_titanweapon_heat_shield",
+	"mp_titanweapon_flame_wall",
+	"mp_titancore_salvo_core",
+	"mp_titanweapon_cluster_rocket",
+	"mp_titancore_flame_wave"
+]
+table<entity, bool> preventtoomanyhints
 // array<entity> alreadyhits
 
-string function sanitizePlayerName(string name) {
-    
+string function sanitizePlayerName( string name )
+{
 
-    if (name.len() > 3 && name[0] == 40 && name.find(")") != null  && name[1] > 47 && name[1] < 58) {
-        string outputname = "";
-        array <string> parts = split(name, ")");
-        for (int i = 1; i < parts.len(); i++) {
-            outputname += parts[i];
-        }
-        // print(outputname);
-         return outputname;
-    }
-    // print(name);
-    return name;
-   
+	if ( name.len() > 3 && name[ 0 ] == 40 && name.find( ")" ) != null && name[ 1 ] > 47 && name[ 1 ] < 58 )
+	{
+		string outputname = ""
+		array<string> parts = split( name, ")" )
+		for ( int i = 1; i < parts.len(); i++ )
+		{
+			outputname += parts[ i ]
+		}
+		// print(outputname);
+		return outputname
+	}
+	// print(name);
+	return name
 }
 
-void function Lexi_killstat_Init() {
-    
-	if (GetConVarInt("discordloggingserverid") == 0){
-		print("[DiscordLogger]Server ID not set, please set it in the console PLEASE FIX THIS")
+void function Lexi_killstat_Init()
+{
+
+	if ( GetConVarInt( "discordloggingserverid" ) == 0 )
+	{
+		print( "[DiscordLogger]Server ID not set, please set it in the console PLEASE FIX THIS" )
 		return
-	} 
-    // KcommandArr.append(new_KCommandStruct(["stats"], false,  realstats, 0, "Usage: !stats (player name or UID) => show your (or someone else's) stats on the server"))
-    // KcommandArr.append(new_KCommandStruct(["bettertb"], false,  threadtbreal, 1, "actually good tb!!! woa!!! no way!!!"))
-    file.host = GetConVarString("discordlogginghttpServer")
-    // file.token = GetConVarString("nutone_token")
-    file.connected = false
-    file.serverName = GetConVarString("ns_server_name")
-    file.serverId = GetConVarString("discordloggingserverid")
-  
-    //register to NUTONEAPI if default or invalid token
-    // nutone_verify()
+	}
+	// KcommandArr.append(new_KCommandStruct(["stats"], false,  realstats, 0, "Usage: !stats (player name or UID) => show your (or someone else's) stats on the server"))
+	// KcommandArr.append(new_KCommandStruct(["bettertb"], false,  threadtbreal, 1, "actually good tb!!! woa!!! no way!!!"))
+	file.host = GetConVarString( "discordlogginghttpServer" )
+	// file.token = GetConVarString("nutone_token")
+	file.connected = false
+	file.serverName = GetConVarString( "ns_server_name" )
+	file.serverId = GetConVarString( "discordloggingserverid" )
 
-    // callbacks
-    AddCallback_GameStateEnter(eGameState.Playing, killstat_Begin)
-    AddCallback_OnPlayerKilled(killstat_Record)
-    AddCallback_OnNPCKilled(killstat_Record)
-    AddCallback_GameStateEnter(eGameState.Postmatch, killstat_End)
-    if (GetConVarInt("discordlogsendstatsonjoins")){
-        AddCallback_OnClientConnected(JoinMessage)
+	// register to NUTONEAPI if default or invalid token
+	// nutone_verify()
 
-    }
-    AddCallback_OnWeaponAttack(OnWeaponAttack)
-    AddCallback_GameStateEnter(9,sendaccuracyforlasttime);
-    AddCallback_OnClientDisconnected( sendaccuracyforplayer )
-    // GameMode_AddScoreboardColumnData( "pants", "#SCOREBOARD_ASSAULT", PGS_ASSAULT_SCORE, 4 )
-    AddDamageCallback( "player", trackhits )
-    if (GetConVarInt("discordlogshowaccuracyinsteadofassists") || GetConVarInt("discordlogshowaccuracyinplayertitle")){
-        AddCallback_OnWeaponAttack(updateassistsasaccuracy)
-        AddCallback_OnPlayerRespawned(playerrespawn)
-
-    }
-
+	// callbacks
+	AddCallback_GameStateEnter( eGameState.Playing, killstat_Begin )
+	AddCallback_OnPlayerKilled( killstat_Record )
+	AddCallback_OnNPCKilled( killstat_Record )
+	AddCallback_GameStateEnter( eGameState.Postmatch, killstat_End )
+	if ( GetConVarInt( "discordlogsendstatsonjoins" ) )
+	{
+		AddCallback_OnClientConnected( JoinMessage )
+	}
+	AddCallback_OnWeaponAttack( OnWeaponAttack )
+	AddCallback_GameStateEnter( 9, sendaccuracyforlasttime )
+	AddCallback_OnClientDisconnected( sendaccuracyforplayer )
+	// GameMode_AddScoreboardColumnData( "pants", "#SCOREBOARD_ASSAULT", PGS_ASSAULT_SCORE, 4 )
+	AddDamageCallback( "player", trackhits )
+	if ( GetConVarInt( "discordlogshowaccuracyinsteadofassists" ) || GetConVarInt( "discordlogshowaccuracyinplayertitle" ) )
+	{
+		AddCallback_OnWeaponAttack( updateassistsasaccuracy )
+		AddCallback_OnPlayerRespawned( playerrespawn )
+	}
 }
-void function playerrespawn(entity player){
-    if (IsValid(player)){
-    updateassistsasaccuracy(player,player.GetActiveWeapon(),"wee",1)}
-}
-
-void function updateassistsasaccuracy(entity player,entity weapon,string weaponName,int shotsFired){
-    // PGS_ASSISTS
-    // attacker.SetPlayerGameStat( PGS_ASSAULT_SCORE, attacker.GetPlayerGameStat( PGS_ASSAULT_SCORE ) + 1 )
-
-        // discordlogsendmessage("e")
-        
-            
-            // discordlogsendmessage(player.GetPlayerName())
-            if (!(player.GetUID() in accuracy.killstuff)){
-                // discordlogsendmessage("dqq")
-                return}
-                
-                
-            // entity weapon =  player.GetActiveWeapon()
-                if (!IsValid(weapon))
-            {return}
-            if (!(weapon.GetWeaponClassName() in accuracy.killstuff[player.GetUID()])){
-                // discordlogsendmessage("fake")
-                return }
-                string mods = ""
-                bool hasMods = false
-                        foreach (string mod in  weapon.GetMods()) {
-
-            if (hasMods){
-                mods += " "}
-            mods += mod
-            hasMods = true
-        }
-    
-        if (mods in accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()] && accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired > min(weapon.GetWeaponSettingInt( eWeaponVar.ammo_clip_size ),30)){
-            // discordlogsendmessage("d"+( (accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots.tofloat()/accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired)*100).tointeger()+ " w " + accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired + " e " + accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots)
-            // discordlogsendmessage("wdqwdqe")
-            if (GetConVarInt("discordlogshowaccuracyinsteadofassists")){  player.SetPlayerGameStat( PGS_ASSISTS,( (accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots.tofloat()/accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired)*100).tointeger())}
-            if ( GetConVarInt("discordlogshowaccuracyinplayertitle")){
-                // discordlogsendmessage("weee")
-             player.SetTitle("Accuracy: "+( (accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots.tofloat()/accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired)*100).tointeger()+"%")}
-        }        
-            
-            // discordlogsendmessage("weeqwdwqfwq")
-        
-    
+void function playerrespawn( entity player )
+{
+	if ( IsValid( player ) )
+	{
+		updateassistsasaccuracy( player, player.GetActiveWeapon(), "wee", 1 )
+	}
 }
 
-void function trackhits( entity player, var damageInfo ) {
-    entity attacker = DamageInfo_GetAttacker( damageInfo )
-    if (!IsValid(attacker) || !attacker.IsPlayer() || attacker == player || player.GetUID() == "0")
-        return
+void function updateassistsasaccuracy( entity player, entity weapon, string weaponName, int shotsFired )
+{
+	// PGS_ASSISTS
+	// attacker.SetPlayerGameStat( PGS_ASSAULT_SCORE, attacker.GetPlayerGameStat( PGS_ASSAULT_SCORE ) + 1 )
 
-    string uid = attacker.GetUID()
-    int damageSourceId = DamageInfo_GetDamageSourceIdentifier( damageInfo )
-    string weaponName = DamageSourceIDToString( damageSourceId )
+	// discordlogsendmessage("e")
 
-    string mods = ""
-    bool hasMods = false
-    array<string> typedMods
+	// discordlogsendmessage(player.GetPlayerName())
+	if ( !( player.GetUID() in accuracy.killstuff ) )
+	{
+		// discordlogsendmessage("dqq")
+		return
+	}
 
-    if (IsValid(DamageInfo_GetWeapon(damageInfo))){
-        typedMods = DamageInfo_GetWeapon(damageInfo).GetMods()
-        // can get over 100% accuracy, future lexi if hitscan gun
+	// entity weapon =  player.GetActiveWeapon()
+	if ( !IsValid( weapon ) )
+	{
+		return
+	}
+	if ( !( weapon.GetWeaponClassName() in accuracy.killstuff[ player.GetUID() ] ) )
+	{
+		// discordlogsendmessage("fake")
+		return
+	}
+	string mods = ""
+	bool hasMods = false
+	foreach ( string mod in weapon.GetMods() )
+	{
 
-    }
-    else if (IsValid(attacker) &&  attacker.IsPlayer()){
-        foreach (entity weapon  in attacker.GetMainWeapons()){
-  
-            if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId) ){ //&& !(alreadyhits.contains(weapon)  )){
-                            if ((gunsthataccuracyisreducedon.contains(weapon.GetWeaponClassName()) || (weapon.GetWeaponInfoFileKeyField( "fire_rate" ) && weapon.GetWeaponInfoFileKeyField( "fire_rate" ) < 5)) && (!(weapon in preventtoomanyhints) || preventtoomanyhints[weapon] == false)){
-                    return
-                }
-                typedMods = weapon.GetMods()
-                preventtoomanyhints[weapon] <- false
-                // alreadyhits.append(weapon)
-            }
-        }
-        foreach (entity  weapon in attacker.GetOffhandWeapons() ){
-    
-            if (weapon.GetWeaponClassName() ==  DamageSourceIDToString(damageSourceId)){//&& !(alreadyhits.contains(weapon)) ){
-                            if ((gunsthataccuracyisreducedon.contains(weapon.GetWeaponClassName()) || (weapon.GetWeaponInfoFileKeyField( "fire_rate" ) && weapon.GetWeaponInfoFileKeyField( "fire_rate" ) < 5) )&& (!(weapon in preventtoomanyhints) ||  preventtoomanyhints[weapon] == false)){
-                    return
-                }
-                typedMods = weapon.GetMods()
-
-                preventtoomanyhints[weapon] <- false
-                // alreadyhits.append(weapon)
-            }
-        }
-    }
-
-    
-        foreach (string mod in  typedMods) {
-
-            if (hasMods)
-                mods += " "
-            mods += mod
-            hasMods = true
-        }
-    
-
-    if (!(uid in accuracy.killstuff))
-        accuracy.killstuff[uid] <- {}
-
-    if (!(weaponName in accuracy.killstuff[uid]))
-        accuracy.killstuff[uid][weaponName] <- {}
-
-    if (mods in accuracy.killstuff[uid][weaponName])
-        accuracy.killstuff[uid][weaponName][mods].hitshots += 1
-    else {
-        playerweapon defaultt = { shotsfired = 0, hitshots = 1 }
-        accuracy.killstuff[uid][weaponName][mods] <- defaultt
-    }
-}
-
-void function OnWeaponAttack(entity player,entity weapon,string weaponName,int shotsFired) {
-    accuracy.shots += 1
-    string uid = player.GetUID()
-    string mods = ""
-    bool hasMods = false
-    preventtoomanyhints[weapon] <- true
-    foreach (string mod in weapon.GetMods()) {
-        if (hasMods)
-            mods += " "
-        mods += mod
-        hasMods = true
-    }
-
-    if (!(uid in accuracy.killstuff))
-        accuracy.killstuff[uid] <- {}
-
-    if (!(weaponName in accuracy.killstuff[uid]))
-        accuracy.killstuff[uid][weaponName] <- {}
-
-    if (mods in accuracy.killstuff[uid][weaponName])
-        accuracy.killstuff[uid][weaponName][mods].shotsfired +=1
-    else {
-        playerweapon defaultt = { shotsfired = 1, hitshots = 0 }
-        accuracy.killstuff[uid][weaponName][mods] <- defaultt
-    }
-    if (accuracy.shots > 100){
-        accuracy.shots = 0
-        thread sendshots()
-    } 
-}
-void function sendaccuracyforplayer(entity player){
-    accuracy.shots = 0
-    thread sendshots()
-}
-void function sendaccuracyforlasttime(){
-    accuracy.shots = -100000
-    thread sendshots()
-}
-
-void function sendshots(){
-    HttpRequest request
-    table things = {}
-    things.matchid <- GetConVarString("discordloggingmatchid")
-    things.password <- GetConVarString("discordloggingserverpassword")
-    things.serverid <- GetConVarString("discordloggingserverid")
-    table killstuffTable = {}
-    foreach (string uid, table<string,table<string,playerweapon> > weapons in accuracy.killstuff) {
-        table weaponsTable = {}
-        foreach (string weaponName, table<string,playerweapon> modsTable in weapons) {
-            table modsOut = {}
-            foreach (string mods, playerweapon pw in modsTable) {
-                modsOut[mods] <- {total = pw.shotsfired, hit =  pw.hitshots}
-            }
-            weaponsTable[weaponName] <- modsOut
-        }
-        killstuffTable[uid] <- weaponsTable
-    }
-    things["killstuff"] <- killstuffTable
-    request.body = EncodeJSON(things)
-    request.method = HttpRequestMethod.POST
-    request.url = file.host + "/sendaccuracydata"
-    void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse messages )
+		if ( hasMods )
 		{
-            // printt("sent accuracy data")
-        }
-void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
-		{
-			printt("could not send accuracy data")
-        }
+			mods += " "
+		}
+		mods += mod
+		hasMods = true
+	}
 
-    NSHttpRequest( request, onSuccess, onFailure )
+	if (
+		mods in accuracy.killstuff[ player.GetUID() ][ weapon.GetWeaponClassName() ] &&
+			accuracy.killstuff[ player.GetUID() ][ weapon.GetWeaponClassName() ][ mods ].shotsfired > min( weapon.GetWeaponSettingInt( eWeaponVar.ammo_clip_size ), 30 )
+	)
+	{
+		// discordlogsendmessage("d"+(
+		// (accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots.tofloat()/accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired)*100).tointeger()+ " w
+		// " + accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].shotsfired + " e " + accuracy.killstuff[player.GetUID()][weapon.GetWeaponClassName()][mods].hitshots)
+		// discordlogsendmessage("wdqwdqe")
+		if ( GetConVarInt( "discordlogshowaccuracyinsteadofassists" ) )
+		{
+			player.SetPlayerGameStat(
+				PGS_ASSISTS,
+				(
+					( accuracy.killstuff[ player.GetUID() ][ weapon.GetWeaponClassName() ][ mods ].hitshots.tofloat() / accuracy.killstuff[ player.GetUID() ][ weapon.GetWeaponClassName() ][ mods ].shotsfired ) * 100
+				).tointeger()
+			)
+		}
+		if ( GetConVarInt( "discordlogshowaccuracyinplayertitle" ) )
+		{
+			// discordlogsendmessage("weee")
+			player.SetTitle(
+				"Accuracy: " +
+					(
+						( accuracy.killstuff[ player.GetUID() ][ weapon.GetWeaponClassName() ][ mods ].hitshots.tofloat() / accuracy.killstuff[ player.GetUID() ][ weapon.GetWeaponClassName() ][ mods ].shotsfired ) *
+							100
+					).tointeger() + "%"
+			)
+		}
+	}
+	// discordlogsendmessage("weeqwdwqfwq")
+}
+
+void function trackhits( entity player, var damageInfo )
+{
+	entity attacker = DamageInfo_GetAttacker( damageInfo )
+	if ( !IsValid( attacker ) || !attacker.IsPlayer() || attacker == player || player.GetUID() == "0" )
+		return
+
+	string uid = attacker.GetUID()
+	int damageSourceId = DamageInfo_GetDamageSourceIdentifier( damageInfo )
+	string weaponName = DamageSourceIDToString( damageSourceId )
+
+	string mods = ""
+	bool hasMods = false
+	array<string> typedMods
+
+	if ( IsValid( DamageInfo_GetWeapon( damageInfo ) ) )
+	{
+		typedMods = DamageInfo_GetWeapon( damageInfo ).GetMods()
+		// can get over 100% accuracy, future lexi if hitscan gun
+	}
+	else if ( IsValid( attacker ) && attacker.IsPlayer() )
+	{
+		foreach ( entity weapon in attacker.GetMainWeapons() )
+		{
+
+			if ( weapon.GetWeaponClassName() == DamageSourceIDToString( damageSourceId ) )
+			{ // && !(alreadyhits.contains(weapon)  )){
+				if (
+					( gunsthataccuracyisreducedon.contains( weapon.GetWeaponClassName() ) || ( weapon.GetWeaponInfoFileKeyField( "fire_rate" ) && weapon.GetWeaponInfoFileKeyField( "fire_rate" ) < 5 ) ) &&
+						( !( weapon in preventtoomanyhints ) || preventtoomanyhints[ weapon ] == false )
+				)
+				{
+					return
+				}
+				typedMods = weapon.GetMods()
+				preventtoomanyhints[ weapon ] <- false
+				// alreadyhits.append(weapon)
+			}
+		}
+		foreach ( entity weapon in attacker.GetOffhandWeapons() )
+		{
+
+			if ( weapon.GetWeaponClassName() == DamageSourceIDToString( damageSourceId ) )
+			{ // && !(alreadyhits.contains(weapon)) ){
+				if (
+					( gunsthataccuracyisreducedon.contains( weapon.GetWeaponClassName() ) || ( weapon.GetWeaponInfoFileKeyField( "fire_rate" ) && weapon.GetWeaponInfoFileKeyField( "fire_rate" ) < 5 ) ) &&
+						( !( weapon in preventtoomanyhints ) || preventtoomanyhints[ weapon ] == false )
+				)
+				{
+					return
+				}
+				typedMods = weapon.GetMods()
+				preventtoomanyhints[ weapon ] <- false
+				// alreadyhits.append(weapon)
+			}
+		}
+	}
+
+	foreach ( string mod in typedMods )
+	{
+
+		if ( hasMods )
+			mods += " "
+		mods += mod
+		hasMods = true
+	}
+
+	if ( !( uid in accuracy.killstuff ) )
+		accuracy.killstuff[ uid ] <- {}
+
+	if ( !( weaponName in accuracy.killstuff[ uid ] ) )
+		accuracy.killstuff[ uid ][ weaponName ] <- {}
+
+	if ( mods in accuracy.killstuff[ uid ][ weaponName ] )
+		accuracy.killstuff[ uid ][ weaponName ][ mods ].hitshots += 1
+	else
+	{
+		playerweapon defaultt = { shotsfired = 0, hitshots = 1 }
+		accuracy.killstuff[ uid ][ weaponName ][ mods ] <- defaultt
+	}
+}
+
+void function OnWeaponAttack( entity player, entity weapon, string weaponName, int shotsFired )
+{
+	accuracy.shots += 1
+	string uid = player.GetUID()
+	string mods = ""
+	bool hasMods = false
+	preventtoomanyhints[ weapon ] <- true
+	foreach ( string mod in weapon.GetMods() )
+	{
+		if ( hasMods )
+			mods += " "
+		mods += mod
+		hasMods = true
+	}
+
+	if ( !( uid in accuracy.killstuff ) )
+		accuracy.killstuff[ uid ] <- {}
+
+	if ( !( weaponName in accuracy.killstuff[ uid ] ) )
+		accuracy.killstuff[ uid ][ weaponName ] <- {}
+
+	if ( mods in accuracy.killstuff[ uid ][ weaponName ] )
+		accuracy.killstuff[ uid ][ weaponName ][ mods ].shotsfired += 1
+	else
+	{
+		playerweapon defaultt = { shotsfired = 1, hitshots = 0 }
+		accuracy.killstuff[ uid ][ weaponName ][ mods ] <- defaultt
+	}
+	if ( accuracy.shots > 100 )
+	{
+		accuracy.shots = 0
+		thread sendshots()
+	}
+}
+void function sendaccuracyforplayer( entity player )
+{
+	accuracy.shots = 0
+	thread sendshots()
+}
+void function sendaccuracyforlasttime()
+{
+	accuracy.shots = -100000
+	thread sendshots()
+}
+
+void function sendshots()
+{
+	HttpRequest request
+	table things = {}
+	things.matchid <- GetConVarString( "discordloggingmatchid" )
+	things.password <- GetConVarString( "discordloggingserverpassword" )
+	things.serverid <- GetConVarString( "discordloggingserverid" )
+	table killstuffTable = {}
+	foreach ( string uid, table<string, table<string, playerweapon> > weapons in accuracy.killstuff )
+	{
+		table weaponsTable = {}
+		foreach ( string weaponName, table<string, playerweapon> modsTable in weapons )
+		{
+			table modsOut = {}
+			foreach ( string mods, playerweapon pw in modsTable )
+			{
+				modsOut[ mods ] <- { total = pw.shotsfired, hit = pw.hitshots }
+			}
+			weaponsTable[ weaponName ] <- modsOut
+		}
+		killstuffTable[ uid ] <- weaponsTable
+	}
+	things[ "killstuff" ] <- killstuffTable
+	request.body = EncodeJSON( things )
+	request.method = HttpRequestMethod.POST
+	request.url = file.host + "/sendaccuracydata"
+	void functionref( HttpRequestResponse ) onSuccess = void function( HttpRequestResponse messages )
+	{
+		// printt("sent accuracy data")
+	}
+	void functionref( HttpRequestFailure ) onFailure = void function( HttpRequestFailure failure )
+	{
+		printt( "could not send accuracy data" )
+	}
+
+	NSHttpRequest( request, onSuccess, onFailure )
 }
 string prefix = "\x1b[38;5;81m[NUTONEAPI]\x1b[0m "
 // bool function realstats (entity player, array<string> args){
@@ -290,23 +348,25 @@ string prefix = "\x1b[38;5;81m[NUTONEAPI]\x1b[0m "
 //     return true
 // }
 
-void function JoinMessage(entity player) {
-    //Chat_ServerPrivateMessage(player, prefix + "This server collects data using the Nutone API. Check your data here: \x1b[34mhttps://nutone.okudai.dev/frontend" + player.GetPlayerName()+ "\x1b[0m", false, false)
-    // thread CommandStats(player,[])
-    runcommandondiscord("stats",{ name = player.GetUID()})
+void function JoinMessage( entity player )
+{
+	// Chat_ServerPrivateMessage(player, prefix + "This server collects data using the Nutone API. Check your data here: \x1b[34mhttps://nutone.okudai.dev/frontend" + player.GetPlayerName()+ "\x1b[0m",
+	// false, false)
+	// thread CommandStats(player,[])
+	runcommandondiscord( "stats", { name = player.GetUID() } )
 }
 
-void function killstat_Begin() {
-    file.gameMode = GameRules_GetGameMode()
-    file.map = StringReplace(GetMapName(), "mp_", "")
+void function killstat_Begin()
+{
+	file.gameMode = GameRules_GetGameMode()
+	file.map = StringReplace( GetMapName(), "mp_", "" )
 
-    Log("Sending kill data to " + file.host + "/data")
+	Log( "Sending kill data to " + file.host + "/data" )
 }
 // void function waitabit(entity player){
 //     wait 1
 //     CommandStats(player,[])
 // }
-
 
 // bool function actuallygoodbalance(entity player, array<string> args){
 //     table<string,string> uids
@@ -334,7 +394,7 @@ void function killstat_Begin() {
 //             int counter = 2
 
 //             while (counter + "" in stats){
-        
+
 //                 table people = expect table(stats[counter+""])
 //                 foreach ( person in  people){
 //                     table realperson = expect table(person)
@@ -344,10 +404,9 @@ void function killstat_Begin() {
 //                 // Chat_ServerPrivateMessage
 //             }
 
-
 //         }
 //     }
-//     void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure ) 
+//     void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
 //     {
 //         Chat_ServerBroadcast("sobbing balance brokey sob sob sob",false)
 //     }
@@ -355,14 +414,14 @@ void function killstat_Begin() {
 //     table params = {}
 //     params[ "password" ] <- GetConVarString("discordloggingserverpassword")
 //     params["players"] <- EncodeJSON(uids)
-    
+
 //     HttpRequest request
 // 	request.method = HttpRequestMethod.POST
 // 	request.url = url
 // 	request.body = EncodeJSON(params)
 //     NSHttpRequest(request, onSuccess, onFailure)
 //     return true
-    
+
 // }
 // bool function CommandStats(entity player, array<string> args) {
 //     if (GetGameState() > eGameState.Playing) {
@@ -416,7 +475,7 @@ void function killstat_Begin() {
 //             if (shouldreturn){
 //                 return
 //             }
-        
+
 //             if ("name" in responseTable) {
 //                 name = expect string(responseTable["name"])
 //             }
@@ -439,7 +498,6 @@ void function killstat_Begin() {
 //             //    kd = expect float(responseTable["kd"])
 //             //    Log("[CommandStats] kd = " + kd)
 //             //}
-
 
 //             string prefix = "you have"
 //             if (player.GetUID() != uid) {
@@ -475,191 +533,196 @@ void function killstat_Begin() {
 //     return true
 // }
 
+void function killstat_Record( entity victim, entity attacker, var damageInfo )
+{
+	// printt("beep boop bop")
+	if ( ( !victim.IsPlayer() && !attacker.IsPlayer() && !attacker.GetBossPlayer() && !victim.GetBossPlayer() ) || GetGameState() != eGameState.Playing )
+	{
+		// printt("here")
+		// Chat_PrivateMessage(victim,victim, "PRIVATE MESSAGE"+(attacker.GetClassName()) +(!victim.IsPlayer() && !attacker.IsPlayer()) ,false)
+		return
+	}
+	// printt("HEREE")
+	// Chat_PrivateMessage(victim,victim, "PRIVATE MESSAGwwwwE"+(attacker.GetClassName()) +(!victim.IsPlayer() && !attacker.IsPlayer()) ,false)
+	table values = {}
 
+	vector attackerPos = attacker.GetOrigin()
+	vector victimPos = victim.GetOrigin()
+	// Chat_ServerBroadcast(attacker.GetBossPlayer()+"e")
+	// Chat_ServerBroadcast(victim.GetBossPlayer()+"e")
 
-void function killstat_Record(entity victim, entity attacker, var damageInfo) {
-    // printt("beep boop bop")
-    if ((!victim.IsPlayer() && !attacker.IsPlayer() && !attacker.GetBossPlayer() && !victim.GetBossPlayer())  || GetGameState() != eGameState.Playing ) {
-        // printt("here")
-        // Chat_PrivateMessage(victim,victim, "PRIVATE MESSAGE"+(attacker.GetClassName()) +(!victim.IsPlayer() && !attacker.IsPlayer()) ,false)
-            return}
-    // printt("HEREE")
-    // Chat_PrivateMessage(victim,victim, "PRIVATE MESSAGwwwwE"+(attacker.GetClassName()) +(!victim.IsPlayer() && !attacker.IsPlayer()) ,false)
-    table values = {}
+	if ( attacker.IsPlayer() )
+	{
+		values[ "attacker_name" ] <- sanitizePlayerName( discordloggetplayername( attacker ) )
+		values[ "attacker_id" ] <- attacker.GetUID()
+		values[ "attacker_titan" ] <- GetTitan( attacker )
+	}
+	else if ( attacker.GetBossPlayer() )
+	{
+		entity boss = attacker.GetBossPlayer()
+		values[ "attacker_name" ] <- sanitizePlayerName( discordloggetplayername( boss ) )
+		values[ "attacker_id" ] <- boss.GetUID()
+		values[ "attacker_titan" ] <- GetTitan( attacker, true )
+	}
 
-    vector attackerPos = attacker.GetOrigin()
-    vector victimPos = victim.GetOrigin()
-    // Chat_ServerBroadcast(attacker.GetBossPlayer()+"e")
-    // Chat_ServerBroadcast(victim.GetBossPlayer()+"e")
-    
+	if ( victim.IsPlayer() )
+	{
+		values[ "victim_name" ] <- sanitizePlayerName( discordloggetplayername( victim ) )
+		values[ "victim_id" ] <- victim.GetUID()
+		values[ "victim_titan" ] <- GetTitan( victim )
+	}
+	else if ( victim.GetBossPlayer() )
+	{
+		entity boss = victim.GetBossPlayer()
+		values[ "victim_name" ] <- sanitizePlayerName( discordloggetplayername( boss ) )
+		values[ "victim_id" ] <- boss.GetUID()
+		values[ "victim_titan" ] <- GetTitan( victim, true )
+	}
+	if ( attacker.IsPlayer() || attacker.IsNPC() )
+	{
+		array<entity> attackerWeapons = attacker.GetMainWeapons()
 
-    if (attacker.IsPlayer()) {
-        values["attacker_name"] <- sanitizePlayerName(discordloggetplayername(attacker))
-        values["attacker_id"] <- attacker.GetUID()
-        values["attacker_titan"] <- GetTitan(attacker)
-    }
-    else if (attacker.GetBossPlayer()) {
-        entity boss = attacker.GetBossPlayer()
-        values["attacker_name"] <- sanitizePlayerName(discordloggetplayername(boss))
-        values["attacker_id"] <- boss.GetUID()
-        values["attacker_titan"] <- GetTitan(attacker,true)
-    }
+		array<entity> attackerOffhandWeapons = attacker.GetOffhandWeapons()
+		attackerWeapons.sort( MainWeaponSort )
 
-    if (victim.IsPlayer()) {
-        values["victim_name"] <- sanitizePlayerName(discordloggetplayername(victim))
-        values["victim_id"] <- victim.GetUID()
-        values["victim_titan"] <- GetTitan(victim)
-    }
-    else if (victim.GetBossPlayer()) {
-        entity boss = victim.GetBossPlayer()
-        values["victim_name"] <- sanitizePlayerName(discordloggetplayername(boss))
-        values["victim_id"] <- boss.GetUID()
-        values["victim_titan"] <- GetTitan(victim,true)
-    }
-    if (attacker.IsPlayer() || attacker.IsNPC()){
-            array<entity> attackerWeapons = attacker.GetMainWeapons()
+		entity aw1 = GetNthWeapon( attackerWeapons, 0 )
+		entity aw2 = GetNthWeapon( attackerWeapons, 1 )
+		entity aw3 = GetNthWeapon( attackerWeapons, 2 )
+		entity aow1 = GetNthWeapon( attackerOffhandWeapons, 0 )
+		entity aow2 = GetNthWeapon( attackerOffhandWeapons, 1 )
+		entity aow3 = GetNthWeapon( attackerOffhandWeapons, 2 )
+		values[ "attacker_weapon_1" ] <- GetWeaponName( aw1 )
+		values[ "attacker_weapon_2" ] <- GetWeaponName( aw2 )
+		values[ "attacker_weapon_3" ] <- GetWeaponName( aw3 )
+		values[ "attacker_offhand_weapon_1" ] <- GetWeaponName( aow1 )
+		values[ "attacker_offhand_weapon_2" ] <- GetWeaponName( aow2 )
+		values[ "attacker_current_weapon" ] <- GetWeaponName( attacker.GetLatestPrimaryWeapon() )
+	}
+	if ( victim.IsPlayer() || victim.IsNPC() )
+	{
+		array<entity> victimOffhandWeapons = victim.GetOffhandWeapons()
 
-    array<entity> attackerOffhandWeapons = attacker.GetOffhandWeapons()
-        attackerWeapons.sort(MainWeaponSort)
-        
-  
+		array<entity> victimWeapons = victim.GetMainWeapons()
+		victimWeapons.sort( MainWeaponSort )
 
-        entity aw1 = GetNthWeapon(attackerWeapons, 0)
-        entity aw2 = GetNthWeapon(attackerWeapons, 1)
-        entity aw3 = GetNthWeapon(attackerWeapons, 2)
-        entity aow1 = GetNthWeapon(attackerOffhandWeapons, 0)
-        entity aow2 = GetNthWeapon(attackerOffhandWeapons, 1)
-        entity aow3 = GetNthWeapon(attackerOffhandWeapons, 2)
-            values["attacker_weapon_1"] <- GetWeaponName(aw1)
-    values["attacker_weapon_2"] <- GetWeaponName(aw2)
-    values["attacker_weapon_3"] <- GetWeaponName(aw3)
-    values["attacker_offhand_weapon_1"] <- GetWeaponName(aow1)
-    values["attacker_offhand_weapon_2"] <- GetWeaponName(aow2)
-    values["attacker_current_weapon"] <- GetWeaponName(attacker.GetLatestPrimaryWeapon())
+		entity vw1 = GetNthWeapon( victimWeapons, 0 )
+		entity vw2 = GetNthWeapon( victimWeapons, 1 )
+		entity vw3 = GetNthWeapon( victimWeapons, 2 )
+		entity vow1 = GetNthWeapon( victimOffhandWeapons, 0 )
+		entity vow2 = GetNthWeapon( victimOffhandWeapons, 1 )
+		entity vow3 = GetNthWeapon( victimOffhandWeapons, 2 )
+		values[ "victim_weapon_1" ] <- GetWeaponName( vw1 )
+		values[ "victim_weapon_2" ] <- GetWeaponName( vw2 )
+		values[ "victim_weapon_3" ] <- GetWeaponName( vw3 )
+		values[ "victim_offhand_weapon_1" ] <- GetWeaponName( vow1 )
+		values[ "victim_offhand_weapon_2" ] <- GetWeaponName( vow2 )
+		values[ "victim_current_weapon" ] <- GetWeaponName( victim.GetLatestPrimaryWeapon() )
+	}
+	// values["victim_name"] <- sanitizePlayerName(victim.GetPlayerName())
+	// values["victim_id"] <- victim.GetUID()
+	// values["victim_titan"] <- GetTitan(victim)
+	// Chat_PrivateMessage(attacker,attacker, "PRIVATE MESSAGE"+attacker.GetClassName,false)
+	values[ "match_id" ] <- GetConVarString( "discordloggingmatchid" )
+	values[ "server_id" ] <- file.serverId
+	// values["server_name"] <- file.serverName
+	values[ "game_mode" ] <- file.gameMode
+	values[ "game_time" ] <- Time()
+	values[ "map" ] <- file.map
+	values[ "attacker_x" ] <- attackerPos.x
+	values[ "attacker_y" ] <- attackerPos.y
+	values[ "attacker_z" ] <- attackerPos.z
+	values[ "timeofkill" ] <- GetUnixTimestamp()
 
-    }
-    if (victim.IsPlayer() || victim.IsNPC()){
-       array<entity> victimOffhandWeapons = victim.GetOffhandWeapons()
+	// values["victim_current_weapon"] <- GetWeaponName(victim.GetLatestPrimaryWeapon())
+	// values["victim_weapon_1"] <-  GetWeaponName(vw1)
+	// values["victim_weapon_2"] <- GetWeaponName(vw2)
+	// values["victim_weapon_3"] <- GetWeaponName(vw3)
+	// values["victim_offhand_weapon_1"] <- GetWeaponName(vow1)
+	// values["victim_offhand_weapon_2"] <- GetWeaponName(vow2)
 
-      array<entity> victimWeapons = victim.GetMainWeapons()
-victimWeapons.sort(MainWeaponSort)
+	values[ "victim_x" ] <- victimPos.x
+	values[ "victim_y" ] <- victimPos.y
+	values[ "victim_z" ] <- victimPos.z
+	values[ "password" ] <- GetConVarString( "discordloggingserverpassword" )
+	values[ "victim_type" ] <- victim.GetClassName()
+	values[ "attacker_type" ] <- attacker.GetClassName()
+	// values["attacker_title"] <- attacker.Title()
 
-          entity vw1 = GetNthWeapon(victimWeapons, 0)
-        entity vw2 = GetNthWeapon(victimWeapons, 1)
-        entity vw3 = GetNthWeapon(victimWeapons, 2)
-            entity vow1 = GetNthWeapon(victimOffhandWeapons, 0)
-    entity vow2 = GetNthWeapon(victimOffhandWeapons, 1)
-    entity vow3 = GetNthWeapon(victimOffhandWeapons, 2)
-            values["victim_weapon_1"] <- GetWeaponName(vw1)
-    values["victim_weapon_2"] <- GetWeaponName(vw2)
-    values["victim_weapon_3"] <- GetWeaponName(vw3)
-    values["victim_offhand_weapon_1"] <- GetWeaponName(vow1)
-    values["victim_offhand_weapon_2"] <- GetWeaponName(vow2)
-    values["victim_current_weapon"] <- GetWeaponName(victim.GetLatestPrimaryWeapon())
+	int damageSourceId = DamageInfo_GetDamageSourceIdentifier( damageInfo )
+	string damageName = DamageSourceIDToString( damageSourceId )
+	values[ "cause_of_death" ] <- damageName
 
-    }
-    // values["victim_name"] <- sanitizePlayerName(victim.GetPlayerName())
-    // values["victim_id"] <- victim.GetUID()
-    // values["victim_titan"] <- GetTitan(victim)
-    // Chat_PrivateMessage(attacker,attacker, "PRIVATE MESSAGE"+attacker.GetClassName,false)
-    values["match_id"] <- GetConVarString("discordloggingmatchid")
-    values["server_id"] <- file.serverId
-    // values["server_name"] <- file.serverName
-    values["game_mode"] <- file.gameMode
-    values["game_time"] <- Time()
-    values["map"] <- file.map
-    
-    
-    
+	array<string> typedMods
+	if ( IsValid( DamageInfo_GetWeapon( damageInfo ) ) )
+	{
+		typedMods = DamageInfo_GetWeapon( damageInfo ).GetMods()
+	}
+	else if ( IsValid( attacker ) && attacker.IsPlayer() )
+	{
+		foreach ( entity weapon in attacker.GetMainWeapons() )
+		{
 
-    
-    values["attacker_x"] <- attackerPos.x
-    values["attacker_y"] <- attackerPos.y
-    values["attacker_z"] <- attackerPos.z
-    values["timeofkill"] <- GetUnixTimestamp()
+			if ( weapon.GetWeaponClassName() == damageName )
+			{
+				typedMods = weapon.GetMods()
+			}
+		}
+		foreach ( entity weapon in attacker.GetOffhandWeapons() )
+		{
 
-    // values["victim_current_weapon"] <- GetWeaponName(victim.GetLatestPrimaryWeapon())
-    // values["victim_weapon_1"] <-  GetWeaponName(vw1)
-    // values["victim_weapon_2"] <- GetWeaponName(vw2)
-    // values["victim_weapon_3"] <- GetWeaponName(vw3)
-    // values["victim_offhand_weapon_1"] <- GetWeaponName(vow1)
-    // values["victim_offhand_weapon_2"] <- GetWeaponName(vow2)
+			if ( weapon.GetWeaponClassName() == damageName )
+			{
+				typedMods = weapon.GetMods()
+			}
+		}
+	}
+	array untypedMods = []
+	foreach ( mod in typedMods )
+	{
+		untypedMods.append( mod )
+	}
+	values[ "modsused" ] <- untypedMods
 
-    values["victim_x"] <- victimPos.x
-    values["victim_y"] <- victimPos.y
-    values["victim_z"] <- victimPos.z
-    values["password"] <- GetConVarString("discordloggingserverpassword")
-    values["victim_type"] <- victim.GetClassName()
-    values["attacker_type"] <-attacker.GetClassName()
-    // values["attacker_title"] <- attacker.Title()
+	float dist = Distance( attacker.GetOrigin(), victim.GetOrigin() )
+	values[ "distance" ] <- dist
+	// printt("MODSSSS"+GetWeaponMods(DamageInfo_GetWeapon( damageInfo )))
+	// PrintTable(untypedMods)
+	HttpRequest request
+	request.method = HttpRequestMethod.POST
+	request.url = file.host + "/data"
+	request.headers = { Token = [ file.token ] }
+	request.body = EncodeJSON( values )
 
-    int damageSourceId = DamageInfo_GetDamageSourceIdentifier(damageInfo)
-    string damageName = DamageSourceIDToString(damageSourceId)
-    values["cause_of_death"] <- damageName
-   
-    array<string> typedMods
-    if (IsValid(DamageInfo_GetWeapon(damageInfo))){
-        typedMods = DamageInfo_GetWeapon(damageInfo).GetMods()
+	void functionref( HttpRequestResponse ) onSuccess = void function( HttpRequestResponse response )
+	{
+		if ( response.statusCode == 200 || response.statusCode == 201 )
+		{
+			print( "[NUTONEAPI] Kill data sent!" )
+		}
+		else
+		{
+			print( "[NUTONEAPI][WARN] Couldn't send kill data, status " + response.statusCode )
+			print( "[NUTONEAPI][WARN] " + response.body )
+		}
+	}
 
-    }
-    else if (IsValid(attacker) &&  attacker.IsPlayer()){
-        foreach (entity weapon  in attacker.GetMainWeapons()){
-  
-            if (weapon.GetWeaponClassName() == damageName){
-                typedMods = weapon.GetMods()
-            }
-        }
-        foreach (entity  weapon in attacker.GetOffhandWeapons() ){
-    
-            if (weapon.GetWeaponClassName() == damageName){
-                typedMods = weapon.GetMods()
-            }
-        }
-    }
-    array untypedMods = []
-    foreach (mod in typedMods){
-        untypedMods.append(mod)}
-        values["modsused"] <- untypedMods
-    
-    float dist = Distance(attacker.GetOrigin(), victim.GetOrigin())
-    values["distance"] <- dist
-    // printt("MODSSSS"+GetWeaponMods(DamageInfo_GetWeapon( damageInfo )))
-    // PrintTable(untypedMods)
-    HttpRequest request
-    request.method = HttpRequestMethod.POST
-    request.url = file.host + "/data"
-    request.headers = {Token = [file.token]}
-    request.body = EncodeJSON(values)
-
-    void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse response )
-    {
-        if(response.statusCode == 200 || response.statusCode == 201){
-            print("[NUTONEAPI] Kill data sent!")
-        }else{
-            print("[NUTONEAPI][WARN] Couldn't send kill data, status " + response.statusCode)
-            print("[NUTONEAPI][WARN] " + response.body )
-        }
-    }
-
-    void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
-    {
-        print("[NUTONEAPI][WARN]  Couldn't send kill data")
-        print("[NUTONEAPI][WARN] " + failure.errorMessage )
-    }
-    // Chat_PrivateMessage(victim,victim, "PRIVATE MESSAGE"+(attacker.GetClassName()) +(!victim.IsPlayer() && !attacker.IsPlayer()) ,false)
-    // printt("HEREEww")
-    NSHttpRequest(request, onSuccess, onFailure)
+	void functionref( HttpRequestFailure ) onFailure = void function( HttpRequestFailure failure )
+	{
+		print( "[NUTONEAPI][WARN]  Couldn't send kill data" )
+		print( "[NUTONEAPI][WARN] " + failure.errorMessage )
+	}
+	// Chat_PrivateMessage(victim,victim, "PRIVATE MESSAGE"+(attacker.GetClassName()) +(!victim.IsPlayer() && !attacker.IsPlayer()) ,false)
+	// printt("HEREEww")
+	NSHttpRequest( request, onSuccess, onFailure )
 }
 
-void function killstat_End() {
-    Log("-----END KILLSTAT-----")
+void function killstat_End()
+{
+	Log( "-----END KILLSTAT-----" )
 }
-
-
-
 
 array<int> MAIN_DAMAGE_SOURCES = [
-    // primaries
+	// primaries
 	eDamageSourceId.mp_weapon_car,
 	eDamageSourceId.mp_weapon_r97,
 	eDamageSourceId.mp_weapon_alternator_smg,
@@ -684,13 +747,13 @@ array<int> MAIN_DAMAGE_SOURCES = [
 	eDamageSourceId.mp_weapon_shotgun_pistol,
 	eDamageSourceId.mp_weapon_wingman_n,
 
-    // secondaries
+	// secondaries
 	eDamageSourceId.mp_weapon_smart_pistol,
 	eDamageSourceId.mp_weapon_wingman,
 	eDamageSourceId.mp_weapon_semipistol,
 	eDamageSourceId.mp_weapon_autopistol,
 
-    // anti-titan
+	// anti-titan
 	eDamageSourceId.mp_weapon_mgl,
 	eDamageSourceId.mp_weapon_rocket_launcher,
 	eDamageSourceId.mp_weapon_arc_launcher,
@@ -700,78 +763,119 @@ array<int> MAIN_DAMAGE_SOURCES = [
 // 1. primary
 // 2. secondary
 // 3. anti-titan
-int function MainWeaponSort(entity a, entity b) {
-    int aID = a.GetDamageSourceID()
-    int bID = b.GetDamageSourceID()
+int function MainWeaponSort( entity a, entity b )
+{
+	int aID = a.GetDamageSourceID()
+	int bID = b.GetDamageSourceID()
 
-    int aIdx = MAIN_DAMAGE_SOURCES.find(aID)
-    int bIdx = MAIN_DAMAGE_SOURCES.find(bID)
+	int aIdx = MAIN_DAMAGE_SOURCES.find( aID )
+	int bIdx = MAIN_DAMAGE_SOURCES.find( bID )
 
-    if (aIdx == bIdx) {
-        return 0
-    } else if (aIdx != -1 && bIdx == -1) {
-        return -1
-    } else if (aIdx == -1 && bIdx != -1) {
-        return 1
-    }
+	if ( aIdx == bIdx )
+	{
+		return 0
+	}
+	else if ( aIdx != -1 && bIdx == -1 )
+	{
+		return -1
+	}
+	else if ( aIdx == -1 && bIdx != -1 )
+	{
+		return 1
+	}
 
-    return aIdx < bIdx ? -1 : 1
+	return aIdx < bIdx ? -1 : 1
 }
 
-int function WeaponNameSort(entity a, entity b) {
-    return SortStringAlphabetize(a.GetWeaponClassName(), b.GetWeaponClassName())
+int function WeaponNameSort( entity a, entity b )
+{
+	return SortStringAlphabetize( a.GetWeaponClassName(), b.GetWeaponClassName() )
 }
 
-entity function GetNthWeapon(array<entity> weapons, int index) {
-    return index < weapons.len() ? weapons[index] : null
+entity function GetNthWeapon( array<entity> weapons, int index )
+{
+	return index < weapons.len() ? weapons[ index ] : null
 }
 
-string function GetWeaponName(entity weapon) {
-    string s = "null"
-    if (weapon != null) {
-        s = weapon.GetWeaponClassName()
-    }
-    return s
+string function GetWeaponName( entity weapon )
+{
+	string s = "null"
+	if ( weapon != null )
+	{
+		s = weapon.GetWeaponClassName()
+	}
+	return s
 }
 
-string function GetTitan(entity player, bool getboss = false) {
-    if(!player.IsTitan()) return "null"
-    if (getboss){
-    if (discordlogpullplayerstat(player.GetBossPlayer().GetUID(),"togglebrute") == "True" && (player.GetModelName() == $"models/titans/light/titan_light_northstar_prime.mdl" || player.GetModelName() == $"models/titans/light/titan_light_raptor.mdl")){
-        return "brute"
-    }}
-    else{
-    if (discordlogpullplayerstat(player.GetUID(),"togglebrute") == "True" && (player.GetModelName() == $"models/titans/light/titan_light_northstar_prime.mdl" || player.GetModelName() == $"models/titans/light/titan_light_raptor.mdl")){
-        return "brute"
-    }   
-    }
-    if (getboss){
-    if (discordlogpullplayerstat(player.GetBossPlayer().GetUID(),"toggleexpi") == "True" && (player.GetModelName() == $"models/titans/medium/titan_medium_vanguard.mdl" )){
-        return "expedition"
-    }}
-    else{
-    if (discordlogpullplayerstat(player.GetUID(),"toggleexpi") == "True" && (player.GetModelName() == $"models/titans/medium/titan_medium_vanguard.mdl")){
-        return "expedition"
-    }   
-    }
-    if (getboss){
-    if (discordlogpullplayerstat(player.GetBossPlayer().GetUID(),"tgrap") == "True" && (player.GetModelName() == $"models/titans/light/titan_light_locust.mdl" || player.GetModelName() == $"models/titans/light/titan_light_ronin_prime.mdl")){
-        return "tgrap"
-    }}
-    else{
-    if (discordlogpullplayerstat(player.GetUID(),"tgrap") == "True" && (player.GetModelName() == $"models/titans/light/titan_light_locust.mdl" || player.GetModelName() == $"models/titans/light/titan_light_ronin_prime.mdl")){
-        return "tgrap"
-    }   
-    }
-    return GetTitanCharacterName(player)
+string function GetTitan( entity player, bool getboss = false )
+{
+	if ( !player.IsTitan() )
+		return "null"
+	if ( getboss )
+	{
+		if (
+			discordlogpullplayerstat( player.GetBossPlayer().GetUID(), "togglebrute" ) == "True" &&
+				( player.GetModelName() == $"models/titans/light/titan_light_northstar_prime.mdl" || player.GetModelName() == $"models/titans/light/titan_light_raptor.mdl" )
+		)
+		{
+			return "brute"
+		}
+	}
+	else
+	{
+		if (
+			discordlogpullplayerstat( player.GetUID(), "togglebrute" ) == "True" &&
+				( player.GetModelName() == $"models/titans/light/titan_light_northstar_prime.mdl" || player.GetModelName() == $"models/titans/light/titan_light_raptor.mdl" )
+		)
+		{
+			return "brute"
+		}
+	}
+	if ( getboss )
+	{
+		if ( discordlogpullplayerstat( player.GetBossPlayer().GetUID(), "toggleexpi" ) == "True" && ( player.GetModelName() == $"models/titans/medium/titan_medium_vanguard.mdl" ) )
+		{
+			return "expedition"
+		}
+	}
+	else
+	{
+		if ( discordlogpullplayerstat( player.GetUID(), "toggleexpi" ) == "True" && ( player.GetModelName() == $"models/titans/medium/titan_medium_vanguard.mdl" ) )
+		{
+			return "expedition"
+		}
+	}
+	if ( getboss )
+	{
+		if (
+			discordlogpullplayerstat( player.GetBossPlayer().GetUID(), "tgrap" ) == "True" &&
+				( player.GetModelName() == $"models/titans/light/titan_light_locust.mdl" || player.GetModelName() == $"models/titans/light/titan_light_ronin_prime.mdl" )
+		)
+		{
+			return "tgrap"
+		}
+	}
+	else
+	{
+		if (
+			discordlogpullplayerstat( player.GetUID(), "tgrap" ) == "True" &&
+				( player.GetModelName() == $"models/titans/light/titan_light_locust.mdl" || player.GetModelName() == $"models/titans/light/titan_light_ronin_prime.mdl" )
+		)
+		{
+			return "tgrap"
+		}
+	}
+	return GetTitanCharacterName( player )
 }
-//  ( (discordlogpullplayerstat(player.GetUID(),"tgrap") == "True") &&(titan.GetModelName() == $"models/titans/light/titan_light_locust.mdl" || titan.GetModelName() == $"models/titans/light/titan_light_ronin_prime.mdl"))
+//  ( (discordlogpullplayerstat(player.GetUID(),"tgrap") == "True") &&(titan.GetModelName() == $"models/titans/light/titan_light_locust.mdl" || titan.GetModelName() ==
+// $"models/titans/light/titan_light_ronin_prime.mdl"))
 // string function Anonymize(entity player) {
 //     return "null" // unused
 // }
 
-void function Log(string s) {
-    print("[NUTONEAPI] " + s)
+void function Log( string s )
+{
+	print( "[NUTONEAPI] " + s )
 }
 
 // void function nutone_verify(){

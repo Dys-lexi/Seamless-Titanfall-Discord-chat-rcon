@@ -1,6 +1,5 @@
 // global function discordlogsanction
 
-
 // global function discordlogsanctionremove
 
 // discordlogcommand function discordlogsanctionremove(discordlogcommand commandin) {
@@ -29,7 +28,7 @@
 //     request.method = HttpRequestMethod.DELETE
 //     request.url = "http://1"
 //     if(commandin.commandargs[0]=="uid")
-//     { 
+//     {
 //         request.queryParameters[ "UID" ] <- [ commandin.commandargs[1] ]
 //     }else{
 //         request.queryParameters[ "PlayerName" ] <- [ commandin.commandargs[1] ]
@@ -49,16 +48,12 @@
 
 // }
 
-
-
 // discordlogcommand function discordlogsanction(discordlogcommand commandin) {
 //     if (discordlogcheck("sanctionban", commandin)){
 //             return commandin;
 //     }
 
-
 //     // main bit, first is to check if this this command was called
-
 
 //     if (GetConVarBool("discordloggingenablesanctionapicommand") == false)
 //     {
@@ -85,7 +80,7 @@
 //                 playernames.append(playername)
 //                 UID = player.GetUID()
 //                 IP = split(player.GetIPString(), ":]")[2]
-                
+
 //             }
 //         }
 //     }
@@ -120,7 +115,7 @@
 //                         realsanctiontype = "ban"
 // 					}
 // 					else{
-						
+
 // 						commandin.returnmessage = "Sanction type has to be ban or mute.";
 //                         return commandin;
 // 					}
@@ -128,16 +123,16 @@
 // 				case "-expire":
 //                     if (commandin.commandargs[i+1] == "-expire" || commandin.commandargs[i+1] == "-reason" || commandin.commandargs[i+1] == "-type" || commandin.commandargs[i+1] == "-issuer")
 //                     {
-                        
+
 //                     }
 //                     else{
-        
+
 // 					expire = commandin.commandargs[i+1]}
 // 					break
 //                 case "-issuer":
 //                     if (commandin.commandargs[i+1] == "-expire" || commandin.commandargs[i+1] == "-reason" || commandin.commandargs[i+1] == "-type" || commandin.commandargs[i+1] == "-issuer")
 //                     {
-                        
+
 //                     }
 //                     else{
 //                     issueruid = commandin.commandargs[i+1]}
@@ -154,7 +149,7 @@
 //                             {
 //                                 reason+=commandin.commandargs[y]+" "
 //                             }
-//                         }				
+//                         }
 // 					break
 // 			}
 // 	}

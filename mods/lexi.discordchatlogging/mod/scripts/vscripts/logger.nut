@@ -1,8 +1,8 @@
-global function discordloggerinit //init mod
-global function discordlogextmessage //allows other mods to send messages
-global function discordlogmatchplayers //given a string, returns all players whose name includes said string
-global function discordlogcheck //check if a command should be run
-global function discordlogsendmessage //send a message to all players, accounting for them being dead (messages sent here have a chance of not being in order, if sent fast) DISABLED
+global function discordloggerinit // init mod
+global function discordlogextmessage // allows other mods to send messages
+global function discordlogmatchplayers // given a string, returns all players whose name includes said string
+global function discordlogcheck // check if a command should be run
+global function discordlogsendmessage // send a message to all players, accounting for them being dead (messages sent here have a chance of not being in order, if sent fast) DISABLED
 global function stoprequests // stop sending requests till map change
 global function discordlogpostmessages // external call to main message sending function
 global function discordloggetlastmodels // used for /impersonate to pull peoples player models when they are dead
@@ -13,13 +13,12 @@ global function discordloggetplayername
 // to add your own function create a file called xyz.nut in the same place as this one
 // then make it's file load in the mod.json AFTER logger.nut
 // after that, make the line "global function discordlogYOURFUNCTIONNAME"
-// then create the function, in the same format as the one in discordlogkick.nut -> it must return the commandin struct 
+// then create the function, in the same format as the one in discordlogkick.nut -> it must return the commandin struct
 // set commandin.returnmessage to the message you want to return, and commandin.returncode to the code you want to return
 // (codes do not mean too much, they work in a similar way to http codes)
 // Then add the function's name to the array in getregisteredfunctions (the first function defined below)
 
 // you'll be able to call the function with /rcon cmd:!YOURCOMMAND param1 param2 param3 on discord, or you can make a custom command in discord/data/commands.json
-
 
 // function perms are: (PEOPLE NEED DISCORD ACCOUNT LINKED TO USE IN GAME, in discord is auto ofc)
 // rconrole, coolperks role, self explain
@@ -27,7 +26,8 @@ global function discordloggetplayername
 // None, the discord bot governs who can run it, using it's perms, the default
 // you can add new ones by putting them in overrideroles in channels.json and using /bindrole to bind them to a role
 
-global struct discordlogcommand {
+global struct discordlogcommand
+{
 	int returncode = -1
 	string returnmessage
 	string command
@@ -35,7 +35,8 @@ global struct discordlogcommand {
 	string matchid
 }
 
-global struct outgoingmessage{
+global struct outgoingmessage
+{
 	string playername
 	string message
 	int timestamp
@@ -45,117 +46,125 @@ global struct outgoingmessage{
 	string metadata = "None"
 }
 
-struct actualrealcoolcommand{
-	 discordlogcommand functionref(discordlogcommand) func
-	 string requiredperms
-	 string deniedperms
-	 string keyname
+struct actualrealcoolcommand
+{
+	discordlogcommand functionref( discordlogcommand ) func
+	string requiredperms
+	string deniedperms
+	string keyname
 }
 
-struct {
+struct
+{
 	array<actualrealcoolcommand> funcs
 	array<actualrealcoolcommand> discordbotcommandfuncs
 } registeredfunctions
 
-actualrealcoolcommand function addcommand(discordlogcommand functionref(discordlogcommand) func,string keyname,string requiredperms = "None",string deniedperms="None"){
+actualrealcoolcommand function addcommand( discordlogcommand functionref( discordlogcommand ) func, string keyname, string requiredperms = "None", string deniedperms = "None" )
+{
 	actualrealcoolcommand thing
 	thing.func = func
-	thing.requiredperms = modjsonoverridefunctionperms(keyname,requiredperms,deniedperms)[0]
-	thing.deniedperms = modjsonoverridefunctionperms(keyname,requiredperms,deniedperms)[1]
+	thing.requiredperms = modjsonoverridefunctionperms( keyname, requiredperms, deniedperms )[ 0 ]
+	thing.deniedperms = modjsonoverridefunctionperms( keyname, requiredperms, deniedperms )[ 1 ]
 	thing.keyname = keyname
 	return thing
 }
 
-actualrealcoolcommand function addcommanddiscord(string keyname,string requiredperms = "None",string deniedperms="None"){
+actualrealcoolcommand function addcommanddiscord( string keyname, string requiredperms = "None", string deniedperms = "None" )
+{
 	actualrealcoolcommand thing
 	thing.func = discordlogplaying
-	thing.requiredperms = modjsonoverridefunctionperms(keyname,requiredperms,deniedperms)[0]
-	thing.deniedperms = modjsonoverridefunctionperms(keyname,requiredperms,deniedperms)[1]
+	thing.requiredperms = modjsonoverridefunctionperms( keyname, requiredperms, deniedperms )[ 0 ]
+	thing.deniedperms = modjsonoverridefunctionperms( keyname, requiredperms, deniedperms )[ 1 ]
 	thing.keyname = keyname
 	return thing
 }
 
-
-array <actualrealcoolcommand> function getregisteredfunctions(){
+array<actualrealcoolcommand> function getregisteredfunctions()
+{
 	return [
-		addcommand(discordlogplayingpoll,"playingpoll"),
-		addcommand(discordloghostiletitanfall,"hostiletf"),
-		addcommand(discordloggetdiscordcommands,"senddiscordcommands"),
-		addcommand(discordlogplaying,"playing"),
-		addcommand(discordlogthrowplayer,"throw"),
-		addcommand(discordlogsimplesay,"simplesay"),
-		addcommand(discordloggetuid,"getuid"),
-		addcommand(discordlogkickplayer,"kick"),
-		addcommand(discordlogsendimage,"sendimage"),
-		addcommand(discordlogtoggleadmin,"toggleadmin"),
-		addcommand(getconvar,"getconvar"),
-		addcommand(extmessagesendtester,"extmessagesendtester"),
-		addcommand(discordlogimpersonate,"impersonate"),
-		addcommand(reloadpersistentsettings,"reloadpersistentvars"),
-		addcommand(nessifyplayercommand,"nessify"),
-		addcommand(discordlogtb,"bettertb"),
-		addcommand(discordlogplayerfinder,"playerfinder"),
-		addcommand(discordlogcompilestring,"compilestring"),
-		addcommand(discordbotwantingcommandlist,"reloadtfcommandlist"),
-		addcommand(discordlogaddnewhighlight,"highlightplayerforduels"),
-		addcommand(discordlogaddnewhighlightforwallhacks,"wallhack"),
-		addcommand(discordlogsendsoundtoplayer,"sendsound"),
-		addcommand(forcesomonesname,"forcesomonesname")
-		]
-		 //add functions here, and they'll work with / commands (if they fill criteria above)
+		addcommand( discordlogplayingpoll, "playingpoll" ),
+		addcommand( discordloghostiletitanfall, "hostiletf" ),
+		addcommand( discordloggetdiscordcommands, "senddiscordcommands" ),
+		addcommand( discordlogplaying, "playing" ),
+		addcommand( discordlogthrowplayer, "throw" ),
+		addcommand( discordlogsimplesay, "simplesay" ),
+		addcommand( discordloggetuid, "getuid" ),
+		addcommand( discordlogkickplayer, "kick" ),
+		addcommand( discordlogsendimage, "sendimage" ),
+		addcommand( discordlogtoggleadmin, "toggleadmin" ),
+		addcommand( getconvar, "getconvar" ),
+		addcommand( extmessagesendtester, "extmessagesendtester" ),
+		addcommand( discordlogimpersonate, "impersonate" ),
+		addcommand( reloadpersistentsettings, "reloadpersistentvars" ),
+		addcommand( nessifyplayercommand, "nessify" ),
+		addcommand( discordlogtb, "bettertb" ),
+		addcommand( discordlogplayerfinder, "playerfinder" ),
+		addcommand( discordlogcompilestring, "compilestring" ),
+		addcommand( discordbotwantingcommandlist, "reloadtfcommandlist" ),
+		addcommand( discordlogaddnewhighlight, "highlightplayerforduels" ),
+		addcommand( discordlogaddnewhighlightforwallhacks, "wallhack" ),
+		addcommand( discordlogsendsoundtoplayer, "sendsound" ),
+		addcommand( forcesomonesname, "forcesomonesname" )
+	]
+	// add functions here, and they'll work with / commands (if they fill criteria above)
 }
 
-array <actualrealcoolcommand> function getregisteredfunctionsdiscord(){
-	return [
-		// addcommanddiscord("helpdc","everyone") //set !helpdc to "everyone" (or any other command) to need no perms
-		// addcommanddiscord("nessify","rconrole")
-		// addcommanddiscord("debugchat","rconrole")
-		]
-		 //add functions here, and they'll work with / commands (if they fill criteria above)
+array<actualrealcoolcommand> function getregisteredfunctionsdiscord()
+{
+	return [// addcommanddiscord("helpdc","everyone") //set !helpdc to "everyone" (or any other command) to need no perms
+	// addcommanddiscord("nessify","rconrole")
+	// addcommanddiscord("debugchat","rconrole")
+	]
+	// add functions here, and they'll work with / commands (if they fill criteria above)
 }
 
-struct {
+struct
+{
 	array<string> foundstuff = []
 } modjsoncommandsfound
 
-array<string> function modjsonoverridefunctionperms(string name,string perm1,string perm2){
-	array<string> overrides = split(GetConVarString("discordlogfunctionpermoverrides"),",")
+array<string> function modjsonoverridefunctionperms( string name, string perm1, string perm2 )
+{
+	array<string> overrides = split( GetConVarString( "discordlogfunctionpermoverrides" ), "," )
 	string prevarg = ""
-	for(int i = 0; i < overrides.len(); i++) {
-		if (overrides[i] == name){
-			return [overrides[i+1],overrides[i+2]]
-			modjsoncommandsfound.foundstuff.append(name)
+	for ( int i = 0; i < overrides.len(); i++ )
+	{
+		if ( overrides[ i ] == name )
+		{
+			return [ overrides[ i + 1 ], overrides[ i + 2 ] ]
+			modjsoncommandsfound.foundstuff.append( name )
 		}
-		
 	}
-	return [perm1,perm2]
+	return [ perm1, perm2 ]
 }
 
-
-array <entity> function discordlogmatchplayers(string playername){ //returns all players that have a partial playername match
-	array<entity> matchedplayers = [];
-    array<entity> players = GetPlayerArray()
-    foreach (entity player in players)
-        {
-            if (player != null)
-            {
-                string playernamec = discordloggetplayername(player)
-                if (playernamec.tolower().find(playername.tolower()) != null)
-                {
-                    matchedplayers.append(player)
-
-                }
-            }
-        }
+array<entity> function discordlogmatchplayers( string playername )
+{ // returns all players that have a partial playername match
+	array<entity> matchedplayers = []
+	array<entity> players = GetPlayerArray()
+	foreach ( entity player in players )
+	{
+		if ( player != null )
+		{
+			string playernamec = discordloggetplayername( player )
+			if ( playernamec.tolower().find( playername.tolower() ) != null )
+			{
+				matchedplayers.append( player )
+			}
+		}
+	}
 	return matchedplayers
 }
 
-bool function discordlogcheck(string command, discordlogcommand inputcommand){
+bool function discordlogcheck( string command, discordlogcommand inputcommand )
+{
 	// print(split(inputcommand.command," ")[0].find(command) == null)
-	return ( (inputcommand.command[0] != 47 && inputcommand.command[0] != 33) || split(split(inputcommand.command," ")[0],"!/")[0] != command)
+	return ( ( inputcommand.command[ 0 ] != 47 && inputcommand.command[ 0 ] != 33 ) || split( split( inputcommand.command, " " )[ 0 ], "!/" )[ 0 ] != command )
 }
 
-struct {
+struct
+{
 	string Requestpath
 	string Servername
 	string serverid
@@ -171,35 +180,36 @@ struct {
 	bool exit = false
 } serverdetails
 
-
-
-struct {
+struct
+{
 	table playermodels
 } discordloglastmodels
 
-table function discordloggetlastmodels(){
+table function discordloggetlastmodels()
+{
 	return discordloglastmodels.playermodels
 }
 
-struct  {
-	table <entity,string> names
+struct
+{
+	table<entity, string> names
 } namedict
 
-struct discordtotf2message {
+struct discordtotf2message
+{
 	string content
 	int teamoverride
 	array<string> uidoverride
 	string validation
 }
 
-table<string,float> playerrespawn = {
-	
+table<string, float> playerrespawn = {
 }
-table<string,bool> tf2todiscordcommands = {
-	
+table<string, bool> tf2todiscordcommands = {
 }
-struct {
-	table<string,table> players
+struct
+{
+	table<string, table> players
 	bool hasfailedandneedstorequestagain = false
 	array<string> messagespassed = []
 } blockedplayers
@@ -207,82 +217,85 @@ struct {
 // maps shamelessly stolen fvnk
 
 table<string, string> MAP_NAME_TABLE = {
-    mp_angel_city = "Angel City",
-    mp_black_water_canal = "Black Water Canal",
-    mp_coliseum = "Coliseum",
-    mp_coliseum_column = "Pillars",
-    mp_colony02 = "Colony",
-    mp_complex3 = "Complex",
-    mp_crashsite3 = "Crash Site",
-    mp_drydock = "Drydock",
-    mp_eden = "Eden",
-    mp_forwardbase_kodai = "Forwardbase Kodai",
-    mp_glitch = "Glitch",
-    mp_grave = "Boomtown",
-    mp_homestead = "Homestead",
-    mp_lf_deck = "Deck",
-    mp_lf_meadow = "Meadow",
-    mp_lf_stacks = "Stacks",
-    mp_lf_township = "Township",
-    mp_lf_traffic = "Traffic",
-    mp_lf_uma = "UMA",
-    mp_relic02 = "Relic",
-    mp_rise = "Rise",
-    mp_thaw = "Exoplanet",
-    mp_wargames = "Wargames",
-    mp_mirror_city = "Mirror City",
+	mp_angel_city = "Angel City",
+	mp_black_water_canal = "Black Water Canal",
+	mp_coliseum = "Coliseum",
+	mp_coliseum_column = "Pillars",
+	mp_colony02 = "Colony",
+	mp_complex3 = "Complex",
+	mp_crashsite3 = "Crash Site",
+	mp_drydock = "Drydock",
+	mp_eden = "Eden",
+	mp_forwardbase_kodai = "Forwardbase Kodai",
+	mp_glitch = "Glitch",
+	mp_grave = "Boomtown",
+	mp_homestead = "Homestead",
+	mp_lf_deck = "Deck",
+	mp_lf_meadow = "Meadow",
+	mp_lf_stacks = "Stacks",
+	mp_lf_township = "Township",
+	mp_lf_traffic = "Traffic",
+	mp_lf_uma = "UMA",
+	mp_relic02 = "Relic",
+	mp_rise = "Rise",
+	mp_thaw = "Exoplanet",
+	mp_wargames = "Wargames",
+	mp_mirror_city = "Mirror City",
 	mp_brick = "BRICK"
 }
 
+void function discordloggerinit()
+{
 
-void function discordloggerinit() {
-
-	if(!GetConVarBool("discordloggingenabled"))
+	if ( !GetConVarBool( "discordloggingenabled" ) )
 	{
-		print("[DiscordLogger]discord logging disabled")
+		print( "[DiscordLogger]discord logging disabled" )
 		return
 	}
-	serverdetails.Requestpath = GetConVarString("discordlogginghttpServer")
-	serverdetails.password = GetConVarString("discordloggingserverpassword")
+	serverdetails.Requestpath = GetConVarString( "discordlogginghttpServer" )
+	serverdetails.password = GetConVarString( "discordloggingserverpassword" )
 	table params = {}
-	params["password"] <- serverdetails.password
+	params[ "password" ] <- serverdetails.password
 
 	HttpRequest request
 	request.method = HttpRequestMethod.POST
-	
 	request.url = serverdetails.Requestpath + "/checkpasswordisright"
-	request.body = EncodeJSON(params)
-	void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse messages )
-		{printt("discordlogger working I think")}
-    void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
-		{
-			printt("Incorrect password for discord bot, exiting")
-			serverdetails.exit = true}
+	request.body = EncodeJSON( params )
+	void functionref( HttpRequestResponse ) onSuccess = void function( HttpRequestResponse messages )
+	{
+		printt( "discordlogger working I think" )
+	}
+	void functionref( HttpRequestFailure ) onFailure = void function( HttpRequestFailure failure )
+	{
+		printt( "Incorrect password for discord bot, exiting" )
+		serverdetails.exit = true
+	}
 	NSHttpRequest( request, onSuccess, onFailure )
-	if (serverdetails.exit){
+	if ( serverdetails.exit )
+	{
 		return
 	}
 	PrecacheModel( $"models/domestic/nessy_doll.mdl" )
 	PrecacheModel( $"models/domestic/nessy_blue_doll.mdl" )
 
 	AddCallback_OnPlayerRespawned( OnPlayerRespawned )
-
-	serverdetails.matchid = GetUnixTimestamp()+"_" + GetConVarString("discordloggingserverid")
-	SetConVarString("discordloggingmatchid",serverdetails.matchid)
+	serverdetails.matchid = GetUnixTimestamp() + "_" + GetConVarString( "discordloggingserverid" )
+	SetConVarString( "discordloggingmatchid", serverdetails.matchid )
 	registeredfunctions.funcs = getregisteredfunctions()
 	registeredfunctions.discordbotcommandfuncs = getregisteredfunctionsdiscord()
 	// print("eeeeeee"+GetConVarString("discordlogfunctionpermoverrides"))
-	array<string> overrides = split(GetConVarString("discordlogfunctionpermoverrides"),",")
+	array<string> overrides = split( GetConVarString( "discordlogfunctionpermoverrides" ), "," )
 	string prevarg = ""
-	for(int i = 0; i < overrides.len(); i++) {
-		if (!(i % 3)) {
-			prevarg = overrides[i]
+	for ( int i = 0; i < overrides.len(); i++ )
+	{
+		if ( !( i % 3 ) )
+		{
+			prevarg = overrides[ i ]
 		}
-		else if (!(modjsoncommandsfound.foundstuff.contains(prevarg)) && !((i-1) % 3)){
-
-			registeredfunctions.discordbotcommandfuncs.append(addcommanddiscord(prevarg,overrides[i],overrides[i+1]))
+		else if ( !( modjsoncommandsfound.foundstuff.contains( prevarg ) ) && !( ( i - 1 ) % 3 ) )
+		{
+			registeredfunctions.discordbotcommandfuncs.append( addcommanddiscord( prevarg, overrides[ i ], overrides[ i + 1 ] ) )
 		}
-		
 	}
 	// #if SANCTIONAPI_ENABLED
 	// 	print("[DiscordLogger]Sanction API enabled")
@@ -290,74 +303,77 @@ void function discordloggerinit() {
 	// 	registeredfunctions.funcs.append(discordlogsanctionremove)
 	// #endif
 
-
-	//AddNewFunctForEnd(SaveLog)
+	// AddNewFunctForEnd(SaveLog)
 	// get epoch time
 	// mp\_gamestate_mp.nut:
 	// table currentTime = GetUnixTimeParts()
 	// print(currentTime)
 	// serverdetails.currentlyplaying = GetConVarString("discordlogpreviousroundplayers")
-	
+
 	serverdetails.showchatprefix = true
-	
-	print("[DiscordLogger]Servername: "+GetConVarString("discordloggingservername"))
-	print("[DiscordLogger]Requestpath: "+serverdetails.Requestpath)
-	if (GetConVarString("discordloggingservername") == "useactualservername"){
-	serverdetails.Servername = GetConVarString("NS_SERVER_NAME")}
-	else {
-		serverdetails.Servername = GetConVarString("discordloggingservername")
+
+	print( "[DiscordLogger]Servername: " + GetConVarString( "discordloggingservername" ) )
+	print( "[DiscordLogger]Requestpath: " + serverdetails.Requestpath )
+	if ( GetConVarString( "discordloggingservername" ) == "useactualservername" )
+	{
+		serverdetails.Servername = GetConVarString( "NS_SERVER_NAME" )
 	}
-	serverdetails.serverid = GetConVarString("discordloggingserverid")
-	if (GetConVarInt("discordloguselocaltags") == 1) {
+	else
+	{
+		serverdetails.Servername = GetConVarString( "discordloggingservername" )
+	}
+	serverdetails.serverid = GetConVarString( "discordloggingserverid" )
+	if ( GetConVarInt( "discordloguselocaltags" ) == 1 )
+	{
 		serverdetails.uselocaltags = true
 	}
-	if (GetConVarInt("enforcediscordsanctions") == 1) {
+	if ( GetConVarInt( "enforcediscordsanctions" ) == 1 )
+	{
 		serverdetails.enforcesanctions = true
 	}
-	if (GetConVarInt("discordloggingserverid") == 0){
-		print("[DiscordLogger]Server ID not set, please set it in the console PLEASE FIX THIS")
+	if ( GetConVarInt( "discordloggingserverid" ) == 0 )
+	{
+		print( "[DiscordLogger]Server ID not set, please set it in the console PLEASE FIX THIS" )
 		return
-	} 
-		print("[DiscordLogger]Discord logging enabled")
-		AddCallback_OnReceivedSayTextMessage( LogMSG )
+	}
+	print( "[DiscordLogger]Discord logging enabled" )
+	AddCallback_OnReceivedSayTextMessage( LogMSG )
 	AddCallback_OnClientConnected( LogConnect )
-	AddCallback_OnClientDisconnected( LogDC)
+	AddCallback_OnClientDisconnected( LogDC )
 	thread begintodiscord()
 	// AddCallback_GameStateEnter(eGameState.PickLoadout, Onmapchange);
-    // AddCallback_GameStateEnter(eGameState.Prematch, Onmapchange);
-	
-	AddCallback_GameStateEnter(9,stoprequests);
-	AddCallback_OnPlayerKilled(playerstabbedmodelsaver)
+	// AddCallback_GameStateEnter(eGameState.Prematch, Onmapchange);
 
-	
-		
-	
+	AddCallback_GameStateEnter( 9, stoprequests )
+	AddCallback_OnPlayerKilled( playerstabbedmodelsaver )
 
-		runcommandondiscord("getdiscordcommands")
-		table commands = {}
-		foreach (actualrealcoolcommand command in registeredfunctions.funcs){
-			// commands[command.keyname] <- {}
-			// table perms = {}
-			// foreach (string perm in command.requiredperms){
-			// 	perms[perm] <- "0"
-			// }
-			commands[command.keyname] <- {permsneeded = command.requiredperms, deniedperms = command.deniedperms} 
-		}
-		table discordcommandssent = {}
-		foreach (actualrealcoolcommand command in registeredfunctions.discordbotcommandfuncs){
-			// commands[command.keyname] <- {}
-			// table perms = {}
-			// foreach (string perm in command.requiredperms){
-			// 	perms[perm] <- "0"
-			// }
-			discordcommandssent[command.keyname] <- {permsneeded = command.requiredperms, deniedperms = command.deniedperms} 
-		}
-		runcommandondiscord("sendtitanfallcommands",{commands=commands,matchid=serverdetails.matchid,discordcommands=discordcommandssent})
-	
+	runcommandondiscord( "getdiscordcommands" )
+	table commands = {}
+	foreach ( actualrealcoolcommand command in registeredfunctions.funcs )
+	{
+		// commands[command.keyname] <- {}
+		// table perms = {}
+		// foreach (string perm in command.requiredperms){
+		// 	perms[perm] <- "0"
+		// }
+		commands[ command.keyname ] <- { permsneeded = command.requiredperms, deniedperms = command.deniedperms }
+	}
+	table discordcommandssent = {}
+	foreach ( actualrealcoolcommand command in registeredfunctions.discordbotcommandfuncs )
+	{
+		// commands[command.keyname] <- {}
+		// table perms = {}
+		// foreach (string perm in command.requiredperms){
+		// 	perms[perm] <- "0"
+		// }
+		discordcommandssent[ command.keyname ] <- { permsneeded = command.requiredperms, deniedperms = command.deniedperms }
+	}
+	runcommandondiscord( "sendtitanfallcommands", { commands = commands, matchid = serverdetails.matchid, discordcommands = discordcommandssent } )
 	// print(serverdetails.Servername)
 }
 
-struct {
+struct
+{
 	array<string> textcheck = []
 	table commandcheck = {}
 	int postmatch
@@ -366,142 +382,160 @@ struct {
 	string timeof = "0"
 } check
 
-string function discordloggetplayername(entity player){
-	if (!(player in namedict.names)){
-		namedict.names[player] <- player.GetPlayerName() 
+string function discordloggetplayername( entity player )
+{
+	if ( !( player in namedict.names ) )
+	{
+		namedict.names[ player ] <- player.GetPlayerName()
 	}
-	return namedict.names[player]
+	return namedict.names[ player ]
 }
 
-void function nattertoggles(entity player){
+void function nattertoggles( entity player )
+{
 	wait 60
-	if (GetConVarInt("discordlognatterfortoggles") == 1 && IsValid(player)){
-		runcommandondiscord("natterfortoggles",{ name = player.GetUID()})
-
+	if ( GetConVarInt( "discordlognatterfortoggles" ) == 1 && IsValid( player ) )
+	{
+		runcommandondiscord( "natterfortoggles", { name = player.GetUID() } )
 	}
-
 }
 
 void function LogConnect( entity player )
 {
-	
-	namedict.names[player] <- player.GetPlayerName()
-	thread nattertoggles(player)
+	namedict.names[ player ] <- player.GetPlayerName()
+	thread nattertoggles( player )
 	thread Onmapchange()
 	table init
-	init["shouldblockmessages"] <- false
+	init[ "shouldblockmessages" ] <- false
 	bool found = false
-	foreach (key,value in blockedplayers.players){
-		if (key==player.GetUID()){
+	foreach ( key, value in blockedplayers.players )
+	{
+		if ( key == player.GetUID() )
+		{
 			found = true
 		}
 	}
-	if (!found){
-	blockedplayers.players[player.GetUID()] <- init}
-	checkshouldblockmessages(player)
-	
-	
-	if(!IsValid(player))
+	if ( !found )
+	{
+		blockedplayers.players[ player.GetUID() ] <- init
+	}
+	checkshouldblockmessages( player )
+
+	if ( !IsValid( player ) )
 	{
 		return
 	}
-	if (GetConVarInt("discordlogaprilfools")){
-		runcommandondiscord("aprilfoolsplayer",{ uid = player.GetUID()})
+	if ( GetConVarInt( "discordlogaprilfools" ) )
+	{
+		runcommandondiscord( "aprilfoolsplayer", { uid = player.GetUID() } )
 	}
-	if (GetConVarInt("natterforcoolperksrole")){
-		runcommandondiscord("natterforcoolperks",{ uid = player.GetUID()})
+	if ( GetConVarInt( "natterforcoolperksrole" ) )
+	{
+		runcommandondiscord( "natterforcoolperks", { uid = player.GetUID() } )
 	}
-	if (Time() < 30){ // && serverdetails.currentlyplaying.find(player.GetUID().tostring()) != null){
-		print("[DiscordLogger] Player "+discordloggetplayername(player)+" is already in the server, not logging")
+	if ( Time() < 30 )
+	{ // && serverdetails.currentlyplaying.find(player.GetUID().tostring()) != null){
+		print( "[DiscordLogger] Player " + discordloggetplayername( player ) + " is already in the server, not logging" )
 		return
 	}
 	// print(Time())
 	outgoingmessage newmessage
-	newmessage.playername = discordloggetplayername(player)
-	newmessage.message = "has joined the server ("+GetPlayerArray().len().tostring()+" Connected)"
+	newmessage.playername = discordloggetplayername( player )
+	newmessage.message = "has joined the server (" + GetPlayerArray().len().tostring() + " Connected)"
 	newmessage.timestamp = GetUnixTimestamp()
 	table meta
-	meta["uid"] <- player.GetUID()
-	meta["type"] <- "connect"
-	newmessage.metadata = EncodeJSON(meta)
+	meta[ "uid" ] <- player.GetUID()
+	meta[ "type" ] <- "connect"
+	newmessage.metadata = EncodeJSON( meta )
 	newmessage.typeofmsg = 2
-	thread Postmessages(newmessage)
-	discordloglastmodels.playermodels[player.GetUID()] <- player.GetModelName() + ""
-
+	thread Postmessages( newmessage )
+	discordloglastmodels.playermodels[ player.GetUID() ] <- player.GetModelName() + ""
 }
 void function LogDC( entity player )
 {
-	if(!IsValid(player))
+	if ( !IsValid( player ) )
 	{
 		return
 	}
 	outgoingmessage newmessage
-	newmessage.playername = discordloggetplayername(player)
-	newmessage.message = "has left the server ("+(GetPlayerArray().len()-1).tostring()+" Connected)"
+	newmessage.playername = discordloggetplayername( player )
+	newmessage.message = "has left the server (" + ( GetPlayerArray().len() - 1 ).tostring() + " Connected)"
 	newmessage.timestamp = GetUnixTimestamp()
 	table meta
-	meta["uid"] <- player.GetUID()
-	meta["type"] <- "disconnect"
-	newmessage.metadata = EncodeJSON(meta)
+	meta[ "uid" ] <- player.GetUID()
+	meta[ "type" ] <- "disconnect"
+	newmessage.metadata = EncodeJSON( meta )
 	newmessage.typeofmsg = 2
-	thread Postmessages(newmessage)
-
+	thread Postmessages( newmessage )
 }
 
-void function playerstabbedmodelsaver( entity player, entity attacker, var damageInfo) {
+void function playerstabbedmodelsaver( entity player, entity attacker, var damageInfo )
+{
 	// table newmodel
 	// newmodel["pfp"] <- player.GetModelName() + ""
-	discordloglastmodels.playermodels[player.GetUID()] <- player.GetModelName() + ""
-	if ( discordlogpullplayerstat(player.GetUID(),"togglebrute") == "True" && (player.GetModelName() == $"models/titans/light/titan_light_northstar_prime.mdl" || player.GetModelName() == $"models/titans/light/titan_light_raptor.mdl"))
+	discordloglastmodels.playermodels[ player.GetUID() ] <- player.GetModelName() + ""
+	if (
+		discordlogpullplayerstat( player.GetUID(), "togglebrute" ) == "True" &&
+			( player.GetModelName() == $"models/titans/light/titan_light_northstar_prime.mdl" || player.GetModelName() == $"models/titans/light/titan_light_raptor.mdl" )
+	)
 	{
-		discordloglastmodels.playermodels[player.GetUID()] <- "brute"
+		discordloglastmodels.playermodels[ player.GetUID() ] <- "brute"
 	}
-	else if ( discordlogpullplayerstat(player.GetUID(),"toggleexpi") == "True" && player.GetModelName() == $"models/titans/medium/titan_medium_vanguard.mdl" )
+	else if ( discordlogpullplayerstat( player.GetUID(), "toggleexpi" ) == "True" && player.GetModelName() == $"models/titans/medium/titan_medium_vanguard.mdl" )
 	{
-		discordloglastmodels.playermodels[player.GetUID()] <- "expedition"
+		discordloglastmodels.playermodels[ player.GetUID() ] <- "expedition"
 	}
-	else if (discordlogpullplayerstat(player.GetUID(),"tgrap") == "True" && (player.GetModelName() == $"models/titans/light/titan_light_locust.mdl" || player.GetModelName() == $"models/titans/light/titan_light_ronin_prime.mdl")){
-		discordloglastmodels.playermodels[player.GetUID()] <- "tgrap"
+	else if (
+		discordlogpullplayerstat( player.GetUID(), "tgrap" ) == "True" &&
+			( player.GetModelName() == $"models/titans/light/titan_light_locust.mdl" || player.GetModelName() == $"models/titans/light/titan_light_ronin_prime.mdl" )
+	)
+	{
+		discordloglastmodels.playermodels[ player.GetUID() ] <- "tgrap"
 	}
 
 	float respawntime = Time()
 	int methodOfDeath = DamageInfo_GetDamageSourceIdentifier( damageInfo )
 	float replayLength = CalculateLengthOfKillReplay( player, methodOfDeath )
-	bool shouldDoReplay = Replay_IsEnabled()  && IsValid( attacker ) && ShouldDoReplay( player, attacker, replayLength, methodOfDeath )
-	if (shouldDoReplay){
+	bool shouldDoReplay = Replay_IsEnabled() && IsValid( attacker ) && ShouldDoReplay( player, attacker, replayLength, methodOfDeath )
+	if ( shouldDoReplay )
+	{
 		respawntime += replayLength
 	}
-	thread adddelayedrespawn(player,respawntime)
+	thread adddelayedrespawn( player, respawntime )
 }
 
-void function adddelayedrespawn(entity player, float respawntime) {
+void function adddelayedrespawn( entity player, float respawntime )
+{
 	wait 1
-	if(IsValid(player)){
-	playerrespawn[player.GetUID()+""] <- respawntime+1}
+	if ( IsValid( player ) )
+	{
+		playerrespawn[ player.GetUID() + "" ] <- respawntime + 1
+	}
 }
 
-ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
+ClServer_MessageStruct function LogMSG( ClServer_MessageStruct message )
+{
 	// log typical messages
-    // string playername = discordloggetplayername(message.player)
+	// string playername = discordloggetplayername(message.player)
 	// string messagecontent = message.message
 	// print(serverdetails.Servername)
 	bool originallyblocked = message.shouldBlock
-	string teamnewmessage = discordloggetplayername(message.player)
+	string teamnewmessage = discordloggetplayername( message.player )
 	string teammessage = "not team"
-    if( message.isTeam && serverdetails.showchatprefix )
-    {
-	int playerteam = message.player.GetTeam()
-	if( playerteam <= 0 )
-	teammessage = "Spec"
-    if( playerteam == 1 )
-    teammessage = "None"
-    if( playerteam == 2 )
-    teammessage = "IMC"
-    if( playerteam == 3 )
-    teammessage = "Militia"
-    if( playerteam >= 4 )
-    teammessage = "Both"
-	teammessage = "[Team-" + teammessage + "]"
+	if ( message.isTeam && serverdetails.showchatprefix )
+	{
+		int playerteam = message.player.GetTeam()
+		if ( playerteam <= 0 )
+			teammessage = "Spec"
+		if ( playerteam == 1 )
+			teammessage = "None"
+		if ( playerteam == 2 )
+			teammessage = "IMC"
+		if ( playerteam == 3 )
+			teammessage = "Militia"
+		if ( playerteam >= 4 )
+			teammessage = "Both"
+		teammessage = "[Team-" + teammessage + "]"
 	}
 	// print(teammessage)
 	outgoingmessage newmessage
@@ -510,176 +544,235 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 	newmessage.timestamp = GetUnixTimestamp()
 	newmessage.typeofmsg = 1
 	table meta
-	if (IsAlive(message.player)){
-		if ( discordlogpullplayerstat(message.player.GetUID(),"togglebrute") == "True" && (message.player.GetModelName() == $"models/titans/light/titan_light_northstar_prime.mdl" || message.player.GetModelName() == $"models/titans/light/titan_light_raptor.mdl"))
+	if ( IsAlive( message.player ) )
+	{
+		if (
+			discordlogpullplayerstat( message.player.GetUID(), "togglebrute" ) == "True" &&
+				( message.player.GetModelName() == $"models/titans/light/titan_light_northstar_prime.mdl" || message.player.GetModelName() == $"models/titans/light/titan_light_raptor.mdl" )
+		)
 		{
-			meta["pfp"] <- "brute"}
-		else if ( discordlogpullplayerstat(message.player.GetUID(),"toggleexpi") == "True" && message.player.GetModelName() == $"models/titans/medium/titan_medium_vanguard.mdl" )
+			meta[ "pfp" ] <- "brute"
+		}
+		else if ( discordlogpullplayerstat( message.player.GetUID(), "toggleexpi" ) == "True" && message.player.GetModelName() == $"models/titans/medium/titan_medium_vanguard.mdl" )
 		{
-			meta["pfp"] <-  "expedition"
+			meta[ "pfp" ] <- "expedition"
 		}
-		else if (discordlogpullplayerstat(message.player.GetUID(),"tgrap") == "True" && (message.player.GetModelName() == $"models/titans/light/titan_light_locust.mdl" || message.player.GetModelName() == $"models/titans/light/titan_light_ronin_prime.mdl")){
-			meta["pfp"] <- "tgrap"
+		else if (
+			discordlogpullplayerstat( message.player.GetUID(), "tgrap" ) == "True" &&
+				( message.player.GetModelName() == $"models/titans/light/titan_light_locust.mdl" || message.player.GetModelName() == $"models/titans/light/titan_light_ronin_prime.mdl" )
+		)
+		{
+			meta[ "pfp" ] <- "tgrap"
 		}
-		else{
-			meta["pfp"] <- message.player.GetModelName() + ""}
+		else
+		{
+			meta[ "pfp" ] <- message.player.GetModelName() + ""
 		}
-	
-	else{
+	}
+	else
+	{
 		// array<string> knownuids = expect array<string>(TableKeysToArray(discordloglastmodels.playermodels))
 		// if (knownuids.contains(message.player.GetUID())){
 		// print("PFP PFP FPF"+discordloglastmodels.playermodels[message.player.GetUID()] + "")
-		 if ( message.player.GetUID() in discordloglastmodels["playermodels"] ){
-		meta["pfp"] <- discordloglastmodels["playermodels"][message.player.GetUID()]}
+		if ( message.player.GetUID() in discordloglastmodels[ "playermodels" ] )
+		{
+			meta[ "pfp" ] <- discordloglastmodels[ "playermodels" ][ message.player.GetUID() ]
+		}
 		// // }
 		// else{
 		// 	meta["pfp"] <- "I don't know"
 		// }
 	}
-	if ((discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "mute"||discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "meanmute" )&& serverdetails.enforcesanctions){
-		meta["ismuted"]  <- true
+	if (
+		( discordlogpullplayerstat( message.player.GetUID(), "sanctiontype" ) == "mute" || discordlogpullplayerstat( message.player.GetUID(), "sanctiontype" ) == "meanmute" ) &&
+			serverdetails.enforcesanctions
+	)
+	{
+		meta[ "ismuted" ] <- true
 		message.shouldBlock = true
-		if (discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "mute"){
-			discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m you are muted. Expires: [38;5;203m"+discordlogpullplayerstat(message.player.GetUID(),"expiry"),4,[message.player.GetUID()])
-			discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Reason: [38;5;203m"+discordlogpullplayerstat(message.player.GetUID(),"reason"),4,[message.player.GetUID()])
-			discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Join the discord at [38;5;219m!discord[110m to complain",4,[message.player.GetUID()])
+		if ( discordlogpullplayerstat( message.player.GetUID(), "sanctiontype" ) == "mute" )
+		{
+			discordlogsendmessage(
+				"[38;2;135;135;254m[Discord][38;5;254m you are muted. Expires: [38;5;203m" + discordlogpullplayerstat( message.player.GetUID(), "expiry" ),
+				4,
+				[ message.player.GetUID() ]
+			)
+			discordlogsendmessage( "[38;2;135;135;254m[Discord][38;5;254m Reason: [38;5;203m" + discordlogpullplayerstat( message.player.GetUID(), "reason" ), 4, [ message.player.GetUID() ] )
+			discordlogsendmessage( "[38;2;135;135;254m[Discord][38;5;254m Join the discord at [38;5;219m!discord[110m to complain", 4, [ message.player.GetUID() ] )
 		}
 	}
 	meta[ "forcedprefix" ] <- message.player.GetCommunityClanTag().len() ? "[" + message.player.GetCommunityClanTag() + "]" : ""
-	meta["teamtype"] <- teammessage
-	meta["teamint"] <- message.player.GetTeam()
-	meta["type"] <- "usermessagepfp"
-	if (serverdetails.showchatprefix){
-	meta["isalive"] <- IsAlive(message.player)}
-	meta["uid"] <- message.player.GetUID()
-	if (newmessage.message[0] == 47 || newmessage.message[0] == 33){
-		
-		meta["type"] <- "colourfulcommand"
-		
-
+	meta[ "teamtype" ] <- teammessage
+	meta[ "teamint" ] <- message.player.GetTeam()
+	meta[ "type" ] <- "usermessagepfp"
+	if ( serverdetails.showchatprefix )
+	{
+		meta[ "isalive" ] <- IsAlive( message.player )
+	}
+	meta[ "uid" ] <- message.player.GetUID()
+	if ( newmessage.message[ 0 ] == 47 || newmessage.message[ 0 ] == 33 )
+	{
+		meta[ "type" ] <- "colourfulcommand"
 		newmessage.overridechannel = "commandlogchannel"
 		newmessage.typeofmsg = 3
-
 	}
 	// else{
-	
-	
 
 	bool found = false
-	foreach (string key,table value in blockedplayers.players){
-		if (message.player.GetUID() == key && blockedplayers.players[key].shouldblockmessages){
+	foreach ( string key, table value in blockedplayers.players )
+	{
+		if ( message.player.GetUID() == key && blockedplayers.players[ key ].shouldblockmessages )
+		{
 			found = true
 			break
 		}
 	}
-	meta["blockedmessage"] <- (found && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain)
-	if (found && blockedplayers.players[message.player.GetUID()].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain) {
-		message.shouldBlock = true;
+	meta[ "blockedmessage" ] <- ( found && blockedplayers.players[ message.player.GetUID() ].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain )
+	if ( found && blockedplayers.players[ message.player.GetUID() ].shouldblockmessages && !blockedplayers.hasfailedandneedstorequestagain )
+	{
+		message.shouldBlock = true
 		// discordlogsendmessage("HEREEEE")
 	}
-			if (message.message.len() > 1 && (format("%c", message.message.tolower()[0]) == "!" && (split(message.message.tolower().slice(1)," ")[0] in tf2todiscordcommands && (tf2todiscordcommands[split(message.message.tolower().slice(1)," ")[0]] || (split(message.message.tolower().slice(1)," ").len() > 1 && split(message.message.tolower().slice(1)," ")[1] in tf2todiscordcommands && tf2todiscordcommands[split(message.message.tolower().slice(1)," ")[1]]))))){
-			// Chat_ServerBroadcast("BLOCKING")
-			message.shouldBlock = true
-			meta["blockedcommand"] <- true
-			meta["type"] <- "command"
-
-		}
-		else if (originallyblocked){
-			meta["type"] <- "command"
-		}
-	else if (serverdetails.uselocaltags && discordlogpullplayerstat(message.player.GetUID(),"nameprefix") != "" && !((discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "mute"||discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "meanmute" )&& serverdetails.enforcesanctions)){
-		meta["donotcolour"] <- true
-		message.shouldBlock = true;
-		// discordlogsendmessage("HEREEEE2")
-		if (!message.isTeam){
-		discordlogsendmessage("[112m["+discordlogpullplayerstat(message.player.GetUID(),"nameprefix")+"] "+ discordloggetplayername(message.player)+":[110m " + message.message,( message.player.GetTeam() - 3)*-1+2)	
-		
-		discordlogsendmessage("[111m["+discordlogpullplayerstat(message.player.GetUID(),"nameprefix")+"] "+ discordloggetplayername(message.player)+":[110m " + message.message, message.player.GetTeam())	
-		}
-		else{
-		discordlogsendmessage("[111m[TEAM]["+discordlogpullplayerstat(message.player.GetUID(),"nameprefix")+"] "+ discordloggetplayername(message.player)+":[110m " + message.message, message.player.GetTeam())	
-
-		}
-
+	if (
+		message.message.len() > 1 &&
+			(
+				format( "%c", message.message.tolower()[ 0 ] ) == "!" &&
+					(
+						split( message.message.tolower().slice( 1 ), " " )[ 0 ] in tf2todiscordcommands &&
+							(
+								tf2todiscordcommands[ split( message.message.tolower().slice( 1 ), " " )[ 0 ] ] ||
+									(
+										split( message.message.tolower().slice( 1 ), " " ).len() > 1 && split( message.message.tolower().slice( 1 ), " " )[ 1 ] in tf2todiscordcommands &&
+											tf2todiscordcommands[ split( message.message.tolower().slice( 1 ), " " )[ 1 ] ]
+									)
+							)
+					)
+			)
+	)
+	{
+		// Chat_ServerBroadcast("BLOCKING")
+		message.shouldBlock = true
+		meta[ "blockedcommand" ] <- true
+		meta[ "type" ] <- "command"
 	}
-	
+	else if ( originallyblocked )
+	{
+		meta[ "type" ] <- "command"
+	}
+	else if (
+		serverdetails.uselocaltags && discordlogpullplayerstat( message.player.GetUID(), "nameprefix" ) != "" &&
+			!(
+				( discordlogpullplayerstat( message.player.GetUID(), "sanctiontype" ) == "mute" || discordlogpullplayerstat( message.player.GetUID(), "sanctiontype" ) == "meanmute" ) &&
+					serverdetails.enforcesanctions
+			)
+	)
+	{
+		meta[ "donotcolour" ] <- true
+		message.shouldBlock = true
+		// discordlogsendmessage("HEREEEE2")
+		if ( !message.isTeam )
+		{
+			discordlogsendmessage(
+				"[112m[" + discordlogpullplayerstat( message.player.GetUID(), "nameprefix" ) + "] " + discordloggetplayername( message.player ) + ":[110m " + message.message,
+				( message.player.GetTeam() - 3 ) * -1 + 2
+			)
+
+			discordlogsendmessage(
+				"[111m[" + discordlogpullplayerstat( message.player.GetUID(), "nameprefix" ) + "] " + discordloggetplayername( message.player ) + ":[110m " + message.message,
+				message.player.GetTeam()
+			)
+		}
+		else
+		{
+			discordlogsendmessage(
+				"[111m[TEAM][" + discordlogpullplayerstat( message.player.GetUID(), "nameprefix" ) + "] " + discordloggetplayername( message.player ) + ":[110m " + message.message,
+				message.player.GetTeam()
+			)
+		}
+	}
+
 	// }
 	// Chat_ServerBroadcast("BLOCKING"+split(message.message.tolower().slice(1)," ")[0] + " " + (split(message.message.tolower().slice(1)," ")[0] in tf2todiscordcommands ) )
 
-	newmessage.metadata = EncodeJSON(meta)
-	thread Postmessages(newmessage)
+	newmessage.metadata = EncodeJSON( meta )
+	thread Postmessages( newmessage )
 
-
-    return message
+	return message
 }
-void function discordlogextmessage(string message, bool formatascodeblock = false, bool globalmessage = false, string channel = "None"){
+void function discordlogextmessage( string message, bool formatascodeblock = false, bool globalmessage = false, string channel = "None" )
+{
 	outgoingmessage newmessage
 	newmessage.message = message
 	newmessage.timestamp = GetUnixTimestamp()
 	newmessage.overridechannel = channel
 	newmessage.globalmessage = globalmessage
-	if (!formatascodeblock){
+	if ( !formatascodeblock )
+	{
 		newmessage.typeofmsg = 3
 	}
-	else{
+	else
+	{
 		newmessage.typeofmsg = 4
 	}
-	thread Postmessages(newmessage)
+	thread Postmessages( newmessage )
 }
 
-
-
-string function discordlogpullplayerstat(string uid, string stat){
-	if (!(uid in blockedplayers.players)){
+string function discordlogpullplayerstat( string uid, string stat )
+{
+	if ( !( uid in blockedplayers.players ) )
+	{
 		return ""
 	}
-	else if (!(stat in blockedplayers.players[uid])) {
+	else if ( !( stat in blockedplayers.players[ uid ] ) )
+	{
 		return ""
 	}
-	return expect string (blockedplayers.players[uid][stat])
-
+	return expect string( blockedplayers.players[ uid ][ stat ] )
 }
 
-void function checkshouldblockmessages(entity player){
+void function checkshouldblockmessages( entity player )
+{
 	table params = {}
-	params["password"] <- serverdetails.password
-	params["uid"] <- player.GetUID()
-	params["name"] <- discordloggetplayername(player)
+	params[ "password" ] <- serverdetails.password
+	params[ "uid" ] <- player.GetUID()
+	params[ "name" ] <- discordloggetplayername( player )
 	// params["actualname"] <- player.GetPlayerName()
-	params["serverid"] <- serverdetails.serverid
+	params[ "serverid" ] <- serverdetails.serverid
 	HttpRequest request
 	request.method = HttpRequestMethod.POST
 	request.url = serverdetails.Requestpath + "/playerdetails"
-	request.body = EncodeJSON(params)
-	
-	void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse response ) : (player)
-    {
-		// print("[DiscordLogger] MSG SENT")
-				if (response.statusCode
-		!= 200)
-		{
-			print("[DiscordLogger] Error: "+response.statusCode)
-			return
-			
-		}
-				if (!IsValid(player)){
-			return
-		}
+	request.body = EncodeJSON( params )
 
+	void functionref( HttpRequestResponse ) onSuccess = void function( HttpRequestResponse response ) : ( player )
+	{
+		// print("[DiscordLogger] MSG SENT")
+		if ( response.statusCode != 200 )
+		{
+			print( "[DiscordLogger] Error: " + response.statusCode )
+			return
+		}
+		if ( !IsValid( player ) )
+		{
+			return
+		}
 
 		// print(response.body)
-		table responses = DecodeJSON(response.body)
-		if ("notfound" in responses) {return}
-		table output = expect table(responses["output"])
-		table otheroutputs = expect table(responses["otherdata"])
+		table responses = DecodeJSON( response.body )
+		if ( "notfound" in responses )
+		{
+			return
+		}
+		table output = expect table( responses[ "output" ] )
+		table otheroutputs = expect table( responses[ "otherdata" ] )
 		// blockedplayers.players[expect string(responses["uid"])]
 		// string uid = expect string(responses["uid"])
 		table actualoutput
-		foreach (key,value in otheroutputs){
-			actualoutput[ expect string(key)] <- expect string(value)
+		foreach ( key, value in otheroutputs )
+		{
+			actualoutput[ expect string( key ) ] <- expect string( value )
 		}
-		actualoutput.shouldblockmessages <- expect bool(output["shouldblockmessages"])
-		blockedplayers.players[expect string(responses["uid"])] <- actualoutput
+		actualoutput.shouldblockmessages <- expect bool( output[ "shouldblockmessages" ] )
+		blockedplayers.players[ expect string( responses[ "uid" ] ) ] <- actualoutput
 		// string texts = expect string(responses["texts"])
 		// check.timeof = expect string(responses["time"])
 		// table texts = expect table(responses["texts"])
@@ -687,123 +780,141 @@ void function checkshouldblockmessages(entity player){
 		// string textvalidation = expect string(messagess["textvalid
 		// discordlogsendmessage(discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype"))
 		// print("MEOWMDQOQ"+discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype"))
-			if (PlayerIsInGracePeriod(player) && (!(player.GetUID() in playerrespawn) || Time() < playerrespawn[player.GetUID()+""] + 20)){
-				Loadouts_TryGivePilotLoadout(player)
-				} // mabye reset pilot loadout woa when toggle stuff woa
+		if ( PlayerIsInGracePeriod( player ) && ( !( player.GetUID() in playerrespawn ) || Time() < playerrespawn[ player.GetUID() + "" ] + 20 ) )
+		{
+			Loadouts_TryGivePilotLoadout( player )
+		} // mabye reset pilot loadout woa when toggle stuff woa
 
-			if (discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "ban" && serverdetails.enforcesanctions){
-				runcommandondiscord("loganipofabannedplayer", {name = discordloggetplayername(player),uid = responses["uid"],ip = split(player.GetIPString(), ":]")[2]})
-				NSDisconnectPlayer(player,"You are banned, JOIN THE DISCORD IN SERVER DESC TO COMPLAIN. Expires: "+discordlogpullplayerstat(expect string(responses["uid"]),"expiry")+" Reason: "+ discordlogpullplayerstat(expect string(responses["uid"]),"reason"))
-			}
-			if (discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "mute" && serverdetails.enforcesanctions){
-				// NSDisconnectPlayer(player,"You are banned, JOIN THE DISCORD IN SERVER DESC TO COMPLAIN. Expires: "+discordlogpullplayerstat(expect string(responses["uid"]),"expiry")+" Reason: "+ discordlogpullplayerstat(expect string(responses["uid"]),"reason"))
-				// NSSetVoiceCommsBanned(player,true)
-			}
-			if (discordlogpullplayerstat(expect string(responses["uid"]),"botchangingausersnameforcefully") != ""){
-				namedict.names[player] <-discordlogpullplayerstat(expect string(responses["uid"]),"botchangingausersnameforcefully")
-			}
-			if (discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "nessify" && (!GetConVarBool("fatal_script_errors") || !GetConVarBool("fatal_script_errors_server "))){
+		if ( discordlogpullplayerstat( expect string( responses[ "uid" ] ), "sanctiontype" ) == "ban" && serverdetails.enforcesanctions )
+		{
+			runcommandondiscord( "loganipofabannedplayer", { name = discordloggetplayername( player ), uid = responses[ "uid" ], ip = split( player.GetIPString(), ":]" )[ 2 ] } )
+			NSDisconnectPlayer(
+				player,
+				"You are banned, JOIN THE DISCORD IN SERVER DESC TO COMPLAIN. Expires: " + discordlogpullplayerstat( expect string( responses[ "uid" ] ), "expiry" ) + " Reason: " +
+					discordlogpullplayerstat( expect string( responses[ "uid" ] ), "reason" )
+			)
+		}
+		if ( discordlogpullplayerstat( expect string( responses[ "uid" ] ), "sanctiontype" ) == "mute" && serverdetails.enforcesanctions )
+		{
+			// NSDisconnectPlayer(player,"You are banned, JOIN THE DISCORD IN SERVER DESC TO COMPLAIN. Expires: "+discordlogpullplayerstat(expect string(responses["uid"]),"expiry")+" Reason: "+
+			// discordlogpullplayerstat(expect string(responses["uid"]),"reason"))
+			// NSSetVoiceCommsBanned(player,true)
+		}
+		if ( discordlogpullplayerstat( expect string( responses[ "uid" ] ), "botchangingausersnameforcefully" ) != "" )
+		{
+			namedict.names[ player ] <- discordlogpullplayerstat( expect string( responses[ "uid" ] ), "botchangingausersnameforcefully" )
+		}
+		if ( discordlogpullplayerstat( expect string( responses[ "uid" ] ), "sanctiontype" ) == "nessify" && ( !GetConVarBool( "fatal_script_errors" ) || !GetConVarBool( "fatal_script_errors_server " ) ) )
+		{
 
-				thread nessifyplayer(player)
-			}
-			// discordlogsendmessage("ww "+discordlogpullplayerstat(expect string(responses["uid"]),"nameoverride"))
-			if (discordlogpullplayerstat(expect string(responses["uid"]),"nameoverride") != "" && discordlogpullplayerstat(expect string(responses["uid"]),"overridename") != "False"){
-				#if BP_ORT
-					DisguiseName(player,discordlogpullplayerstat(expect string(responses["uid"]),"nameoverride"))
-				#endif
-			}
-			
-    }
+			thread nessifyplayer( player )
+		}
+		// discordlogsendmessage("ww "+discordlogpullplayerstat(expect string(responses["uid"]),"nameoverride"))
+		if ( discordlogpullplayerstat( expect string( responses[ "uid" ] ), "nameoverride" ) != "" && discordlogpullplayerstat( expect string( responses[ "uid" ] ), "overridename" ) != "False" )
+		{
+			#if BP_ORT
+				DisguiseName( player, discordlogpullplayerstat( expect string( responses[ "uid" ] ), "nameoverride" ) )
+			#endif
+		}
+	}
 
-    void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
-    {
+	void functionref( HttpRequestFailure ) onFailure = void function( HttpRequestFailure failure )
+	{
 		// table errortable
 		// errortable.blockmessages <- true
 		blockedplayers.hasfailedandneedstorequestagain = true
-    }
+	}
 
 	// print(EncodeJSON(params))
 
-    NSHttpRequest(request, onSuccess, onFailure)
-
+	NSHttpRequest( request, onSuccess, onFailure )
 }
-void function discordlogpostmessages(outgoingmessage message){
-	thread Postmessages(message)
+void function discordlogpostmessages( outgoingmessage message )
+{
+	thread Postmessages( message )
 }
 
-void function Postmessages(outgoingmessage message){
+void function Postmessages( outgoingmessage message )
+{
 	// print(serverdetails.Servername)
 	table params = {}
-	params["password"] <- serverdetails.password
-	params["servername"] <- serverdetails.Servername
-	params["messagecontent"] <- message.message
-	params["timestamp"] <- message.timestamp
-	params["type"] <- message.typeofmsg //yr
-	params["serverid"] <- serverdetails.serverid
-	params["metadata"] <- message.metadata
-	params["overridechannel"] <- message.overridechannel
-	if (message.playername != ""){
-	params["player"] <- message.playername}
-	params["globalmessage"] <- message.globalmessage
+	params[ "password" ] <- serverdetails.password
+	params[ "servername" ] <- serverdetails.Servername
+	params[ "messagecontent" ] <- message.message
+	params[ "timestamp" ] <- message.timestamp
+	params[ "type" ] <-
+		message
+			.typeofmsg // yr
+	params[ "serverid" ] <- serverdetails.serverid
+	params[ "metadata" ] <- message.metadata
+	params[ "overridechannel" ] <- message.overridechannel
+	if ( message.playername != "" )
+	{
+		params[ "player" ] <- message.playername
+	}
+	params[ "globalmessage" ] <- message.globalmessage
 	HttpRequest request
 	request.method = HttpRequestMethod.POST
 	request.url = serverdetails.Requestpath + "/servermessagein"
-	request.body = EncodeJSON(params)
+	request.body = EncodeJSON( params )
 	// print(request.body)
 	// print(serverdetails.Requestpath + "/servermessagein")
 
-	void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse response )
-    {
+	void functionref( HttpRequestResponse ) onSuccess = void function( HttpRequestResponse response )
+	{
 		// print("[DiscordLogger] MSG SENT")
-						if (response.statusCode
-		!= 200)
+		if ( response.statusCode != 200 )
 		{
-			print("[DiscordLogger] Error: "+response.statusCode)
+			print( "[DiscordLogger] Error: " + response.statusCode )
 			// print("[DiscordLogger] "+serverdetails.Requestpath + "/askformessage")
 			return
 		}
 		blockedplayers.hasfailedandneedstorequestagain = false
-		table responses = DecodeJSON(response.body)
-		if ("messageteam" in responses) {
-			int teamtype = expect int(responses["messageteam"])
-		
-			if ("forceblock" in responses) {
-				if (expect string(responses["uid"])  in blockedplayers.players)
+		table responses = DecodeJSON( response.body )
+		if ( "messageteam" in responses )
+		{
+			int teamtype = expect int( responses[ "messageteam" ] )
+
+			if ( "forceblock" in responses )
+			{
+				if ( expect string( responses[ "uid" ] ) in blockedplayers.players )
 				{
-						blockedplayers.players[expect string(responses["uid"])].shouldblockmessages <- expect bool(responses["forceblock"])
-				
-				}else{
-							table actualoutput
-						actualoutput.shouldblockmessages <- false
-						blockedplayers.players[expect string(responses["uid"])] <- actualoutput
+					blockedplayers.players[ expect string( responses[ "uid" ] ) ].shouldblockmessages <- expect bool( responses[ "forceblock" ] )
 				}
-				
+				else
+				{
+					table actualoutput
+					actualoutput.shouldblockmessages <- false
+					blockedplayers.players[ expect string( responses[ "uid" ] ) ] <- actualoutput
+				}
 			}
-		if ("friendly" in responses) {
-				discordlogsendmessage(expect string(responses["friendly"]),teamtype)	
-         }
-		 if ("enemy" in responses) {
-				discordlogsendmessage(expect string(responses["enemy"]),(teamtype - 3)*-1+2)	
-		 }
-		 if ("both" in responses){
-			discordlogsendmessage(expect string(responses["both"]),4)
-		 }
-    }}
-
-    void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure ) : (message)
-    {
-		if (!("uid" in message.metadata && serverdetails.uselocaltags && discordlogpullplayerstat(string(message.metadata["uid"]),"nameprefix") != "")){
-        print("[DiscordLogger]Failed to log chat message"  + failure.errorMessage)
-		blockedplayers.hasfailedandneedstorequestagain = true
+			if ( "friendly" in responses )
+			{
+				discordlogsendmessage( expect string( responses[ "friendly" ] ), teamtype )
+			}
+			if ( "enemy" in responses )
+			{
+				discordlogsendmessage( expect string( responses[ "enemy" ] ), ( teamtype - 3 ) * -1 + 2 )
+			}
+			if ( "both" in responses )
+			{
+				discordlogsendmessage( expect string( responses[ "both" ] ), 4 )
+			}
 		}
+	}
 
-    }
+	void functionref( HttpRequestFailure ) onFailure = void function( HttpRequestFailure failure ) : ( message )
+	{
+		if ( !( "uid" in message.metadata && serverdetails.uselocaltags && discordlogpullplayerstat( string( message.metadata[ "uid" ] ), "nameprefix" ) != "" ) )
+		{
+			print( "[DiscordLogger]Failed to log chat message" + failure.errorMessage )
+			blockedplayers.hasfailedandneedstorequestagain = true
+		}
+	}
 
 	// print(EncodeJSON(params))
 
-    NSHttpRequest(request, onSuccess, onFailure)
-
-
+	NSHttpRequest( request, onSuccess, onFailure )
 }
 // Chat_ServerBroadcast
 
@@ -812,25 +923,29 @@ int eCount = 0
 int shouldsend = 1
 int breakercounter = 0
 
-void function Onmapchange(){
-	
-	if (serverdetails.hasmapchanged){
+void function Onmapchange()
+{
+
+	if ( serverdetails.hasmapchanged )
+	{
 		return
 	}
-		if (check.denylogging != 1){
-	thread DiscordClientMessageinloop()}
+	if ( check.denylogging != 1 )
+	{
+		thread DiscordClientMessageinloop()
+	}
 	serverdetails.hasmapchanged = true
 	outgoingmessage newmessage
 	// string LocalizedMapName = Localize( "#STATS_NOT_APPLICABLE" )
 	newmessage.playername = ""
-	if( GetMapName() in MAP_NAME_TABLE )
-	newmessage.message = "Map changed to " + MAP_NAME_TABLE[GetMapName()]
-        else
-	newmessage.message = "Map changed to " + GetMapName()
+	if ( GetMapName() in MAP_NAME_TABLE )
+		newmessage.message = "Map changed to " + MAP_NAME_TABLE[ GetMapName() ]
+	else
+		newmessage.message = "Map changed to " + GetMapName()
 	// print(newmessage.message)
 	newmessage.timestamp = GetUnixTimestamp()
 	newmessage.typeofmsg = 2
-	thread Postmessages(newmessage)
+	thread Postmessages( newmessage )
 }
 
 // struct commandchecker {
@@ -838,12 +953,14 @@ void function Onmapchange(){
 // 	string returntext
 // }
 
-
-void function begintodiscord(){
-  check.allowlogging = 1
+void function begintodiscord()
+{
+	check.allowlogging = 1
 }
-void function stoprequests(){
-	if (serverdetails.iveaskedtostoprequests){
+void function stoprequests()
+{
+	if ( serverdetails.iveaskedtostoprequests )
+	{
 		return
 	}
 	serverdetails.iveaskedtostoprequests = true
@@ -859,37 +976,39 @@ void function stoprequests(){
 	// }
 	// SetConVarString("discordlogpreviousroundplayers",uids)
 	table otherparams = {}
-
-	otherparams["matchid"] <- serverdetails.matchid
-	params["paramaters"] <- EncodeJSON(otherparams)
-	params["command"] <- "endofroundstats"
-	params["password"] <- serverdetails.password
-	params["serverid"] <- serverdetails.serverid
-	if (GetConVarInt("disablestoprequests") == 1){
-		params["dontdisablethings"] <- true
+	otherparams[ "matchid" ] <- serverdetails.matchid
+	params[ "paramaters" ] <- EncodeJSON( otherparams )
+	params[ "command" ] <- "endofroundstats"
+	params[ "password" ] <- serverdetails.password
+	params[ "serverid" ] <- serverdetails.serverid
+	if ( GetConVarInt( "disablestoprequests" ) == 1 )
+	{
+		params[ "dontdisablethings" ] <- true
 	}
-	else{
+	else
+	{
 		check.denylogging = 1
 	}
 	HttpRequest request
 	request.method = HttpRequestMethod.POST
 	request.url = serverdetails.Requestpath + "/stoprequests"
-	request.body = EncodeJSON(params)
-	void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse response )
+	request.body = EncodeJSON( params )
+	void functionref( HttpRequestResponse ) onSuccess = void function( HttpRequestResponse response )
 	{
-		print("[DiscordLogger]Requests stopped")
+		print( "[DiscordLogger]Requests stopped" )
 	}
 
-	void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
+	void functionref( HttpRequestFailure ) onFailure = void function( HttpRequestFailure failure )
 	{
-		print("[DiscordLogger]Failed to stop requests"  + failure.errorMessage)
+		print( "[DiscordLogger]Failed to stop requests" + failure.errorMessage )
 	}
 
-	NSHttpRequest(request, onSuccess, onFailure)
+	NSHttpRequest( request, onSuccess, onFailure )
 }
 
-void function discordlogsendmessage(string message, int team = 4,array<string> ovverideuids = []){
-	thread discordlogsendmessagemakesureissent(message,team,ovverideuids)
+void function discordlogsendmessage( string message, int team = 4, array<string> ovverideuids = [] )
+{
+	thread discordlogsendmessagemakesureissent( message, team, ovverideuids )
 	// int trys = 0
 	// array <entity> players = GetPlayerArray()
 	// array <entity> playersdone
@@ -901,7 +1020,6 @@ void function discordlogsendmessage(string message, int team = 4,array<string> o
 	// 			playersdone.append(player)
 	// 			// playersnotdone.remove(playersnotdone.find(player))
 	// 		}
-
 	// 	}
 	// 	wait 0.5
 	// 	trys++
@@ -909,144 +1027,160 @@ void function discordlogsendmessage(string message, int team = 4,array<string> o
 	// for (int i = 0; i < playersnotdone.len(); i++){
 	// 	Chat_ServerPrivateMessage(playersnotdone[i],message,false,false)
 	// }
-
 }
-void function discordlogsendmessagemakesureissent(string message, int team = 4, array<string> ovverideuids = []){
-	array <entity> players = GetPlayerArray()
-	if (ovverideuids.len() > 0){
+void function discordlogsendmessagemakesureissent( string message, int team = 4, array<string> ovverideuids = [] )
+{
+	array<entity> players = GetPlayerArray()
+	if ( ovverideuids.len() > 0 )
+	{
 		players = []
-		foreach (entity player in GetPlayerArray() ){
-		if (ovverideuids.contains(player.GetUID())) {
-		players.append(player)
-		}
-		
-		}
-	}
-	array <entity> shouldsend = []
-	foreach (entity player in players){
-		if (player.GetTeam() == team || team == 4){
-			shouldsend.append(player)
+		foreach ( entity player in GetPlayerArray() )
+		{
+			if ( ovverideuids.contains( player.GetUID() ) )
+			{
+				players.append( player )
+			}
 		}
 	}
-	array <entity> sentplayers = []
-	while (sentplayers.len() != shouldsend.len()){
-		for (int i = 0; i < shouldsend.len() ; i++){
+	array<entity> shouldsend = []
+	foreach ( entity player in players )
+	{
+		if ( player.GetTeam() == team || team == 4 )
+		{
+			shouldsend.append( player )
+		}
+	}
+	array<entity> sentplayers = []
+	while ( sentplayers.len() != shouldsend.len() )
+	{
+		for ( int i = 0; i < shouldsend.len(); i++ )
+		{
 			// Chat_ServerPrivateMessage(shouldsend[i],"e "+message,false,false)
-			if (!IsValid(shouldsend[i]) ){
-				sentplayers.append(shouldsend[i])
+			if ( !IsValid( shouldsend[ i ] ) )
+			{
+				sentplayers.append( shouldsend[ i ] )
 			}
-			else if (!(sentplayers.contains(shouldsend[i])) && (!(shouldsend[i].GetUID() +"" in playerrespawn) ||  Time() > playerrespawn[shouldsend[i].GetUID() +""]) ) {
-				
-				sentplayers.append(shouldsend[i])
+			else if ( !( sentplayers.contains( shouldsend[ i ] ) ) && ( !( shouldsend[ i ].GetUID() + "" in playerrespawn ) || Time() > playerrespawn[ shouldsend[ i ].GetUID() + "" ] ) )
+			{
+				sentplayers.append( shouldsend[ i ] )
 				// printt("eee"+discordloggetplayername(shouldsend[i]))
-				Chat_ServerPrivateMessage(shouldsend[i],message,false,false)
+				Chat_ServerPrivateMessage( shouldsend[ i ], message, false, false )
 				// Chat_PrivateMessage(shouldsend[i],shouldsend[i], "PRIVATE MESSAGE"+message,false)
-				// discordlogextmessage("TRYING TO SEND "+message+" TO "+shouldsend[i].GetPlayerName() + Time() + " "+  playerrespawn[shouldsend[i].GetUID() +""] + IsAlive(shouldsend[i]) +  (Time() > playerrespawn[shouldsend[i].GetUID() +""]) )
+				// discordlogextmessage("TRYING TO SEND "+message+" TO "+shouldsend[i].GetPlayerName() + Time() + " "+  playerrespawn[shouldsend[i].GetUID() +""] + IsAlive(shouldsend[i]) +  (Time() >
+				// playerrespawn[shouldsend[i].GetUID() +""]) )
 			}
-				
-
-			
 			// Chat_ServerBroadcast("alive" + IsAlive(shouldsend[i]) + "time" + Time() + "desiredtime" +shouldsend[i].GetPlayerName())
 		}
 		WaitFrame()
 	}
-
 }
-void function OnPlayerRespawned(entity player) {
-	thread waitisalive(player)
-	if (discordlogpullplayerstat(player.GetUID(),"sanctiontype") == "nessify" && (!GetConVarBool("fatal_script_errors") || !GetConVarBool("fatal_script_errors_server "))){
+void function OnPlayerRespawned( entity player )
+{
+	thread waitisalive( player )
+	if ( discordlogpullplayerstat( player.GetUID(), "sanctiontype" ) == "nessify" && ( !GetConVarBool( "fatal_script_errors" ) || !GetConVarBool( "fatal_script_errors_server " ) ) )
+	{
 
-		thread nessifyplayer(player)
+		thread nessifyplayer( player )
 	}
 }
 
-void function nessifyplayer(entity player,bool saywords = true){
+void function nessifyplayer( entity player, bool saywords = true )
+{
 	// player.MakeInvisible()
 	// wait 5
 	// player.SetModel($"models/dev/empty_physics.mdl")
 	// discordlogsendmessage(discordloggetplayername(player)+"qdq")
-	if (!(player.GetMainWeapons().len())){
+	if ( !( player.GetMainWeapons().len() ) )
+	{
 		return
 	}
-	if (saywords){
+	if ( saywords )
+	{
 
-	discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m you are nessified and cannot attack. Expires: [38;5;203m"+discordlogpullplayerstat(player.GetUID(),"expiry"),4,[player.GetUID()])
-	discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Reason: [38;5;203m"+discordlogpullplayerstat(player.GetUID(),"reason"),4,[player.GetUID()])
-	discordlogsendmessage("[38;2;135;135;254m[Discord][38;5;254m Join the discord at [38;5;219m!discord[110m to complain",4,[player.GetUID()])}
+		discordlogsendmessage(
+			"[38;2;135;135;254m[Discord][38;5;254m you are nessified and cannot attack. Expires: [38;5;203m" + discordlogpullplayerstat( player.GetUID(), "expiry" ),
+			4,
+			[ player.GetUID() ]
+		)
+		discordlogsendmessage( "[38;2;135;135;254m[Discord][38;5;254m Reason: [38;5;203m" + discordlogpullplayerstat( player.GetUID(), "reason" ), 4, [ player.GetUID() ] )
+		discordlogsendmessage( "[38;2;135;135;254m[Discord][38;5;254m Join the discord at [38;5;219m!discord[110m to complain", 4, [ player.GetUID() ] )
+	}
 	array<entity> proparray = []
 	// array<asset> propslist = getallmodels()
-	if (!player.IsTitan()){
-	player.SetModel($"models/robots/marvin/marvin.mdl")
-	player.kv.modelscale = 0.1
-	for (int i = 0; i <50; i++) { 
-		entity Prop = CreateEntity( "prop_dynamic" )
-		Prop.SetValueForModelKey([$"models/domestic/nessy_doll.mdl"].getrandom())
-		Prop.SetOrigin( player.GetOrigin())
-		Prop.SetAngles( <player.GetAngles().x ,player.GetAngles().y+90,player.GetAngles().z>)
-		
-		Prop.kv.solid = 0
-		Prop.kv.rendercolor = "1 254 254"
-		// entity mover = CreateScriptMover( player.GetOrigin(), player.GetAngles() )
+	if ( !player.IsTitan() )
+	{
+		player.SetModel( $"models/robots/marvin/marvin.mdl" )
+		player.kv.modelscale = 0.1
+		for ( int i = 0; i < 50; i++ )
+		{
+			entity Prop = CreateEntity( "prop_dynamic" )
+			Prop.SetValueForModelKey( [ $"models/domestic/nessy_doll.mdl" ].getrandom() )
+			Prop.SetOrigin( player.GetOrigin() )
+			Prop.SetAngles( < player.GetAngles().x, player.GetAngles().y + 90, player.GetAngles().z > )
+			Prop.kv.solid = 0
+			Prop.kv.rendercolor = "1 254 254"
+			// entity mover = CreateScriptMover( player.GetOrigin(), player.GetAngles() )
 
-		DispatchSpawn( Prop )
-		Prop.SetParent( player,"REF")
-		float radius = 10;
-		float PI = 3.14159265;
+			DispatchSpawn( Prop )
+			Prop.SetParent( player, "REF" )
+			float radius = 10
+			float PI = 3.14159265
 
-		float theta = RandomFloatRange(0, 2 * PI);
-		float phi   = RandomFloatRange(0, PI);
+			float theta = RandomFloatRange( 0, 2 * PI )
+			float phi = RandomFloatRange( 0, PI )
 
-		float x = radius * sin(phi) * cos(theta);
-		float y = radius * sin(phi) * sin(theta);
-		float z = radius * cos(phi);
+			float x = radius * sin( phi ) * cos( theta )
+			float y = radius * sin( phi ) * sin( theta )
+			float z = radius * cos( phi )
 
-		vector thing = <x, y, z+10>;
+			vector thing = < x, y, z + 10 >
 
-				
+			vector thing2 = < RandomIntRange( -180, 180 ), RandomIntRange( -180, 180 ), RandomIntRange( -180, 180 ) >
+			Prop.SetAngles( < 0, thing.y - 90, thing.z > )
+			Prop.SetOrigin( thing )
 
-		vector thing2 = <RandomIntRange( -180, 180 ),RandomIntRange( -180, 180 ),RandomIntRange( -180, 180 )>
-		Prop.SetAngles(<0,thing.y-90,thing.z>)
-		Prop.SetOrigin(thing)
-
-		SetTeam( Prop, 1 )
-		proparray.append(Prop)
+			SetTeam( Prop, 1 )
+			proparray.append( Prop )
 		}
-
-
 	}
-	thread Fish (player)
-	player.WaitSignal("OnDeath")
+	thread Fish( player )
+	player.WaitSignal( "OnDeath" )
 	player.kv.modelscale = 1
-	foreach (entity prop in proparray) {
+	foreach ( entity prop in proparray )
+	{
 		prop.Destroy()
 	}
-
 }
-void function Fish(entity player)
+void function Fish( entity player )
 {
-    player.EndSignal("OnDeath")
-    while (IsAlive(player))
-    {  
-	if (!IsValid(player)){
-		wait 1
-		continue
+	player.EndSignal( "OnDeath" )
+	while ( IsAlive( player ) )
+	{
+		if ( !IsValid( player ) )
+		{
+			wait 1
+			continue
+		}
+		foreach ( entity weapon in player.GetMainWeapons() )
+		{
+			player.TakeWeaponNow( weapon.GetWeaponClassName() )
+		}
+		if ( IsValid( player.GetOffhandWeapon( OFFHAND_LEFT ) ) && player.GetOffhandWeapon( OFFHAND_LEFT ).GetWeaponClassName() == "mp_ability_holopilot" )
+		{
+			player.TakeWeaponNow( "mp_ability_holopilot" )
+		}
+		if ( player.IsTitan() )
+		{
+			player.Die()
+			break
+		}
+		//   discordlogsendmessage(player.GetMainWeapons().len()+"w")
+		wait 0.5
 	}
-      foreach(entity weapon in player.GetMainWeapons()){
-          player.TakeWeaponNow( weapon.GetWeaponClassName() )
-      }
-	  	if (IsValid(player.GetOffhandWeapon(OFFHAND_LEFT)) && player.GetOffhandWeapon(OFFHAND_LEFT).GetWeaponClassName() == "mp_ability_holopilot"){
-		player.TakeWeaponNow("mp_ability_holopilot")
-	}
-	  if (player.IsTitan()){
-		player.Die()
-		break
-	  }
-	//   discordlogsendmessage(player.GetMainWeapons().len()+"w")
-      wait 0.5
-    }
 }
-void function waitisalive(entity player) {
-	playerrespawn[player.GetUID()+""] <- Time() + 2
+void function waitisalive( entity player )
+{
+	playerrespawn[ player.GetUID() + "" ] <- Time() + 2
 }
 void function DiscordClientMessageinloop()
 {
@@ -1054,158 +1188,161 @@ void function DiscordClientMessageinloop()
 	// check.commandcheck = []
 	// check.postmatch = 999999
 
-	while (true) {
+	while ( true )
+	{
 		// print("gamestate "+GetGameState())
-		if (shouldsend == 0){
+		if ( shouldsend == 0 )
+		{
 			wait 1
 			breakercounter++
-			if (breakercounter > 50){
+			if ( breakercounter > 50 )
+			{
 				shouldsend = 1
 				breakercounter = 0
 				// print("breaking")
 			}
-			else {
+			else
+			{
 				continue
 			}
 		}
-	// if (check.postmatch == 1){
-	// 	wait 1
-	// 	continue
-	// }
-	// wait 1
-	breakercounter = 0
-	// print(GetPlayerArray().len())
-	if(eCount==3 || GetPlayerArray().len() == 222220) //set to 0 to not relay if no people are on
-	{
-		wait 2
-		eCount = 0
-
-	}
-
-	table params = {}
-	params["password"] <- serverdetails.password
-	// params["blockerror"] <- blockedplayers.hasfailedandneedstorequestagain
-
-	params["serverid"] <- serverdetails.serverid
-	// array<string>params["texts"] <- check.textcheck
-	if (check.commandcheck.len() > 0){
-	params["commands"] <- check.commandcheck}
-	foreach (text in check.textcheck) {
-		// print(text)
-    	params[text] <- text
-	}
-	if (check.timeof != "0"){
-		params["time"] <- check.timeof
-	}
-	// foreach (key,value in check.commandcheck){
-	// 	string commandid = expect string(key)
-	// 	string returntext = expect string(value)
-	// 	params[commandid] <- returntext
-	// }
-
-    HttpRequest request
-    request.method = HttpRequestMethod.POST
-    request.url = serverdetails.Requestpath + "/askformessage"
-	request.body = EncodeJSON(params)
-
-	int timeout = 60
-	if (check.denylogging == 1){
-		print("HERE AND STOPPING LOGGING")
-		break
-	}
-	if (check.allowlogging == 0) {
-		wait 1
-		continue
-	}
-
-	// else if (check.allowlogging == 1 && GameTime_TimeLeftSeconds() < 60){
-	// 	// if (GameTime_TimeLeftSeconds()> check.postmatch || GameTime_TimeLeftSeconds() == 0){
-	// 	// 	wait 1
-	// 	// 	continue
-	// 	// }
-	// 	// print(GameTime_TimeLeftSeconds())
-	// 	// timeout = GameTime_TimeLeftSeconds()
-	// 	check.postmatch = GameTime_TimeLeftSeconds()
-	// }
-	// else {
-	// 	check.postmatch = 999999
-	// }
-	// if(GetScoreLimit_FromPlaylist()-50 <GameRules_GetTeamScore(TEAM_MILITIA) || GetScoreLimit_FromPlaylist()*0.95 <GameRulfes_GetTeamScore(TEAM_IMC) || GameTime_TimeLeftSeconds() < 60)
-
-	request.timeout = timeout
-
-	// print("[DiscordLogger] Sending req:")
-    void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse messages )
-    {
-
-		eCount = 0;
-		// print("recieved")
-		shouldsend = 1
-		// print("[DiscordLogger] MSG RECIEVED")
-		if (messages.statusCode
-		!= 200)
+		// if (check.postmatch == 1){
+		// 	wait 1
+		// 	continue
+		// }
+		// wait 1
+		breakercounter = 0
+		// print(GetPlayerArray().len())
+		if ( eCount == 3 || GetPlayerArray().len() == 222220 ) // set to 0 to not relay if no people are on
 		{
-			print("[DiscordLogger] Error: "+messages.statusCode)
-			// print("[DiscordLogger] "+serverdetails.Requestpath + "/askformessage")
-			eCount++;
-			return
+			wait 2
+			eCount = 0
 		}
 
-		check.textcheck = []
-		check.commandcheck = {}
-		// print(messages.body)
-		table messagess = DecodeJSON(messages.body)
-		table commands = expect table(messagess["commands"])
-		// string texts = expect string(messagess["texts"])
-		check.timeof = expect string(messagess["time"])
-		// table texts = expect table(messagess["texts"])
-		table textsv2 = expect table(messagess["textsv2"])
-		table textsv3 = expect table(messagess["textsv3"])
-		// string textvalidation = expect string(messagess["textvalidation"])
-		// array<string> splittextvalidation = split(textvalidation,"%&%&")
-		// array<string> splittexts = split(texts,"%&%&")
-		// array<string> splitcommands = split(commands,"⌨")
-		// print(texts.len())
-		foreach (value,key in commands){
-			string command = expect string(key)
-			string validation = expect string(value)
-		
+		table params = {}
+		params[ "password" ] <- serverdetails.password
+		// params["blockerror"] <- blockedplayers.hasfailedandneedstorequestagain
 
-			// print("[DiscordLogger] COMMAND "+command)
-			if (command[0] == 47 || command[0] == 33){
-						runcommand(command, validation)
-			}
-			else{
-
-			ServerCommand(command)
-			check.commandcheck[validation] <- EncodeJSON({statuscode=-2,output=command+": successfully ran console command"})
-
-	
-			
-			// table output = {commandid="validation",returntext=command+": command not found"}
-
-
-		}}
-		// else if (commands.len() > 0){
-		// 	print("[DiscordLogger] RCON is not enabled, but commands were sent")
+		params[ "serverid" ] <- serverdetails.serverid
+		// array<string>params["texts"] <- check.textcheck
+		if ( check.commandcheck.len() > 0 )
+		{
+			params[ "commands" ] <- check.commandcheck
+		}
+		foreach ( text in check.textcheck )
+		{
+			// print(text)
+			params[ text ] <- text
+		}
+		if ( check.timeof != "0" )
+		{
+			params[ "time" ] <- check.timeof
+		}
+		// foreach (key,value in check.commandcheck){
+		// 	string commandid = expect string(key)
+		// 	string returntext = expect string(value)
+		// 	params[commandid] <- returntext
 		// }
-		// array<string> splitsenders = split(senders,"%&%#[")
-		// if(splittexts.len()!=splittextvalidation.len())
-		// {
-		// 	return
-		// }
-		// foreach (value, key in texts){
-		// 	string validation = expect string(value)
-		// 	string text = expect string(key)
-		// 	print("[DiscordLogger] MESSAGE "+text)
-		// 	check.textcheck.append(validation)
-		// 	thread discordlogsendmessage(text)
-		// 	// foreach (entity player in GetPlayerArray()) {
-		// 	// 	Chat_PrivateMessage(player,player,"\x1b[38;5;105m"+text,false)
+
+		HttpRequest request
+		request.method = HttpRequestMethod.POST
+		request.url = serverdetails.Requestpath + "/askformessage"
+		request.body = EncodeJSON( params )
+
+		int timeout = 60
+		if ( check.denylogging == 1 )
+		{
+			print( "HERE AND STOPPING LOGGING" )
+			break
+		}
+		if ( check.allowlogging == 0 )
+		{
+			wait 1
+			continue
+		}
+
+		// else if (check.allowlogging == 1 && GameTime_TimeLeftSeconds() < 60){
+		// 	// if (GameTime_TimeLeftSeconds()> check.postmatch || GameTime_TimeLeftSeconds() == 0){
+		// 	// 	wait 1
+		// 	// 	continue
 		// 	// }
-
+		// 	// print(GameTime_TimeLeftSeconds())
+		// 	// timeout = GameTime_TimeLeftSeconds()
+		// 	check.postmatch = GameTime_TimeLeftSeconds()
 		// }
-			
+		// else {
+		// 	check.postmatch = 999999
+		// }
+		// if(GetScoreLimit_FromPlaylist()-50 <GameRules_GetTeamScore(TEAM_MILITIA) || GetScoreLimit_FromPlaylist()*0.95 <GameRulfes_GetTeamScore(TEAM_IMC) || GameTime_TimeLeftSeconds() < 60)
+
+		request.timeout = timeout
+
+		// print("[DiscordLogger] Sending req:")
+		void functionref( HttpRequestResponse ) onSuccess = void function( HttpRequestResponse messages )
+		{
+			eCount = 0
+			// print("recieved")
+			shouldsend = 1
+			// print("[DiscordLogger] MSG RECIEVED")
+			if ( messages.statusCode != 200 )
+			{
+				print( "[DiscordLogger] Error: " + messages.statusCode )
+				// print("[DiscordLogger] "+serverdetails.Requestpath + "/askformessage")
+				eCount++
+				return
+			}
+			check.textcheck = []
+			check.commandcheck = {}
+			// print(messages.body)
+			table messagess = DecodeJSON( messages.body )
+			table commands = expect table( messagess[ "commands" ] )
+			// string texts = expect string(messagess["texts"])
+			check.timeof = expect string( messagess[ "time" ] )
+			// table texts = expect table(messagess["texts"])
+			table textsv2 = expect table( messagess[ "textsv2" ] )
+			table textsv3 = expect table( messagess[ "textsv3" ] )
+			// string textvalidation = expect string(messagess["textvalidation"])
+			// array<string> splittextvalidation = split(textvalidation,"%&%&")
+			// array<string> splittexts = split(texts,"%&%&")
+			// array<string> splitcommands = split(commands,"⌨")
+			// print(texts.len())
+			foreach ( value, key in commands )
+			{
+				string command = expect string( key )
+				string validation = expect string( value )
+
+				// print("[DiscordLogger] COMMAND "+command)
+				if ( command[ 0 ] == 47 || command[ 0 ] == 33 )
+				{
+					runcommand( command, validation )
+				}
+				else
+				{
+
+					ServerCommand( command )
+					check.commandcheck[ validation ] <- EncodeJSON( { statuscode = -2, output = command + ": successfully ran console command" } )
+					// table output = {commandid="validation",returntext=command+": command not found"}
+				}
+			}
+			// else if (commands.len() > 0){
+			// 	print("[DiscordLogger] RCON is not enabled, but commands were sent")
+			// }
+			// array<string> splitsenders = split(senders,"%&%#[")
+			// if(splittexts.len()!=splittextvalidation.len())
+			// {
+			// 	return
+			// }
+			// foreach (value, key in texts){
+			// 	string validation = expect string(value)
+			// 	string text = expect string(key)
+			// 	print("[DiscordLogger] MESSAGE "+text)
+			// 	check.textcheck.append(validation)
+			// 	thread discordlogsendmessage(text)
+			// 	// foreach (entity player in GetPlayerArray()) {
+			// 	// 	Chat_PrivateMessage(player,player,"\x1b[38;5;105m"+text,false)
+			// 	// }
+
+			// }
 
 			// // rn textsv2 is
 			// {
@@ -1222,289 +1359,300 @@ void function DiscordClientMessageinloop()
 			// 	e:nexttext
 			// }
 			// PrintTable(textsv3)
-			foreach (v3message in orderedrecursiveunpack(textsv3,[])){
-				printt("SENDING "+v3message.content)
-				check.textcheck.append(v3message.validation)
-				thread discordlogsendmessage(v3message.content,v3message.teamoverride,v3message.uidoverride)
+			foreach ( v3message in orderedrecursiveunpack( textsv3, [] ) )
+			{
+				printt( "SENDING " + v3message.content )
+				check.textcheck.append( v3message.validation )
+				thread discordlogsendmessage( v3message.content, v3message.teamoverride, v3message.uidoverride )
 			}
-		// 		foreach (key, value in textsv2){
-		// 	table textw = expect table(value)
-		// 	string text = expect string(textw["content"])
-		// 	int teamoverride = expect int(textw["teamoverride"])
-		// 	string validation = expect string(textw["validation"])
-		// 	string ovverrideuids = expect string(textw["uidoverride"])
-		// 	array<string> uidoverride =  split(ovverrideuids,",")
-		// 	print("[DiscordLogger] MESSAGE "+text)
-		// 	check.textcheck.append(validation)
-		// 	thread discordlogsendmessage(text,teamoverride,uidoverride)
-		// 	// foreach (entity player in GetPlayerArray()) {
-		// 	// 	Chat_PrivateMessage(player,player,"\x1b[38;5;105m"+text,false)
-		// 	// }
-
-		// }
-		
-
-	}
-
-    void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
-    {
-		shouldsend = 1
-		if (failure.errorCode == 28){
-			print("[DiscordLogger] Timeout")
-			return
+			// 		foreach (key, value in textsv2){
+			// 	table textw = expect table(value)
+			// 	string text = expect string(textw["content"])
+			// 	int teamoverride = expect int(textw["teamoverride"])
+			// 	string validation = expect string(textw["validation"])
+			// 	string ovverrideuids = expect string(textw["uidoverride"])
+			// 	array<string> uidoverride =  split(ovverrideuids,",")
+			// 	print("[DiscordLogger] MESSAGE "+text)
+			// 	check.textcheck.append(validation)
+			// 	thread discordlogsendmessage(text,teamoverride,uidoverride)
+			// 	// foreach (entity player in GetPlayerArray()) {
+			// 	// 	Chat_PrivateMessage(player,player,"\x1b[38;5;105m"+text,false)
+			// 	// }
+			// }
 		}
-		print("[DiscordLogger] ECode: "+failure.errorCode)
-		print("[DiscordLogger] EMSG: "+failure.errorMessage)
 
-		eCount++;
-
-    }
-	if (shouldsend == 1){
-
-		// print("sending")
-		shouldsend = 0
-		// print(timeleft())
-
-		// if (check.allowlogging == 1) {
-		// 	print("sending"+timeout+" "+GameTime_TimeLeftSeconds())
-		// }else{
-		// print("sending"+timeout)}
-		// wait 15
-		NSHttpRequest( request, onSuccess, onFailure )}
-}
-}
-
-array<discordtotf2message> function orderedrecursiveunpack(table textsv3, array<discordtotf2message> output = [] ){
-				if (!textsv3.len()) {
-				return []
-				}
-				discordtotf2message thing
-				thing.content = expect string(textsv3["content"])
-				thing.teamoverride = expect int(textsv3["teamoverride"])
-				thing.validation = expect string(textsv3["validation"])
-				thing.uidoverride = split(expect string(textsv3["uidoverride"]),",")
-				output.append(thing)
-				if ("nextmessage" in textsv3 && textsv3["nextmessage"] ){
-				    return orderedrecursiveunpack(expect table(textsv3["nextmessage"]),output)
-				}
-				return output
+		void functionref( HttpRequestFailure ) onFailure = void function( HttpRequestFailure failure )
+		{
+			shouldsend = 1
+			if ( failure.errorCode == 28 )
+			{
+				print( "[DiscordLogger] Timeout" )
+				return
 			}
+			print( "[DiscordLogger] ECode: " + failure.errorCode )
+			print( "[DiscordLogger] EMSG: " + failure.errorMessage )
 
-void function runcommandondiscord(string commandname, table paramaters = {}){
-	thread runcommandondiscordreal(commandname,paramaters)
+			eCount++
+		}
+		if ( shouldsend == 1 )
+		{
+
+			// print("sending")
+			shouldsend = 0
+			// print(timeleft())
+
+			// if (check.allowlogging == 1) {
+			// 	print("sending"+timeout+" "+GameTime_TimeLeftSeconds())
+			// }else{
+			// print("sending"+timeout)}
+			// wait 15
+			NSHttpRequest( request, onSuccess, onFailure )
+		}
+	}
 }
 
-void function runcommandondiscordreal(string commandname, table paramaters){
+array<discordtotf2message> function orderedrecursiveunpack( table textsv3, array<discordtotf2message> output = [] )
+{
+	if ( !textsv3.len() )
+	{
+		return []
+	}
+	discordtotf2message thing
+	thing.content = expect string( textsv3[ "content" ] )
+	thing.teamoverride = expect int( textsv3[ "teamoverride" ] )
+	thing.validation = expect string( textsv3[ "validation" ] )
+	thing.uidoverride = split( expect string( textsv3[ "uidoverride" ] ), "," )
+	output.append( thing )
+	if ( "nextmessage" in textsv3 && textsv3[ "nextmessage" ] )
+	{
+		return orderedrecursiveunpack( expect table( textsv3[ "nextmessage" ] ), output )
+	}
+	return output
+}
+
+void function runcommandondiscord( string commandname, table paramaters = {} )
+{
+	thread runcommandondiscordreal( commandname, paramaters )
+}
+
+void function runcommandondiscordreal( string commandname, table paramaters )
+{
 	table params = {}
-		params["password"] <- serverdetails.password
-		params["serverid"] <- serverdetails.serverid
-		params["command"] <- commandname
-		params["paramaters"] <- EncodeJSON(paramaters)
-	
-    HttpRequest request
-    request.method = HttpRequestMethod.POST
-    request.url = serverdetails.Requestpath + "/runcommand"
-	request.body = EncodeJSON(params)
-// 	    void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse messages )
-// {}
-//     void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
-// 	{}
-	NSHttpRequest( request)
+	params[ "password" ] <- serverdetails.password
+	params[ "serverid" ] <- serverdetails.serverid
+	params[ "command" ] <- commandname
+	params[ "paramaters" ] <- EncodeJSON( paramaters )
+
+	HttpRequest request
+	request.method = HttpRequestMethod.POST
+	request.url = serverdetails.Requestpath + "/runcommand"
+	request.body = EncodeJSON( params )
+	// 	    void functionref( HttpRequestResponse ) onSuccess = void function ( HttpRequestResponse messages )
+	// {}
+	//     void functionref( HttpRequestFailure ) onFailure = void function ( HttpRequestFailure failure )
+	// 	{}
+	NSHttpRequest( request )
 }
-void function runcommand(string command,string validation) {
+void function runcommand( string command, string validation )
+{
 	// printt("WIQMIWQ command "+command)
-	check.commandcheck[validation] <- EncodeJSON({statuscode=-3,output=command+": Special command not found"})
+	check.commandcheck[ validation ] <- EncodeJSON( { statuscode = -3, output = command + ": Special command not found" } )
 	discordlogcommand commandstruct
 	commandstruct.matchid = serverdetails.matchid
 	commandstruct.returnmessage = "Nothing returned by command"
-	commandstruct.command = split(command," ")[0]
-	array <string> commandargs = split(command," ")
-	commandargs.remove(0)
+	commandstruct.command = split( command, " " )[ 0 ]
+	array<string> commandargs = split( command, " " )
+	commandargs.remove( 0 )
 	commandstruct.commandargs = commandargs
-	for (int i = 0; i < registeredfunctions.funcs.len(); i++) {
-		if (registeredfunctions.funcs[i].keyname == commandstruct.command.slice(1)){
-
-				check.commandcheck[validation] <- EncodeJSON({statuscode=-3,output=command+": No permission for Special command"})
-			
-		commandstruct = registeredfunctions.funcs[i].func(commandstruct)
-			check.commandcheck[validation] <- EncodeJSON({statuscode=commandstruct.returncode,output=commandstruct.returnmessage})
-			return}
-		
+	for ( int i = 0; i < registeredfunctions.funcs.len(); i++ )
+	{
+		if ( registeredfunctions.funcs[ i ].keyname == commandstruct.command.slice( 1 ) )
+		{
+			check.commandcheck[ validation ] <- EncodeJSON( { statuscode = -3, output = command + ": No permission for Special command" } )
+			commandstruct = registeredfunctions.funcs[ i ].func( commandstruct )
+			check.commandcheck[ validation ] <- EncodeJSON( { statuscode = commandstruct.returncode, output = commandstruct.returnmessage } )
+			return
+		}
 	}
-
 	// throwplayer(command,validation)
 	// listplayers(command,validation)
 }
 
-discordlogcommand function nessifyplayercommand(discordlogcommand commandin) {
-    if (commandin.commandargs.len() != 1)
-    {
-        commandin.returnmessage = "Wrong number of args";
-        commandin.returncode = 400
-        return commandin;
-    }
+discordlogcommand function nessifyplayercommand( discordlogcommand commandin )
+{
+	if ( commandin.commandargs.len() != 1 )
+	{
+		commandin.returnmessage = "Wrong number of args"
+		commandin.returncode = 400
+		return commandin
+	}
 
 	// discordlogsendmessage(username)
-    array<entity> players = discordlogmatchplayers(commandin.commandargs[0])
-    // if (commandin.commandargs[0] == "all"){
-    //     players = GetPlayerArray()
-    // }
-    if (players.len() == 0){
-        commandin.returnmessage = "No players found"
-        commandin.returncode = 401
-        return commandin
-    }
-    if (players.len() > 1){
-        commandin.returnmessage = "too many matches"
-        commandin.returncode = 401
-        return commandin
-    }
+	array<entity> players = discordlogmatchplayers( commandin.commandargs[ 0 ] )
+	// if (commandin.commandargs[0] == "all"){
+	//     players = GetPlayerArray()
+	// }
+	if ( players.len() == 0 )
+	{
+		commandin.returnmessage = "No players found"
+		commandin.returncode = 401
+		return commandin
+	}
+	if ( players.len() > 1 )
+	{
+		commandin.returnmessage = "too many matches"
+		commandin.returncode = 401
+		return commandin
+	}
 	commandin.returncode = 200
 	commandin.returnmessage = "Nessified "
-	foreach (entity player in players){
-		commandin.returnmessage += discordloggetplayername(player) + " "
-		thread nessifyplayer(player,false)
+	foreach ( entity player in players )
+	{
+		commandin.returnmessage += discordloggetplayername( player ) + " "
+		thread nessifyplayer( player, false )
 	}
 	return commandin
-	}
+}
 
-discordlogcommand function reloadpersistentsettings(discordlogcommand commandin) {
+discordlogcommand function reloadpersistentsettings( discordlogcommand commandin )
+{
 	int i = 0
-	if (commandin.commandargs.len() < 1){
+	if ( commandin.commandargs.len() < 1 )
+	{
 		commandin.returncode = 404
 		commandin.returnmessage = "Wrong number of args"
 		return commandin
 	}
 	string username = ""
-	for( i = 0; i < commandin.commandargs.len()-1; i++) {
-		username = username + commandin.commandargs[i] + " "
+	for ( i = 0; i < commandin.commandargs.len() - 1; i++ )
+	{
+		username = username + commandin.commandargs[ i ] + " "
 	}
-	string uid = commandin.commandargs[0]
-	foreach (player in GetPlayerArray()){
-		if (player.GetUID() == uid){
-			thread checkshouldblockmessages(player)
-
-			commandin.returnmessage = "Trying to set persistentvars for "+discordloggetplayername(player);
+	string uid = commandin.commandargs[ 0 ]
+	foreach ( player in GetPlayerArray() )
+	{
+		if ( player.GetUID() == uid )
+		{
+			thread checkshouldblockmessages( player )
+			commandin.returnmessage = "Trying to set persistentvars for " + discordloggetplayername( player )
 			commandin.returncode = 200
 			return commandin
-
-
-
 		}
 	}
-	username = username + commandin.commandargs[commandin.commandargs.len() -1 ]
-	array<entity> players = discordlogmatchplayers(username)
-	if (players.len() != 1){
+	username = username + commandin.commandargs[ commandin.commandargs.len() - 1 ]
+	array<entity> players = discordlogmatchplayers( username )
+	if ( players.len() != 1 )
+	{
 		commandin.returncode = 500
 		commandin.returnmessage = "PLAYER NOT FOUND"
 		return commandin
 	}
-	thread checkshouldblockmessages(players[0])
-	commandin.returnmessage = "Trying to set persistentvars for "+players[0];
+	thread checkshouldblockmessages( players[ 0 ] )
+	commandin.returnmessage = "Trying to set persistentvars for " + players[ 0 ]
 	commandin.returncode = 200
 	return commandin
-	
-	
-	}
+}
 
-discordlogcommand function forcesomonesname(discordlogcommand commandin) {
+discordlogcommand function forcesomonesname( discordlogcommand commandin )
+{
 	int i = 0
-	if (commandin.commandargs.len() < 2){
+	if ( commandin.commandargs.len() < 2 )
+	{
 		commandin.returncode = 404
 		commandin.returnmessage = "Wrong number of args"
 		return commandin
 	}
 	string username = ""
-	for( i = 1; i < commandin.commandargs.len()-1; i++) {
-		username = username + commandin.commandargs[i] + " "
+	for ( i = 1; i < commandin.commandargs.len() - 1; i++ )
+	{
+		username = username + commandin.commandargs[ i ] + " "
 	}
-	username = username + commandin.commandargs[commandin.commandargs.len() -1 ]
-	string uid = commandin.commandargs[0]
-	foreach (player in GetPlayerArray()){
-		if (player.GetUID() == uid){
+	username = username + commandin.commandargs[ commandin.commandargs.len() - 1 ]
+	string uid = commandin.commandargs[ 0 ]
+	foreach ( player in GetPlayerArray() )
+	{
+		if ( player.GetUID() == uid )
+		{
 			// thread checkshouldblockmessages(player)
 			#if BP_ORT
 				// printt("YWQNWQFNQW"+commandin.commandargs[1])
-				DisguiseName(player,username)
+				DisguiseName( player, username )
 			#endif
-			commandin.returnmessage = "Setting name for "+discordloggetplayername(player) + " to "+username;
+			commandin.returnmessage = "Setting name for " + discordloggetplayername( player ) + " to " + username
 			commandin.returncode = 200
 			return commandin
-
-
-
 		}
 	}
-	
-	array<entity> players = discordlogmatchplayers(username)
-	if (players.len() != 1){
+
+	array<entity> players = discordlogmatchplayers( username )
+	if ( players.len() != 1 )
+	{
 		commandin.returncode = 500
 		commandin.returnmessage = "PLAYER NOT FOUND"
 		return commandin
 	}
 	#if BP_ORT
-		DisguiseName(players[0],username)
+		DisguiseName( players[ 0 ], username )
 	#endif
-	commandin.returnmessage = "Setting name for "+discordloggetplayername(players[0]) + " to "+username;
+	commandin.returnmessage = "Setting name for " + discordloggetplayername( players[ 0 ] ) + " to " + username
 	commandin.returncode = 200
 	return commandin
-	
-	
-	}
+}
 
-
-discordlogcommand function discordloggetdiscordcommands(discordlogcommand commandin) {
+discordlogcommand function discordloggetdiscordcommands( discordlogcommand commandin )
+{
 	int i = 0
 	string prevarg = ""
-	for( i = 0; i < commandin.commandargs.len(); i++) {
-		if ((i+1) % 2) {
-			prevarg = commandin.commandargs[i]
+	for ( i = 0; i < commandin.commandargs.len(); i++ )
+	{
+		if ( ( i + 1 ) % 2 )
+		{
+			prevarg = commandin.commandargs[ i ]
 		}
-		else{
+		else
+		{
 			bool shouldblock = false
-			if (commandin.commandargs[i] == "1") {
+			if ( commandin.commandargs[ i ] == "1" )
+			{
 				shouldblock = true
 			}
-			tf2todiscordcommands[prevarg] <- shouldblock
+			tf2todiscordcommands[ prevarg ] <- shouldblock
 		}
-		
 	}
-	commandin.returnmessage = "Set commands - " + i / 2 + " commands found";
+	commandin.returnmessage = "Set commands - " + i / 2 + " commands found"
 	commandin.returncode = 200
 	return commandin
-	
-	
-	}
+}
 
-discordlogcommand function discordbotwantingcommandlist(discordlogcommand commandin) {
-	
-	commandin.returnmessage = "Running";
+discordlogcommand function discordbotwantingcommandlist( discordlogcommand commandin )
+{
+	commandin.returnmessage = "Running"
 	commandin.returncode = 200
 
-		table commands = {}
-		foreach (actualrealcoolcommand command in registeredfunctions.funcs){
-			// commands[command.keyname] <- {}
-			// table perms = {}
-			// foreach (string perm in command.requiredperms){
-			// 	perms[perm] <- "0"
-			// }
-			commands[command.keyname] <- {permsneeded = command.requiredperms, deniedperms = command.deniedperms} 
-		}
-		table discordcommandssent = {}
-		foreach (actualrealcoolcommand command in registeredfunctions.discordbotcommandfuncs){
-			// commands[command.keyname] <- {}
-			// table perms = {}
-			// foreach (string perm in command.requiredperms){
-			// 	perms[perm] <- "0"
-			// }
-			discordcommandssent[command.keyname] <- {permsneeded = command.requiredperms, deniedperms = command.deniedperms} 
-		}
-		runcommandondiscord("sendtitanfallcommands",{commands=commands,matchid=serverdetails.matchid,discordcommands=discordcommandssent})
+	table commands = {}
+	foreach ( actualrealcoolcommand command in registeredfunctions.funcs )
+	{
+		// commands[command.keyname] <- {}
+		// table perms = {}
+		// foreach (string perm in command.requiredperms){
+		// 	perms[perm] <- "0"
+		// }
+		commands[ command.keyname ] <- { permsneeded = command.requiredperms, deniedperms = command.deniedperms }
+	}
+	table discordcommandssent = {}
+	foreach ( actualrealcoolcommand command in registeredfunctions.discordbotcommandfuncs )
+	{
+		// commands[command.keyname] <- {}
+		// table perms = {}
+		// foreach (string perm in command.requiredperms){
+		// 	perms[perm] <- "0"
+		// }
+		discordcommandssent[ command.keyname ] <- { permsneeded = command.requiredperms, deniedperms = command.deniedperms }
+	}
+	runcommandondiscord( "sendtitanfallcommands", { commands = commands, matchid = serverdetails.matchid, discordcommands = discordcommandssent } )
 
 	return commandin
-	
-	
-	}
+}
 
 // void function PushEntWithVelocity( entity ent, vector velocity )
 
@@ -1535,7 +1683,12 @@ discordlogcommand function discordbotwantingcommandlist(discordlogcommand comman
 // 			playerinfoe.kills = player.GetPlayerGameStat(1)
 // 			playerinfoe.deaths = player.GetPlayerGameStat(2)
 // 			// print(player.GetPlayerGameStat(PGS_PING)/100000)
-// 			// playerinfoe.ping = string(player.GetPlayerGameStat(12))+ " " + string(player.GetPlayerGameStat(0)) + " " + string(player.GetPlayerGameStat(1)) + " " + string(player.GetPlayerGameStat(2)) + " " + string(player.GetPlayerGameStat(3)) + " " + string(player.GetPlayerGameStat(4)) + " " + string(player.GetPlayerGameStat(5)) + " " + string(player.GetPlayerGameStat(6)) + " " + string(player.GetPlayerGameStat(7)) + " " + string(player.GetPlayerGameStat(8)) + " " + string(player.GetPlayerGameStat(9)) + " " + string(player.GetPlayerGameStat(10)) + " " + string(player.GetPlayerGameStat(11)) + " " + string(player.GetPlayerGameStat(12)) + " " + string(player.GetPlayerGameStat(13)) + " " + string(player.GetPlayerGameStat(14)) + " " + string(player.GetPlayerGameStat(15)) + " " + string(player.GetPlayerGameStat(16)) + " " + string(player.GetPlayerGameStat(17)) + " " + string(player.GetPlayerGameStat(18)) + " " + string(player.GetPlayerGameStat(PGS_PING))
+// 			// playerinfoe.ping = string(player.GetPlayerGameStat(12))+ " " + string(player.GetPlayerGameStat(0)) + " " + string(player.GetPlayerGameStat(1)) + " " + string(player.GetPlayerGameStat(2)) + "
+// " + string(player.GetPlayerGameStat(3)) + " " + string(player.GetPlayerGameStat(4)) + " " + string(player.GetPlayerGameStat(5)) + " " + string(player.GetPlayerGameStat(6)) + " " +
+// string(player.GetPlayerGameStat(7)) + " " + string(player.GetPlayerGameStat(8)) + " " + string(player.GetPlayerGameStat(9)) + " " + string(player.GetPlayerGameStat(10)) + " " +
+// string(player.GetPlayerGameStat(11)) + " " + string(player.GetPlayerGameStat(12)) + " " + string(player.GetPlayerGameStat(13)) + " " + string(player.GetPlayerGameStat(14)) + " " +
+// string(player.GetPlayerGameStat(15)) + " " + string(player.GetPlayerGameStat(16)) + " " + string(player.GetPlayerGameStat(17)) + " " + string(player.GetPlayerGameStat(18)) + " " +
+// string(player.GetPlayerGameStat(PGS_PING))
 // 			if (player.GetTeam() == TEAM_MILITIA){
 // 				playerinfoe.team = "Militia"
 // 			}
@@ -1555,7 +1708,6 @@ discordlogcommand function discordbotwantingcommandlist(discordlogcommand comman
 // 			playerlist["meta"] <- [MAP_NAME_TABLE[GetMapName()],mtimeleft]
 // 		}
 // 	}
-
 
 // 	check.commandcheck[validation] <- EncodeJSON(playerlist)
 

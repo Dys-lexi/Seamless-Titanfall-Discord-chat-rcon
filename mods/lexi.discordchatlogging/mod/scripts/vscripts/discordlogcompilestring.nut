@@ -15,14 +15,13 @@ discordlogcommand function discordlogcompilestring( discordlogcommand commandin 
 	{
 		compilestring( commandtostring )()
 	}
-	catch( error )
+	catch ( error )
 	{
 		commandin.returnmessage = "Command failed. Error message: " + error
 		commandin.returncode = -3
 
 		return commandin
 	}
-
 	commandin.returnmessage = "Command successful."
 	commandin.returncode = 200
 

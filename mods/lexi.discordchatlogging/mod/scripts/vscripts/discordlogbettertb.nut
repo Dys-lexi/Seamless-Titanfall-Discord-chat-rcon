@@ -1,43 +1,47 @@
 global function discordlogtb
 global function discordlogplayerfinder
 
-discordlogcommand function discordlogplayerfinder(discordlogcommand commandin) {
+discordlogcommand function discordlogplayerfinder( discordlogcommand commandin )
+{
 	array<entity> players = GetPlayerArray()
 	table playerlist
-	foreach (entity player in players){
-		if (player != null){
+	foreach ( entity player in players )
+	{
+		if ( player != null )
+		{
 
-            array<string> recenthurts
-            
-            if (IsValid(player) && IsAlive(player) &&  (GetPlayerArray()).len() > 1){
-                int remove = 0
-                array<entity> otherPlayers = GetPlayerArray()
-                for(int i = 0; i < otherPlayers.len(); i++){
-                    if(otherPlayers[i] == player){
-                        remove = i
-                        break
-                    }
-                }
-                otherPlayers.remove(remove)
-                recenthurts.append(GetClosest(otherPlayers,player.GetOrigin()).GetUID())
-            float recent = Time() - 20
-            foreach ( history in player.e.recentDamageHistory )
-            {
-                if ( history.time < recent )
-                    break
+			array<string> recenthurts
 
-                if (IsValid(history.attacker) && history.attacker.IsPlayer() && IsAlive(history.attacker) )
-                    recenthurts.append(history.attacker.GetUID())
-            }
-            }
+			if ( IsValid( player ) && IsAlive( player ) && ( GetPlayerArray() ).len() > 1 )
+			{
+				int remove = 0
+				array<entity> otherPlayers = GetPlayerArray()
+				for ( int i = 0; i < otherPlayers.len(); i++ )
+				{
+					if ( otherPlayers[ i ] == player )
+					{
+						remove = i
+						break
+					}
+				}
+				otherPlayers.remove( remove )
+				recenthurts.append( GetClosest( otherPlayers, player.GetOrigin() ).GetUID() )
+				float recent = Time() - 20
+				foreach ( history in player.e.recentDamageHistory )
+				{
+					if ( history.time < recent )
+						break
 
-			playerlist[player.GetUID()] <- {scary = recenthurts,team = player.GetTeam()}
-
+					if ( IsValid( history.attacker ) && history.attacker.IsPlayer() && IsAlive( history.attacker ) )
+						recenthurts.append( history.attacker.GetUID() )
+				}
+			}
+			playerlist[ player.GetUID() ] <- { scary = recenthurts, team = player.GetTeam() }
 		}
 	}
-    commandin.returnmessage = EncodeJSON(playerlist)
+	commandin.returnmessage = EncodeJSON( playerlist )
 	commandin.returncode = 200
-    return commandin;
+	return commandin
 }
 
 // discordlogcommand function getconvar(discordlogcommand commandin) {
@@ -64,33 +68,30 @@ discordlogcommand function discordlogplayerfinder(discordlogcommand commandin) {
 //     return commandin;
 // }
 
-discordlogcommand function discordlogtb(discordlogcommand commandin) {
+discordlogcommand function discordlogtb( discordlogcommand commandin )
+{
 
-    table<string,entity> uidentmap
-    foreach(entity player in GetPlayerArray()){
-
-            uidentmap[player.GetUID()] <- player
-        }
+	table<string, entity> uidentmap
+	foreach ( entity player in GetPlayerArray() )
+	{
+		uidentmap[ player.GetUID() ] <- player
+	}
 	int prevarg = 0
-	for(int i = 0; i < commandin.commandargs.len(); i++) {
-		if ((i+1) % 2) {
-			prevarg = commandin.commandargs[i].tointeger()
+	for ( int i = 0; i < commandin.commandargs.len(); i++ )
+	{
+		if ( ( i + 1 ) % 2 )
+		{
+			prevarg = commandin.commandargs[ i ].tointeger()
 		}
-		else if (commandin.commandargs[i] in uidentmap && GetPlayerArray().contains(uidentmap[ commandin.commandargs[i]]) ){
-			SetTeam(uidentmap[ commandin.commandargs[i]], prevarg)
+		else if ( commandin.commandargs[ i ] in uidentmap && GetPlayerArray().contains( uidentmap[ commandin.commandargs[ i ] ] ) )
+		{
+			SetTeam( uidentmap[ commandin.commandargs[ i ] ], prevarg )
 		}
-		
 	}
 
+	// Chat_ServerPrivateMessage
 
-        
-  
-                // Chat_ServerPrivateMessage
-            
-
-    commandin.returnmessage = "Balance ran!"
+	commandin.returnmessage = "Balance ran!"
 	commandin.returncode = 200
-    return commandin;
-
-    
+	return commandin
 }
