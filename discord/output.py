@@ -11168,7 +11168,7 @@ def findaliasesafterplaying(data,serverid,statuscode,inputargs):
                 found = True
                 discordtotitanfall[serverid]["messages"].append(
                     {
-                        "content": f"{PREFIXES['discord']}{PREFIXES["commandname"] if (not resolvecommandperms(serverid,internaltoggles["nameoverride"]) or checkrconallowedtfuid(x[0],resolvecommandperms(serverid,internaltoggles["nameoverride"],True),serverid=serverid)) else PREFIXES["warning"]}{alias} {PREFIXES["stat2"]}-> {PREFIXES["commandname"]}{name}",
+                        "content": f"{PREFIXES['discord']}{PREFIXES["commandname"] if (not resolvecommandperms(serverid,internaltoggles["nameoverride"]) or checkrconallowedtfuid(uid,resolvecommandperms(serverid,internaltoggles["nameoverride"],True),serverid=serverid)) else f"{PREFIXES["warning"]}(inactive) "}{alias} {PREFIXES["stat2"]}-> {PREFIXES["commandname"]}{name}",
                         "uidoverride": [inputargs["uid"]],
                     }
                 )
