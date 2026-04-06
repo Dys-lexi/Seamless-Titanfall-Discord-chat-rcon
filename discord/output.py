@@ -9725,10 +9725,11 @@ def autobalanceoverride(data, serverid, statuscode):
                 "uid": str(row[0]),
                 "kph": float(row[3]) if row[3] is not None else 0.0,
                 "kills": row[1],
+                "deaths": row[2]
             }
             for row in results
         ],
-        key=lambda x: x["kph"] if x["kills"] > 50 else 0.5,
+        key=lambda x: x["kph"] if x["kills"] + x["deaths"] > 30 else 0.5,
     )
     searchablestats = {x["uid"]: x for x in stats_list}
     # zippp ittt
@@ -11161,13 +11162,13 @@ def findaliasesafterplaying(data,serverid,statuscode,inputargs):
         #     inline=False,
         # )
     found = False
-    for uid,name in formattedata["playerinfo"].items():
-            print(uid,name)
+    for uid,name in sorted(formattedata["playerinfo"].items(),key = lambda x: int(not(not resolvecommandperms(serverid,internaltoggles["nameoverride"]) or checkrconallowedtfuid(x[0],resolvecommandperms(serverid,internaltoggles["nameoverride"],True),serverid=serverid)))):
+            # print(uid,name)
             if (alias := getpriority(readplayeruidpreferences(uid, False),["tf2","nameoverride"])) and (not inputargs["message"].split(" ", 1)[1:] or inputargs["message"].split(" ", 1)[1].lower() in alias.lower() ):
                 found = True
                 discordtotitanfall[serverid]["messages"].append(
                     {
-                        "content": f"{PREFIXES['discord']}{PREFIXES["commandname"]}{alias} {PREFIXES["stat2"]}-> {PREFIXES["commandname"]}{name}",
+                        "content": f"{PREFIXES['discord']}{PREFIXES["commandname"] if (not resolvecommandperms(serverid,internaltoggles["nameoverride"]) or checkrconallowedtfuid(x[0],resolvecommandperms(serverid,internaltoggles["nameoverride"],True),serverid=serverid)) else PREFIXES["warning"]}{alias} {PREFIXES["stat2"]}-> {PREFIXES["commandname"]}{name}",
                         "uidoverride": [inputargs["uid"]],
                     }
                 )
