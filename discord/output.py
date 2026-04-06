@@ -9615,80 +9615,95 @@ def autobalance(message, serverid, isfromserver):
 
 def autobalanceoverride(data, serverid, statuscode):
     data = getjson(data)
-    # print(json.dumps(data, indent=4))
-    # playerinfo = {}
-    # for uid,playerdata in data.items():
-    #     if not uid.isdigit():
-    #         continue
-    #     playerinfo[uid] = playerdata[1]
-    tfdb = postgresem("./data/tf2helper.db")
+    tfdb = postgresem("./data/tf2helper.db") 
     c = tfdb
-    placeholders = ",".join(["?"] * len(data))
-    c.execute(
-        f"""
-    WITH session_durations AS (
-        SELECT
+
+
+    placeholders = ",".join("?" * len(data))  
+    c.execute(f"""
+        SELECT 
             playeruid,
-            matchid,
-            pilotkills,
-            (leftatunix - joinatunix) AS session_duration
-        FROM playtime
-        WHERE leftatunix > joinatunix
-        AND playeruid IN ({placeholders})
-    ),
-    match_stats AS (
-        SELECT
-            playeruid,
-            matchid,
-            SUM(pilotkills) AS total_pilotkills,
-            SUM(session_duration) AS total_playtime_seconds
-        FROM session_durations
-        GROUP BY playeruid, matchid
-        HAVING SUM(session_duration) > 0
-    ),
-    match_kph AS (
-        SELECT
-            playeruid,
-            matchid,
-            total_pilotkills,
-            total_playtime_seconds,
-            1.0 * total_pilotkills * 3600 / total_playtime_seconds AS kills_per_hour
-        FROM match_stats
-    ),
-    ranked_matches AS (
-        SELECT
-            *,
-            ROW_NUMBER() OVER (PARTITION BY playeruid ORDER BY kills_per_hour DESC) AS match_rank,
-            COUNT(*) OVER (PARTITION BY playeruid) AS total_matches
-        FROM match_kph
-    ),
-    filtered_matches AS (
-        SELECT
-            *,
-            CASE
-                WHEN total_matches < 5 THEN total_matches
-                ELSE CAST(total_matches * 0.4 + 0.9999999 AS INTEGER)
-            END AS matches_to_include
-        FROM ranked_matches
-    ),
-    top_matches_data AS (
-        SELECT
-            playeruid,
-            MAX(matches_to_include) AS matches_used,
-            SUM(total_pilotkills) AS total_kills_top,
-            SUM(total_playtime_seconds) AS total_seconds_top
-        FROM filtered_matches
-        WHERE match_rank <= matches_to_include
+            SUM(kill) AS kills,
+            SUM(death) AS deaths,
+            CASE WHEN SUM(death) = 0 THEN SUM(kill) ELSE CAST(SUM(kill) AS FLOAT)/SUM(death) END AS kd_ratio
+        FROM (
+            SELECT playeruid, 1 AS kill, 0 AS death
+            FROM specifickilltracker
+            WHERE serverid = ? AND playeruid IN ({placeholders})
+            UNION ALL
+            SELECT victim_id AS playeruid, 0 AS kill, 1 AS death
+            FROM specifickilltracker
+            WHERE serverid = ? AND victim_id IN ({placeholders})
+        )
         GROUP BY playeruid
-    )
-    SELECT
-        playeruid,
-        ROUND((total_kills_top * 3600.0) / NULLIF(total_seconds_top, 0), 2) AS kph,
-        matches_used
-    FROM top_matches_data;
-    """,
-        tuple(map(int, data)),
-    )
+        ORDER BY kd_ratio DESC;
+    """, (serverid, *data.keys(), serverid, *data.keys()))
+
+    # c.execute(
+    #     f"""
+    # WITH session_durations AS (
+    #     SELECT
+    #         playeruid,
+    #         matchid,
+    #         pilotkills,
+    #         (leftatunix - joinatunix) AS session_duration
+    #     FROM playtime
+    #     WHERE leftatunix > joinatunix
+    #     AND playeruid IN ({placeholders})
+    # ),
+    # match_stats AS (
+    #     SELECT
+    #         playeruid,
+    #         matchid,
+    #         SUM(pilotkills) AS total_pilotkills,
+    #         SUM(session_duration) AS total_playtime_seconds
+    #     FROM session_durations
+    #     GROUP BY playeruid, matchid
+    #     HAVING SUM(session_duration) > 0
+    # ),
+    # match_kph AS (
+    #     SELECT
+    #         playeruid,
+    #         matchid,
+    #         total_pilotkills,
+    #         total_playtime_seconds,
+    #         1.0 * total_pilotkills * 3600 / total_playtime_seconds AS kills_per_hour
+    #     FROM match_stats
+    # ),
+    # ranked_matches AS (
+    #     SELECT
+    #         *,
+    #         ROW_NUMBER() OVER (PARTITION BY playeruid ORDER BY kills_per_hour DESC) AS match_rank,
+    #         COUNT(*) OVER (PARTITION BY playeruid) AS total_matches
+    #     FROM match_kph
+    # ),
+    # filtered_matches AS (
+    #     SELECT
+    #         *,
+    #         CASE
+    #             WHEN total_matches < 5 THEN total_matches
+    #             ELSE CAST(total_matches * 0.4 + 0.9999999 AS INTEGER)
+    #         END AS matches_to_include
+    #     FROM ranked_matches
+    # ),
+    # top_matches_data AS (
+    #     SELECT
+    #         playeruid,
+    #         MAX(matches_to_include) AS matches_used,
+    #         SUM(total_pilotkills) AS total_kills_top,
+    #         SUM(total_playtime_seconds) AS total_seconds_top
+    #     FROM filtered_matches
+    #     WHERE match_rank <= matches_to_include
+    #     GROUP BY playeruid
+    # )
+    # SELECT
+    #     playeruid,
+    #     ROUND((total_kills_top * 3600.0) / NULLIF(total_seconds_top, 0), 2) AS kph,
+    #     matches_used
+    # FROM top_matches_data;
+    # """,
+    #     tuple(map(int, data)),
+    # )
 
     results = c.fetchall()
     tfdb.close()
@@ -9703,6 +9718,17 @@ def autobalanceoverride(data, serverid, statuscode):
             for row in results
         ],
         key=lambda x: -x["kph"],
+    )
+    stats_list = sorted(
+        [
+            {
+                "uid": str(row[0]),
+                "kph": float(row[3]) if row[3] is not None else 0.0,
+                "kills": row[1],
+            }
+            for row in results
+        ],
+        key=lambda x: x["kph"] if x["kills"] > 50 else 0.5,
     )
     searchablestats = {x["uid"]: x for x in stats_list}
     # zippp ittt
