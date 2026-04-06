@@ -167,7 +167,7 @@ discordlogcommand function discordlogplaying(discordlogcommand commandin) {
 			}
 			// playerlist.append(playerinfoe)
 			// print(playerinfoe.playername)
-			playerlist[playerinfoe.playername] <- [playerinfoe.score,playerinfoe.team,playerinfoe.kills,playerinfoe.deaths]
+			playerlist[playerinfoe.playername] <- [playerinfoe.score,playerinfoe.team,playerinfoe.kills,playerinfoe.deaths, player.GetUID()]
 
 		}
 	}

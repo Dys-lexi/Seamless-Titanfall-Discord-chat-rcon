@@ -5613,6 +5613,7 @@ def listplayersoverride(data, serverid, statuscode):
                 "score": value[0],
                 "kills": value[2],
                 "deaths": value[3],
+                "uid":value[4]
             }
             formattedata[value[1]]["teaminfo"]["score"] += value[0]
     embed = discord.Embed(
@@ -5655,8 +5656,9 @@ def listplayersoverride(data, serverid, statuscode):
             key=lambda x: formattedata[team]["playerinfo"][x]["score"],
             reverse=True,
         )[0:10]:
+            print(formattedata[team]['playerinfo'][player]['uid'],getplayeroverriddenname(formattedata[team]['playerinfo'][player]['uid'],serverid))
             embed.add_field(
-                name=f"\u200b \u200b \u200b \u200b \u200b \u200b {player}",
+                name=f"\u200b \u200b \u200b \u200b \u200b \u200b {f"{getplayeroverriddenname(formattedata[team]['playerinfo'][player]['uid'],serverid)} ({player})" if getplayeroverriddenname(formattedata[team]['playerinfo'][player]['uid'],serverid) else player}",
                 value=f"\u200b \u200b \u200b \u200b \u200b \u200b \u200b Score: {formattedata[team]['playerinfo'][player]['score']} | Kills: {formattedata[team]['playerinfo'][player]['kills']} | Deaths: {formattedata[team]['playerinfo'][player]['deaths']}",
                 inline=False,
             )
@@ -7766,6 +7768,10 @@ def get_ordinal(i):  # Shamelessly stolen
     else:
         return SUFFIXES.get(i % 10, "th")
 
+def getplayeroverriddenname(uid,serverid):
+    uid = str(uid)
+
+    return (not resolvecommandperms(serverid,internaltoggles["nameoverride"]) or checkrconallowedtfuid(uid,resolvecommandperms(serverid,internaltoggles["nameoverride"],True),serverid=serverid)) and getpriority(readplayeruidpreferences(uid, False),["tf2","nameoverride"])
 
 def getmessagewidget(metadata, serverid, messagecontent, message):
     """Processes and formats game messages for Discord display with player status and team info"""
