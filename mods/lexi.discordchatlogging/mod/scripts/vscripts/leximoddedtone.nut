@@ -56,7 +56,7 @@ string function sanitizePlayerName(string name) {
 
 void function Lexi_killstat_Init() {
     
-	if (GetConVarInt("discordloggingserverid") == 0){
+	if (GetConVarInt("discordloggingserverid") == 0 || GetConVarInt("enablekillandaccuracylogging") == 0){
 		print("[DiscordLogger]Server ID not set, please set it in the console PLEASE FIX THIS")
 		return
 	} 

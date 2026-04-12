@@ -63,10 +63,7 @@
             "Name": "discordlogshowaccuracyinsteadofassists",
             "DefaultValue": "0" // show accuracy in the specific pgs leaderboard, stars from 0
         },
-        {
-            "Name": "discordloggingcanhotreloadloadoutsontoggle",
-            "DefaultValue": "1" // allows toggles to change loadouts, useful if you don't want people to be able to change loadouts
-        },
+
 
 //   PGS_ELIMINATED 0
 // PGS_KILLS 1
@@ -100,6 +97,14 @@
         {
             "Name": "discordlogaprilfools",
             "DefaultValue": "0" // april fools thing
+        },
+        {
+            "Name": "discordloggingcanhotreloadloadoutsontoggle",
+            "DefaultValue": "1" // allows toggles to change loadouts, useful if you don't want people to be able to change loadouts
+        },
+        {
+            "Name": "enablekillandaccuracylogging",
+            "DefaultValue": "1" // should log accuracy and kills?
         }
 
     ],
