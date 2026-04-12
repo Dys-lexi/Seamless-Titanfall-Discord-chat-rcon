@@ -9619,9 +9619,27 @@ def autobalanceoverride(data, serverid, statuscode):
     c = tfdb
 
 
-    placeholders = ",".join("?" * len(data))  
+    placeholders = ",".join("?" * len(data))
+
+
     c.execute(f"""
-        SELECT 
+        WITH all_relevant_kills AS (
+            SELECT playeruid, victim_id, timeofkill
+            FROM specifickilltracker
+            WHERE serverid = ?
+            AND (playeruid IN ({placeholders}) OR victim_id IN ({placeholders}))
+        ),
+        ranked_kills AS (
+            SELECT timeofkill,
+                   ROW_NUMBER() OVER (ORDER BY timeofkill DESC) as rn
+            FROM all_relevant_kills
+        ),
+        time_cutoffs AS (
+            SELECT
+                ? as fifteen_days_cutoff,
+                COALESCE((SELECT timeofkill FROM ranked_kills WHERE rn = 1000), 0) as five_hundred_cutoff
+        )
+        SELECT
             playeruid,
             SUM(kill) AS kills,
             SUM(death) AS deaths,
@@ -9629,15 +9647,19 @@ def autobalanceoverride(data, serverid, statuscode):
         FROM (
             SELECT playeruid, 1 AS kill, 0 AS death
             FROM specifickilltracker
-            WHERE serverid = ? AND playeruid IN ({placeholders})
+            WHERE serverid = ?
+            AND playeruid IN ({placeholders})
+            AND timeofkill >= (SELECT LEAST(fifteen_days_cutoff, five_hundred_cutoff) FROM time_cutoffs)
             UNION ALL
             SELECT victim_id AS playeruid, 0 AS kill, 1 AS death
             FROM specifickilltracker
-            WHERE serverid = ? AND victim_id IN ({placeholders})
+            WHERE serverid = ?
+            AND victim_id IN ({placeholders})
+            AND timeofkill >= (SELECT LEAST(fifteen_days_cutoff, five_hundred_cutoff) FROM time_cutoffs)
         )
         GROUP BY playeruid
         ORDER BY kd_ratio DESC;
-    """, (serverid, *data.keys(), serverid, *data.keys()))
+    """, (serverid, *data.keys(), *data.keys(), int(time.time()) - (15 * 86400), serverid, *data.keys(), serverid, *data.keys()))
 
     # c.execute(
     #     f"""

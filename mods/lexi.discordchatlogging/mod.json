@@ -63,6 +63,11 @@
             "Name": "discordlogshowaccuracyinsteadofassists",
             "DefaultValue": "0" // show accuracy in the specific pgs leaderboard, stars from 0
         },
+        {
+            "Name": "discordloggingcanhotreloadloadoutsontoggle",
+            "DefaultValue": "1" // allows toggles to change loadouts, useful if you don't want people to be able to change loadouts
+        },
+
 //   PGS_ELIMINATED 0
 // PGS_KILLS 1
 // PGS_DEATHS 2

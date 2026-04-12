@@ -688,7 +688,8 @@ void function checkshouldblockmessages(entity player){
 		// discordlogsendmessage(discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype"))
 		// print("MEOWMDQOQ"+discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype"))
 			if (PlayerIsInGracePeriod(player) && (!(player.GetUID() in playerrespawn) || Time() < playerrespawn[player.GetUID()+""] + 20)){
-				Loadouts_TryGivePilotLoadout(player)
+				if(GetConVarBool("discordloggingcanhotreloadloadoutsontoggle")){
+				Loadouts_TryGivePilotLoadout(player)}
 				} // mabye reset pilot loadout woa when toggle stuff woa
 
 			if (discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "ban" && serverdetails.enforcesanctions){
