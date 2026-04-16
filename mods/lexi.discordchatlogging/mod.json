@@ -103,7 +103,7 @@
             "DefaultValue": "1" // allows toggles to change loadouts, useful if you don't want people to be able to change loadouts
         },
         {
-            "Name": "enablekillandaccuracylogging",
+            "Name": "discordlogenablekillandaccuracylogging",
             "DefaultValue": "1" // should log accuracy and kills?
         }
 
