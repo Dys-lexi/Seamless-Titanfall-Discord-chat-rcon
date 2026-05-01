@@ -10895,7 +10895,7 @@ def rerollaprilfools(message, serverid, isfromserver):
     discordtotitanfall[serverid]["messages"].append(
         {
             # "id": str(i) + str(int(time.time()*100)),
-            "content": f"{PREFIXES['discord']}Trying to reroll",
+            "content": f"{PREFIXES['discord']}Trying to reroll your name",
             # "teamoverride": 4,
             # "isteammessage": False,
             "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
