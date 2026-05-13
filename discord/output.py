@@ -803,14 +803,7 @@ def matchid():
             serverid INTEGER
             )"""
     )
-    try:
-        c.execute("ALTER TABLE matchid ADD COLUMN gamemode TEXT")
-    except:
-        pass
-    try:
-        c.execute("ALTER TABLE matchidtf1 ADD COLUMN gamemode TEXT")
-    except:
-        pass
+
     tfdb.commit()
     tfdb.close()
 
@@ -14155,7 +14148,6 @@ def playerpolllog(data, serverid, statuscode):
         matchid = data["meta"]["matchid"]
         gamemode = "notintf1"
     if matchid not in matchids:
-        print(gamemode)
         addmatchtodb(matchid, serverid, currentmap,gamemode)
     now = int(time.time())
     # players = [lambda x: {"uid":x[0],"score":x[1][0],"team":x[1][1],"kills":x[1][2],"deaths":x[1][3],"name":x[1][4],"titankills":x[1][5],"npckills":x[1][6]} for x in list(filter(lambda x: x[0] != "meta",list(data.items())))]
