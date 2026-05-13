@@ -135,7 +135,7 @@ discordlogcommand function discordlogplayingpoll(discordlogcommand commandin) {
             catch (e){
                 mtimeleft = 0
             }
-	playerlist["meta"] <- [GetMapName(), mtimeleft, commandin.matchid]
+	playerlist["meta"] <- [GetMapName(), mtimeleft, commandin.matchid,GameRules_GetGameMode()]
 
     commandin.returnmessage = EncodeJSON(playerlist)
 	commandin.returncode = 200

@@ -803,6 +803,14 @@ def matchid():
             serverid INTEGER
             )"""
     )
+    try:
+        c.execute("ALTER TABLE matchid ADD COLUMN gamemode TEXT")
+    except:
+        pass
+    try:
+        c.execute("ALTER TABLE matchidtf1 ADD COLUMN gamemode TEXT")
+    except:
+        pass
     tfdb.commit()
     tfdb.close()
 
@@ -9615,18 +9623,29 @@ def autobalance(message, serverid, isfromserver):
 
 def autobalanceoverride(data, serverid, statuscode):
     data = getjson(data)
-    tfdb = postgresem("./data/tf2helper.db") 
+    tfdb = postgresem("./data/tf2helper.db")
     c = tfdb
 
 
     placeholders = ",".join("?" * len(data))
+    mostrecentmatch = mostrecentmatchids.get(serverid)
 
+    # Get gamemode filter if recent match exists
+    gamemode_filter = ""
+    query_params = []
+    if mostrecentmatch:
+        c.execute("SELECT gamemode FROM matchid WHERE matchid = ?", (mostrecentmatch,))
+        result = c.fetchone()
+        if result and result[0]:
+            gamemode_filter = "AND game_mode = ?"
+            query_params.append(result[0])
 
     c.execute(f"""
         WITH all_relevant_kills AS (
             SELECT playeruid, victim_id, timeofkill
             FROM specifickilltracker
             WHERE (playeruid IN ({placeholders}) OR victim_id IN ({placeholders}))
+            {gamemode_filter}
         ),
         ranked_kills AS (
             SELECT timeofkill,
@@ -9648,15 +9667,17 @@ def autobalanceoverride(data, serverid, statuscode):
             FROM specifickilltracker
             WHERE playeruid IN ({placeholders})
             AND timeofkill >= (SELECT LEAST(fifteen_days_cutoff, five_hundred_cutoff) FROM time_cutoffs)
+            {gamemode_filter}
             UNION ALL
             SELECT victim_id AS playeruid, 0 AS kill, 1 AS death
             FROM specifickilltracker
             WHERE victim_id IN ({placeholders})
             AND timeofkill >= (SELECT LEAST(fifteen_days_cutoff, five_hundred_cutoff) FROM time_cutoffs)
+            {gamemode_filter}
         )
         GROUP BY playeruid
         ORDER BY kd_ratio DESC;
-    """, (*data.keys(), *data.keys(), int(time.time()) - (15 * 86400), *data.keys(), *data.keys()))
+    """, (*query_params, *data.keys(), *data.keys(), *query_params, int(time.time()) - (15 * 86400), *data.keys(), *query_params, *data.keys(), *query_params))
 
     # c.execute(
     #     f"""
@@ -14004,7 +14025,7 @@ def savestats(saveinfo):
     return lastrowid
 
 
-def addmatchtodb(matchid, serverid, currentmap):
+def addmatchtodb(matchid, serverid, currentmap,gamemode):
     """Adds match information to database for tracking game sessions"""
     global matchids, playercontext, currentduels, potentialduels
     istf1 = (
@@ -14088,8 +14109,8 @@ def addmatchtodb(matchid, serverid, currentmap):
         # print(json.dumps(currentduels,indent = 4))
         return
     c.execute(
-        f"INSERT INTO matchid{'tf1' if istf1 else ''} (matchid,serverid,map,time) VALUES (?,?,?,?)",
-        (matchid, serverid, currentmap, int(time.time())),
+        f"INSERT INTO matchid{'tf1' if istf1 else ''} (matchid,serverid,map,time,gamemode) VALUES (?,?,?,?,?)",
+        (matchid, serverid, currentmap, int(time.time()),gamemode),
     )
 
 
@@ -14128,11 +14149,14 @@ def playerpolllog(data, serverid, statuscode):
     if not istf1:
         currentmap = data["meta"][0]
         matchid = data["meta"][2]
+        gamemode = data["meta"][3]
     else:
         currentmap = data["meta"]["map"]
         matchid = data["meta"]["matchid"]
+        gamemode = "notintf1"
     if matchid not in matchids:
-        addmatchtodb(matchid, serverid, currentmap)
+        print(gamemode)
+        addmatchtodb(matchid, serverid, currentmap,gamemode)
     now = int(time.time())
     # players = [lambda x: {"uid":x[0],"score":x[1][0],"team":x[1][1],"kills":x[1][2],"deaths":x[1][3],"name":x[1][4],"titankills":x[1][5],"npckills":x[1][6]} for x in list(filter(lambda x: x[0] != "meta",list(data.items())))]
     if not istf1:
