@@ -9633,12 +9633,12 @@ def autobalanceoverride(data, serverid, statuscode):
             gamemode_filter = "AND game_mode = ?"
             query_params.append(result[0])
 
-    c.execute(f"""
+    c.execute("""
         WITH all_relevant_kills AS (
             SELECT playeruid, victim_id, timeofkill
             FROM specifickilltracker
-            WHERE (playeruid IN ({placeholders}) OR victim_id IN ({placeholders}))
-            {gamemode_filter}
+            WHERE (playeruid IN ({}) OR victim_id IN ({}))
+            {}
         ),
         ranked_kills AS (
             SELECT timeofkill,
@@ -9658,19 +9658,19 @@ def autobalanceoverride(data, serverid, statuscode):
         FROM (
             SELECT playeruid, 1 AS kill, 0 AS death
             FROM specifickilltracker
-            WHERE playeruid IN ({placeholders})
+            WHERE playeruid IN ({})
             AND timeofkill >= (SELECT LEAST(fifteen_days_cutoff, five_hundred_cutoff) FROM time_cutoffs)
-            {gamemode_filter}
+            {}
             UNION ALL
             SELECT victim_id AS playeruid, 0 AS kill, 1 AS death
             FROM specifickilltracker
-            WHERE victim_id IN ({placeholders})
+            WHERE victim_id IN ({})
             AND timeofkill >= (SELECT LEAST(fifteen_days_cutoff, five_hundred_cutoff) FROM time_cutoffs)
-            {gamemode_filter}
+            {}
         )
         GROUP BY playeruid
         ORDER BY kd_ratio DESC;
-    """, (*query_params, *data.keys(), *data.keys(), *query_params, int(time.time()) - (15 * 86400), *data.keys(), *query_params, *data.keys(), *query_params))
+    """.format(placeholders, placeholders, gamemode_filter, placeholders, gamemode_filter, placeholders, gamemode_filter), (*data.keys(), *data.keys(), *query_params, int(time.time()) - (15 * 86400), *data.keys(), *query_params, *data.keys(), *query_params))
 
     # c.execute(
     #     f"""
