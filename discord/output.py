@@ -9626,8 +9626,7 @@ def autobalanceoverride(data, serverid, statuscode):
         WITH all_relevant_kills AS (
             SELECT playeruid, victim_id, timeofkill
             FROM specifickilltracker
-            WHERE serverid = ?
-            AND (playeruid IN ({placeholders}) OR victim_id IN ({placeholders}))
+            WHERE (playeruid IN ({placeholders}) OR victim_id IN ({placeholders}))
         ),
         ranked_kills AS (
             SELECT timeofkill,
@@ -9647,19 +9646,17 @@ def autobalanceoverride(data, serverid, statuscode):
         FROM (
             SELECT playeruid, 1 AS kill, 0 AS death
             FROM specifickilltracker
-            WHERE serverid = ?
-            AND playeruid IN ({placeholders})
+            WHERE playeruid IN ({placeholders})
             AND timeofkill >= (SELECT LEAST(fifteen_days_cutoff, five_hundred_cutoff) FROM time_cutoffs)
             UNION ALL
             SELECT victim_id AS playeruid, 0 AS kill, 1 AS death
             FROM specifickilltracker
-            WHERE serverid = ?
-            AND victim_id IN ({placeholders})
+            WHERE victim_id IN ({placeholders})
             AND timeofkill >= (SELECT LEAST(fifteen_days_cutoff, five_hundred_cutoff) FROM time_cutoffs)
         )
         GROUP BY playeruid
         ORDER BY kd_ratio DESC;
-    """, (serverid, *data.keys(), *data.keys(), int(time.time()) - (15 * 86400), serverid, *data.keys(), serverid, *data.keys()))
+    """, (*data.keys(), *data.keys(), int(time.time()) - (15 * 86400), *data.keys(), *data.keys()))
 
     # c.execute(
     #     f"""
