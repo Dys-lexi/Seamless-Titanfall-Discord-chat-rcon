@@ -2140,11 +2140,11 @@ def threadedfinder(ctx, filterword1,filterword2,filterword3):
     )
     matches = [{**(getjson(row[0])), "serverid": row[2]} for row in c.fetchall()][::-1]
     truncationmessage = ""
-    if len(matches) > 1000:
+    if len(matches) > 10000:
         truncationmessage = (
-            f"- only 1000 shown, {len(matches) - 1000} messages truncated"
+            f"- only 10000 shown, {len(matches) - 10000} messages truncated"
         )
-    matches = matches[:1000]
+    matches = matches[:10000]
     tfdb.close()
     if matches:
         file_obj = io.BytesIO(json.dumps(matches, indent=4).encode("utf-8"))
