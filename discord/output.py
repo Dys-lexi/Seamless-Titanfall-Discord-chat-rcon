@@ -14142,7 +14142,7 @@ def playerpolllog(data, serverid, statuscode):
     if not istf1:
         currentmap = data["meta"][0]
         matchid = data["meta"][2]
-        gamemode = data["meta"][3]
+        gamemode = data["meta"][3] if len(data) > 3 else "unknown"
     else:
         currentmap = data["meta"]["map"]
         matchid = data["meta"]["matchid"]
