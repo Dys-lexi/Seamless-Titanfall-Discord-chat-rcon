@@ -2432,7 +2432,7 @@ async def setnoreg(
         await ctx.respond("no players found :(")
         return
     else:
-        matchingplayers = ["name":"the bot's not seen this person","uid":originalname]
+        matchingplayers = [{"name":"the bot's not seen this person","uid":originalname}]
 
     player = matchingplayers[0]
     now = time.time()
@@ -2477,7 +2477,7 @@ async def getnoreg(
         await ctx.respond("no players found :(")
         return
     else:
-        matchingplayers = ["name":"the bot's not seen this person","uid":originalname]
+        matchingplayers = [{"name":"the bot's not seen this person","uid":originalname}]
 
     player = matchingplayers[0]
 
@@ -2524,7 +2524,7 @@ async def resetsnoreg(
         await ctx.respond("no players found :(")
         return
     else:
-        matchingplayers = ["name":"the bot's not seen this person","uid":originalname]
+        matchingplayers = [{"name":"the bot's not seen this person","uid":originalname}]
 
     player = matchingplayers[0]
 
