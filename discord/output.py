@@ -2400,12 +2400,21 @@ async def setnoreg(
     name: Option(
         str, "The playername / uid", autocomplete=autocompletenamesanduidsfromdb
     ),
+ 
 
-    percent: Option(int,"the percent of shots that noreg")):
+    percent: Option(int,"the percent of shots that noreg"),
+       expiry: Option(
+        str, "How long it lasts for in days (you can use decimals)"
+    ) = False):
     if not checkrconallowed(ctx.author,getslashcommandoverridesperms("changenoregs")):
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("You are not allowed to use this command.")
         return
+    if expiry and not expiry.isdigit():
+        await ctx.respond("either leave expirey blank for forever, or like don't include it")
+        return
+    elif expiry.isdigit():
+        expiry = float(expiry) * 86400 + int(time.time())
     context.setdefault("noregdata",{}).setdefault("noreggers",{})
     name = str(name)
     if len(name.rsplit("->", 1)) > 1:
@@ -2423,9 +2432,16 @@ async def setnoreg(
         return
 
     player = matchingplayers[0]
-    context["noregdata"]["noreggers"][str(player["uid"])] = percent
+    now = time.time()
+    context["noregdata"]["noreggers"][str(player["uid"])] = {"percent":percent,"expire":int(expiry) if expiry else False}
     savecontext()
-    await ctx.respond(f"Set noregpercent for {player["name"]} ({player["uid"]}) to {percent}%")
+    if context["noregdata"]["noreggers"][str(player["uid"])].get("expire"):
+            expiry_text = modifyvalue(context["noregdata"]["noreggers"][str(player["uid"])].get("expire") - now,"time") if  context["noregdata"]["noreggers"][str(player["uid"])].get("expiry") and context["noregdata"]["noreggers"][str(player["uid"])].get("expire") - now < 86400*2.5 else (
+                modifyvalue(context["noregdata"]["noreggers"][str(player["uid"])].get("expire"), "date")
+                if context["noregdata"]["noreggers"][str(player["uid"])].get("expire")
+                else "Never"
+            )
+    await ctx.respond(f"Set noregpercent for {player["name"]} ({player["uid"]}) to {percent}% {"expires in "+expiry_text if  context["noregdata"]["noreggers"][str(player["uid"])].get("expire") else ""}")
 
 @bot.slash_command(
     name="noregget",
@@ -2436,6 +2452,7 @@ async def getnoreg(
     name: Option(
         str, "The playername / uid", autocomplete=autocompletenamesanduidsfromdb
     )):
+    now = time.time()
     # if not checkrconallowed(ctx.author,getslashcommandoverridesperms("changenoregs")):
     #     await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
     #     await ctx.respond("You are not allowed to use this command.")
@@ -2463,7 +2480,13 @@ async def getnoreg(
         return
     # del context["noregdata"]["noreggers"][player["uid"]]
     # savecontext()
-    await ctx.respond(f"{player["name"]} ({player["uid"]}) has {context["noregdata"]["noreggers"][str(player["uid"])]}% noregs")
+    if context["noregdata"]["noreggers"][str(player["uid"])].get("expire"):
+            expiry_text = modifyvalue(context["noregdata"]["noreggers"][str(player["uid"])].get("expire") - now,"time") if  context["noregdata"]["noreggers"][str(player["uid"])].get("expire") and context["noregdata"]["noreggers"][str(player["uid"])].get("expire") - now < 86400*2.5 else (
+                modifyvalue(context["noregdata"]["noreggers"][str(player["uid"])].get("expire"), "date")
+                if context["noregdata"]["noreggers"][str(player["uid"])].get("expire")
+                else "Never"
+            )
+    await ctx.respond(f"{player["name"]} ({player["uid"]}) has {context["noregdata"]["noreggers"][str(player["uid"])]["percent"]}% noregs {"expires in "+expiry_text if  context["noregdata"]["noreggers"][str(player["uid"])].get("expire") else ""}")
 
 @bot.slash_command(
     name="noregreset",
@@ -6968,7 +6991,8 @@ def recieveflaskprintrequests():
     #         f.write(f"{json.dumps(data,indent=4)}\n")
     @app.route("/recallnoregdata", methods=["GET"])
     def recallnoregdata():
-        return context.get("noregdata",{}),200
+        now = int(time.time())
+        return {**context.get("noregdata",{}),"noreggers":dict(map(lambda x: (x[0],x[1]["percent"]) ,list(filter(lambda x: not x[1].get("expire",False) or x[1]["expire"] > now,getpriority(context,["noregdata","noreggers"],nofind = {}).items()))))},200
     @app.route("/checkpasswordisright", methods=["POST"])
     def checkpassword():
         print("password query recieverd")
