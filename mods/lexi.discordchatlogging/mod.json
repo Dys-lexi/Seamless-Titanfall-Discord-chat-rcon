@@ -105,6 +105,14 @@
         {
             "Name": "discordlogenablekillandaccuracylogging",
             "DefaultValue": "1" // should log accuracy and kills?
+        },
+          {
+            "Name": "discordlogsystematicnoregsenabled",
+            "DefaultValue": "1"
+        },
+          {
+            "Name": "discordlogshouldnotifyofnoregs",
+            "DefaultValue": "1"
         }
 
     ],
@@ -168,6 +176,13 @@
         {
             "Path": "discordloghostiletitanfall.nut",
             "RunOn": "SERVER"
+        },
+        {
+            "Path": "noreg.nut",
+            "RunOn": "SERVER",
+                       "ServerCallback": {
+                "After": "discordlognoreg"
+            }
         },
         {
             "Path": "discordlogbettertb.nut",

@@ -2413,7 +2413,7 @@ async def setnoreg(
     if expiry and not expiry.isdigit():
         await ctx.respond("either leave expirey blank for forever, or like don't include it")
         return
-    elif expiry.isdigit():
+    elif expiry and expiry.isdigit():
         expiry = float(expiry) * 86400 + int(time.time())
     context.setdefault("noregdata",{}).setdefault("noreggers",{})
     name = str(name)
@@ -2431,7 +2431,7 @@ async def setnoreg(
     elif len(matchingplayers) == 0 and not originalname.isdigit():
         await ctx.respond("no players found :(")
         return
-    else:
+    elif originalname.isdigit() and len(matchingplayers) == 0:
         matchingplayers = [{"name":"UNKNOWN PERSON","uid":originalname}]
 
     player = matchingplayers[0]
@@ -2444,6 +2444,9 @@ async def setnoreg(
                 if context["noregdata"]["noreggers"][str(player["uid"])].get("expire")
                 else "Never"
             )
+    sendrconcommand(
+        serverid, f"!reloadpersistentvars {(player["uid"])}", sender=ctx.author.name
+    )
     await ctx.respond(f"Set noregpercent for {player["name"]} ({player["uid"]}) to {percent}% {"expires in "+expiry_text if  context["noregdata"]["noreggers"][str(player["uid"])].get("expire") else ""}")
 
 @bot.slash_command(
@@ -2476,7 +2479,7 @@ async def getnoreg(
     elif len(matchingplayers) == 0 and not originalname.isdigit():
         await ctx.respond("no players found :(")
         return
-    else:
+    elif originalname.isdigit() and len(matchingplayers) == 0:
         matchingplayers = [{"name":"UNKNOWN PERSON","uid":originalname}]
 
     player = matchingplayers[0]
@@ -2523,7 +2526,7 @@ async def resetsnoreg(
     elif len(matchingplayers) == 0 and not originalname.isdigit():
         await ctx.respond("no players found :(")
         return
-    else:
+    elif originalname.isdigit() and len(matchingplayers) == 0:
         matchingplayers = [{"name":"UNKNOWN PERSON","uid":originalname}]
 
     player = matchingplayers[0]
@@ -2533,6 +2536,9 @@ async def resetsnoreg(
         return
     del context["noregdata"]["noreggers"][str(player["uid"])]
     savecontext()
+    sendrconcommand(
+        serverid, f"!reloadpersistentvars {(player["uid"])}", sender=ctx.author.name
+    )
     await ctx.respond(f"removed noregdata for {player["name"]} ({player["uid"]})")
 
 @bot.slash_command(
@@ -5436,7 +5442,7 @@ if DISCORDBOTLOGSTATS == "1":
         knownips = list(json.loads(data[0]))
         
         for ip in knownips:
-            if ip["ip"] in uidinfo["searchedips"] or not re.match(r'^(\d{1,3}\.){3}\d{1,3}$', ip["ip"]):
+            if ip["ip"] in uidinfo["searchedips"] or not re.match(r'^(\d{1,3}\.){3}\d{1,3}$', ip["ip"]) or ip["ip"].startswith("192.168."):
                 continue
             uidinfo["searchedips"].append(ip["ip"])
             # print(ip)
@@ -7063,6 +7069,9 @@ def recieveflaskprintrequests():
                 "reason": "change your name",
                 "sanctiontype": "ban",
             }
+        noreg = {}
+        if data["uid"] in context["noregdata"]["noreggers"] and (not context["noregdata"]["noreggers"][data["uid"]].get("expire") or context["noregdata"]["noreggers"][data["uid"]].get("expire") > now):
+            noreg["noreg"] = str(context["noregdata"]["noreggers"][data["uid"]]["percent"])
         nameoverride = {}
         # print(resolveplayeruidfromdb(data["uid"],"uid",True))
         # print(playername,getpriority(readplayeruidpreferences(data["uid"], False),["tf2","nameoverride"]))
@@ -7158,6 +7167,8 @@ def recieveflaskprintrequests():
                 },
                 **sanction,
                 **nameoverride,
+                **noreg
+
             },
         }
         # print(json.dumps(output,indent=4))
