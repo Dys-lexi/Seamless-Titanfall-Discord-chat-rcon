@@ -2417,6 +2417,7 @@ async def setnoreg(
         expiry = float(expiry) * 86400 + int(time.time())
     context.setdefault("noregdata",{}).setdefault("noreggers",{})
     name = str(name)
+    originalname = name
     if len(name.rsplit("->", 1)) > 1:
         name = name.rsplit("->", 1)[1][1:-1]
     matchingplayers = resolveplayeruidfromdb(name, None, True)
@@ -2427,9 +2428,11 @@ async def setnoreg(
         )
         await ctx.respond (f"{len(matchingplayers)} players found, please be more specific: {multistring}")
         return
-    elif len(matchingplayers) == 0:
+    elif len(matchingplayers) == 0 and not originalname.isdigit():
         await ctx.respond("no players found :(")
         return
+    else:
+        matchingplayers = ["name":"the bot's not seen this person","uid":originalname]
 
     player = matchingplayers[0]
     now = time.time()
@@ -2459,6 +2462,7 @@ async def getnoreg(
     #     return
     context.setdefault("noregdata",{}).setdefault("noreggers",{})
     name = str(name)
+    originalname = name
     if len(name.rsplit("->", 1)) > 1:
         name = name.rsplit("->", 1)[1][1:-1]
     matchingplayers = resolveplayeruidfromdb(name, None, True)
@@ -2469,9 +2473,11 @@ async def getnoreg(
         )
         await ctx.respond (f"{len(matchingplayers)} players found, please be more specific: {multistring}")
         return
-    elif len(matchingplayers) == 0:
+    elif len(matchingplayers) == 0 and not originalname.isdigit():
         await ctx.respond("no players found :(")
         return
+    else:
+        matchingplayers = ["name":"the bot's not seen this person","uid":originalname]
 
     player = matchingplayers[0]
 
@@ -2503,6 +2509,7 @@ async def resetsnoreg(
         return
     context.setdefault("noregdata",{}).setdefault("noreggers",{})
     name = str(name)
+    originalname = name
     if len(name.rsplit("->", 1)) > 1:
         name = name.rsplit("->", 1)[1][1:-1]
     matchingplayers = resolveplayeruidfromdb(name, None, True)
@@ -2513,9 +2520,11 @@ async def resetsnoreg(
         )
         await ctx.respond (f"{len(matchingplayers)} players found, please be more specific: {multistring}")
         return
-    elif len(matchingplayers) == 0:
+    elif len(matchingplayers) == 0 and not originalname.isdigit():
         await ctx.respond("no players found :(")
         return
+    else:
+        matchingplayers = ["name":"the bot's not seen this person","uid":originalname]
 
     player = matchingplayers[0]
 
