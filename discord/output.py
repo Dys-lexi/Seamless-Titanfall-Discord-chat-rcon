@@ -2391,6 +2391,117 @@ async def keywordtoggle(
     savecontext()
     await ctx.respond(f"Added `{keywordtotoggle}` to {typeofkeyword}")
 
+@bot.slash_command(
+    name="noregset",
+    description="Sets a players noreg percent",
+)
+async def setnoreg(
+    ctx,
+    name: Option(
+        str, "The playername / uid", autocomplete=autocompletenamesanduidsfromdb
+    ),
+
+    percent: Option(int,"the percent of shots that noreg")):
+    if not checkrconallowed(ctx.author,getslashcommandoverridesperms("changenoregs")):
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        await ctx.respond("You are not allowed to use this command.")
+        return
+    context.setdefault("noregdata",{}).setdefault("noreggers",{})
+    name = str(name)
+    if len(name.rsplit("->", 1)) > 1:
+        name = name.rsplit("->", 1)[1][1:-1]
+    matchingplayers = resolveplayeruidfromdb(name, None, True)
+    if len(matchingplayers) > 1:
+        multistring = "\n" + "\n".join(
+            f"{i + 1}) {p['name']} uid: {p['uid']}"
+            for i, p in enumerate(matchingplayers[0:10])
+        )
+        await ctx.respond (f"{len(matchingplayers)} players found, please be more specific: {multistring}")
+        return
+    elif len(matchingplayers) == 0:
+        await ctx.respond("no players found :(")
+        return
+
+    player = matchingplayers[0]
+    context["noregdata"]["noreggers"][str(player["uid"])] = percent
+    savecontext()
+    await ctx.respond(f"Set noregpercent for {player["name"]} ({player["uid"]}) to {percent}%")
+
+@bot.slash_command(
+    name="noregget",
+    description="gets a players noreg percent",
+)
+async def getnoreg(
+    ctx,
+    name: Option(
+        str, "The playername / uid", autocomplete=autocompletenamesanduidsfromdb
+    )):
+    # if not checkrconallowed(ctx.author,getslashcommandoverridesperms("changenoregs")):
+    #     await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+    #     await ctx.respond("You are not allowed to use this command.")
+    #     return
+    context.setdefault("noregdata",{}).setdefault("noreggers",{})
+    name = str(name)
+    if len(name.rsplit("->", 1)) > 1:
+        name = name.rsplit("->", 1)[1][1:-1]
+    matchingplayers = resolveplayeruidfromdb(name, None, True)
+    if len(matchingplayers) > 1:
+        multistring = "\n" + "\n".join(
+            f"{i + 1}) {p['name']} uid: {p['uid']}"
+            for i, p in enumerate(matchingplayers[0:10])
+        )
+        await ctx.respond (f"{len(matchingplayers)} players found, please be more specific: {multistring}")
+        return
+    elif len(matchingplayers) == 0:
+        await ctx.respond("no players found :(")
+        return
+
+    player = matchingplayers[0]
+
+    if str(player["uid"]) not in context["noregdata"]["noreggers"]: 
+        await ctx.respond(f"there is no noregdata for {player["name"]} ({player["uid"]})")
+        return
+    # del context["noregdata"]["noreggers"][player["uid"]]
+    # savecontext()
+    await ctx.respond(f"{player["name"]} ({player["uid"]}) has {context["noregdata"]["noreggers"][str(player["uid"])]}% noregs")
+
+@bot.slash_command(
+    name="noregreset",
+    description="Removes a players noreg percent",
+)
+async def resetsnoreg(
+    ctx,
+    name: Option(
+        str, "The playername / uid", autocomplete=autocompletenamesanduidsfromdb
+    )):
+    if not checkrconallowed(ctx.author,getslashcommandoverridesperms("changenoregs")):
+        await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
+        await ctx.respond("You are not allowed to use this command.")
+        return
+    context.setdefault("noregdata",{}).setdefault("noreggers",{})
+    name = str(name)
+    if len(name.rsplit("->", 1)) > 1:
+        name = name.rsplit("->", 1)[1][1:-1]
+    matchingplayers = resolveplayeruidfromdb(name, None, True)
+    if len(matchingplayers) > 1:
+        multistring = "\n" + "\n".join(
+            f"{i + 1}) {p['name']} uid: {p['uid']}"
+            for i, p in enumerate(matchingplayers[0:10])
+        )
+        await ctx.respond (f"{len(matchingplayers)} players found, please be more specific: {multistring}")
+        return
+    elif len(matchingplayers) == 0:
+        await ctx.respond("no players found :(")
+        return
+
+    player = matchingplayers[0]
+
+    if str(player["uid"]) not in context["noregdata"]["noreggers"]: 
+        await ctx.respond(f"there is no noregdata to remove for {player["name"]} ({player["uid"]})")
+        return
+    del context["noregdata"]["noreggers"][str(player["uid"])]
+    savecontext()
+    await ctx.respond(f"removed noregdata for {player["name"]} ({player["uid"]})")
 
 @bot.slash_command(
     name="sanctiontf2",
@@ -6855,7 +6966,9 @@ def recieveflaskprintrequests():
     #     data = {"time":datetime.now().strftime("%d/%m/%Y %H:%M:%S"),"json":request.get_json(silent=True),"headers":dict(request.headers),"cookies":dict(request.cookies),"ips":request.access_route,"ip":request.remote_addr}
     #     with open("./otherdata/httplogs.json", "a") as f:
     #         f.write(f"{json.dumps(data,indent=4)}\n")
-
+    @app.route("/recallnoregdata", methods=["GET"])
+    def recallnoregdata():
+        return context.get("noregdata",{}),200
     @app.route("/checkpasswordisright", methods=["POST"])
     def checkpassword():
         print("password query recieverd")
