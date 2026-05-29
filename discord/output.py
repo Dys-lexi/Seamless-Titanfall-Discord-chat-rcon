@@ -2432,7 +2432,7 @@ async def setnoreg(
         await ctx.respond("no players found :(")
         return
     else:
-        matchingplayers = [{"name":"the bot's not seen this person","uid":originalname}]
+        matchingplayers = [{"name":"UNKNOWN PERSON","uid":originalname}]
 
     player = matchingplayers[0]
     now = time.time()
@@ -2477,7 +2477,7 @@ async def getnoreg(
         await ctx.respond("no players found :(")
         return
     else:
-        matchingplayers = [{"name":"the bot's not seen this person","uid":originalname}]
+        matchingplayers = [{"name":"UNKNOWN PERSON","uid":originalname}]
 
     player = matchingplayers[0]
 
@@ -2524,7 +2524,7 @@ async def resetsnoreg(
         await ctx.respond("no players found :(")
         return
     else:
-        matchingplayers = [{"name":"the bot's not seen this person","uid":originalname}]
+        matchingplayers = [{"name":"UNKNOWN PERSON","uid":originalname}]
 
     player = matchingplayers[0]
 
@@ -6999,9 +6999,7 @@ def recieveflaskprintrequests():
     #     with open("./otherdata/httplogs.json", "a") as f:
     #         f.write(f"{json.dumps(data,indent=4)}\n")
     @app.route("/recallnoregdata", methods=["GET"])
-    def recallnoregdata():
-        now = int(time.time())
-        return {**context.get("noregdata",{}),"noreggers":dict(map(lambda x: (x[0],x[1]["percent"]) ,list(filter(lambda x: not x[1].get("expire",False) or x[1]["expire"] > now,getpriority(context,["noregdata","noreggers"],nofind = {}).items()))))},200
+    def recallnoregdata(): return {**context.get("noregdata",{}),"noreggers":dict(map(lambda x: (x[0],x[1]["percent"]) ,list(filter(lambda x: not x[1].get("expire",False) or x[1]["expire"] > int(time.time()),getpriority(context,["noregdata","noreggers"],nofind = {}).items()))))},200
     @app.route("/checkpasswordisright", methods=["POST"])
     def checkpassword():
         print("password query recieverd")
