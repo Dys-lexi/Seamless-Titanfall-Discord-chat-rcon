@@ -2432,8 +2432,8 @@ async def setnoreg(
         await ctx.respond("no players found :(")
         return
     elif originalname.isdigit() and len(matchingplayers) == 0:
-        matchingplayers = [{"name":"UNKNOWN PERSON","uid":originalname}]
-
+        matchingplayers = [{"name":"UNKNOWN PERSON","uid":originalname,"lastserverid":False}]
+        
     player = matchingplayers[0]
     now = time.time()
     context["noregdata"]["noreggers"][str(player["uid"])] = {"percent":percent,"expire":int(expiry) if expiry else False}
@@ -2444,9 +2444,10 @@ async def setnoreg(
                 if context["noregdata"]["noreggers"][str(player["uid"])].get("expire")
                 else "Never"
             )
-    sendrconcommand(
-        serverid, f"!reloadpersistentvars {(player["uid"])}", sender=ctx.author.name
-    )
+    if player["lastserverid"]:
+        sendrconcommand(
+            player["lastserverid"], f"!reloadpersistentvars {(player["uid"])}", sender=ctx.author.name
+        )
     await ctx.respond(f"Set noregpercent for {player["name"]} ({player["uid"]}) to {percent}% {"expires in "+expiry_text if  context["noregdata"]["noreggers"][str(player["uid"])].get("expire") else ""}")
 
 @bot.slash_command(
@@ -2527,7 +2528,7 @@ async def resetsnoreg(
         await ctx.respond("no players found :(")
         return
     elif originalname.isdigit() and len(matchingplayers) == 0:
-        matchingplayers = [{"name":"UNKNOWN PERSON","uid":originalname}]
+        matchingplayers = [{"name":"UNKNOWN PERSON","uid":originalname,"lastserverid":False}]
 
     player = matchingplayers[0]
 
@@ -2536,9 +2537,10 @@ async def resetsnoreg(
         return
     del context["noregdata"]["noreggers"][str(player["uid"])]
     savecontext()
-    sendrconcommand(
-        serverid, f"!reloadpersistentvars {(player["uid"])}", sender=ctx.author.name
-    )
+    if player["lastserverid"]:
+        sendrconcommand(
+            player["lastserverid"], f"!reloadpersistentvars {(player["uid"])}", sender=ctx.author.name
+        )
     await ctx.respond(f"removed noregdata for {player["name"]} ({player["uid"]})")
 
 @bot.slash_command(
