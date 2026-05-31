@@ -5405,8 +5405,11 @@ if DISCORDBOTLOGSTATS == "1":
         ctx,
         name: Option(
             str, "The playername / uid", autocomplete=autocompletenamesfromdb
-        )):
-        
+        ),      traversedepth: Option(int, "alt of and alt of an alt depth") = 999,
+        threshold: Option(int, "the max number of uids that share 1 ip - filter vpns") = 999
+  
+        ):
+        await ctx.defer()
         if not checkrconallowed(ctx.author,getslashcommandoverridesperms("getalts")):
             await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
             await ctx.respond("You are not allowed to use this command.")
@@ -5418,22 +5421,27 @@ if DISCORDBOTLOGSTATS == "1":
             return   
         player = player[0]
         # print(json.dumps(searchforalts(player["uid"]),indent=4))
-        alts = list(filter(lambda x: True or x != player["uid"] ,searchforalts(player["uid"])["all"]))
+        fullalts = searchforalts(player["uid"],False,0,traversedepth)
+        alts = fullalts["all"]
+        # print(fullalts["depth"])
         embed = discord.Embed(
             title=f"*Alts* for uid {player['uid']} ({len(alts)} alt{'s' if len(alts) != 1 else ''} for '{player["name"]}')",
             color=0xFF70CB,
             # description=f"maynotprovidecomprehensivelistidk",
         )
-        for alt in alts:
+        for alt in list(filter(lambda x:  min(list(map(lambda x: fullalts["counter"][x] ,fullalts["connectedby"][x]))) <= threshold ,sorted(alts,key = lambda x: len(resolveplayeruidfromdb(x,"uid",False)),reverse = True)))[0:25]:
             alt = resolveplayeruidfromdb(alt,"uid",False)
-            embed.add_field(name=f"{alt[0]["name"]} ({alt[0]["uid"]}):", value=f"\u200b {len(alt)} Aliases", inline=False)
+            embed.add_field(name=f"{alt[0]["name"]} ({alt[0]["uid"]}):", value=f"\u200b {len(alt)} Aliases, {min(list(map(lambda x: fullalts["counter"][x] ,fullalts["connectedby"][alt[0]["uid"]])))} Alts had this ip, {fullalts["depth"][alt[0]["uid"]]} Depth", inline=False)
         if not alts:
             embed.add_field(name=f"No alts found", value=f"sorry", inline=False)
         await ctx.respond(embed=embed, ephemeral=False)
 
 
-    def searchforalts(uid,uidinfo = False):
-        if not uidinfo: uidinfo = {"searched":[],"all":[],"searchedips":[]}
+    def searchforalts(uid,uidinfo = False, depth = 0,maxtraversedepth = 999):
+        if not uidinfo: uidinfo = {"searched":[],"all":[],"searchedips":[],"connectedby":{},"counter":{},"depth":{uid:0}}
+
+        uids_before = set(uidinfo["all"])
+
         tfdb = postgresem("./data/tf2helper.db")
         c = tfdb
         c.execute("SELECT ipinfo FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC",(uid,))
@@ -5442,19 +5450,26 @@ if DISCORDBOTLOGSTATS == "1":
         if not data or not data[0]:
             return uidinfo
         knownips = list(json.loads(data[0]))
-        
+
         for ip in knownips:
+            uidinfo["counter"].setdefault(ip["ip"],0)
+            uidinfo["counter"][ip["ip"]] += 1
+            if depth == maxtraversedepth:
+                continue
             if ip["ip"] in uidinfo["searchedips"] or not re.match(r'^(\d{1,3}\.){3}\d{1,3}$', ip["ip"]) or ip["ip"].startswith("192.168."):
                 continue
             uidinfo["searchedips"].append(ip["ip"])
             # print(ip)
             c.execute("SELECT playeruid FROM uidnamelink WHERE ipinfo LIKE ?",(f"%{ip["ip"]}%",))
-            uidinfo["all"] = list(set([*uidinfo["all"],*(list(map(lambda x: x[0],c.fetchall())))]))
-            
+            output = c.fetchall()
+            uidinfo["all"] = list(set([*uidinfo["all"],*(list(map(lambda x: x[0],output)))]))
+            uidinfo["depth"].update({uid: min(uidinfo["depth"].get(uid,depth+1),depth+1) for uid in list(map(lambda x: x[0],output))})
+            uidinfo["connectedby"].update(dict(map( lambda x: (x[0], { **uidinfo.get(x[0],{}),  ip["ip"]:getpriority(uidinfo["connectedby"],[x[0],ip["ip"]],nofind = 0) + 1}),output)))
+
         tfdb.close()
-        for uid in filter(lambda x:x not in uidinfo["searched"],uidinfo["all"]):
-            uidinfo["searched"].append(uid)  # Mark as searched BEFORE recursing
-            uidinfo = searchforalts(uid,uidinfo)
+        for uid in filter(lambda x: x not in uids_before and x not in uidinfo["searched"],uidinfo["all"]):
+            uidinfo["searched"].append(uid)  
+            uidinfo = searchforalts(uid,uidinfo,depth+1,maxtraversedepth)
         return uidinfo
         
     
