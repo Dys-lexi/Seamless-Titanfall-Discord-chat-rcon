@@ -5429,7 +5429,7 @@ if DISCORDBOTLOGSTATS == "1":
             color=0xFF70CB,
             # description=f"maynotprovidecomprehensivelistidk",
         )
-        for alt in list(filter(lambda x:  min(list(map(lambda x: fullalts["counter"][x] ,fullalts["connectedby"][x]))) <= threshold ,sorted(alts,key = lambda x: len(resolveplayeruidfromdb(x,"uid",False)),reverse = True)))[0:25]:
+        for alt in list(filter(lambda x:  min(list(map(lambda x: fullalts["counter"][x] ,fullalts["connectedby"][x]))) <= threshold ,sorted(alts,key = lambda x: fullalts["depth"][x],reverse = False)))[0:25]:
             alt = resolveplayeruidfromdb(alt,"uid",False)
             embed.add_field(name=f"{alt[0]["name"]} ({alt[0]["uid"]}):", value=f"\u200b {len(alt)} Aliases, {min(list(map(lambda x: fullalts["counter"][x] ,fullalts["connectedby"][alt[0]["uid"]])))} Alts had this ip, {fullalts["depth"][alt[0]["uid"]]} Depth", inline=False)
         if not alts:
@@ -14314,7 +14314,7 @@ def playerpolllog(data, serverid, statuscode):
     if not istf1:
         currentmap = data["meta"][0]
         matchid = data["meta"][2]
-        gamemode = data["meta"][3] if len(data) > 3 else "unknown"
+        gamemode = data["meta"][3] if len(data["meta"]) > 3 else "unknown"
     else:
         currentmap = data["meta"]["map"]
         matchid = data["meta"]["matchid"]
