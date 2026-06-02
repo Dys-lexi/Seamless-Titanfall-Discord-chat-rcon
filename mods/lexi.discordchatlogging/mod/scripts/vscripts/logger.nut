@@ -325,8 +325,9 @@ void function discordloggerinit() {
 	thread begintodiscord()
 	// AddCallback_GameStateEnter(eGameState.PickLoadout, Onmapchange);
     // AddCallback_GameStateEnter(eGameState.Prematch, Onmapchange);
-	
+	if (! IsLobby()){
 	AddCallback_GameStateEnter(9,stoprequests);
+	}
 	AddCallback_OnPlayerKilled(playerstabbedmodelsaver)
 
 	
