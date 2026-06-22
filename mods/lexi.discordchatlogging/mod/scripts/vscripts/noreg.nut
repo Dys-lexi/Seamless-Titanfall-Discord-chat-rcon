@@ -51,7 +51,7 @@ void function noreg ( entity titan, var damageInfo )
 
 	entity player = DamageInfo_GetAttacker( damageInfo )
     // discordlogsendmessage("" + player.IsPlayer() + titan.IsPlayer() + IsValid( titan ) + IsValid( player ) + (player.GetUID() in noregs) + (RandomInt( 100 ) < noregs[player.GetUID()])  + GetConVarInt("systematicnoregsenabled"))
-    if (   player.IsPlayer() && titan.IsPlayer() && IsValid( titan ) && IsValid( player ) && (discordlogpullplayerstat(player.GetUID(),"noreg") != "" ) && (RandomInt( 100 ) < discordlogpullplayerstat(player.GetUID(),"noreg").tointeger())  && GetConVarInt("discordlogsystematicnoregsenabled"))
+    if (   player.IsPlayer() && titan.IsPlayer() && IsValid( titan )  &&  IsValid( player ) &&  player != titan &&  (discordlogpullplayerstat(player.GetUID(),"noreg") != "" ) && (RandomInt( 100 ) < discordlogpullplayerstat(player.GetUID(),"noreg").tointeger())  && GetConVarInt("discordlogsystematicnoregsenabled"))
 
 	{
 		vector velocity = titan.GetVelocity()

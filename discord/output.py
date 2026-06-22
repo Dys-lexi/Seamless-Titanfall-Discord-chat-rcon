@@ -7021,6 +7021,61 @@ def recieveflaskprintrequests():
     #     data = {"time":datetime.now().strftime("%d/%m/%Y %H:%M:%S"),"json":request.get_json(silent=True),"headers":dict(request.headers),"cookies":dict(request.cookies),"ips":request.access_route,"ip":request.remote_addr}
     #     with open("./otherdata/httplogs.json", "a") as f:
     #         f.write(f"{json.dumps(data,indent=4)}\n")
+    @app.route("/resolveusernameandwhatnot",methods=["POST"])
+    def resolveusernameandwhatnot():
+        data = request.get_json()
+        if data.get("uidnameforce",False) and data["uidnameforce"] not in ["uid","name"]:
+            return {"error":"uidnameforce must be 'name' or 'uid' you nincompoop"}, 400
+        elif not isinstance(data.get("oneuidpermatch",False),bool):
+            return {"error":"oneuidpermatch must be a bool you nincompoop"}, 400
+        return resolveplayeruidfromdb(data["name"],data.get("uidnameforce",False),data.get("oneuidpermatch",False)), {200}
+    @app.route("/resolvemessagelogs", methods=["POST"])
+    @functools.lru_cache(maxsize=100)
+    def resolvemessagelogs():
+        data = {"pants":"underwear"}
+        messagetype = data.get("messagetype", None)
+        uid = data.get("uid", None)
+        if uid and not isinstance(uid,int) and not uid.isdigit():
+            return{"error":"uid has to be a digit"} ,400
+        filters = data.get("filters", [])
+        if not isinstance(filters,list): filters = [filters]
+        tfdb = postgresem("./data/tf2helper.db")
+        c = tfdb
+        c.execute("SELECT DISTINCT(type) FROM messagelogger")
+        types = list(map(lambda x: x[0],c.fetchall()))
+        if messagetype not in types:
+            return {"error":f"type must be in {types}"}, 400
+        query = "SELECT id, message, serverid, type FROM messagelogger"
+        params = []
+        if messagetype:
+            query += " AND type = %s"
+            params.append(messagetype)
+        if uid:
+            query += " AND message::json->>'uid' = %s"
+            params.append(uid)
+        if filters and len(filters) > 0:
+            filter_conditions = []
+            for filter_dict in filters:
+                for key, value in filter_dict.items():
+                    filter_conditions.append(f"message::json->>'{key}' = %s")
+                    params.append(str(value))
+
+            if filter_conditions:
+                query += " AND (" + " OR ".join(filter_conditions) + ")"
+
+        c.execute(query, tuple(params))
+        results = c.fetchall()
+        messages = []
+        for row in results:
+            messages.append({
+                "id": row[0],
+                "message": json.loads(row[1]) if row[1] else None,
+                "serverid": row[2],
+                "type": row[3]
+            })
+
+        c.close()
+        return {"messages": messages}, 200
     @app.route("/recallnoregdata", methods=["GET"])
     def recallnoregdata(): return {**context.get("noregdata",{}),"noreggers":dict(map(lambda x: (x[0],x[1]["percent"]) ,list(filter(lambda x: not x[1].get("expire",False) or x[1]["expire"] > int(time.time()),getpriority(context,["noregdata","noreggers"],nofind = {}).items()))))},200
     @app.route("/checkpasswordisright", methods=["POST"])
