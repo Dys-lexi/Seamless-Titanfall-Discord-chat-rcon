@@ -6262,7 +6262,7 @@ def setcolour(colours, discorduid, type="choseningamecolour", teamsetting="all")
             rgba = [r, g, b]
             colourslist.append(rgba)
         elif colour.lower() in CSS_COLOURS.keys():
-            rgba = CSS_COLOURS[colour]
+            rgba = CSS_COLOURS[colour.lower()]
             colourslist.append(rgba)
         else:
             rgba = "reset"
@@ -6347,7 +6347,7 @@ async def show_color_why(
             b = int(colour[5:7], 16)
             rgba = (r, g, b)
         elif colour.lower() in CSS_COLOURS.keys():
-            rgba = CSS_COLOURS[colour]
+            rgba = CSS_COLOURS[colour.lower()]
         else:
             rgba = "reset"
             break
@@ -7028,7 +7028,7 @@ def recieveflaskprintrequests():
             return {"error":"uidnameforce must be 'name' or 'uid' you nincompoop"}, 400
         elif not isinstance(data.get("oneuidpermatch",False),bool):
             return {"error":"oneuidpermatch must be a bool you nincompoop"}, 400
-        return resolveplayeruidfromdb(data["name"],data.get("uidnameforce",False),data.get("oneuidpermatch",False)), {200}
+        return resolveplayeruidfromdb(data["name"],data.get("uidnameforce",False),data.get("oneuidpermatch",False)), 200
     @app.route("/resolvemessagelogs", methods=["POST"])
     @functools.lru_cache(maxsize=100)
     def resolvemessagelogs():
