@@ -2410,10 +2410,10 @@ async def setnoreg(
         await asyncio.sleep(SLEEPTIME_ON_FAILED_COMMAND)
         await ctx.respond("You are not allowed to use this command.")
         return
-    if expiry and not expiry.isdigit():
+    if expiry and not expiry.replace(".","").isdigit():
         await ctx.respond("either leave expirey blank for forever, or like don't include it")
         return
-    elif expiry and expiry.isdigit():
+    elif expiry and expiry.replace(".","").isdigit():
         expiry = float(expiry) * 86400 + int(time.time())
     context.setdefault("noregdata",{}).setdefault("noreggers",{})
     name = str(name)
@@ -2485,7 +2485,7 @@ async def getnoreg(
 
     player = matchingplayers[0]
 
-    if str(player["uid"]) not in context["noregdata"]["noreggers"]: 
+    if str(player["uid"]) not in context["noregdata"]["noreggers"] or context["noregdata"]["noreggers"][str(player["uid"])].get("expire") > now: 
         await ctx.respond(f"there is no noregdata for {player["name"]} ({player["uid"]})")
         return
     # del context["noregdata"]["noreggers"][player["uid"]]
