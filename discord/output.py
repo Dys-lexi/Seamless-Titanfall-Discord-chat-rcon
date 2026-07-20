@@ -5397,10 +5397,6 @@ if DISCORDBOTLOGSTATS == "1":
         await ctx.respond(embed=embed, ephemeral=False)
 
         # await ctx.respond(data, ephemeral=False)
-    @bot.slash_command(
-        name="getalts",
-        description="finds the alts for a player",
-    )
     async def altcommand(
         ctx,
         name: Option(
@@ -5431,14 +5427,16 @@ if DISCORDBOTLOGSTATS == "1":
         )
         for alt in list(filter(lambda x:  min(list(map(lambda x: fullalts["counter"][x] ,fullalts["connectedby"][x]))) <= threshold ,sorted(alts,key = lambda x: fullalts["depth"][x],reverse = False)))[0:25]:
             alt = resolveplayeruidfromdb(alt,"uid",False)
-            embed.add_field(name=f"{alt[0]["name"]} ({alt[0]["uid"]}):", value=f"\u200b {len(alt)} Aliases, {min(list(map(lambda x: fullalts["counter"][x] ,fullalts["connectedby"][alt[0]["uid"]])))} Alts had this ip, {fullalts["depth"][alt[0]["uid"]]} Depth", inline=False)
+            # {min(list(map(lambda x: fullalts["counter"][x] ,fullalts["connectedby"][alt[0]["uid"]])))} Alts had this ip,
+            print(fullalts["shared"][alt[0]["uid"]])
+            embed.add_field(name=f"{alt[0]["name"]} ({alt[0]["uid"]}):", value=f"\u200b {len(alt)} Aliases, {fullalts["depth"][alt[0]["uid"]]} Depth, ({", ".join(list(map(lambda x:resolveplayeruidfromdb(x,"uid",False)[0]["name"] ,filter(lambda x: x != alt[0]["uid"],fullalts["shared"][alt[0]["uid"]]))))}) Common accounts", inline=False)
         if not alts:
             embed.add_field(name=f"No alts found", value=f"sorry", inline=False)
         await ctx.respond(embed=embed, ephemeral=False)
 
 
     def searchforalts(uid,uidinfo = False, depth = 0,maxtraversedepth = 999):
-        if not uidinfo: uidinfo = {"searched":[],"all":[],"searchedips":[],"connectedby":{},"counter":{},"depth":{uid:0}}
+        if not uidinfo: uidinfo = {"searched":[],"all":[],"searchedips":[],"connectedby":{},"counter":{},"shared":{},"depth":{uid:0}}
 
         uids_before = set(uidinfo["all"])
 
@@ -5462,6 +5460,8 @@ if DISCORDBOTLOGSTATS == "1":
             # print(ip)
             c.execute("SELECT playeruid FROM uidnamelink WHERE ipinfo LIKE ?",(f"%{ip["ip"]}%",))
             output = c.fetchall()
+            uidinfo["shared"].update(dict(map(lambda x: (x[0],list(set([*uidinfo["shared"].get(x[0],[]),uid]))),output)))
+            uidinfo["shared"].update({uid:list(set([*uidinfo["shared"].get(uid,[]),*list(map(lambda x: x[0],output))]))})
             uidinfo["all"] = list(set([*uidinfo["all"],*(list(map(lambda x: x[0],output)))]))
             uidinfo["depth"].update({uid: min(uidinfo["depth"].get(uid,depth+1),depth+1) for uid in list(map(lambda x: x[0],output))})
             uidinfo["connectedby"].update(dict(map( lambda x: (x[0], { **uidinfo.get(x[0],{}),  ip["ip"]:getpriority(uidinfo["connectedby"],[x[0],ip["ip"]],nofind = 0) + 1}),output)))
