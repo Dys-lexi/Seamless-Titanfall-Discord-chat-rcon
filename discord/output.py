@@ -5385,7 +5385,7 @@ if DISCORDBOTLOGSTATS == "1":
         if len(aliases) > MAXALIASESSHOWN:
             embed.add_field(
                 name=f"{len(aliases) - MAXALIASESSHOWN} more alias{'es' if len(aliases) - MAXALIASESSHOWN > 1 else ''}",
-                value=f"({', '.join(list(map(lambda x: f'*{x}*', aliases[MAXALIASESSHOWN:])))})"[:1020],
+                value=f"({', '.join(list(map(lambda x: f'{x}', names[MAXALIASESSHOWN:])))})"[:1020],
             )
 
         if len(alsomatching.keys()) > 0:
