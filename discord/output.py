@@ -5397,6 +5397,10 @@ if DISCORDBOTLOGSTATS == "1":
         await ctx.respond(embed=embed, ephemeral=False)
 
         # await ctx.respond(data, ephemeral=False)
+    @bot.slash_command(
+        name="getalts",
+        description="finds the alts for a player",
+    )
     async def altcommand(
         ctx,
         name: Option(
@@ -5429,7 +5433,7 @@ if DISCORDBOTLOGSTATS == "1":
             alt = resolveplayeruidfromdb(alt,"uid",False)
             # {min(list(map(lambda x: fullalts["counter"][x] ,fullalts["connectedby"][alt[0]["uid"]])))} Alts had this ip,
             print(fullalts["shared"][alt[0]["uid"]])
-            embed.add_field(name=f"{alt[0]["name"]} ({alt[0]["uid"]}):", value=f"\u200b {len(alt)} Aliases, {fullalts["depth"][alt[0]["uid"]]} Depth, ({", ".join(list(map(lambda x:resolveplayeruidfromdb(x,"uid",False)[0]["name"] ,filter(lambda x: x != alt[0]["uid"],fullalts["shared"][alt[0]["uid"]]))))}) Common accounts", inline=False)
+            embed.add_field(name=f"{alt[0]["name"]} ({alt[0]["uid"]}):", value=f"\u200b {len(alt)} Aliases, {fullalts["depth"][alt[0]["uid"]]} Depth, ({", ".join(list(map(lambda x:resolveplayeruidfromdb(x,"uid",False)[0]["name"] ,filter(lambda x: x != alt[0]["uid"],fullalts["shared"][alt[0]["uid"]])))) or "0"}) Common accounts", inline=False)
         if not alts:
             embed.add_field(name=f"No alts found", value=f"sorry", inline=False)
         await ctx.respond(embed=embed, ephemeral=False)
@@ -6815,7 +6819,7 @@ def colourmessage(message, serverid):
     # print(colourslink[discorduid])
     if message["metadata"]["teamtype"] == "not team":
         authornicks["friendly"] = computeauthornick(
-            ((not resolvecommandperms(serverid,internaltoggles["nameoverride"]) or checkrconallowedtfuid(message["metadata"]["uid"],resolvecommandperms(serverid,internaltoggles["nameoverride"],True),serverid=serverid))  and getpriority(readplayeruidpreferences(message["metadata"]["uid"], False),["tf2","nameoverride"])) or message["player"] ,
+            ( (message.get("bypassperms") or not resolvecommandperms(serverid,internaltoggles["nameoverride"]) or checkrconallowedtfuid(message["metadata"]["uid"],resolvecommandperms(serverid,internaltoggles["nameoverride"],True),serverid=serverid))  and getpriority(readplayeruidpreferences(message["metadata"]["uid"], False),["tf2","nameoverride"])) or message["player"] ,
             discorduid,
             message["messagecontent"],
             serverid,
@@ -6830,7 +6834,7 @@ def colourmessage(message, serverid):
             True,
         )
         authornicks["enemy"] = computeauthornick(
-            ((not resolvecommandperms(serverid,internaltoggles["nameoverride"]) or checkrconallowedtfuid(message["metadata"]["uid"],resolvecommandperms(serverid,internaltoggles["nameoverride"],True),serverid=serverid))  and getpriority(readplayeruidpreferences(message["metadata"]["uid"], False),["tf2","nameoverride"])) or message["player"] ,
+            ((message.get("bypassperms") or not resolvecommandperms(serverid,internaltoggles["nameoverride"]) or checkrconallowedtfuid(message["metadata"]["uid"],resolvecommandperms(serverid,internaltoggles["nameoverride"],True),serverid=serverid))  and getpriority(readplayeruidpreferences(message["metadata"]["uid"], False),["tf2","nameoverride"])) or message["player"] ,
             discorduid,
             message["messagecontent"],
             serverid,
@@ -6846,7 +6850,7 @@ def colourmessage(message, serverid):
         )
     else:
         authornicks["friendly"] = computeauthornick(
-            ((not resolvecommandperms(serverid,internaltoggles["nameoverride"]) or checkrconallowedtfuid(message["metadata"]["uid"],resolvecommandperms(serverid,internaltoggles["nameoverride"],True),serverid=serverid))  and getpriority(readplayeruidpreferences(message["metadata"]["uid"], False),["tf2","nameoverride"])) or message["player"] ,
+            ((message.get("bypassperms") or not resolvecommandperms(serverid,internaltoggles["nameoverride"]) or checkrconallowedtfuid(message["metadata"]["uid"],resolvecommandperms(serverid,internaltoggles["nameoverride"],True),serverid=serverid))  and getpriority(readplayeruidpreferences(message["metadata"]["uid"], False),["tf2","nameoverride"])) or message["player"] ,
             discorduid,
             message["messagecontent"],
             serverid,

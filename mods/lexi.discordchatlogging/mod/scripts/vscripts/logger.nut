@@ -590,6 +590,9 @@ ClServer_MessageStruct function LogMSG ( ClServer_MessageStruct message ){
 		}
 	else if (serverdetails.uselocaltags && discordlogpullplayerstat(message.player.GetUID(),"nameprefix") != "" && !((discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "mute"||discordlogpullplayerstat(message.player.GetUID(),"sanctiontype") == "meanmute" )&& serverdetails.enforcesanctions)){
 		meta["donotcolour"] <- true
+		if (GetConVarInt("discordlogaprilfools")){
+			meta["bypassnameperms"] <- true
+		}
 		message.shouldBlock = true;
 		// discordlogsendmessage("HEREEEE2")
 		if (!message.isTeam){
