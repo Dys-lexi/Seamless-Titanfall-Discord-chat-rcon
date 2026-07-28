@@ -788,7 +788,15 @@ void function Postmessages(outgoingmessage message){
 				discordlogsendmessage(expect string(responses["friendly"]),teamtype)	
          }
 		 if ("enemy" in responses) {
-				discordlogsendmessage(expect string(responses["enemy"]),(teamtype - 3)*-1+2)	
+			array<int> teams = []
+			foreach (entity enemy in GetPlayerArray()){
+				if (enemy.GetTeam() != teamtype && !(teams.contains(enemy.GetTeam()))){
+					discordlogsendmessage(expect string(responses["enemy"]),enemy.GetTeam())	
+					teams.append(enemy.GetTeam())
+				}
+				}
+			
+				
 		 }
 		 if ("both" in responses){
 			discordlogsendmessage(expect string(responses["both"]),4)
