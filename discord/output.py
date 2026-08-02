@@ -10059,7 +10059,7 @@ def autobalanceoverride(data, serverid, statuscode):
 
     discordtotitanfall[serverid]["messages"].append(
         {
-            "content": f"{PREFIXES["discord"]}Balancing based on {PREFIXES["stat"]}60% percentile Kills/Min\n{PREFIXES["stat2"]}(yell at dyslexi on discord if you think you have a better algorithm)",
+            "content": f"{PREFIXES["discord"]}Balancing based on {PREFIXES["stat"]}Recentish Kills/Deaths\n{PREFIXES["stat2"]}(yell at dyslexi on discord if you think you have a better algorithm)",
             # "uidoverride": [player["uid"]],
         }
     )
