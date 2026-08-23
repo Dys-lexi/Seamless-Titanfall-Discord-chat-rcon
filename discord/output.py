@@ -6190,7 +6190,7 @@ def settag(tag, discorduid):
     # return f"2{tag}2"
     """helper for above func"""
     global colourslink
-    if tag != "reset" and (len(tag) < 1 or len(tag) > MAXTAGLEN):
+    if tag != "reset" and (len(tag) < 1 or len(tag) > MAXTAGLEN) and tag:
         return f"Tags have to be bettween 1 and {MAXTAGLEN} digits"
     warn = ""
     if not pullid(discorduid, "tf"):
@@ -6206,7 +6206,7 @@ def settag(tag, discorduid):
     )
     tfdb.commit()
     tfdb.close()
-    if tag == "reset" and getpriority(colourslink, [discorduid, "nameprefix"]):
+    if (tag == "reset" or not tag) and getpriority(colourslink, [discorduid, "nameprefix"]):
         colourslink[discorduid]["nameprefix"] = None
         return f"reset tag {warn}"
     else:
@@ -6256,7 +6256,7 @@ def setcolour(colours, discorduid, type="choseningamecolour", teamsetting="all")
         if (
             not re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour)
             and colour.lower() not in CSS_COLOURS.keys()
-            and colour != "reset"
+            and colour != "reset" and colour
         ):
             return "Please enter a **valid** hex color (e.g: '#1A2B3C'), or a valid normal colour, (e.g: 'red')"
         if re.compile(r"^#([A-Fa-f0-9]{6})$").match(colour):
