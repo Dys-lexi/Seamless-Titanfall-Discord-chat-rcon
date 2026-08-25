@@ -726,6 +726,7 @@ void function checkshouldblockmessages(entity player){
 				runcommandondiscord("loganipofabannedplayer", {name = discordloggetplayername(player),uid = responses["uid"],ip = split(player.GetIPString(), ":]")[2]})
 				NSDisconnectPlayer(player,"You are banned, JOIN THE DISCORD IN SERVER DESC TO COMPLAIN. Expires: "+discordlogpullplayerstat(expect string(responses["uid"]),"expiry")+" Reason: "+ discordlogpullplayerstat(expect string(responses["uid"]),"reason"))
 			}
+			NSSetVoiceCommsBanned(player,false)
 			if ((discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "mute" ||discordlogpullplayerstat(expect string(responses["uid"]),"sanctiontype") == "meanmute" 	) && serverdetails.enforcesanctions){
 				// NSDisconnectPlayer(player,"You are banned, JOIN THE DISCORD IN SERVER DESC TO COMPLAIN. Expires: "+discordlogpullplayerstat(expect string(responses["uid"]),"expiry")+" Reason: "+ discordlogpullplayerstat(expect string(responses["uid"]),"reason"))
 				NSSetVoiceCommsBanned(player,true)

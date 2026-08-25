@@ -9168,6 +9168,11 @@ def tftodiscordcommand(specificommand, command, serverid):
     # print("HERE")
     # print("HERE", not specificommand,command.get("originalmessage",False) ,command["originalmessage"][0] == keyletter,command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() ,("tf1" if context["servers"].get(serverid, {}).get("istf1server", False) else "tf2") in  REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
     # print(not specificommand and command.get("originalmessage",False) and command["originalmessage"][0] == keyletter and command["originalmessage"][1:].split(" ")[0] in REGISTEREDTFTODISCORDCOMMANDS.keys() and ("tf1" if context["servers"].get(serverid, {}).get("istf1server", False) else "tf2") in REGISTEREDTFTODISCORDCOMMANDS[command["originalmessage"][1:].split(" ")[0]]["games"] and command.get("type",False) in ["usermessagepfp","chat_message","command","tf1command"])
+    for key in filter(lambda x: x in command,["originalmessage","message"]):
+        if len(command[key].split(" ",1)) == 2:
+            command[key] = f"{command[key].split(" ",1)[0].lower()} {command[key].split(" ",1)[1]}"
+        else:
+            command[key] = f"{command[key].split(" ",1)[0].lower()}"
     if (
         not specificommand
         and command.get("originalmessage", False)
