@@ -21,13 +21,18 @@ discordlogcommand function discordlogplayerfinder(discordlogcommand commandin) {
                 otherPlayers.remove(remove)
                 recenthurts.append(GetClosest(otherPlayers,player.GetOrigin()).GetUID())
             float recent = Time() - 20
-            foreach ( history in player.e.recentDamageHistory )
+              entity thing2 = player
+    	entity soul = player.GetTitanSoul()
+	if ( IsValid( soul ) )
+        thing2 = soul
+            foreach ( history in thing2.e.recentDamageHistory )
             {
+                printt(history.time)
                 if ( history.time < recent )
                     break
 
-                if (IsValid(history.attacker) && history.attacker.IsPlayer() && IsAlive(history.attacker) )
-                    recenthurts.append(history.attacker.GetUID())
+                if ( history.attacker.IsPlayer() && IsAlive(history.attacker) )
+                     recenthurts.append(history.attacker.GetUID())
             }
             }
 
