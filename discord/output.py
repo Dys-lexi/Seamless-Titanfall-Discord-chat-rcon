@@ -12016,7 +12016,7 @@ def realonkilldata(data):
             )
             or (data.get("victim_type", False) == "npc_titan")
 
-            # or True
+            or True
         ):
             # print("this crill counted")
             consecutivekills[data["match_id"]][

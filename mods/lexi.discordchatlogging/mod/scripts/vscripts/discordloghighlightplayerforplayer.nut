@@ -56,6 +56,8 @@ void function discordloghighlightplayerforplayerinit(){
     // addnewuidpairtotablething("1012640166434","2509670718","actualwallhacks")
     // addnewuidpairtotablething("2509670718","1012640166434","actualwallhacks")
 }
+
+
 void function readdhighlightjustincasetitan(entity player,entity titan){
     table<string,array<highlightinfo> > highlightsthings
     foreach(key,value in highlights.uidshighlights){
