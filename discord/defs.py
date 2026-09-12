@@ -315,7 +315,8 @@ WEAPON_NAMES = {
     "mp_titanweapon_shoulder_rockets": "Multi Target Missiles",
     "mp_titanability_rearm": "Rearm",
     "mp_titanweapon_stun_laser": "Energy Siphon",
-    "mp_titancore_upgrade": "Upgrade Core"
+    "mp_titancore_upgrade": "Upgrade Core",
+    "mp_weapon_mega_turret":"Heavy Turret"
 }
 
 DISALLOWED_COLOURS = (
