@@ -349,6 +349,7 @@ void function discordloggerinit() {
 	AddCallback_OnClientConnected( LogConnect )
 	AddCallback_OnClientDisconnected( LogDC)
 	thread begintodiscord()
+	Onmapchange()
 	// AddCallback_GameStateEnter(eGameState.PickLoadout, Onmapchange);
     // AddCallback_GameStateEnter(eGameState.Prematch, Onmapchange);
 	if (! IsLobby()){
@@ -857,7 +858,9 @@ void function Onmapchange(){
 	if (serverdetails.hasmapchanged){
 		return
 	}
+	// printt("HEREQDqdwq")
 		if (check.denylogging != 1){
+	// printt("NOT HERE")
 	thread DiscordClientMessageinloop()}
 	serverdetails.hasmapchanged = true
 	outgoingmessage newmessage
