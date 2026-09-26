@@ -1972,7 +1972,7 @@ async def on_ready():
         # get all channels in the category and store in serverchannels
         guild = bot.get_guild(context["categoryinfo"]["activeguild"])
         category = guild.get_channel(context["categoryinfo"]["logging_cat_id"])
-        serverchannels = category.channels
+        # serverchannels = category.channels
     if not botisalreadyready:
         load_cogs()
         botisalreadyready = True
