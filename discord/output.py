@@ -12986,6 +12986,17 @@ def simplyfy(text):
     return "".join(list(map(lambda x: charmap.get(x, x).lower(), text)))
 
 
+def resolvehoursplayed(uid,istf1 = False):
+    tfdb = postgresem("./data/tf2helper.db")
+    c = tfdb
+    c.execute(f"SELECT timeofkill FROM specifickilltracker{"tf1" if istf1 else ""} WHERE victim_id = %s OR playeruid = %s ORDER BY timeofkill",(uid,uid))
+    # kills =
+    # print(kills)
+    return functools.reduce(lambda a,b:  (b, a[1] if b - a[0] > 300 else b - a[0] + a[1] ) ,  list(map(lambda x: x[0],c.fetchall())),(0,0))[1] # recent, accumulated
+    # print(playtime,"Meow")
+    # print(playtime // 3600, (playtime % 3600) // 60)
+
+# resolvehoursplayed(1012640166434)
 @functools.lru_cache(maxsize=None)
 def resolveplayeruidfromdb(
     name, uidnameforce=None, oneuidpermatch=False, istf1=False, **kwargs
@@ -15159,7 +15170,7 @@ def getstats(playeruid,isfromserver = False,istf1 = False):
         killsperhour = 0
     else:
         killsperhour = int((kph[1] / (kph[0] / 3600)) * 100) / 100
-        timeplayed = modifyvalue(kph[0], "time")
+        timeplayed = modifyvalue(resolvehoursplayed(playeruid,istf1), "time")
     currentgun = False
     # if request.method == "POST" and "current_weapon" in request.get_json():
     #     print("ASDASDASDASDASSDAS",request.get_json()["current_weapon"])
