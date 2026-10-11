@@ -11,7 +11,6 @@
     "PluginDependencies": [
         "BP_ORT"
     ],
-    
     "LoadPriority": 10, // should be higher than other mods that block messages
     "RequiredOnClient": false,
     "ConVars": [
@@ -63,25 +62,23 @@
             "Name": "discordlogshowaccuracyinsteadofassists",
             "DefaultValue": "0" // show accuracy in the specific pgs leaderboard, stars from 0
         },
-
-
-//   PGS_ELIMINATED 0
-// PGS_KILLS 1
-// PGS_DEATHS 2
-// PGS_PILOT_KILLS 3
-// PGS_TITAN_KILLS 4
-// PGS_NPC_KILLS 5
-// PGS_ASSISTS  6
-// PGS_SCORE 7
-// PGS_ASSAULT_SCORE 8
-// PGS_DEFENCE_SCORE 9 
-// PGS_DISTANCE_SCORE 10
-// PGS_DETONATION_SCORE 11
-// PGS_PING 12
-// PGS_TEAM 13
-// PGS_HEALTH 14
-// PGS_CONNECTED 15
-// PGS_ALIVE 16
+        //   PGS_ELIMINATED 0
+        // PGS_KILLS 1
+        // PGS_DEATHS 2
+        // PGS_PILOT_KILLS 3
+        // PGS_TITAN_KILLS 4
+        // PGS_NPC_KILLS 5
+        // PGS_ASSISTS  6
+        // PGS_SCORE 7
+        // PGS_ASSAULT_SCORE 8
+        // PGS_DEFENCE_SCORE 9 
+        // PGS_DISTANCE_SCORE 10
+        // PGS_DETONATION_SCORE 11
+        // PGS_PING 12
+        // PGS_TEAM 13
+        // PGS_HEALTH 14
+        // PGS_CONNECTED 15
+        // PGS_ALIVE 16
         {
             "Name": "discordlogshowaccuracyinplayertitle",
             "DefaultValue": "0" // show accuracy in the players title
@@ -106,15 +103,14 @@
             "Name": "discordlogenablekillandaccuracylogging",
             "DefaultValue": "1" // should log accuracy and kills?
         },
-          {
+        {
             "Name": "discordlogsystematicnoregsenabled",
             "DefaultValue": "1"
         },
-          {
+        {
             "Name": "discordlogshouldnotifyofnoregs",
             "DefaultValue": "1"
         }
-
     ],
     "Scripts": [
         {
@@ -180,7 +176,7 @@
         {
             "Path": "noreg.nut",
             "RunOn": "SERVER",
-                       "ServerCallback": {
+            "ServerCallback": {
                 "After": "discordlognoreg"
             }
         },
@@ -191,6 +187,13 @@
         {
             "Path": "getconvar.nut",
             "RunOn": "SERVER"
+        },
+        {
+            "Path": "cheater.nut",
+            "RunOn": "SERVER",
+            "ServerCallback": {
+                "After": "cheatsinit"
+            }
         },
         {
             "Path": "discordlogcompilestring.nut",

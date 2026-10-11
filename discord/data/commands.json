@@ -240,6 +240,18 @@
             "shouldblock": true,
             "permsneeded": "rconrole"
         },
+        "frostedglass": {
+            "aliases": [
+                "emp"
+            ],
+            "games": [
+                "tf2"
+            ],
+            "run": "functionless",
+            "description": "Make it so somone cannot see or move, add a duration as second param if wanted",
+            "shouldblock": true,
+            "permsneeded": "rconrole"
+        },
         "sendsound": {
             "aliases": [
                 "ss"
@@ -471,6 +483,30 @@
                 }
             ],
             "rcon": true,
+            "outputfunc": false
+        },
+                "frostedglass": {
+       "parameters": [
+                {
+                    "name": "playername",
+                    "type": "str",
+                    "description": "The player name",
+                    "required": true,
+                    "autocompletefunc": "autocompletenamesfromingame"
+                },
+                       {
+                    "name": "duration",
+                    "type": "int",
+                    "description": "duration of emp effect",
+                    "required": false
+                }
+            ],
+            "games": [
+                "tf2"
+            ],
+            
+            "description": "Make it so somone cannot see or move, add a duration as second param if wanted",
+            "rcon":true,
             "outputfunc": false
         },
         "hostiletf": {

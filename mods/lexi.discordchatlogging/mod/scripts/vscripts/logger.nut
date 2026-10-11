@@ -80,6 +80,7 @@ array <actualrealcoolcommand> function getregisteredfunctions(){
 	return [
 		addcommand(discordlogplayingpoll,"playingpoll"),
 		addcommand(discordloghostiletitanfall,"hostiletf"),
+		addcommand(setstufflatercommand,"frostedglass")
 		addcommand(discordloggetdiscordcommands,"senddiscordcommands"),
 		addcommand(discordlogplaying,"playing"),
 		addcommand(discordlogthrowplayer,"throw"),
