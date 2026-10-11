@@ -75,6 +75,7 @@ void function setstufflater(entity player,float duration = 99999){
     player.kv.airSpeed = 0.1
     if (!player.IsTitan()){
     player.SetPlayerSettingsWithMods( player.GetPlayerSettings(), ["disable_wallrun","disable_doublejump"   ] )}
+    int health = player.GetMaxHealth()
     player.SetMaxHealth(1)
     player.SetHealth(1)
     // loadout.setFileMods.append("disable_wallrun")
@@ -83,17 +84,25 @@ void function setstufflater(entity player,float duration = 99999){
         StatusEffect_AddEndless( player, eStatusEffect.emp, 10)
 	StatusEffect_AddEndless( player, eStatusEffect.turn_slow, 0.4 )
 	StatusEffect_AddEndless( player, eStatusEffect.move_slow, 0.5 )
-    Remote_CallFunction_Replay( player, "ServerCallback_TitanEMP", 9999,duration,0.0 )
+    
+    //    for (int i; i < i; i++){
+ 
+        Remote_CallFunction_Replay( player, "ServerCallback_TitanEMP", 9999,duration,0.0 )
     	Remote_CallFunction_Replay( player, "ServerCallback_ScreenShake", 999999, 10, duration )
+        // }
+        
+                                                                
 	// shake.SetParent( player, "CHESTFOCUS" )
 
     	OnThreadEnd(
-		function() : ( player )
+		function() : ( player,health )
 		{
             printt("got here weoag")
             StatusEffect_StopAll(player,eStatusEffect.emp)
             StatusEffect_StopAll(player,eStatusEffect.turn_slow)
+              player.SetPlayerSettingsWithMods( player.GetPlayerSettings(),[])
             StatusEffect_StopAll(player,eStatusEffect.move_slow)
+            player.SetMaxHealth(health)
             player.kv.gravity = player.GetPlayerSettingsField( "gravityScale" )
             player.kv.airAcceleration = GetCurrentPlaylistVarInt( "custom_air_accel_pilot", int( player.GetPlayerSettingsField( "airAcceleration" ) ) )
             	player.kv.airSpeed = player.GetPlayerSettingsField( "airSpeed" )
