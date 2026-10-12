@@ -681,9 +681,20 @@ def matchidtf1():
             serverid INTEGER,
             map TEXT,
             time INTEGER,
+            gamemode TEXT DEFAULT 'unknown',
             PRIMARY KEY (matchid, serverid)
             )"""
     )
+    if POSTGRESQLDBURL != "0":
+        c.execute(
+            "ALTER TABLE matchidtf1 ADD COLUMN IF NOT EXISTS gamemode TEXT DEFAULT 'unknown'"
+        )
+    else:
+        c.execute("PRAGMA table_info(matchidtf1)")
+        if "gamemode" not in {column[1] for column in c.fetchall()}:
+            c.execute(
+                "ALTER TABLE matchidtf1 ADD COLUMN gamemode TEXT DEFAULT 'unknown'"
+            )
     tfdb.commit()
     tfdb.close()
 # def tf1matchplayers():
@@ -800,9 +811,18 @@ def matchid():
             matchid TEXT PRIMARY KEY,
             map TEXT,
             time INTEGER,
-            serverid INTEGER
+            serverid INTEGER,
+            gamemode TEXT DEFAULT 'unknown'
             )"""
     )
+    if POSTGRESQLDBURL != "0":
+        c.execute(
+            "ALTER TABLE matchid ADD COLUMN IF NOT EXISTS gamemode TEXT DEFAULT 'unknown'"
+        )
+    else:
+        c.execute("PRAGMA table_info(matchid)")
+        if "gamemode" not in {column[1] for column in c.fetchall()}:
+            c.execute("ALTER TABLE matchid ADD COLUMN gamemode TEXT DEFAULT 'unknown'")
 
     tfdb.commit()
     tfdb.close()
