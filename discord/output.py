@@ -12532,7 +12532,13 @@ def filter_zero_width(s: str) -> str:
 def checkifbad(message):
     """Checks messages against profanity filter and banned word lists"""
     global context
-    if message["type"] not in FILTERNAMESINMESSAGES.split(",") or message.get("oserverid") in getpriority(context,["wordfilter","ignoredservers"]):
+    ignored_servers = getpriority(
+        context, ["wordfilter", "ignoredservers"], nofind=[]
+    ) or []
+    if (
+        message["type"] not in FILTERNAMESINMESSAGES.split(",")
+        or message.get("oserverid") in ignored_servers
+    ):
         return [0, 0]
     lowered =filter_zero_width( message["originalmessage"].lower())
     
