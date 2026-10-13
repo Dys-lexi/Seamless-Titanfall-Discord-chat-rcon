@@ -5443,6 +5443,7 @@ if DISCORDBOTLOGSTATS == "1":
         # print(json.dumps(searchforalts(player["uid"]),indent=4))
         fullalts = searchforalts(player["uid"],False,0,traversedepth)
         alts = fullalts["all"]
+        # print("weewqe",len(fullalts))
         # print(fullalts["depth"])
         embed = discord.Embed(
             title=f"*Alts* for uid {player['uid']} ({len(alts)} alt{'s' if len(alts) != 1 else ''} for '{player["name"]}')",
@@ -5453,7 +5454,7 @@ if DISCORDBOTLOGSTATS == "1":
             alt = resolveplayeruidfromdb(alt,"uid",False)
             # {min(list(map(lambda x: fullalts["counter"][x] ,fullalts["connectedby"][alt[0]["uid"]])))} Alts had this ip,
             print(fullalts["shared"][alt[0]["uid"]])
-            embed.add_field(name=f"{alt[0]["name"]} ({alt[0]["uid"]}):", value=f"\u200b {len(alt)} Aliases, {fullalts["depth"][alt[0]["uid"]]} Depth, ({", ".join(list(map(lambda x:resolveplayeruidfromdb(x,"uid",False)[0]["name"] ,filter(lambda x: x != alt[0]["uid"],fullalts["shared"][alt[0]["uid"]])))) or "0"}) Common accounts", inline=False)
+            embed.add_field(name=f"{alt[0]["name"]} ({alt[0]["uid"]}):", value=f"\u200b {len(alt)} Aliases, {fullalts["depth"][alt[0]["uid"]]} Depth, Common accounts: ({", ".join(list(map(lambda x:resolveplayeruidfromdb(x,"uid",False)[0]["name"] ,filter(lambda x: x != alt[0]["uid"],fullalts["shared"][alt[0]["uid"]]))))[:950].rsplit(",",0)[0] or "0"})", inline=False)
         if not alts:
             embed.add_field(name=f"No alts found", value=f"sorry", inline=False)
         await ctx.respond(embed=embed, ephemeral=False)
@@ -5462,8 +5463,10 @@ if DISCORDBOTLOGSTATS == "1":
     def searchforalts(uid,uidinfo = False, depth = 0,maxtraversedepth = 999):
         if not uidinfo: uidinfo = {"searched":[],"all":[],"searchedips":[],"connectedby":{},"counter":{},"shared":{},"depth":{uid:0}}
 
+        
+        if len(uidinfo["all"]) > 25:
+            return uidinfo
         uids_before = set(uidinfo["all"])
-
         tfdb = postgresem("./data/tf2helper.db")
         c = tfdb
         c.execute("SELECT ipinfo FROM uidnamelink WHERE playeruid = ? ORDER BY id DESC",(uid,))
