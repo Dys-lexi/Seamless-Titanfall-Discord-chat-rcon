@@ -5453,7 +5453,7 @@ if DISCORDBOTLOGSTATS == "1":
         for alt in list(filter(lambda x:  min(list(map(lambda x: fullalts["counter"][x] ,fullalts["connectedby"][x]))) <= threshold ,sorted(alts,key = lambda x: fullalts["depth"][x],reverse = False)))[0:25]:
             alt = resolveplayeruidfromdb(alt,"uid",False)
             # {min(list(map(lambda x: fullalts["counter"][x] ,fullalts["connectedby"][alt[0]["uid"]])))} Alts had this ip,
-            print(fullalts["shared"][alt[0]["uid"]])
+            # print(fullalts["shared"][alt[0]["uid"]])
             embed.add_field(name=f"{alt[0]["name"]} ({alt[0]["uid"]}):", value=f"\u200b {len(alt)} Aliases, {fullalts["depth"][alt[0]["uid"]]} Depth, Common accounts: ({", ".join(list(map(lambda x:resolveplayeruidfromdb(x,"uid",False)[0]["name"] ,filter(lambda x: x != alt[0]["uid"],fullalts["shared"][alt[0]["uid"]]))))[:950].rsplit(",",0)[0] or "0"})", inline=False)
         if not alts:
             embed.add_field(name=f"No alts found", value=f"sorry", inline=False)
@@ -7169,7 +7169,7 @@ def recieveflaskprintrequests():
                 "sanctiontype": "ban",
             }
         noreg = {}
-        if data["uid"] in context["noregdata"]["noreggers"] and (not context["noregdata"]["noreggers"][data["uid"]].get("expire") or context["noregdata"]["noreggers"][data["uid"]].get("expire") > now):
+        if getpriority(context,["noregdata","noreggers"]) and data["uid"] in context["noregdata"]["noreggers"] and (not context["noregdata"]["noreggers"][data["uid"]].get("expire") or context["noregdata"]["noreggers"][data["uid"]].get("expire") > now):
             noreg["noreg"] = str(context["noregdata"]["noreggers"][data["uid"]]["percent"])
         nameoverride = {}
         # print(resolveplayeruidfromdb(data["uid"],"uid",True))
@@ -9622,7 +9622,7 @@ def duelsomone(message,serverid,isfromserver):
         return
     # print(potentialduels)
     if list(duelymatches.keys())[0] not in getpriority(potentialduels,[list(duelymatches.values())[0]["matchid"],(str(getpriority(message, "uid", ["meta", "uid"])))],nofind = []):
-        command = registernewaccept(list(duelymatches.keys())[0],list(duelymatches.values())[0]["matchid"],{"matchid":list(duelymatches.values())[0]["matchid"],"inituid":str(getpriority(message, "uid", ["meta", "uid"])),"otheruid":list(duelymatches.keys())[0],"serverid":serverid},startaduel)
+        command = registernewaccept(list(duelymatches.keys())[0],list(duelymatches.values())[0]["matchid"],{"matchid":list(duelymatches.values())[0]["matchid"],"inituid":str(getpriority(message, "uid", ["meta", "uid"])),"otheruid":list(duelymatches.keys())[0],"serverid":serverid,"highstakes": command[0] == "bigduel"},startaduel)
         discordtotitanfall[serverid]["messages"].append(
         {
             "content": f"{PREFIXES['discord']}Requesting a duel with {PREFIXES["stat"]}{list(duelymatches.values())[0]["name"]}{PREFIXES["chatcolour"]}, tell them to type '{PREFIXES["commandname"]}{command}{PREFIXES["chatcolour"]}' to accept!",
