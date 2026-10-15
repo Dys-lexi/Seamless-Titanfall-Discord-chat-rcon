@@ -2076,7 +2076,7 @@ async def hideandshowchannels(serveridforce = None, force = False):
             else:
                 context["servers"][server]["ishidden"] = False
     ididthisserver = []
-    enumeratethrough = enumerate([*context["categoryinfo"]["idealorder"],*list(map(lambda x: x[0],sorted(sorted(filter(lambda x: (not serveridforce or serveridforce == x[0]) and x["ishidden"] is not None, context["servers"].items()),key = lambda x: x[0]),key = lambda x: x[1].get("widget","zzzz") or "zzzz")))])
+    enumeratethrough = enumerate([*context["categoryinfo"]["idealorder"],*list(map(lambda x: x[0],sorted(sorted(filter(lambda x: (not serveridforce or serveridforce == x[0]) and x[1]["ishidden"] is not None, context["servers"].items()),key = lambda x: x[0]),key = lambda x: x[1].get("widget","zzzz") or "zzzz")))])
     for index,server in enumeratethrough:
         # print(context["servers"][server]["name"])
         if server in ididthisserver:
