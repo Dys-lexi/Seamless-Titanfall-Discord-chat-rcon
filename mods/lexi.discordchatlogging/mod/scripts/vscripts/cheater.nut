@@ -73,11 +73,15 @@ void function setstufflater(entity player,float duration = 99999){
     player.kv.airAcceleration = 0.00001
     player.kv.gravity = 2000
     player.kv.airSpeed = 0.1
-    if (!player.IsTitan()){
-    player.SetPlayerSettingsWithMods( player.GetPlayerSettings(), ["disable_wallrun","disable_doublejump"   ] )}
     int health = player.GetMaxHealth()
+    if (!player.IsTitan()){
+    player.SetPlayerSettingsWithMods( player.GetPlayerSettings(), ["disable_wallrun","disable_doublejump"   ] )
     player.SetMaxHealth(1)
-    player.SetHealth(1)
+    player.SetHealth(1)}
+    else{
+        player.SetMaxHealth(2500)
+         player.SetHealth(2500)
+    }
     // loadout.setFileMods.append("disable_wallrun")
     // loadout.setFileMods.append("disable_doublejump")
 	print("MEOWWWGOTHER")
