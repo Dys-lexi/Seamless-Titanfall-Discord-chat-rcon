@@ -11166,14 +11166,13 @@ def rerollaprilfools(message, serverid, isfromserver):
     discordtotitanfall[serverid]["messages"].append(
         {
             # "id": str(i) + str(int(time.time()*100)),
-            "content": f"{PREFIXES['discord']}Trying to reroll your name",
+            "content": f"{PREFIXES['discord']}Rerolled your name to {PREFIXES["commandname"]}{aprilfoolsplayer(message,serverid,isfromserver)}",
             # "teamoverride": 4,
             # "isteammessage": False,
             "uidoverride": [getpriority(message, "uid", ["meta", "uid"])],
             # "dotreacted": dotreacted
         }
     )
-    aprilfoolsplayer(message,serverid,isfromserver)
 def aprilfoolsplayer(message, serverid, isfromserver):
     
 
@@ -11200,6 +11199,7 @@ def aprilfoolsplayer(message, serverid, isfromserver):
         ),
         bot.loop,
     )
+    return name
 
 
 def changename(message, serverid, isfromserver):
